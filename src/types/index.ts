@@ -20,4 +20,5 @@ export type {
   GraphNode,
   GraphEdge,
   PlanGraph,
+  DagNodeData,
 } from "./graph-types.ts";
