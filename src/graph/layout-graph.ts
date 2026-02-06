@@ -1,40 +1,47 @@
 import type { Edge, Node } from "@xyflow/react";
+import ELK from "elkjs/lib/elk.bundled.js";
 import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
-import dagre from "../vendor/dagre.js";
 
 const NODE_WIDTH = 200;
 const NODE_HEIGHT_JOB = 60;
 const NODE_HEIGHT_TASK = 50;
 
+const elk = new ELK();
+
 const getNodeHeight = (node: GraphNode): number =>
   node.nodeKind === "job" ? NODE_HEIGHT_JOB : NODE_HEIGHT_TASK;
 
-/** Compute dagre layout positions for all nodes. */
-const computeLayout = (
+/** Compute elk layout positions for all nodes. */
+const computeLayout = async (
   graph: PlanGraph,
-): ReadonlyMap<string, { readonly x: number; readonly y: number }> => {
-  const dagreGraph = new dagre.graphlib.Graph();
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: "TB", nodesep: 50, ranksep: 70 });
-
-  for (const node of graph.nodes) {
-    dagreGraph.setNode(node.id, {
+): Promise<ReadonlyMap<string, { readonly x: number; readonly y: number }>> => {
+  const elkGraph = {
+    id: "root",
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.direction": "DOWN",
+      "elk.spacing.nodeNode": "50",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "70",
+    },
+    children: graph.nodes.map((node) => ({
+      id: node.id,
       width: NODE_WIDTH,
       height: getNodeHeight(node),
-    });
-  }
-  for (const edge of graph.edges) {
-    dagreGraph.setEdge(edge.source, edge.target);
-  }
+    })),
+    edges: graph.edges.map((edge) => ({
+      id: edge.id,
+      sources: [edge.source],
+      targets: [edge.target],
+    })),
+  };
 
-  dagre.layout(dagreGraph);
+  const layoutResult = await elk.layout(elkGraph);
 
   const positions = new Map<string, { readonly x: number; readonly y: number }>();
-  for (const node of graph.nodes) {
-    const dagreNode = dagreGraph.node(node.id);
-    positions.set(node.id, {
-      x: dagreNode.x - NODE_WIDTH / 2,
-      y: dagreNode.y - getNodeHeight(node) / 2,
+  for (const child of layoutResult.children ?? []) {
+    positions.set(child.id, {
+      x: child.x ?? 0,
+      y: child.y ?? 0,
     });
   }
   return positions;
@@ -58,15 +65,15 @@ const toReactFlowNode = (
   },
 });
 
-/** Convert a PlanGraph to React Flow nodes and edges with dagre layout. */
-export const toReactFlowElements = (
+/** Convert a PlanGraph to React Flow nodes and edges with elk layout. */
+export const toReactFlowElements = async (
   graph: PlanGraph,
-): { readonly nodes: readonly Node[]; readonly edges: readonly Edge[] } => {
+): Promise<{ readonly nodes: readonly Node[]; readonly edges: readonly Edge[] }> => {
   if (graph.nodes.length === 0) {
     return { nodes: [], edges: [] };
   }
 
-  const positions = computeLayout(graph);
+  const positions = await computeLayout(graph);
 
   const nodes = graph.nodes.map((node) =>
     toReactFlowNode(node, positions.get(node.id) ?? { x: 0, y: 0 }),

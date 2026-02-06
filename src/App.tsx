@@ -20,14 +20,17 @@ const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
   style: { stroke: "#71717a" },
 };
 
+const EMPTY_NODES: readonly never[] = [];
+const EMPTY_EDGES: readonly never[] = [];
+
 export function App() {
-  const { nodes, edges } = usePlanGraph(DEV_PLAN);
+  const layout = usePlanGraph(DEV_PLAN);
 
   return (
     <div className="h-screen w-screen bg-zinc-950">
       <ReactFlow
-        nodes={[...nodes]}
-        edges={[...edges]}
+        nodes={[...(layout?.nodes ?? EMPTY_NODES)]}
+        edges={[...(layout?.edges ?? EMPTY_EDGES)]}
         nodeTypes={NODE_TYPES}
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         nodesConnectable={false}
