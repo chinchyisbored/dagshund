@@ -12,6 +12,7 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^2.0.3",
     "@xyflow/react": "^12.10.0",
     "react": "^19",
     "react-dom": "^19",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.18",
     "@types/bun": "latest",
+    "@types/dagre": "^0.7.53",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4.1.18"

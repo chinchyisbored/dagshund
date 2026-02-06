@@ -1,0 +1,272 @@
+{
+  "plan_version": 2,
+  "cli_version": "0.287.0",
+  "lineage": "ceaa767d-0fa0-47ac-8680-2bb6ec48866b",
+  "serial": 1,
+  "plan": {
+    "resources.jobs.etl_pipeline": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "etl_pipeline",
+          "queue": {
+            "enabled": true
+          },
+          "tasks": [
+            {
+              "depends_on": [
+                {
+                  "task_key": "load"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/aggregate"
+              },
+              "task_key": "aggregate"
+            },
+            {
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/extract"
+              },
+              "task_key": "extract"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "transform"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/load"
+              },
+              "task_key": "load"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "extract"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/transform_v2"
+              },
+              "task_key": "transform"
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "created_time": 1770407353832,
+        "creator_user_name": "databricks.squiggly592@passfwd.com",
+        "job_id": 1117023947429700,
+        "run_as_user_name": "databricks.squiggly592@passfwd.com",
+        "settings": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "email_notifications": {},
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "etl_pipeline",
+          "queue": {
+            "enabled": true
+          },
+          "tasks": [
+            {
+              "email_notifications": {},
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/extract",
+                "source": "WORKSPACE"
+              },
+              "run_if": "ALL_SUCCESS",
+              "task_key": "extract",
+              "timeout_seconds": 0
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "transform"
+                }
+              ],
+              "email_notifications": {},
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/load",
+                "source": "WORKSPACE"
+              },
+              "run_if": "ALL_SUCCESS",
+              "task_key": "load",
+              "timeout_seconds": 0
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "extract"
+                }
+              ],
+              "email_notifications": {},
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/transform",
+                "source": "WORKSPACE"
+              },
+              "run_if": "ALL_SUCCESS",
+              "task_key": "transform",
+              "timeout_seconds": 0
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "load"
+                }
+              ],
+              "email_notifications": {},
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/validate",
+                "source": "WORKSPACE"
+              },
+              "run_if": "ALL_SUCCESS",
+              "task_key": "validate",
+              "timeout_seconds": 0
+            }
+          ],
+          "timeout_seconds": 0,
+          "webhook_notifications": {}
+        }
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty_struct",
+          "remote": {}
+        },
+        "tasks[task_key='aggregate']": {
+          "action": "update",
+          "new": {
+            "depends_on": [
+              {
+                "task_key": "load"
+              }
+            ],
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/aggregate"
+            },
+            "task_key": "aggregate"
+          }
+        },
+        "tasks[task_key='extract'].email_notifications": {
+          "action": "skip",
+          "reason": "empty_struct",
+          "remote": {}
+        },
+        "tasks[task_key='extract'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='extract'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='extract'].timeout_seconds": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": 0
+        },
+        "tasks[task_key='load'].email_notifications": {
+          "action": "skip",
+          "reason": "empty_struct",
+          "remote": {}
+        },
+        "tasks[task_key='load'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='load'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='load'].timeout_seconds": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": 0
+        },
+        "tasks[task_key='transform'].email_notifications": {
+          "action": "skip",
+          "reason": "empty_struct",
+          "remote": {}
+        },
+        "tasks[task_key='transform'].notebook_task.notebook_path": {
+          "action": "update",
+          "old": "/Workspace/etl/transform",
+          "new": "/Workspace/etl/transform_v2",
+          "remote": "/Workspace/etl/transform"
+        },
+        "tasks[task_key='transform'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='transform'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='transform'].timeout_seconds": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": 0
+        },
+        "tasks[task_key='validate']": {
+          "action": "update",
+          "old": {
+            "depends_on": [
+              {
+                "task_key": "load"
+              }
+            ],
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/validate"
+            },
+            "task_key": "validate"
+          },
+          "remote": {
+            "depends_on": [
+              {
+                "task_key": "load"
+              }
+            ],
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/validate",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate",
+            "timeout_seconds": 0
+          }
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty_struct",
+          "remote": {}
+        }
+      }
+    }
+  }
+}

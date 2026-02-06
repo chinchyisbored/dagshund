@@ -15,3 +15,9 @@ export type {
   PlanEntry,
   Plan,
 } from "./plan-schema.ts";
+export type {
+  NodeKind,
+  GraphNode,
+  GraphEdge,
+  PlanGraph,
+} from "./graph-types.ts";
