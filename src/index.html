@@ -7,6 +7,15 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Suppress React Flow's benign ResizeObserver "loop completed" warning.
+      // Must run before the dev server's error overlay registers its handler.
+      window.addEventListener("error", function (e) {
+        if (e.message && e.message.startsWith("ResizeObserver loop")) {
+          e.stopImmediatePropagation();
+        }
+      });
+    </script>
     <script type="module" src="./frontend.tsx"></script>
   </body>
 </html>

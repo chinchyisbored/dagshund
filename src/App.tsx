@@ -2,11 +2,13 @@ import {
   Background,
   Controls,
   type DefaultEdgeOptions,
+  type Edge,
   MiniMap,
+  type Node,
   type NodeMouseHandler,
   ReactFlow,
 } from "@xyflow/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
@@ -28,9 +30,23 @@ const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
 const EMPTY_NODES: readonly never[] = [];
 const EMPTY_EDGES: readonly never[] = [];
 
+/** Returns the hovered node ID plus all node IDs sharing an edge with it. */
+const buildConnectedNodeIds = (
+  edges: readonly Edge[],
+  hoveredNodeId: string,
+): ReadonlySet<string> => {
+  const connected = new Set<string>([hoveredNodeId]);
+  for (const edge of edges) {
+    if (edge.source === hoveredNodeId) connected.add(edge.target);
+    if (edge.target === hoveredNodeId) connected.add(edge.source);
+  }
+  return connected;
+};
+
 function DagView({ plan }: { readonly plan: Plan }) {
   const layout = usePlanGraph(plan);
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const handleNodeClick: NodeMouseHandler = (_, node) => {
     setSelectedNode(node.data as DagNodeData);
@@ -40,16 +56,52 @@ function DagView({ plan }: { readonly plan: Plan }) {
     setSelectedNode(null);
   };
 
+  const handleNodeMouseEnter: NodeMouseHandler = (_, node) => {
+    setHoveredNodeId(node.id);
+  };
+
+  const handleNodeMouseLeave: NodeMouseHandler = () => {
+    setHoveredNodeId(null);
+  };
+
+  const baseNodes = layout?.nodes ?? EMPTY_NODES;
+  const baseEdges = layout?.edges ?? EMPTY_EDGES;
+
+  const connectedIds = useMemo(
+    () => (hoveredNodeId !== null ? buildConnectedNodeIds(baseEdges, hoveredNodeId) : null),
+    [baseEdges, hoveredNodeId],
+  );
+
+  const styledNodes = useMemo((): readonly Node[] => {
+    if (connectedIds === null) return [...baseNodes];
+    return baseNodes.map((node) =>
+      connectedIds.has(node.id) ? node : { ...node, style: { ...node.style, opacity: 0.3 } },
+    );
+  }, [baseNodes, connectedIds]);
+
+  const styledEdges = useMemo((): readonly Edge[] => {
+    if (connectedIds === null) return [...baseEdges];
+    return baseEdges.map((edge) => {
+      const isConnected =
+        edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+      return isConnected
+        ? { ...edge, style: { stroke: "#ffffff", strokeWidth: 2.5 } }
+        : { ...edge, style: { stroke: "#71717a", strokeWidth: 2, opacity: 0.15 } };
+    });
+  }, [baseEdges, connectedIds, hoveredNodeId]);
+
   return (
     <div className="flex h-full">
       <ReactFlow
         className="flex-1"
-        nodes={[...(layout?.nodes ?? EMPTY_NODES)]}
-        edges={[...(layout?.edges ?? EMPTY_EDGES)]}
+        nodes={styledNodes as Node[]}
+        edges={styledEdges as Edge[]}
         nodeTypes={NODE_TYPES}
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         nodesConnectable={false}
         onNodeClick={handleNodeClick}
+        onNodeMouseEnter={handleNodeMouseEnter}
+        onNodeMouseLeave={handleNodeMouseLeave}
         fitView
       >
         <Background />
