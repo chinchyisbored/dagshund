@@ -11,9 +11,9 @@ export function TaskNode({ data }: NodeProps<TaskNodeType>) {
     <div
       className={`rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.background} ${styles.text} ${styles.opacity}`}
     >
-      <Handle type="target" position={Position.Top} className="!bg-zinc-500" />
+      <Handle type="target" position={Position.Left} className="!bg-zinc-500" />
       <span>{data.label}</span>
-      <Handle type="source" position={Position.Bottom} className="!bg-zinc-500" />
+      <Handle type="source" position={Position.Right} className="!bg-zinc-500" />
     </div>
   );
 }

@@ -3,58 +3,142 @@ import ELK from "elkjs/lib/elk.bundled.js";
 import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
 
 const NODE_WIDTH = 200;
-const NODE_HEIGHT_JOB = 60;
 const NODE_HEIGHT_TASK = 50;
 
-const elk = new ELK();
+const JOB_PADDING_TOP = 40;
+const JOB_PADDING_SIDE = 20;
+const JOB_PADDING_BOTTOM = 20;
 
-const getNodeHeight = (node: GraphNode): number =>
-  node.nodeKind === "job" ? NODE_HEIGHT_JOB : NODE_HEIGHT_TASK;
-
-/** Compute elk layout positions for all nodes. */
-const computeLayout = async (
-  graph: PlanGraph,
-): Promise<ReadonlyMap<string, { readonly x: number; readonly y: number }>> => {
-  const elkGraph = {
-    id: "root",
-    layoutOptions: {
-      "elk.algorithm": "layered",
-      "elk.direction": "DOWN",
-      "elk.spacing.nodeNode": "50",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "70",
-    },
-    children: graph.nodes.map((node) => ({
-      id: node.id,
-      width: NODE_WIDTH,
-      height: getNodeHeight(node),
-    })),
-    edges: graph.edges.map((edge) => ({
-      id: edge.id,
-      sources: [edge.source],
-      targets: [edge.target],
-    })),
-  };
-
-  const layoutResult = await elk.layout(elkGraph);
-
-  const positions = new Map<string, { readonly x: number; readonly y: number }>();
-  for (const child of layoutResult.children ?? []) {
-    positions.set(child.id, {
-      x: child.x ?? 0,
-      y: child.y ?? 0,
-    });
+/** Lazily instantiate ELK to avoid Worker creation at import time (breaks Bun test runner). */
+let elkInstance: InstanceType<typeof ELK> | undefined;
+const getElk = (): InstanceType<typeof ELK> => {
+  if (!elkInstance) {
+    elkInstance = new ELK();
   }
-  return positions;
+  return elkInstance;
 };
 
-/** Convert a GraphNode to a React Flow Node with position. */
-const toReactFlowNode = (
+export type JobGroup = {
+  readonly job: GraphNode;
+  readonly tasks: readonly GraphNode[];
+};
+
+/** Group graph nodes by job, pairing each job with its child tasks. */
+export const groupNodesByJob = (nodes: readonly GraphNode[]): readonly JobGroup[] => {
+  const jobMap = new Map<string, { job: GraphNode; tasks: GraphNode[] }>();
+
+  for (const node of nodes) {
+    if (node.nodeKind === "job") {
+      const existing = jobMap.get(node.resourceKey);
+      if (existing) {
+        existing.job = node;
+      } else {
+        jobMap.set(node.resourceKey, { job: node, tasks: [] });
+      }
+    }
+  }
+
+  for (const node of nodes) {
+    if (node.nodeKind === "task") {
+      const group = jobMap.get(node.resourceKey);
+      if (group) {
+        group.tasks.push(node);
+      }
+    }
+  }
+
+  return [...jobMap.values()];
+};
+
+/** Build an ELK compound graph with jobs as parents and tasks as children. */
+export const buildElkCompoundGraph = (graph: PlanGraph) => ({
+  id: "root",
+  layoutOptions: {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.spacing.nodeNode": "60",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "80",
+  },
+  children: groupNodesByJob(graph.nodes).map((group) => ({
+    id: group.job.id,
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.direction": "RIGHT",
+      "elk.hierarchyHandling": "SEPARATE_CHILDREN",
+      "elk.spacing.nodeNode": "30",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "50",
+      "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
+    },
+    children: group.tasks.map((task) => ({
+      id: task.id,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT_TASK,
+    })),
+    edges: graph.edges
+      .filter(
+        (edge) =>
+          group.tasks.some((t) => t.id === edge.source) &&
+          group.tasks.some((t) => t.id === edge.target),
+      )
+      .map((edge) => ({
+        id: edge.id,
+        sources: [edge.source],
+        targets: [edge.target],
+      })),
+  })),
+  edges: [],
+});
+
+type ElkLayoutResult = {
+  readonly children?: ReadonlyArray<{
+    readonly id: string;
+    readonly x?: number;
+    readonly y?: number;
+    readonly width?: number;
+    readonly height?: number;
+    readonly children?: ReadonlyArray<{
+      readonly id: string;
+      readonly x?: number;
+      readonly y?: number;
+    }>;
+  }>;
+};
+
+/** Extract layout positions and job dimensions from ELK result. */
+export const extractLayoutData = (
+  elkResult: ElkLayoutResult,
+): {
+  readonly positions: ReadonlyMap<string, { readonly x: number; readonly y: number }>;
+  readonly dimensions: ReadonlyMap<string, { readonly width: number; readonly height: number }>;
+} => {
+  const positions = new Map<string, { readonly x: number; readonly y: number }>();
+  const dimensions = new Map<string, { readonly width: number; readonly height: number }>();
+
+  for (const jobElk of elkResult.children ?? []) {
+    positions.set(jobElk.id, { x: jobElk.x ?? 0, y: jobElk.y ?? 0 });
+    dimensions.set(jobElk.id, {
+      width: jobElk.width ?? 0,
+      height: jobElk.height ?? 0,
+    });
+
+    for (const taskElk of jobElk.children ?? []) {
+      positions.set(taskElk.id, { x: taskElk.x ?? 0, y: taskElk.y ?? 0 });
+    }
+  }
+
+  return { positions, dimensions };
+};
+
+/** Convert a job GraphNode to a React Flow container node. */
+export const toJobFlowNode = (
   node: GraphNode,
   position: { readonly x: number; readonly y: number },
+  dimension: { readonly width: number; readonly height: number },
 ): Node => ({
   id: node.id,
   type: node.nodeKind,
   position: { x: position.x, y: position.y },
+  style: { width: dimension.width, height: dimension.height },
   data: {
     label: node.label,
     diffState: node.diffState,
@@ -65,7 +149,56 @@ const toReactFlowNode = (
   },
 });
 
-/** Convert a PlanGraph to React Flow nodes and edges with elk layout. */
+/** Convert a task GraphNode to a React Flow child node inside its job. */
+export const toTaskFlowNode = (
+  node: GraphNode,
+  position: { readonly x: number; readonly y: number },
+): Node => ({
+  id: node.id,
+  type: node.nodeKind,
+  position: { x: position.x, y: position.y },
+  parentId: node.resourceKey,
+  extent: "parent" as const,
+  data: {
+    label: node.label,
+    diffState: node.diffState,
+    nodeKind: node.nodeKind,
+    resourceKey: node.resourceKey,
+    taskKey: node.taskKey,
+    changes: node.changes,
+  },
+});
+
+/** Assemble React Flow nodes from layout data, with jobs before their children. */
+export const assembleFlowNodes = (
+  groups: readonly JobGroup[],
+  positions: ReadonlyMap<string, { readonly x: number; readonly y: number }>,
+  dimensions: ReadonlyMap<string, { readonly width: number; readonly height: number }>,
+): readonly Node[] => {
+  const nodes: Node[] = [];
+  for (const group of groups) {
+    const jobPosition = positions.get(group.job.id) ?? { x: 0, y: 0 };
+    const jobDimension = dimensions.get(group.job.id) ?? { width: 0, height: 0 };
+    nodes.push(toJobFlowNode(group.job, jobPosition, jobDimension));
+
+    for (const task of group.tasks) {
+      const taskPosition = positions.get(task.id) ?? { x: 0, y: 0 };
+      nodes.push(toTaskFlowNode(task, taskPosition));
+    }
+  }
+  return nodes;
+};
+
+/** Convert graph edges to React Flow edges. */
+export const toFlowEdges = (edges: PlanGraph["edges"]): readonly Edge[] =>
+  edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    label: edge.label,
+  }));
+
+/** Convert a PlanGraph to React Flow nodes and edges with ELK compound layout. */
 export const toReactFlowElements = async (
   graph: PlanGraph,
 ): Promise<{ readonly nodes: readonly Node[]; readonly edges: readonly Edge[] }> => {
@@ -73,18 +206,13 @@ export const toReactFlowElements = async (
     return { nodes: [], edges: [] };
   }
 
-  const positions = await computeLayout(graph);
+  const elkGraph = buildElkCompoundGraph(graph);
+  const elkResult = await getElk().layout(elkGraph);
+  const { positions, dimensions } = extractLayoutData(elkResult);
+  const groups = groupNodesByJob(graph.nodes);
 
-  const nodes = graph.nodes.map((node) =>
-    toReactFlowNode(node, positions.get(node.id) ?? { x: 0, y: 0 }),
-  );
-
-  const edges: readonly Edge[] = graph.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    label: edge.label,
-  }));
-
-  return { nodes, edges };
+  return {
+    nodes: assembleFlowNodes(groups, positions, dimensions),
+    edges: toFlowEdges(graph.edges),
+  };
 };
