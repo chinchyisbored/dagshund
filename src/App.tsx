@@ -1,11 +1,21 @@
-import { Background, Controls, type DefaultEdgeOptions, MiniMap, ReactFlow } from "@xyflow/react";
+import {
+  Background,
+  Controls,
+  type DefaultEdgeOptions,
+  MiniMap,
+  type NodeMouseHandler,
+  ReactFlow,
+} from "@xyflow/react";
+import { useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
+import { DetailPanel } from "./components/detail-panel.tsx";
 import { JobNode } from "./components/job-node.tsx";
 import { TaskNode } from "./components/task-node.tsx";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
+import type { DagNodeData } from "./types/graph-types.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
 const NODE_TYPES = { job: JobNode, task: TaskNode };
@@ -20,20 +30,34 @@ const EMPTY_EDGES: readonly never[] = [];
 
 function DagView({ plan }: { readonly plan: Plan }) {
   const layout = usePlanGraph(plan);
+  const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
+
+  const handleNodeClick: NodeMouseHandler = (_, node) => {
+    setSelectedNode(node.data as DagNodeData);
+  };
+
+  const handleClosePanel = () => {
+    setSelectedNode(null);
+  };
 
   return (
-    <ReactFlow
-      nodes={[...(layout?.nodes ?? EMPTY_NODES)]}
-      edges={[...(layout?.edges ?? EMPTY_EDGES)]}
-      nodeTypes={NODE_TYPES}
-      defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-      nodesConnectable={false}
-      fitView
-    >
-      <Background />
-      <Controls />
-      <MiniMap style={{ backgroundColor: "#18181b" }} />
-    </ReactFlow>
+    <div className="flex h-full">
+      <ReactFlow
+        className="flex-1"
+        nodes={[...(layout?.nodes ?? EMPTY_NODES)]}
+        edges={[...(layout?.edges ?? EMPTY_EDGES)]}
+        nodeTypes={NODE_TYPES}
+        defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+        nodesConnectable={false}
+        onNodeClick={handleNodeClick}
+        fitView
+      >
+        <Background />
+        <Controls />
+        <MiniMap style={{ backgroundColor: "#18181b" }} />
+      </ReactFlow>
+      {selectedNode !== null && <DetailPanel data={selectedNode} onClose={handleClosePanel} />}
+    </div>
   );
 }
 
