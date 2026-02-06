@@ -6,15 +6,26 @@ An interactive web-based visualizer for `databricks bundle plan -o json` output 
 Shows job task DAGs with diff highlighting: green for new resources, red with reduced opacity for deletions,
 and neutral for unchanged. Users can click on nodes to inspect the detailed changes for each resource.
 
-The tool runs locally (`vite dev`) and accepts plan JSON either via file upload or stdin pipe.
+The tool runs locally (`bun run dev`) and accepts plan JSON either via file upload or stdin pipe.
 
 ## Stack
 
 - TypeScript (strict mode)
-- React 19 + Vite
+- React 19 + Bun
 - React Flow (@xyflow/react) for interactive DAG rendering
 - Tailwind CSS for styling
 - Zod for runtime validation of plan JSON input
+
+## Development Commands
+
+```bash
+bun install        # Install dependencies
+bun run dev        # Start dev server with hot reload (http://localhost:3000)
+bun run lint       # Check code with Biome (bun run lint:fix to auto-fix)
+bun run test       # Run tests (bun run test:watch for watch mode)
+bunx tsc --noEmit  # Type-check without emitting
+bun run build      # Production build to dist/
+```
 
 ## Coding Philosophy — Read This First
 

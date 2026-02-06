@@ -1,18 +1,12 @@
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  type DefaultEdgeOptions,
-} from "@xyflow/react";
+import { Background, Controls, type DefaultEdgeOptions, MiniMap, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
 import mixedPlanFixture from "../tests/fixtures/mixed-plan.json";
-import { parsePlanJson } from "./parser/parse-plan.ts";
-import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { JobNode } from "./components/job-node.tsx";
 import { TaskNode } from "./components/task-node.tsx";
+import { usePlanGraph } from "./hooks/use-plan-graph.ts";
+import { parsePlanJson } from "./parser/parse-plan.ts";
 
 const parsedResult = parsePlanJson(mixedPlanFixture);
 if (!parsedResult.ok) {

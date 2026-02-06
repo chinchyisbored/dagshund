@@ -1,5 +1,5 @@
-import { type Result, ok, err } from "../types/result.ts";
 import { type Plan, planSchema } from "../types/plan-schema.ts";
+import { err, ok, type Result } from "../types/result.ts";
 
 export const parsePlanJson = (input: unknown): Result<Plan, string> => {
   const result = planSchema.safeParse(input);

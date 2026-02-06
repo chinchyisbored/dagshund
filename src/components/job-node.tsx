@@ -1,4 +1,4 @@
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
+import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
 

@@ -106,7 +106,13 @@ When all 3 passes are clean:
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
+2. **Run quality gates** (if code changed):
+   ```bash
+   bun run lint       # Biome lint check
+   bun run test       # Run tests
+   bunx tsc --noEmit  # Type-check
+   bun run build      # Verify production build
+   ```
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash

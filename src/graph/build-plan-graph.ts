@@ -1,6 +1,6 @@
-import type { Plan, PlanEntry, ChangeDesc } from "../types/plan-schema.ts";
-import type { GraphNode, GraphEdge, PlanGraph } from "../types/graph-types.ts";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import type { GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
+import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractTaskEntries, type TaskEntry } from "./extract-tasks.ts";
 import { resolveTaskDiffState } from "./resolve-task-diff-state.ts";
 
@@ -9,10 +9,7 @@ const buildTaskNodeId = (resourceKey: string, taskKey: string): string =>
   `${resourceKey}::${taskKey}`;
 
 /** Create a job-level graph node for a plan entry. */
-const buildJobNode = (
-  resourceKey: string,
-  entry: PlanEntry,
-): GraphNode => ({
+const buildJobNode = (resourceKey: string, entry: PlanEntry): GraphNode => ({
   id: resourceKey,
   label: resourceKey,
   nodeKind: "job",
@@ -27,9 +24,7 @@ const filterJobLevelChanges = (
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
 ): Readonly<Record<string, ChangeDesc>> | undefined => {
   if (changes === undefined) return undefined;
-  const entries = Object.entries(changes).filter(
-    ([key]) => !key.startsWith("tasks["),
-  );
+  const entries = Object.entries(changes).filter(([key]) => !key.startsWith("tasks["));
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
@@ -56,17 +51,12 @@ const filterTaskChanges = (
 ): Readonly<Record<string, ChangeDesc>> | undefined => {
   if (changes === undefined) return undefined;
   const prefix = `tasks[task_key='${taskKey}']`;
-  const entries = Object.entries(changes).filter(([key]) =>
-    key.startsWith(prefix),
-  );
+  const entries = Object.entries(changes).filter(([key]) => key.startsWith(prefix));
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
 /** Create edges between task nodes based on depends_on relationships. */
-const buildTaskEdges = (
-  resourceKey: string,
-  tasks: readonly TaskEntry[],
-): readonly GraphEdge[] =>
+const buildTaskEdges = (resourceKey: string, tasks: readonly TaskEntry[]): readonly GraphEdge[] =>
   tasks.flatMap((task) =>
     (task.depends_on ?? []).map((dep) => ({
       id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, task.task_key)}`,

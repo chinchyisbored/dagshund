@@ -27,9 +27,7 @@ const newStateSchema = z
 export type TaskEntry = z.infer<typeof taskEntrySchema>;
 
 /** Safely extract task entries from a PlanEntry's untyped new_state. */
-export const extractTaskEntries = (
-  newState: unknown,
-): readonly TaskEntry[] => {
+export const extractTaskEntries = (newState: unknown): readonly TaskEntry[] => {
   const parsed = newStateSchema.safeParse(newState);
   if (!parsed.success) {
     return [];

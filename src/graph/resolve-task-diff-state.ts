@@ -1,6 +1,6 @@
-import type { ChangeDesc, ActionType } from "../types/plan-schema.ts";
-import type { DiffState } from "../types/diff-state.ts";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import type { DiffState } from "../types/diff-state.ts";
+import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
 
 /** Collect all change entries whose key starts with tasks[task_key='<taskKey>']. */
 const collectChangesForTask = (

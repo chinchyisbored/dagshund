@@ -1,6 +1,6 @@
+import type { Edge, Node } from "@xyflow/react";
+import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
 import dagre from "../vendor/dagre.js";
-import type { Node, Edge } from "@xyflow/react";
-import type { PlanGraph, GraphNode } from "../types/graph-types.ts";
 
 const NODE_WIDTH = 200;
 const NODE_HEIGHT_JOB = 60;

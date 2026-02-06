@@ -1,5 +1,5 @@
-import type { ActionType } from "../types/plan-schema.ts";
 import type { DiffState } from "../types/diff-state.ts";
+import type { ActionType } from "../types/plan-schema.ts";
 
 const ACTION_TO_DIFF_STATE: Readonly<Record<ActionType, DiffState>> = {
   "": "unchanged",

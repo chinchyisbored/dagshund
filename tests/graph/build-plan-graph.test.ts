@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { buildPlanGraph } from "../../src/graph/build-plan-graph.ts";
 import { parsePlanJson } from "../../src/parser/parse-plan.ts";
 import type { Plan } from "../../src/types/plan-schema.ts";
@@ -53,18 +53,9 @@ describe("buildPlanGraph", () => {
       expect(graph.edges).toHaveLength(3);
 
       const edgePairs = graph.edges.map((e) => [e.source, e.target]);
-      expect(edgePairs).toContainEqual([
-        `${resourceKey}::extract`,
-        `${resourceKey}::transform`,
-      ]);
-      expect(edgePairs).toContainEqual([
-        `${resourceKey}::transform`,
-        `${resourceKey}::load`,
-      ]);
-      expect(edgePairs).toContainEqual([
-        `${resourceKey}::load`,
-        `${resourceKey}::validate`,
-      ]);
+      expect(edgePairs).toContainEqual([`${resourceKey}::extract`, `${resourceKey}::transform`]);
+      expect(edgePairs).toContainEqual([`${resourceKey}::transform`, `${resourceKey}::load`]);
+      expect(edgePairs).toContainEqual([`${resourceKey}::load`, `${resourceKey}::validate`]);
     });
   });
 
@@ -92,8 +83,7 @@ describe("buildPlanGraph", () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
 
-      const findTask = (taskKey: string) =>
-        graph.nodes.find((n) => n.taskKey === taskKey);
+      const findTask = (taskKey: string) => graph.nodes.find((n) => n.taskKey === taskKey);
 
       expect(findTask("extract")?.diffState).toBe("unchanged");
       expect(findTask("load")?.diffState).toBe("unchanged");
@@ -109,18 +99,9 @@ describe("buildPlanGraph", () => {
       expect(graph.edges).toHaveLength(3);
 
       const edgePairs = graph.edges.map((e) => [e.source, e.target]);
-      expect(edgePairs).toContainEqual([
-        `${resourceKey}::load`,
-        `${resourceKey}::aggregate`,
-      ]);
-      expect(edgePairs).toContainEqual([
-        `${resourceKey}::transform`,
-        `${resourceKey}::load`,
-      ]);
-      expect(edgePairs).toContainEqual([
-        `${resourceKey}::extract`,
-        `${resourceKey}::transform`,
-      ]);
+      expect(edgePairs).toContainEqual([`${resourceKey}::load`, `${resourceKey}::aggregate`]);
+      expect(edgePairs).toContainEqual([`${resourceKey}::transform`, `${resourceKey}::load`]);
+      expect(edgePairs).toContainEqual([`${resourceKey}::extract`, `${resourceKey}::transform`]);
     });
 
     test("attaches task-specific changes to task nodes", async () => {

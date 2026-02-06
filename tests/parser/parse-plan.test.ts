@@ -1,5 +1,5 @@
-import { describe, test, expect } from "bun:test";
-import { parsePlanJson, parsePlanFromString } from "../../src/parser/parse-plan.ts";
+import { describe, expect, test } from "bun:test";
+import { parsePlanFromString, parsePlanJson } from "../../src/parser/parse-plan.ts";
 
 describe("parsePlanJson", () => {
   test("parses a minimal valid plan", () => {
@@ -61,6 +61,7 @@ describe("parsePlanJson", () => {
       expect(entry?.depends_on?.[0]?.label).toBe("cluster");
       expect(entry?.depends_on?.[1]?.label).toBeUndefined();
       expect(entry?.action).toBe("create");
+      // biome-ignore lint/complexity/useLiteralKeys: TypeScript noPropertyAccessFromIndexSignature requires bracket notation
       expect(entry?.changes?.["name"]?.action).toBe("create");
     }
   });

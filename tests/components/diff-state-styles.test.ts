@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { getDiffStateStyles } from "../../src/components/diff-state-styles.ts";
 import type { DiffState } from "../../src/types/diff-state.ts";
 

@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { resolveTaskDiffState } from "../../src/graph/resolve-task-diff-state.ts";
 
 describe("resolveTaskDiffState", () => {

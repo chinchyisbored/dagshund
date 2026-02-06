@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { extractTaskEntries } from "../../src/graph/extract-tasks.ts";
 
 describe("extractTaskEntries", () => {

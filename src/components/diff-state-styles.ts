@@ -35,5 +35,4 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
 };
 
 /** Get Tailwind class bundles for a given diff state. */
-export const getDiffStateStyles = (diffState: DiffState): DiffStateStyles =>
-  STYLES[diffState];
+export const getDiffStateStyles = (diffState: DiffState): DiffStateStyles => STYLES[diffState];

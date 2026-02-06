@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { mapActionToDiffState } from "../../src/parser/map-diff-state.ts";
 
 describe("mapActionToDiffState", () => {
