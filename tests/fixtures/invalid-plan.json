@@ -1,0 +1,9 @@
+{
+  "plan_version": "not_a_number",
+  "plan": {
+    "some_resource": {
+      "action": "invalid_action_type",
+      "changes": "should_be_object"
+    }
+  }
+}

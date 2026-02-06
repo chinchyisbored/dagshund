@@ -1,0 +1,16 @@
+import type { ActionType } from "../types/plan-schema.ts";
+import type { DiffState } from "../types/diff-state.ts";
+
+const ACTION_TO_DIFF_STATE: Readonly<Record<ActionType, DiffState>> = {
+  "": "unchanged",
+  skip: "unchanged",
+  create: "added",
+  delete: "removed",
+  update: "modified",
+  resize: "modified",
+  recreate: "modified",
+  update_id: "modified",
+};
+
+export const mapActionToDiffState = (action: ActionType | undefined): DiffState =>
+  action === undefined ? "unchanged" : ACTION_TO_DIFF_STATE[action];

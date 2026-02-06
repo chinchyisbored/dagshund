@@ -1,0 +1,27 @@
+{
+  "name": "dagshund",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch & bun --hot src/index.ts",
+    "build:css": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --minify",
+    "build": "bun run build:css && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
+    "start": "NODE_ENV=production bun src/index.ts",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.10.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.18",
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4.1.18"
+  }
+}

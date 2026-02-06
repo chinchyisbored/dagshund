@@ -1,0 +1,34 @@
+# Minimal Databricks Asset Bundle for generating plan JSON fixtures.
+# Usage:
+#   cd test-bundle/
+#   DATABRICKS_BUNDLE_ENGINE=direct databricks bundle plan -o json > ../tests/fixtures/sample-plan.json
+
+bundle:
+  name: dagshund-test-bundle
+
+resources:
+  jobs:
+    etl_pipeline:
+      name: etl_pipeline
+      tasks:
+        - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/extract
+
+        - task_key: transform
+          depends_on:
+            - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/transform
+
+        - task_key: load
+          depends_on:
+            - task_key: transform
+          notebook_task:
+            notebook_path: /Workspace/etl/load
+
+        - task_key: validate
+          depends_on:
+            - task_key: load
+          notebook_task:
+            notebook_path: /Workspace/etl/validate
