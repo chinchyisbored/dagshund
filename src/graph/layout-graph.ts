@@ -65,8 +65,10 @@ export const buildElkCompoundGraph = (graph: PlanGraph) => ({
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
       "elk.hierarchyHandling": "SEPARATE_CHILDREN",
-      "elk.spacing.nodeNode": "30",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "50",
+      "elk.spacing.nodeNode": "40",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "60",
+      "elk.spacing.edgeNode": "20",
+      "elk.layered.spacing.edgeNodeBetweenLayers": "20",
       "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
     },
     children: group.tasks.map((task) => ({
