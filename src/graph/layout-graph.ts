@@ -1,4 +1,4 @@
-import dagre from "@dagrejs/dagre";
+import dagre from "../vendor/dagre.js";
 import type { Node, Edge } from "@xyflow/react";
 import type { PlanGraph, GraphNode } from "../types/graph-types.ts";
 
