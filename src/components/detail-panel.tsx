@@ -83,6 +83,89 @@ function ResourceStateView({
   );
 }
 
+function SectionDivider({ label }: { readonly label: string }) {
+  return (
+    <div className="my-4 flex items-center gap-2">
+      <div className="h-px flex-1 bg-zinc-700/50" />
+      <span className="whitespace-nowrap text-xs text-zinc-500">{label}</span>
+      <div className="h-px flex-1 bg-zinc-700/50" />
+    </div>
+  );
+}
+
+const STATE_FIELD_STYLES: Readonly<
+  Record<"added" | "removed", { readonly prefix: string; readonly text: string }>
+> = {
+  added: { prefix: "+", text: "text-emerald-300" },
+  removed: { prefix: "-", text: "text-red-400" },
+};
+
+function StateFieldRow({
+  fieldKey,
+  value,
+  variant,
+}: {
+  readonly fieldKey: string;
+  readonly value: unknown;
+  readonly variant: "added" | "removed";
+}) {
+  const style = STATE_FIELD_STYLES[variant];
+  return (
+    <div className="rounded border border-zinc-700/40 bg-zinc-800/30 px-3 py-2">
+      <span className={`font-mono text-xs ${style.text}`}>
+        {style.prefix} {fieldKey}
+      </span>
+      <pre
+        className={`mt-1 whitespace-pre-wrap break-all font-mono text-xs ${style.text} opacity-80`}
+      >
+        {formatValue(value)}
+      </pre>
+    </div>
+  );
+}
+
+const OBJECT_CARD_STYLES: Readonly<Record<"added" | "removed", { readonly border: string }>> = {
+  added: { border: "border-emerald-500/60" },
+  removed: { border: "border-red-500/60" },
+};
+
+const OBJECT_CARD_SUBTITLE: Readonly<Record<"added" | "removed", string>> = {
+  added: "was created",
+  removed: "was deleted",
+};
+
+function ObjectStateCard({
+  label,
+  nodeKind,
+  resourceState,
+  variant,
+}: {
+  readonly label: string;
+  readonly nodeKind: "job" | "task";
+  readonly resourceState: Readonly<Record<string, unknown>>;
+  readonly variant: "added" | "removed";
+}) {
+  const style = OBJECT_CARD_STYLES[variant];
+  const sortedKeys = Object.keys(resourceState).toSorted();
+
+  return (
+    <div className={`rounded-lg border ${style.border} bg-zinc-800/50`}>
+      <div className="flex items-center justify-between px-3 pt-3 pb-1">
+        <span className="font-mono text-sm text-zinc-200">{label}</span>
+        <DiffStateBadge diffState={variant} />
+      </div>
+      <p className="px-3 pb-2 text-xs italic text-zinc-500">
+        This {nodeKind} {OBJECT_CARD_SUBTITLE[variant]}
+      </p>
+      <div className="flex flex-col gap-1.5 border-t border-zinc-700/40 p-3">
+        {sortedKeys.map((key) => (
+          <StateFieldRow key={key} fieldKey={key} value={resourceState[key]} variant={variant} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Extract the top-level field name from a change path (e.g. `notebook_task.notebook_path` → `notebook_task`). */
 const topLevelFieldName = (path: string): string => {
   const stripped = stripTaskPrefix(path);
@@ -101,9 +184,6 @@ const filterUnmodifiedState = (
   changedFields: ReadonlySet<string>,
 ): Readonly<Record<string, unknown>> =>
   Object.fromEntries(Object.entries(resourceState).filter(([key]) => !changedFields.has(key)));
-
-/** Diff states where the create/delete diff already shows full state — no config section needed. */
-const SHOWS_FULL_STATE: ReadonlySet<DagNodeData["diffState"]> = new Set(["added", "removed"]);
 
 function filterMeaningfulChanges(
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
@@ -139,11 +219,7 @@ function TaskChangeLine({
 function TaskChangesSummary({ summary }: { readonly summary: TaskChangeSummary }) {
   return (
     <div className="mb-3">
-      <div className="my-2 flex items-center gap-2">
-        <div className="h-px flex-1 bg-zinc-700/50" />
-        <span className="whitespace-nowrap text-xs text-zinc-500">Task Changes</span>
-        <div className="h-px flex-1 bg-zinc-700/50" />
-      </div>
+      <SectionDivider label="Task Changes" />
       <div className="flex flex-col gap-0.5">
         {summary.map((entry) => (
           <TaskChangeLine key={entry.taskKey} taskKey={entry.taskKey} diffState={entry.diffState} />
@@ -153,15 +229,97 @@ function TaskChangesSummary({ summary }: { readonly summary: TaskChangeSummary }
   );
 }
 
+const ADDED_ACTIONS: ReadonlySet<string> = new Set(["create"]);
+const REMOVED_ACTIONS: ReadonlySet<string> = new Set(["delete"]);
+
+type ChangeGroup = {
+  readonly label: string;
+  readonly entries: readonly (readonly [string, ChangeDesc])[];
+};
+
+/** Group meaningful changes into Added / Modified / Removed sections. */
+const groupChangesByCategory = (
+  changes: readonly (readonly [string, ChangeDesc])[],
+): readonly ChangeGroup[] => {
+  const added: (readonly [string, ChangeDesc])[] = [];
+  const modified: (readonly [string, ChangeDesc])[] = [];
+  const removed: (readonly [string, ChangeDesc])[] = [];
+
+  for (const entry of changes) {
+    const action = entry[1].action;
+    if (ADDED_ACTIONS.has(action)) {
+      added.push(entry);
+    } else if (REMOVED_ACTIONS.has(action)) {
+      removed.push(entry);
+    } else {
+      modified.push(entry);
+    }
+  }
+
+  return [
+    { label: "Added", entries: added },
+    { label: "Modified", entries: modified },
+    { label: "Removed", entries: removed },
+  ].filter((group) => group.entries.length > 0);
+};
+
+function AddedOrRemovedBody({ data }: { readonly data: DagNodeData }) {
+  const variant = data.diffState === "added" ? "added" : "removed";
+  const resourceState = data.resourceState ?? {};
+
+  return (
+    <ObjectStateCard
+      label={data.label}
+      nodeKind={data.nodeKind}
+      resourceState={resourceState}
+      variant={variant}
+    />
+  );
+}
+
+function ModifiedBody({
+  data,
+  meaningfulChanges,
+}: {
+  readonly data: DagNodeData;
+  readonly meaningfulChanges: readonly (readonly [string, ChangeDesc])[];
+}) {
+  const changeGroups = groupChangesByCategory(meaningfulChanges);
+  const changedFields = collectChangedFieldNames(meaningfulChanges);
+  const unmodifiedState = data.resourceState
+    ? filterUnmodifiedState(data.resourceState, changedFields)
+    : {};
+  const hasUnmodifiedState = Object.keys(unmodifiedState).length > 0;
+
+  return (
+    <>
+      {changeGroups.map((group) => (
+        <div key={group.label}>
+          <SectionDivider label={group.label} />
+          <div className="flex flex-col gap-2">
+            {group.entries.map(([fieldPath, change]) => (
+              <ChangeEntry key={fieldPath} fieldPath={fieldPath} change={change} />
+            ))}
+          </div>
+        </div>
+      ))}
+      {hasUnmodifiedState && (
+        <>
+          <SectionDivider label="Unchanged" />
+          <ResourceStateView resourceState={unmodifiedState} />
+        </>
+      )}
+    </>
+  );
+}
+
+function UnchangedBody({ data }: { readonly data: DagNodeData }) {
+  const resourceState = data.resourceState ?? {};
+  return <ResourceStateView resourceState={resourceState} />;
+}
+
 export function DetailPanel({ data, onClose }: DetailPanelProps) {
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
-  const showConfig = data.resourceState !== undefined && !SHOWS_FULL_STATE.has(data.diffState);
-  const changedFields = collectChangedFieldNames(meaningfulChanges);
-  // biome-ignore lint/style/noNonNullAssertion: guarded by showConfig check above
-  const unmodifiedState = showConfig
-    ? filterUnmodifiedState(data.resourceState!, changedFields)
-    : {};
-  const hasUnmodifiedState = showConfig && Object.keys(unmodifiedState).length > 0;
 
   return (
     <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-zinc-700 bg-zinc-900">
@@ -184,39 +342,30 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
         </button>
       </div>
 
-      <div className="px-4 py-2">
-        <DiffStateBadge diffState={data.diffState} />
-      </div>
+      {data.diffState !== "added" && data.diffState !== "removed" && (
+        <div className="px-4 py-2">
+          <DiffStateBadge diffState={data.diffState} />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {data.nodeKind === "job" && data.taskChangeSummary !== undefined && (
           <TaskChangesSummary summary={data.taskChangeSummary} />
         )}
-        {meaningfulChanges.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {meaningfulChanges.map(([fieldPath, change]) => (
-              <ChangeEntry key={fieldPath} fieldPath={fieldPath} change={change} />
-            ))}
-          </div>
+
+        {(data.diffState === "added" || data.diffState === "removed") && (
+          <AddedOrRemovedBody data={data} />
         )}
 
-        {hasUnmodifiedState && (
-          <>
-            {meaningfulChanges.length > 0 && (
-              <div className="my-4 flex items-center gap-2">
-                <div className="h-px flex-1 bg-zinc-700/50" />
-                <span className="whitespace-nowrap text-xs text-zinc-500">
-                  Unmodified Configuration
-                </span>
-                <div className="h-px flex-1 bg-zinc-700/50" />
-              </div>
-            )}
-            <ResourceStateView resourceState={unmodifiedState} />
-          </>
+        {data.diffState === "modified" && (
+          <ModifiedBody data={data} meaningfulChanges={meaningfulChanges} />
         )}
 
-        {meaningfulChanges.length === 0 &&
-          !hasUnmodifiedState &&
+        {data.diffState === "unchanged" && <UnchangedBody data={data} />}
+
+        {data.diffState === "modified" &&
+          meaningfulChanges.length === 0 &&
+          data.resourceState === undefined &&
           data.taskChangeSummary === undefined && (
             <p className="py-8 text-center text-sm text-zinc-500">No changes</p>
           )}
