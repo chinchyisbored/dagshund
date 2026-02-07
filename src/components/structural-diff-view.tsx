@@ -15,16 +15,99 @@ type StructuralDiffViewProps = {
   readonly result: StructuralDiffResult;
 };
 
+/** Max characters per rendered line (including prefix). Conservative for the 380px detail panel. */
+const MAX_LINE_CHARS = 40;
+
+const BREAK_CHARS = " /-_.,";
+
+/** Split a long line into sub-lines that fit within maxChars. Continuation sub-lines get 2-space indent. */
+const wrapLine = (line: string, maxChars: number): readonly string[] => {
+  if (line.length <= maxChars) return [line];
+
+  const result: string[] = [];
+  let remaining = line;
+
+  while (remaining.length > 0) {
+    const isFirst = result.length === 0;
+    const indent = isFirst ? "" : "  ";
+    const effectiveMax = maxChars - indent.length;
+
+    if (remaining.length <= effectiveMax) {
+      result.push(indent + remaining);
+      break;
+    }
+
+    let breakAt = -1;
+    for (let i = effectiveMax; i > Math.floor(effectiveMax * 0.5); i--) {
+      if (BREAK_CHARS.includes(remaining.charAt(i))) {
+        breakAt = i + 1;
+        break;
+      }
+    }
+    if (breakAt === -1) breakAt = effectiveMax;
+
+    result.push(indent + remaining.slice(0, breakAt));
+    remaining = remaining.slice(breakAt);
+  }
+
+  return result;
+};
+
+/** Render formatted text with prefix on every visual line (including wrapped continuations). */
+export function PrefixedBlock({
+  prefix,
+  text,
+  className,
+}: {
+  readonly prefix: string;
+  readonly text: string;
+  readonly className: string;
+}) {
+  const lines = text.split("\n");
+  const contentMax = MAX_LINE_CHARS - prefix.length;
+
+  return (
+    <>
+      {lines.flatMap((line, i) => {
+        const subLines = wrapLine(line, contentMax);
+        return subLines.map((sub, j) => (
+          <div
+            key={`${i}-${j}`}
+            className={`whitespace-pre-wrap break-words font-mono text-xs ${className}`}
+          >
+            {prefix}{sub}
+          </div>
+        ));
+      })}
+    </>
+  );
+}
+
+/** Indent each line of text by a fixed string. */
+const indentText = (text: string, indent: string): string =>
+  text
+    .split("\n")
+    .map((line) => `${indent}${line}`)
+    .join("\n");
+
+/** Build display text for a key-value entry: inline for scalars, split+indented for compound values. */
+const buildEntryText = (key: string, formatted: string): string =>
+  formatted.includes("\n") ? `${key}:\n${indentText(formatted, "  ")}` : `${key}: ${formatted}`;
+
 function ScalarDiffView({ diff }: { readonly diff: ScalarDiff }) {
   const format = useValueFormat();
   return (
     <>
-      <pre className="mb-1 overflow-x-auto rounded bg-red-500/5 px-2 py-1 font-mono text-xs text-red-300">
-        - {formatValue(diff.old, format)}
-      </pre>
-      <pre className="overflow-x-auto rounded bg-emerald-500/5 px-2 py-1 font-mono text-xs text-emerald-300">
-        + {formatValue(diff.new, format)}
-      </pre>
+      <div className="mb-1 rounded bg-red-500/5 px-2 py-1">
+        <PrefixedBlock prefix="- " text={formatValue(diff.old, format)} className="text-red-300" />
+      </div>
+      <div className="rounded bg-emerald-500/5 px-2 py-1">
+        <PrefixedBlock
+          prefix="+ "
+          text={formatValue(diff.new, format)}
+          className="text-emerald-300"
+        />
+      </div>
     </>
   );
 }
@@ -32,9 +115,15 @@ function ScalarDiffView({ diff }: { readonly diff: ScalarDiff }) {
 const ELEMENT_STATUS_STYLES: Readonly<
   Record<ArrayElement["status"], { readonly prefix: string; readonly className: string }>
 > = {
-  added: { prefix: "+", className: "bg-emerald-500/5 text-emerald-300" },
-  removed: { prefix: "-", className: "bg-red-500/5 text-red-300" },
+  added: { prefix: "+", className: "text-emerald-300" },
+  removed: { prefix: "-", className: "text-red-300" },
   unchanged: { prefix: " ", className: "text-zinc-500" },
+};
+
+const ELEMENT_BACKGROUND: Readonly<Record<ArrayElement["status"], string>> = {
+  added: "bg-emerald-500/5",
+  removed: "bg-red-500/5",
+  unchanged: "",
 };
 
 function ArrayDiffView({ diff }: { readonly diff: ArrayDiff }) {
@@ -43,16 +132,20 @@ function ArrayDiffView({ diff }: { readonly diff: ArrayDiff }) {
     <div className="flex flex-col gap-0.5">
       {diff.elements.map((element, index) => {
         const style = ELEMENT_STATUS_STYLES[element.status];
+        const bg = ELEMENT_BACKGROUND[element.status];
+        const formatted = formatValue(element.value, format);
+        const suffix =
+          element.identityLabel !== undefined && element.status !== "unchanged"
+            ? ` (${element.identityLabel})`
+            : "";
         return (
-          <pre
-            key={element.identityLabel ?? index}
-            className={`overflow-x-auto rounded px-2 py-0.5 font-mono text-xs ${style.className}`}
-          >
-            {style.prefix} {formatValue(element.value, format)}
-            {element.identityLabel !== undefined && element.status !== "unchanged" && (
-              <span className="ml-2 text-zinc-500">({element.identityLabel})</span>
-            )}
-          </pre>
+          <div key={element.identityLabel ?? index} className={`rounded px-2 py-0.5 ${bg}`}>
+            <PrefixedBlock
+              prefix={`${style.prefix} `}
+              text={`${formatted}${suffix}`}
+              className={style.className}
+            />
+          </div>
         );
       })}
     </div>
@@ -68,38 +161,59 @@ const ENTRY_STATUS_STYLES: Readonly<
   unchanged: { className: "text-zinc-500" },
 };
 
+const ENTRY_BACKGROUND: Readonly<Record<ObjectEntry["status"], string>> = {
+  added: "bg-emerald-500/5",
+  removed: "bg-red-500/5",
+  changed: "",
+  unchanged: "",
+};
+
+function ChangedEntryView({ entry }: { readonly entry: ObjectEntry }) {
+  const format = useValueFormat();
+  const formattedOld = formatValue(entry.old, format);
+  const formattedNew = formatValue(entry.new, format);
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="rounded bg-red-500/5 px-2 py-0.5">
+        <PrefixedBlock
+          prefix="- "
+          text={buildEntryText(entry.key, formattedOld)}
+          className="text-red-300"
+        />
+      </div>
+      <div className="rounded bg-emerald-500/5 px-2 py-0.5">
+        <PrefixedBlock
+          prefix="+ "
+          text={buildEntryText(entry.key, formattedNew)}
+          className="text-emerald-300"
+        />
+      </div>
+    </div>
+  );
+}
+
 function ObjectEntryView({ entry }: { readonly entry: ObjectEntry }) {
   const format = useValueFormat();
   const style = ENTRY_STATUS_STYLES[entry.status];
 
   if (entry.status === "changed") {
-    return (
-      <div className="flex flex-col gap-0.5">
-        <pre className="overflow-x-auto rounded bg-red-500/5 px-2 py-0.5 font-mono text-xs text-red-300">
-          - {entry.key}: {formatValue(entry.old, format)}
-        </pre>
-        <pre className="overflow-x-auto rounded bg-emerald-500/5 px-2 py-0.5 font-mono text-xs text-emerald-300">
-          + {entry.key}: {formatValue(entry.new, format)}
-        </pre>
-      </div>
-    );
+    return <ChangedEntryView entry={entry} />;
   }
 
   const prefix = entry.status === "added" ? "+" : entry.status === "removed" ? "-" : " ";
   const value = entry.status === "removed" ? entry.old : entry.new;
-  const background =
-    entry.status === "added"
-      ? "bg-emerald-500/5"
-      : entry.status === "removed"
-        ? "bg-red-500/5"
-        : "";
+  const formatted = formatValue(value, format);
+  const bg = ENTRY_BACKGROUND[entry.status];
 
   return (
-    <pre
-      className={`overflow-x-auto rounded px-2 py-0.5 font-mono text-xs ${style.className} ${background}`}
-    >
-      {prefix} {entry.key}: {formatValue(value, format)}
-    </pre>
+    <div className={`rounded px-2 py-0.5 ${bg}`}>
+      <PrefixedBlock
+        prefix={`${prefix} `}
+        text={buildEntryText(entry.key, formatted)}
+        className={style.className}
+      />
+    </div>
   );
 }
 
@@ -116,18 +230,26 @@ function ObjectDiffView({ diff }: { readonly diff: ObjectDiff }) {
 function CreateOnlyView({ diff }: { readonly diff: CreateOnlyDiff }) {
   const format = useValueFormat();
   return (
-    <pre className="overflow-x-auto rounded bg-emerald-500/5 px-2 py-1 font-mono text-xs text-emerald-300">
-      + {formatValue(diff.value, format)}
-    </pre>
+    <div className="rounded bg-emerald-500/5 px-2 py-1">
+      <PrefixedBlock
+        prefix="+ "
+        text={formatValue(diff.value, format)}
+        className="text-emerald-300"
+      />
+    </div>
   );
 }
 
 function DeleteOnlyView({ diff }: { readonly diff: DeleteOnlyDiff }) {
   const format = useValueFormat();
   return (
-    <pre className="overflow-x-auto rounded bg-red-500/5 px-2 py-1 font-mono text-xs text-red-300">
-      - {formatValue(diff.value, format)}
-    </pre>
+    <div className="rounded bg-red-500/5 px-2 py-1">
+      <PrefixedBlock
+        prefix="- "
+        text={formatValue(diff.value, format)}
+        className="text-red-300"
+      />
+    </div>
   );
 }
 

@@ -6,7 +6,7 @@ import type { ValueFormat } from "../utils/format-value.ts";
 import { formatValue } from "../utils/format-value.ts";
 import { computeStructuralDiff } from "../utils/structural-diff.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
-import { StructuralDiffView } from "./structural-diff-view.tsx";
+import { PrefixedBlock, StructuralDiffView } from "./structural-diff-view.tsx";
 
 type DetailPanelProps = {
   readonly data: DagNodeData;
@@ -65,6 +65,9 @@ function ChangeEntry({
   );
 }
 
+/** CSS hanging indent: first visual line at col 0, wrapped continuations at 4ch. */
+const VALUE_HANGING_INDENT = { paddingLeft: "4ch", textIndent: "-4ch" } as const;
+
 function ResourceStateView({
   resourceState,
 }: {
@@ -75,14 +78,25 @@ function ResourceStateView({
 
   return (
     <div className="flex flex-col gap-1.5">
-      {sortedKeys.map((key) => (
-        <div key={key} className="rounded border border-zinc-800 bg-zinc-800/30 px-3 py-2">
-          <span className="font-mono text-xs text-zinc-400">{key}</span>
-          <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-xs text-zinc-500">
-            {formatValue(resourceState[key], format)}
-          </pre>
-        </div>
-      ))}
+      {sortedKeys.map((key) => {
+        const formatted = formatValue(resourceState[key], format);
+        return (
+          <div key={key} className="rounded border border-zinc-800 bg-zinc-800/30 px-3 py-2">
+            <span className="font-mono text-xs text-zinc-400">{key}</span>
+            <div className="mt-1">
+              {formatted.split("\n").map((line, i) => (
+                <div
+                  key={i}
+                  className="whitespace-pre-wrap break-words font-mono text-xs text-zinc-500"
+                  style={VALUE_HANGING_INDENT}
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -115,16 +129,15 @@ function StateFieldRow({
 }) {
   const format = useValueFormat();
   const style = STATE_FIELD_STYLES[variant];
+  const formatted = formatValue(value, format);
   return (
     <div className="rounded border border-zinc-700/40 bg-zinc-800/30 px-3 py-2">
-      <span className={`font-mono text-xs ${style.text}`}>
-        {style.prefix} {fieldKey}
-      </span>
-      <pre
-        className={`mt-1 whitespace-pre-wrap break-all font-mono text-xs ${style.text} opacity-80`}
-      >
-        {formatValue(value, format)}
-      </pre>
+      <PrefixedBlock prefix={`${style.prefix} `} text={fieldKey} className={style.text} />
+      <PrefixedBlock
+        prefix={`${style.prefix}   `}
+        text={formatted}
+        className={`${style.text} opacity-80`}
+      />
     </div>
   );
 }
@@ -155,7 +168,7 @@ function ObjectStateCard({
 
   return (
     <div className={`rounded-lg border ${style.border} bg-zinc-800/50`}>
-      <div className="flex items-center justify-between px-3 pt-3 pb-1">
+      <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
         <span className="font-mono text-sm text-zinc-200">{label}</span>
         <DiffStateBadge diffState={variant} />
       </div>
