@@ -50,54 +50,80 @@ export const groupNodesByJob = (nodes: readonly GraphNode[]): readonly JobGroup[
   return [...jobMap.values()];
 };
 
+/** Extract the parent job ID from a node ID (task IDs contain "::", job IDs don't). */
+const parentJobId = (nodeId: string): string => {
+  const separator = nodeId.indexOf("::");
+  return separator === -1 ? nodeId : nodeId.substring(0, separator);
+};
+
+/** Collect cross-hierarchy edges (source and target in different jobs) mapped to job-level for ELK. */
+const collectCrossJobEdges = (
+  edges: PlanGraph["edges"],
+): { id: string; sources: string[]; targets: string[] }[] => {
+  const seen = new Set<string>();
+  return edges.flatMap((edge) => {
+    const sourceJob = parentJobId(edge.source);
+    const targetJob = parentJobId(edge.target);
+    if (sourceJob === targetJob) return [];
+    const pairKey = `${sourceJob}→${targetJob}`;
+    if (seen.has(pairKey)) return [];
+    seen.add(pairKey);
+    return [{ id: `elk-${pairKey}`, sources: [sourceJob], targets: [targetJob] }];
+  });
+};
+
 /** Build an ELK compound graph with jobs as parents and tasks as children. */
-export const buildElkCompoundGraph = (graph: PlanGraph) => ({
-  id: "root",
-  layoutOptions: {
-    "elk.algorithm": "layered",
-    "elk.direction": "DOWN",
-    "elk.spacing.nodeNode": "60",
-    "elk.layered.spacing.nodeNodeBetweenLayers": "80",
-  },
-  children: groupNodesByJob(graph.nodes).map((group) => ({
-    id: group.job.id,
+export const buildElkCompoundGraph = (graph: PlanGraph) => {
+  const groups = groupNodesByJob(graph.nodes);
+
+  return {
+    id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
-      "elk.hierarchyHandling": "SEPARATE_CHILDREN",
-      "elk.spacing.nodeNode": "40",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "60",
-      "elk.spacing.edgeNode": "20",
-      "elk.layered.spacing.edgeNodeBetweenLayers": "20",
-      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
-      "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
-      "elk.layered.considerModelOrder.portModelOrder": "true",
-      "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
-      "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
-      "elk.layered.compaction.connectedComponents": "true",
-      "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
-      "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
-      "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
+      "elk.spacing.nodeNode": "60",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "80",
     },
-    children: group.tasks.map((task) => ({
-      id: task.id,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT_TASK,
-    })),
-    edges: graph.edges
-      .filter(
-        (edge) =>
-          group.tasks.some((t) => t.id === edge.source) &&
-          group.tasks.some((t) => t.id === edge.target),
-      )
-      .map((edge) => ({
-        id: edge.id,
-        sources: [edge.source],
-        targets: [edge.target],
+    children: groups.map((group) => ({
+      id: group.job.id,
+      layoutOptions: {
+        "elk.algorithm": "layered",
+        "elk.direction": "RIGHT",
+        "elk.hierarchyHandling": "SEPARATE_CHILDREN",
+        "elk.spacing.nodeNode": "40",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "60",
+        "elk.spacing.edgeNode": "20",
+        "elk.layered.spacing.edgeNodeBetweenLayers": "20",
+        "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+        "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+        "elk.layered.considerModelOrder.portModelOrder": "true",
+        "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+        "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
+        "elk.layered.compaction.connectedComponents": "true",
+        "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
+        "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
+        "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
+      },
+      children: group.tasks.map((task) => ({
+        id: task.id,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT_TASK,
       })),
-  })),
-  edges: [],
-});
+      edges: graph.edges
+        .filter(
+          (edge) =>
+            group.tasks.some((t) => t.id === edge.source) &&
+            group.tasks.some((t) => t.id === edge.target),
+        )
+        .map((edge) => ({
+          id: edge.id,
+          sources: [edge.source],
+          targets: [edge.target],
+        })),
+    })),
+    edges: collectCrossJobEdges(graph.edges),
+  };
+};
 
 type ElkLayoutResult = {
   readonly children?: ReadonlyArray<{

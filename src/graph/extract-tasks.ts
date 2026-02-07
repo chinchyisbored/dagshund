@@ -7,6 +7,11 @@ const taskEntrySchema = z
       .array(z.object({ task_key: z.string() }).readonly())
       .readonly()
       .optional(),
+    run_job_task: z
+      .object({ job_id: z.string() })
+      .passthrough()
+      .readonly()
+      .optional(),
   })
   .passthrough()
   .readonly();
@@ -34,3 +39,4 @@ export const extractTaskEntries = (newState: unknown): readonly TaskEntry[] => {
   }
   return parsed.data.value?.tasks ?? [];
 };
+

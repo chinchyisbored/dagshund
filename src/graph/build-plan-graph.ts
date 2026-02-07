@@ -78,12 +78,39 @@ const buildEntryGraph = (
   };
 };
 
+/** Extract a resource key from a Databricks bundle interpolation like "${resources.jobs.X.id}". */
+const INTERPOLATION_PATTERN = /^\$\{(resources\..+?)\.id\}$/;
+
+const parseResourceReference = (interpolation: string): string | undefined =>
+  INTERPOLATION_PATTERN.exec(interpolation)?.[1];
+
+/** Create edges from tasks with run_job_task to the target job. */
+const buildRunJobEdges = (
+  entries: readonly (readonly [string, PlanEntry])[],
+): readonly GraphEdge[] =>
+  entries.flatMap(([resourceKey, entry]) => {
+    const tasks = extractTaskEntries(entry.new_state);
+    return tasks.flatMap((task) => {
+      const jobId = task.run_job_task?.job_id;
+      if (jobId === undefined) return [];
+      const targetResourceKey = parseResourceReference(jobId);
+      if (targetResourceKey === undefined) return [];
+      const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
+      return [{
+        id: `${sourceNodeId}→${targetResourceKey}`,
+        source: sourceNodeId,
+        target: targetResourceKey,
+        label: undefined,
+      }];
+    });
+  });
+
 /** Build the complete plan graph from all plan entries. */
 export const buildPlanGraph = (plan: Plan): PlanGraph => {
   const entries = Object.entries(plan.plan ?? {});
   const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry));
   return {
     nodes: graphs.flatMap((g) => g.nodes),
-    edges: graphs.flatMap((g) => g.edges),
+    edges: [...graphs.flatMap((g) => g.edges), ...buildRunJobEdges(entries)],
   };
 };

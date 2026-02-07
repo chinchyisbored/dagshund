@@ -1,4 +1,10 @@
-import type { Node, NodeProps } from "@xyflow/react";
+import {
+  Handle,
+  type Node,
+  type NodeProps,
+  Position,
+  useNodeConnections,
+} from "@xyflow/react";
 import { useHoverState } from "../hooks/use-hover-context.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
@@ -13,6 +19,8 @@ const formatJobLabel = (resourceKey: string): string => {
 
 export function JobNode({ id, data }: NodeProps<JobNodeType>) {
   const { connectedIds } = useHoverState();
+  const incomingConnections = useNodeConnections({ handleType: "target" });
+  const outgoingConnections = useNodeConnections({ handleType: "source" });
   const isDimmed = connectedIds !== null && !connectedIds.has(id);
   const styles = getDiffStateStyles(data.diffState);
   const jobName = formatJobLabel(data.resourceKey);
@@ -22,11 +30,17 @@ export function JobNode({ id, data }: NodeProps<JobNodeType>) {
       className={`h-full w-full rounded-xl border-2 ${styles.border} ${styles.opacity}`}
       style={isDimmed ? { opacity: 0.3 } : undefined}
     >
+      {incomingConnections.length > 0 && (
+        <Handle type="target" position={Position.Left} className="!bg-zinc-500" />
+      )}
       <div
         className={`rounded-t-[10px] px-4 py-2 text-xs font-semibold uppercase tracking-wide ${styles.background} ${styles.text}`}
       >
         {jobName}
       </div>
+      {outgoingConnections.length > 0 && (
+        <Handle type="source" position={Position.Right} className="!bg-zinc-500" />
+      )}
     </div>
   );
 }
