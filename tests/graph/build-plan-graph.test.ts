@@ -65,10 +65,19 @@ describe("buildPlanGraph", () => {
       expect(edgePairs).toContainEqual([`${resourceKey}::transform`, `${resourceKey}::load`]);
       expect(edgePairs).toContainEqual([`${resourceKey}::load`, `${resourceKey}::validate`]);
     });
+
+    test("all edges have diffState 'added' for a create plan", async () => {
+      const plan = await loadFixture("sample-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      for (const edge of graph.edges) {
+        expect(edge.diffState).toBe("added");
+      }
+    });
   });
 
   describe("mixed-plan.json (updates/additions/removals)", () => {
-    test("creates job node plus task nodes", async () => {
+    test("creates job node plus task nodes including ghost nodes", async () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
 
@@ -76,7 +85,16 @@ describe("buildPlanGraph", () => {
       const taskNodes = graph.nodes.filter((n) => n.nodeKind === "task");
 
       expect(jobNodes).toHaveLength(1);
-      expect(taskNodes).toHaveLength(4);
+      expect(taskNodes).toHaveLength(5); // 4 live + 1 ghost (validate)
+    });
+
+    test("ghost node for deleted task has diffState 'removed'", async () => {
+      const plan = await loadFixture("mixed-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const validateNode = graph.nodes.find((n) => n.taskKey === "validate");
+      expect(validateNode).toBeDefined();
+      expect(validateNode?.diffState).toBe("removed");
     });
 
     test("job node has diffState 'modified' for update action", async () => {
@@ -97,19 +115,38 @@ describe("buildPlanGraph", () => {
       expect(findTask("load")?.diffState).toBe("unchanged");
       expect(findTask("transform")?.diffState).toBe("modified");
       expect(findTask("aggregate")?.diffState).toBe("added");
+      expect(findTask("validate")?.diffState).toBe("removed");
     });
 
-    test("creates correct edges for updated task graph", async () => {
+    test("creates correct edges including ghost edges", async () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
       const resourceKey = "resources.jobs.etl_pipeline";
 
-      expect(graph.edges).toHaveLength(3);
+      expect(graph.edges).toHaveLength(4); // 3 live + 1 ghost (load→validate)
 
       const edgePairs = graph.edges.map((e) => [e.source, e.target]);
       expect(edgePairs).toContainEqual([`${resourceKey}::load`, `${resourceKey}::aggregate`]);
       expect(edgePairs).toContainEqual([`${resourceKey}::transform`, `${resourceKey}::load`]);
       expect(edgePairs).toContainEqual([`${resourceKey}::extract`, `${resourceKey}::transform`]);
+      expect(edgePairs).toContainEqual([`${resourceKey}::load`, `${resourceKey}::validate`]);
+    });
+
+    test("edges have correct diffState values", async () => {
+      const plan = await loadFixture("mixed-plan.json");
+      const graph = buildPlanGraph(plan);
+      const resourceKey = "resources.jobs.etl_pipeline";
+
+      const findEdge = (source: string, target: string) =>
+        graph.edges.find(
+          (e) =>
+            e.source === `${resourceKey}::${source}` && e.target === `${resourceKey}::${target}`,
+        );
+
+      expect(findEdge("extract", "transform")?.diffState).toBe("unchanged");
+      expect(findEdge("transform", "load")?.diffState).toBe("unchanged");
+      expect(findEdge("load", "aggregate")?.diffState).toBe("added");
+      expect(findEdge("load", "validate")?.diffState).toBe("removed");
     });
 
     test("attaches task-specific changes to task nodes", async () => {

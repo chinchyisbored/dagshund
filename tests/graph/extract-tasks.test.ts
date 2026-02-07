@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  extractDeletedTaskEntries,
   extractJobState,
   extractTaskEntries,
   extractTaskState,
@@ -86,6 +87,64 @@ describe("extractJobState", () => {
 
   test("returns undefined for invalid input", () => {
     expect(extractJobState("invalid")).toBeUndefined();
+  });
+});
+
+describe("extractDeletedTaskEntries", () => {
+  test("extracts deleted tasks from changes record", () => {
+    const changes = {
+      "tasks[task_key='validate']": {
+        action: "delete",
+        old: {
+          task_key: "validate",
+          depends_on: [{ task_key: "load" }],
+          notebook_task: { notebook_path: "/Workspace/etl/validate" },
+        },
+      },
+    };
+    const deleted = extractDeletedTaskEntries(changes);
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.task_key).toBe("validate");
+    expect(deleted[0]?.depends_on).toHaveLength(1);
+  });
+
+  test("ignores changes with both old and new (not a delete)", () => {
+    const changes = {
+      "tasks[task_key='transform']": {
+        action: "update",
+        old: { task_key: "transform" },
+        new: { task_key: "transform", notebook_task: { notebook_path: "/new" } },
+      },
+    };
+    const deleted = extractDeletedTaskEntries(changes);
+    expect(deleted).toHaveLength(0);
+  });
+
+  test("ignores sub-property change keys (has trailing dot/property)", () => {
+    const changes = {
+      "tasks[task_key='transform'].notebook_task.notebook_path": {
+        action: "update",
+        old: "/old",
+        new: "/new",
+      },
+    };
+    const deleted = extractDeletedTaskEntries(changes);
+    expect(deleted).toHaveLength(0);
+  });
+
+  test("returns empty array when changes is undefined", () => {
+    expect(extractDeletedTaskEntries(undefined)).toEqual([]);
+  });
+
+  test("returns empty array when no deletions exist", () => {
+    const changes = {
+      "tasks[task_key='extract']": {
+        action: "create",
+        new: { task_key: "extract" },
+      },
+    };
+    const deleted = extractDeletedTaskEntries(changes);
+    expect(deleted).toHaveLength(0);
   });
 });
 

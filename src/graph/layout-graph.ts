@@ -1,7 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
-import { getEdgeStyle, resolveEdgeDiffState } from "../components/diff-state-styles.ts";
-import type { DiffState } from "../types/diff-state.ts";
+import { getEdgeStyle } from "../components/diff-state-styles.ts";
 import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
 
 export const NODE_WIDTH = 200;
@@ -231,21 +230,10 @@ export const assembleFlowNodes = (
   return nodes;
 };
 
-/** Build a lookup from node ID to diff state. */
-const buildDiffStateLookup = (nodes: readonly GraphNode[]): ReadonlyMap<string, DiffState> =>
-  new Map(nodes.map((node) => [node.id, node.diffState]));
-
 /** Convert graph edges to React Flow edges with diff-state-derived colors. */
-export const toFlowEdges = (
-  edges: PlanGraph["edges"],
-  nodes: readonly GraphNode[],
-): readonly Edge[] => {
-  const diffStates = buildDiffStateLookup(nodes);
-  return edges.map((edge) => {
-    const sourceDiff = diffStates.get(edge.source) ?? "unchanged";
-    const targetDiff = diffStates.get(edge.target) ?? "unchanged";
-    const edgeDiff = resolveEdgeDiffState(sourceDiff, targetDiff);
-    const style = getEdgeStyle(edgeDiff);
+export const toFlowEdges = (edges: PlanGraph["edges"]): readonly Edge[] =>
+  edges.map((edge) => {
+    const style = getEdgeStyle(edge.diffState);
     return {
       id: edge.id,
       source: edge.source,
@@ -255,7 +243,6 @@ export const toFlowEdges = (
       style: { stroke: style.stroke, opacity: style.opacity },
     };
   });
-};
 
 /** Convert a PlanGraph to React Flow nodes and edges with ELK compound layout. */
 export const toReactFlowElements = async (
@@ -272,6 +259,6 @@ export const toReactFlowElements = async (
 
   return {
     nodes: assembleFlowNodes(groups, positions, dimensions),
-    edges: toFlowEdges(graph.edges, graph.nodes),
+    edges: toFlowEdges(graph.edges),
   };
 };

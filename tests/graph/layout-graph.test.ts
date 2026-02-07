@@ -63,6 +63,7 @@ const SINGLE_JOB_GRAPH: PlanGraph = {
       source: "resources.jobs.etl::extract",
       target: "resources.jobs.etl::transform",
       label: undefined,
+      diffState: "unchanged",
     },
   ],
 };
@@ -244,7 +245,7 @@ describe("assembleFlowNodes", () => {
 describe("toFlowEdges", () => {
   test("converts graph edges to React Flow edges", async () => {
     const { toFlowEdges } = await loadModule();
-    const edges = toFlowEdges(SINGLE_JOB_GRAPH.edges, SINGLE_JOB_GRAPH.nodes);
+    const edges = toFlowEdges(SINGLE_JOB_GRAPH.edges);
 
     expect(edges).toHaveLength(1);
     expect(edges[0].source).toBe("resources.jobs.etl::extract");
@@ -253,8 +254,23 @@ describe("toFlowEdges", () => {
 
   test("preserves edge labels", async () => {
     const { toFlowEdges } = await loadModule();
-    const edges = toFlowEdges([{ id: "e1", source: "a", target: "b", label: "depends_on" }], []);
+    const edges = toFlowEdges([
+      { id: "e1", source: "a", target: "b", label: "depends_on", diffState: "unchanged" },
+    ]);
     expect(edges[0].label).toBe("depends_on");
+  });
+
+  test("applies edge style from diffState", async () => {
+    const { toFlowEdges } = await loadModule();
+    const edges = toFlowEdges([
+      { id: "e1", source: "a", target: "b", label: undefined, diffState: "added" },
+      { id: "e2", source: "c", target: "d", label: undefined, diffState: "removed" },
+      { id: "e3", source: "e", target: "f", label: undefined, diffState: "unchanged" },
+    ]);
+
+    expect(edges[0].style).toEqual({ stroke: "#10b981", opacity: 1 });
+    expect(edges[1].style).toEqual({ stroke: "#ef4444", opacity: 0.4 });
+    expect(edges[2].style).toEqual({ stroke: "#52525b", opacity: 1 });
   });
 });
 

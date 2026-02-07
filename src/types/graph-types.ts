@@ -22,11 +22,14 @@ export type GraphNode = {
   readonly taskChangeSummary: TaskChangeSummary | undefined;
 };
 
+export type EdgeDiffState = "added" | "removed" | "unchanged";
+
 export type GraphEdge = {
   readonly id: string;
   readonly source: string;
   readonly target: string;
   readonly label: string | undefined;
+  readonly diffState: EdgeDiffState;
 };
 
 export type PlanGraph = {

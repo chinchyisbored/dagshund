@@ -48,17 +48,5 @@ const EDGE_STYLES: Readonly<Record<"added" | "removed" | "unchanged", EdgeStyle>
   unchanged: { stroke: "#52525b", opacity: 1 },
 };
 
-/**
- * Resolve the edge's visual state from its endpoint diff states.
- * An edge is new if either endpoint is added (the edge didn't exist before).
- * An edge is removed if either endpoint is removed (the edge is going away).
- * Otherwise the edge itself is unchanged — modified nodes don't change edges.
- */
-export const resolveEdgeDiffState = (source: DiffState, target: DiffState): "added" | "removed" | "unchanged" => {
-  if (source === "removed" || target === "removed") return "removed";
-  if (source === "added" || target === "added") return "added";
-  return "unchanged";
-};
-
 /** Get inline CSS style for an edge based on its resolved state. */
 export const getEdgeStyle = (state: "added" | "removed" | "unchanged"): EdgeStyle => EDGE_STYLES[state];

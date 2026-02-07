@@ -1,8 +1,9 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
-import type { GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
+import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
+  extractDeletedTaskEntries,
   extractJobState,
   extractTaskEntries,
   extractTaskState,
@@ -69,16 +70,128 @@ const filterTaskChanges = (
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
-/** Create edges between task nodes based on depends_on relationships. */
-const buildTaskEdges = (resourceKey: string, tasks: readonly TaskEntry[]): readonly GraphEdge[] =>
-  tasks.flatMap((task) =>
-    (task.depends_on ?? []).map((dep) => ({
-      id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, task.task_key)}`,
+/** Extract task_key values from a depends_on array (typed as unknown from changes). */
+const extractDependsOnKeys = (dependsOn: unknown): ReadonlySet<string> => {
+  if (!Array.isArray(dependsOn)) return new Set();
+  const keys = new Set<string>();
+  for (const entry of dependsOn) {
+    if (typeof entry === "object" && entry !== null && "task_key" in entry) {
+      const taskKey = (entry as { readonly task_key: string }).task_key;
+      if (typeof taskKey === "string") keys.add(taskKey);
+    }
+  }
+  return keys;
+};
+
+/** Resolve edge diff state for a single dependency given the depends_on change. */
+const resolveDepEdgeDiffState = (
+  depTaskKey: string,
+  oldKeys: ReadonlySet<string>,
+  newKeys: ReadonlySet<string>,
+): EdgeDiffState => {
+  const inOld = oldKeys.has(depTaskKey);
+  const inNew = newKeys.has(depTaskKey);
+  if (inNew && !inOld) return "added";
+  if (inOld && !inNew) return "removed";
+  return "unchanged";
+};
+
+/** Determine if a whole-task change represents an addition or removal. */
+const resolveTaskEdgeDiffState = (
+  taskKey: string,
+  changes: Readonly<Record<string, ChangeDesc>> | undefined,
+): EdgeDiffState | undefined => {
+  const wholeTaskChange = changes?.[`tasks[task_key='${taskKey}']`];
+  if (wholeTaskChange === undefined) return undefined;
+  if (wholeTaskChange.new !== undefined && wholeTaskChange.old === undefined) return "added";
+  if (wholeTaskChange.old !== undefined && wholeTaskChange.new === undefined) return "removed";
+  return undefined;
+};
+
+/** Build edges with diff states for a single task's dependencies.
+ *  Handles create/delete at the resource and task levels, depends_on changes, and unchanged deps. */
+const buildEdgesForTask = (
+  resourceKey: string,
+  taskKey: string,
+  currentDependsOn: readonly { readonly task_key: string }[],
+  resourceDiffState: EdgeDiffState,
+  changes: Readonly<Record<string, ChangeDesc>> | undefined,
+): readonly GraphEdge[] => {
+  // Resource-level create or delete: all edges inherit that state
+  if (resourceDiffState !== "unchanged") {
+    return currentDependsOn.map((dep) => ({
+      id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, taskKey)}`,
       source: buildTaskNodeId(resourceKey, dep.task_key),
-      target: buildTaskNodeId(resourceKey, task.task_key),
+      target: buildTaskNodeId(resourceKey, taskKey),
       label: undefined,
-    })),
+      diffState: resourceDiffState,
+    }));
+  }
+
+  // Task-level create or delete: all edges inherit the task's state
+  const taskEdgeDiffState = resolveTaskEdgeDiffState(taskKey, changes);
+  if (taskEdgeDiffState !== undefined) {
+    return currentDependsOn.map((dep) => ({
+      id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, taskKey)}`,
+      source: buildTaskNodeId(resourceKey, dep.task_key),
+      target: buildTaskNodeId(resourceKey, taskKey),
+      label: undefined,
+      diffState: taskEdgeDiffState,
+    }));
+  }
+
+  const dependsOnChangeKey = `tasks[task_key='${taskKey}'].depends_on`;
+  const dependsOnChange = changes?.[dependsOnChangeKey];
+
+  if (dependsOnChange === undefined) {
+    // No depends_on change: all edges are unchanged
+    return currentDependsOn.map((dep) => ({
+      id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, taskKey)}`,
+      source: buildTaskNodeId(resourceKey, dep.task_key),
+      target: buildTaskNodeId(resourceKey, taskKey),
+      label: undefined,
+      diffState: "unchanged" as const,
+    }));
+  }
+
+  // Compare old vs new depends_on arrays
+  const oldKeys = extractDependsOnKeys(dependsOnChange.old);
+  const newKeys = extractDependsOnKeys(dependsOnChange.new);
+
+  // Build edges for all deps in the union of old and new
+  const allDepKeys = new Set([...oldKeys, ...newKeys]);
+  return [...allDepKeys].map((depTaskKey) => {
+    const diffState = resolveDepEdgeDiffState(depTaskKey, oldKeys, newKeys);
+    return {
+      id: `${buildTaskNodeId(resourceKey, depTaskKey)}→${buildTaskNodeId(resourceKey, taskKey)}`,
+      source: buildTaskNodeId(resourceKey, depTaskKey),
+      target: buildTaskNodeId(resourceKey, taskKey),
+      label: undefined,
+      diffState,
+    };
+  });
+};
+
+/** Build diff-aware edges for all tasks within a resource. */
+const buildDiffEdges = (
+  resourceKey: string,
+  allTasks: readonly TaskEntry[],
+  entry: PlanEntry,
+): readonly GraphEdge[] => {
+  const resourceDiff = mapActionToDiffState(entry.action);
+  const edgeDiffState: EdgeDiffState =
+    resourceDiff === "added" ? "added" : resourceDiff === "removed" ? "removed" : "unchanged";
+
+  return allTasks.flatMap((task) =>
+    buildEdgesForTask(
+      resourceKey,
+      task.task_key,
+      task.depends_on ?? [],
+      edgeDiffState,
+      entry.changes,
+    ),
   );
+};
 
 /** Build the complete graph for a single plan entry. */
 const buildEntryGraph = (
@@ -86,9 +199,15 @@ const buildEntryGraph = (
   entry: PlanEntry,
 ): { readonly nodes: readonly GraphNode[]; readonly edges: readonly GraphEdge[] } => {
   const tasks = extractTaskEntries(entry.new_state);
+  const deletedTasks = extractDeletedTaskEntries(entry.changes);
+  const allTasks = [...tasks, ...deletedTasks];
+
   return {
-    nodes: [buildJobNode(resourceKey, entry, tasks), ...buildTaskNodes(resourceKey, entry, tasks)],
-    edges: buildTaskEdges(resourceKey, tasks),
+    nodes: [
+      buildJobNode(resourceKey, entry, tasks),
+      ...buildTaskNodes(resourceKey, entry, allTasks),
+    ],
+    edges: buildDiffEdges(resourceKey, allTasks, entry),
   };
 };
 
@@ -116,6 +235,7 @@ const buildRunJobEdges = (
           source: sourceNodeId,
           target: targetResourceKey,
           label: undefined,
+          diffState: "unchanged" as const,
         },
       ];
     });
