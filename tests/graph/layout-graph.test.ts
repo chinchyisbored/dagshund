@@ -238,7 +238,7 @@ describe("assembleFlowNodes", () => {
 describe("toFlowEdges", () => {
   test("converts graph edges to React Flow edges", async () => {
     const { toFlowEdges } = await loadModule();
-    const edges = toFlowEdges(SINGLE_JOB_GRAPH.edges);
+    const edges = toFlowEdges(SINGLE_JOB_GRAPH.edges, SINGLE_JOB_GRAPH.nodes);
 
     expect(edges).toHaveLength(1);
     expect(edges[0].source).toBe("resources.jobs.etl::extract");
@@ -247,7 +247,7 @@ describe("toFlowEdges", () => {
 
   test("preserves edge labels", async () => {
     const { toFlowEdges } = await loadModule();
-    const edges = toFlowEdges([{ id: "e1", source: "a", target: "b", label: "depends_on" }]);
+    const edges = toFlowEdges([{ id: "e1", source: "a", target: "b", label: "depends_on" }], []);
     expect(edges[0].label).toBe("depends_on");
   });
 });

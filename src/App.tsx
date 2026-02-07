@@ -95,9 +95,10 @@ function DagView({ plan }: { readonly plan: Plan }) {
     return baseEdges.map((edge) => {
       const isConnected =
         edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+      const baseStyle = edge.style ?? {};
       return isConnected
-        ? { ...edge, style: { stroke: "#ffffff", strokeWidth: 2.5 } }
-        : { ...edge, style: { stroke: "#71717a", strokeWidth: 2, opacity: 0.15 } };
+        ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
+        : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
     });
   }, [baseEdges, connectedIds, hoveredNodeId]);
 

@@ -496,9 +496,6 @@
               "depends_on": [
                 {
                   "task_key": "check_nulls"
-                },
-                {
-                  "task_key": "check_duplicates"
                 }
               ],
               "email_notifications": {},
@@ -669,6 +666,27 @@
             },
             "task_key": "check_referential_integrity"
           }
+        },
+        "tasks[task_key='compute_statistics'].depends_on": {
+          "action": "update",
+          "old": [
+            {
+              "task_key": "check_nulls"
+            }
+          ],
+          "new": [
+            {
+              "task_key": "check_nulls"
+            },
+            {
+              "task_key": "check_duplicates"
+            }
+          ],
+          "remote": [
+            {
+              "task_key": "check_nulls"
+            }
+          ]
         },
         "tasks[task_key='compute_statistics'].email_notifications": {
           "action": "skip",
