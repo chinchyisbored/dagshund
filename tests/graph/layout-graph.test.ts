@@ -105,6 +105,75 @@ describe("groupNodesByJob", () => {
   });
 });
 
+describe("topologicalSortTasks", () => {
+  test("sorts tasks so dependencies come before dependents", async () => {
+    const { topologicalSortTasks } = await loadModule();
+
+    const taskA: GraphNode = {
+      ...TASK_EXTRACT,
+      id: "resources.jobs.etl::aggregate_results",
+      taskKey: "aggregate_results",
+      label: "aggregate_results",
+    };
+    const taskB: GraphNode = {
+      ...TASK_EXTRACT,
+      id: "resources.jobs.etl::setup_env",
+      taskKey: "setup_env",
+      label: "setup_env",
+    };
+    const taskC: GraphNode = {
+      ...TASK_EXTRACT,
+      id: "resources.jobs.etl::run_tests",
+      taskKey: "run_tests",
+      label: "run_tests",
+    };
+
+    // Input in alphabetical order (wrong dependency order):
+    // aggregate_results depends on run_tests, run_tests depends on setup_env
+    const tasks = [taskA, taskC, taskB];
+    const edges = [
+      { source: "resources.jobs.etl::setup_env", target: "resources.jobs.etl::run_tests" },
+      { source: "resources.jobs.etl::run_tests", target: "resources.jobs.etl::aggregate_results" },
+    ];
+
+    const sorted = topologicalSortTasks(tasks, edges);
+    const sortedKeys = sorted.map((t: GraphNode) => t.taskKey);
+
+    const setupIdx = sortedKeys.indexOf("setup_env");
+    const runIdx = sortedKeys.indexOf("run_tests");
+    const aggIdx = sortedKeys.indexOf("aggregate_results");
+
+    expect(setupIdx).toBeLessThan(runIdx);
+    expect(runIdx).toBeLessThan(aggIdx);
+  });
+
+  test("preserves original order for tasks with no edges", async () => {
+    const { topologicalSortTasks } = await loadModule();
+
+    const taskA: GraphNode = { ...TASK_EXTRACT, id: "j::a", taskKey: "a" };
+    const taskB: GraphNode = { ...TASK_EXTRACT, id: "j::b", taskKey: "b" };
+    const taskC: GraphNode = { ...TASK_EXTRACT, id: "j::c", taskKey: "c" };
+
+    const sorted = topologicalSortTasks([taskA, taskB, taskC], []);
+    const sortedKeys = sorted.map((t: GraphNode) => t.taskKey);
+    expect(sortedKeys).toEqual(["a", "b", "c"]);
+  });
+
+  test("ignores edges from other jobs", async () => {
+    const { topologicalSortTasks } = await loadModule();
+
+    const taskA: GraphNode = { ...TASK_EXTRACT, id: "j::a", taskKey: "a" };
+    const taskB: GraphNode = { ...TASK_EXTRACT, id: "j::b", taskKey: "b" };
+
+    // Edge from a different job — should be ignored
+    const edges = [{ source: "other::x", target: "j::a" }];
+
+    const sorted = topologicalSortTasks([taskA, taskB], edges);
+    const sortedKeys = sorted.map((t: GraphNode) => t.taskKey);
+    expect(sortedKeys).toEqual(["a", "b"]);
+  });
+});
+
 describe("buildElkCompoundGraph", () => {
   test("creates hierarchical ELK graph with jobs containing task children", async () => {
     const { buildElkCompoundGraph } = await loadModule();

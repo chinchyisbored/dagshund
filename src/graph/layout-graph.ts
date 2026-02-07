@@ -73,6 +73,61 @@ const collectCrossJobEdges = (
   });
 };
 
+/** Topologically sort tasks within a job so ELK model order matches dependency flow. */
+export const topologicalSortTasks = (
+  tasks: readonly GraphNode[],
+  edges: readonly { readonly source: string; readonly target: string }[],
+): readonly GraphNode[] => {
+  const taskIds = new Set(tasks.map((t) => t.id));
+  const intraEdges = edges.filter((e) => taskIds.has(e.source) && taskIds.has(e.target));
+
+  const adjacency = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
+
+  for (const task of tasks) {
+    adjacency.set(task.id, []);
+    inDegree.set(task.id, 0);
+  }
+
+  for (const edge of intraEdges) {
+    adjacency.get(edge.source)!.push(edge.target);
+    inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
+  }
+
+  const queue: string[] = [];
+  for (const task of tasks) {
+    if ((inDegree.get(task.id) ?? 0) === 0) {
+      queue.push(task.id);
+    }
+  }
+
+  const sortedIds: string[] = [];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    sortedIds.push(current);
+    for (const neighbor of adjacency.get(current) ?? []) {
+      const newDegree = (inDegree.get(neighbor) ?? 1) - 1;
+      inDegree.set(neighbor, newDegree);
+      if (newDegree === 0) {
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  const sorted = sortedIds.map((id) => taskById.get(id)!);
+
+  // Append any disconnected tasks not reached by BFS in original order
+  const sortedSet = new Set(sortedIds);
+  for (const task of tasks) {
+    if (!sortedSet.has(task.id)) {
+      sorted.push(task);
+    }
+  }
+
+  return sorted;
+};
+
 /** Build an ELK compound graph with jobs as parents and tasks as children. */
 export const buildElkCompoundGraph = (graph: PlanGraph) => {
   const groups = groupNodesByJob(graph.nodes);
@@ -105,7 +160,7 @@ export const buildElkCompoundGraph = (graph: PlanGraph) => {
         "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
         "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
       },
-      children: group.tasks.map((task) => ({
+      children: topologicalSortTasks(group.tasks, graph.edges).map((task) => ({
         id: task.id,
         width: NODE_WIDTH,
         height: NODE_HEIGHT_TASK,
