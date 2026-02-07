@@ -2,7 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
 
-const NODE_WIDTH = 200;
+export const NODE_WIDTH = 200;
 const NODE_HEIGHT_TASK = 50;
 
 const JOB_PADDING_TOP = 40;
@@ -69,6 +69,14 @@ export const buildElkCompoundGraph = (graph: PlanGraph) => ({
       "elk.layered.spacing.nodeNodeBetweenLayers": "60",
       "elk.spacing.edgeNode": "20",
       "elk.layered.spacing.edgeNodeBetweenLayers": "20",
+      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+      "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+      "elk.layered.considerModelOrder.portModelOrder": "true",
+      "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+      "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
+      "elk.layered.compaction.connectedComponents": "true",
+      "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
+      "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
       "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
     },
     children: group.tasks.map((task) => ({
@@ -198,6 +206,7 @@ export const toFlowEdges = (edges: PlanGraph["edges"]): readonly Edge[] =>
     source: edge.source,
     target: edge.target,
     label: edge.label,
+    type: "bezier",
   }));
 
 /** Convert a PlanGraph to React Flow nodes and edges with ELK compound layout. */

@@ -1,4 +1,5 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
+import { NODE_WIDTH } from "../graph/index.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
 
@@ -9,7 +10,9 @@ export function TaskNode({ data }: NodeProps<TaskNodeType>) {
 
   return (
     <div
-      className={`rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.background} ${styles.text} ${styles.opacity}`}
+      style={{ width: NODE_WIDTH }}
+      className={`truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.background} ${styles.text} ${styles.opacity}`}
+      title={data.label}
     >
       <Handle type="target" position={Position.Left} className="!bg-zinc-500" />
       <span>{data.label}</span>
