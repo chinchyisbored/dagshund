@@ -1,6 +1,8 @@
 import type { DagNodeData } from "../types/graph-types.ts";
 import type { ChangeDesc } from "../types/plan-schema.ts";
+import { computeStructuralDiff } from "../utils/structural-diff.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
+import { StructuralDiffView } from "./structural-diff-view.tsx";
 
 type DetailPanelProps = {
   readonly data: DagNodeData;
@@ -13,13 +15,6 @@ const TASK_KEY_PREFIX_PATTERN = /^tasks\[task_key='[^']*'\]\./;
 
 /** Strip the `tasks[task_key='...'].` prefix from a change key for display. */
 const stripTaskPrefix = (key: string): string => key.replace(TASK_KEY_PREFIX_PATTERN, "");
-
-/** Format a value for display — JSON.stringify with indentation for objects. */
-const formatValue = (value: unknown): string => {
-  if (value === undefined || value === null) return "null";
-  if (typeof value === "string") return JSON.stringify(value);
-  return JSON.stringify(value, null, 2);
-};
 
 const ACTION_BADGE_COLORS: Readonly<Record<string, string>> = {
   create: "text-emerald-400 bg-emerald-400/10",
@@ -53,22 +48,15 @@ function ChangeEntry({
   readonly fieldPath: string;
   readonly change: ChangeDesc;
 }) {
+  const diffResult = computeStructuralDiff(change);
+
   return (
     <div className="rounded border border-zinc-700/50 bg-zinc-800/50 p-3">
       <div className="mb-2 flex items-center gap-2">
         <span className="font-mono text-xs text-zinc-300">{stripTaskPrefix(fieldPath)}</span>
         <ActionBadge action={change.action} />
       </div>
-      {change.old !== undefined && (
-        <pre className="mb-1 overflow-x-auto rounded bg-red-500/5 px-2 py-1 font-mono text-xs text-red-300">
-          - {formatValue(change.old)}
-        </pre>
-      )}
-      {change.new !== undefined && (
-        <pre className="overflow-x-auto rounded bg-emerald-500/5 px-2 py-1 font-mono text-xs text-emerald-300">
-          + {formatValue(change.new)}
-        </pre>
-      )}
+      <StructuralDiffView result={diffResult} />
     </div>
   );
 }

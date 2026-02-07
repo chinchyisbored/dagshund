@@ -22,3 +22,17 @@ export {
 } from "./plan-schema.ts";
 export type { Result } from "./result.ts";
 export { err, ok } from "./result.ts";
+export type {
+  ArrayDiff,
+  ArrayElement,
+  ArrayElementStatus,
+  BaselineLabel,
+  CreateOnlyDiff,
+  DeleteOnlyDiff,
+  ObjectDiff,
+  ObjectEntry,
+  ObjectEntryStatus,
+  ScalarDiff,
+  StructuralDiff,
+  StructuralDiffResult,
+} from "./structural-diff.ts";
