@@ -217,16 +217,37 @@ const INTERPOLATION_PATTERN = /^\$\{(resources\..+?)\.id\}$/;
 const parseResourceReference = (interpolation: string): string | undefined =>
   INTERPOLATION_PATTERN.exec(interpolation)?.[1];
 
+/** Build a map from numeric remote_state.job_id to resource key for cross-job resolution. */
+const buildJobIdMap = (
+  entries: readonly (readonly [string, PlanEntry])[],
+): ReadonlyMap<number, string> => {
+  const map = new Map<number, string>();
+  for (const [resourceKey, entry] of entries) {
+    const remoteState = entry.remote_state;
+    if (typeof remoteState === "object" && remoteState !== null && "job_id" in remoteState) {
+      const jobId = (remoteState as { readonly job_id: unknown }).job_id;
+      if (typeof jobId === "number") {
+        map.set(jobId, resourceKey);
+      }
+    }
+  }
+  return map;
+};
+
 /** Create edges from tasks with run_job_task to the target job. */
 const buildRunJobEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
-): readonly GraphEdge[] =>
-  entries.flatMap(([resourceKey, entry]) => {
+): readonly GraphEdge[] => {
+  const jobIdMap = buildJobIdMap(entries);
+  return entries.flatMap(([resourceKey, entry]) => {
     const tasks = extractTaskEntries(entry.new_state);
     return tasks.flatMap((task) => {
       const jobId = task.run_job_task?.job_id;
       if (jobId === undefined) return [];
-      const targetResourceKey = parseResourceReference(jobId);
+      const targetResourceKey =
+        typeof jobId === "string"
+          ? parseResourceReference(jobId)
+          : jobIdMap.get(jobId);
       if (targetResourceKey === undefined) return [];
       const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
       return [
@@ -240,6 +261,7 @@ const buildRunJobEdges = (
       ];
     });
   });
+};
 
 /** Build the complete plan graph from all plan entries. */
 export const buildPlanGraph = (plan: Plan): PlanGraph => {

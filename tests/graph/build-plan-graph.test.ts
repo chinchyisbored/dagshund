@@ -218,4 +218,30 @@ describe("buildPlanGraph", () => {
       }
     });
   });
+
+  describe("complex-plan.json (numeric job_id)", () => {
+    test("extracts all tasks from etl_pipeline including run_job_task with numeric job_id", async () => {
+      const plan = await loadFixture("complex-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const etlTaskNodes = graph.nodes.filter(
+        (n) => n.nodeKind === "task" && n.resourceKey === "resources.jobs.etl_pipeline",
+      );
+      const taskKeys = etlTaskNodes.map((n) => n.taskKey).sort();
+      expect(taskKeys).toEqual(["aggregate", "extract", "load", "transform", "trigger_quality_check", "validate"]);
+    });
+
+    test("creates cross-job edge from trigger_quality_check to data_quality_pipeline via numeric job_id", async () => {
+      const plan = await loadFixture("complex-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const crossJobEdge = graph.edges.find(
+        (e) =>
+          e.source === "resources.jobs.etl_pipeline::trigger_quality_check" &&
+          e.target === "resources.jobs.data_quality_pipeline",
+      );
+      expect(crossJobEdge).toBeDefined();
+      expect(crossJobEdge?.diffState).toBe("unchanged");
+    });
+  });
 });

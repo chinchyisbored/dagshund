@@ -7,7 +7,11 @@ const taskEntrySchema = z
       .array(z.object({ task_key: z.string() }).readonly())
       .readonly()
       .optional(),
-    run_job_task: z.object({ job_id: z.string() }).passthrough().readonly().optional(),
+    run_job_task: z
+      .object({ job_id: z.union([z.string(), z.number()]) })
+      .passthrough()
+      .readonly()
+      .optional(),
   })
   .passthrough()
   .readonly();
