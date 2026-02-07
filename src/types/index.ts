@@ -6,12 +6,10 @@ export type {
   NodeKind,
   PlanGraph,
   TaskChangeSummary,
-  TaskChangeSummaryEntry,
 } from "./graph-types.ts";
 export type {
   ActionType,
   ChangeDesc,
-  DependsOnEntry,
   Plan,
   PlanEntry,
 } from "./plan-schema.ts";
@@ -27,8 +25,6 @@ export { err, ok } from "./result.ts";
 export type {
   ArrayDiff,
   ArrayElement,
-  ArrayElementStatus,
-  BaselineLabel,
   CreateOnlyDiff,
   DeleteOnlyDiff,
   ObjectDiff,

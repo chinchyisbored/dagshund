@@ -6,7 +6,6 @@ export type ValueFormat = "json" | "yaml";
 export const formatValue = (value: unknown, format: ValueFormat = "json"): string => {
   if (value === undefined || value === null) return "null";
   if (format === "yaml") {
-    if (typeof value === "string") return yamlStringify(value).trimEnd();
     return yamlStringify(value).trimEnd();
   }
   if (typeof value === "string") return JSON.stringify(value);

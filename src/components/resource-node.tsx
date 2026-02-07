@@ -42,7 +42,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
   const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
   const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
   const isDimmed = isDimmedByHover || isDimmedByFilter;
-  const isFilterHighlighted = filterMatchedIds?.has(id);
+  const isFilterHighlighted = filterMatchedIds !== null && filterMatchedIds.has(id);
   const styles = getDiffStateStyles(data.diffState);
   const opacityClass = isFilterHighlighted ? "opacity-100" : styles.opacity;
   const typeBadge = extractTypeBadge(data.resourceKey);
