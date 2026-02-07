@@ -20,6 +20,7 @@
     "elkjs": "^0.11.0",
     "react": "^19",
     "react-dom": "^19",
+    "yaml": "^2.8.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {

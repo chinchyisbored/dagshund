@@ -1,6 +1,14 @@
-/** Format a value for display — JSON.stringify with indentation for objects. */
-export const formatValue = (value: unknown): string => {
+import { stringify as yamlStringify } from "yaml";
+
+export type ValueFormat = "json" | "yaml";
+
+/** Format a value for display in the selected format. */
+export const formatValue = (value: unknown, format: ValueFormat = "json"): string => {
   if (value === undefined || value === null) return "null";
+  if (format === "yaml") {
+    if (typeof value === "string") return yamlStringify(value).trimEnd();
+    return yamlStringify(value).trimEnd();
+  }
   if (typeof value === "string") return JSON.stringify(value);
   return JSON.stringify(value, null, 2);
 };

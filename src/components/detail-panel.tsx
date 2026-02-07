@@ -1,5 +1,8 @@
+import { useState } from "react";
 import type { DagNodeData, TaskChangeSummary } from "../types/graph-types.ts";
 import type { ChangeDesc } from "../types/plan-schema.ts";
+import { ValueFormatContext, useValueFormat } from "../hooks/use-value-format.ts";
+import type { ValueFormat } from "../utils/format-value.ts";
 import { formatValue } from "../utils/format-value.ts";
 import { computeStructuralDiff } from "../utils/structural-diff.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
@@ -67,6 +70,7 @@ function ResourceStateView({
 }: {
   readonly resourceState: Readonly<Record<string, unknown>>;
 }) {
+  const format = useValueFormat();
   const sortedKeys = Object.keys(resourceState).toSorted();
 
   return (
@@ -75,7 +79,7 @@ function ResourceStateView({
         <div key={key} className="rounded border border-zinc-800 bg-zinc-800/30 px-3 py-2">
           <span className="font-mono text-xs text-zinc-400">{key}</span>
           <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-xs text-zinc-500">
-            {formatValue(resourceState[key])}
+            {formatValue(resourceState[key], format)}
           </pre>
         </div>
       ))}
@@ -109,6 +113,7 @@ function StateFieldRow({
   readonly value: unknown;
   readonly variant: "added" | "removed";
 }) {
+  const format = useValueFormat();
   const style = STATE_FIELD_STYLES[variant];
   return (
     <div className="rounded border border-zinc-700/40 bg-zinc-800/30 px-3 py-2">
@@ -118,7 +123,7 @@ function StateFieldRow({
       <pre
         className={`mt-1 whitespace-pre-wrap break-all font-mono text-xs ${style.text} opacity-80`}
       >
-        {formatValue(value)}
+        {formatValue(value, format)}
       </pre>
     </div>
   );
@@ -318,58 +323,94 @@ function UnchangedBody({ data }: { readonly data: DagNodeData }) {
   return <ResourceStateView resourceState={resourceState} />;
 }
 
+const FORMAT_TOGGLE_LABELS: Readonly<Record<ValueFormat, string>> = {
+  json: "JSON",
+  yaml: "YAML",
+};
+
+const NEXT_FORMAT: Readonly<Record<ValueFormat, ValueFormat>> = {
+  json: "yaml",
+  yaml: "json",
+};
+
+function FormatToggle({
+  format,
+  onToggle,
+}: {
+  readonly format: ValueFormat;
+  readonly onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="rounded border border-zinc-600 px-2 py-0.5 font-mono text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+    >
+      {FORMAT_TOGGLE_LABELS[format]}
+    </button>
+  );
+}
+
 export function DetailPanel({ data, onClose }: DetailPanelProps) {
+  const [valueFormat, setValueFormat] = useState<ValueFormat>("json");
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
 
+  const toggleFormat = () => setValueFormat((current) => NEXT_FORMAT[current]);
+
   return (
-    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-zinc-700 bg-zinc-900">
-      <div className="flex items-center justify-between border-b border-zinc-700/50 px-4 py-3">
-        <h2 className="truncate text-sm font-semibold text-zinc-100">{data.label}</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="ml-2 rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="h-4 w-4"
-          >
-            <title>Close panel</title>
-            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-          </svg>
-        </button>
-      </div>
-
-      {data.diffState !== "added" && data.diffState !== "removed" && (
-        <div className="px-4 py-2">
-          <DiffStateBadge diffState={data.diffState} />
+    <ValueFormatContext.Provider value={valueFormat}>
+      <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-zinc-700 bg-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-700/50 px-4 py-3">
+          <h2 className="truncate text-sm font-semibold text-zinc-100">{data.label}</h2>
+          <div className="ml-2 flex items-center gap-1.5">
+            <FormatToggle format={valueFormat} onToggle={toggleFormat} />
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-4 w-4"
+              >
+                <title>Close panel</title>
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          </div>
         </div>
-      )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
-        {data.nodeKind === "job" && data.taskChangeSummary !== undefined && (
-          <TaskChangesSummary summary={data.taskChangeSummary} />
+        {data.diffState !== "added" && data.diffState !== "removed" && (
+          <div className="px-4 py-2">
+            <DiffStateBadge diffState={data.diffState} />
+          </div>
         )}
 
-        {(data.diffState === "added" || data.diffState === "removed") && (
-          <AddedOrRemovedBody data={data} />
-        )}
-
-        {data.diffState === "modified" && (
-          <ModifiedBody data={data} meaningfulChanges={meaningfulChanges} />
-        )}
-
-        {data.diffState === "unchanged" && <UnchangedBody data={data} />}
-
-        {data.diffState === "modified" &&
-          meaningfulChanges.length === 0 &&
-          data.resourceState === undefined &&
-          data.taskChangeSummary === undefined && (
-            <p className="py-8 text-center text-sm text-zinc-500">No changes</p>
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {data.nodeKind === "job" && data.taskChangeSummary !== undefined && (
+            <TaskChangesSummary summary={data.taskChangeSummary} />
           )}
+
+          {(data.diffState === "added" || data.diffState === "removed") && (
+            <AddedOrRemovedBody data={data} />
+          )}
+
+          {data.diffState === "modified" && (
+            <ModifiedBody data={data} meaningfulChanges={meaningfulChanges} />
+          )}
+
+          {data.diffState === "unchanged" && <UnchangedBody data={data} />}
+
+          {data.diffState === "modified" &&
+            meaningfulChanges.length === 0 &&
+            data.resourceState === undefined &&
+            data.taskChangeSummary === undefined && (
+              <p className="py-8 text-center text-sm text-zinc-500">No changes</p>
+            )}
+        </div>
       </div>
-    </div>
+    </ValueFormatContext.Provider>
   );
 }

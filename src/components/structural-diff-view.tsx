@@ -1,3 +1,4 @@
+import { useValueFormat } from "../hooks/use-value-format.ts";
 import type {
   ArrayDiff,
   ArrayElement,
@@ -15,13 +16,14 @@ type StructuralDiffViewProps = {
 };
 
 function ScalarDiffView({ diff }: { readonly diff: ScalarDiff }) {
+  const format = useValueFormat();
   return (
     <>
       <pre className="mb-1 overflow-x-auto rounded bg-red-500/5 px-2 py-1 font-mono text-xs text-red-300">
-        - {formatValue(diff.old)}
+        - {formatValue(diff.old, format)}
       </pre>
       <pre className="overflow-x-auto rounded bg-emerald-500/5 px-2 py-1 font-mono text-xs text-emerald-300">
-        + {formatValue(diff.new)}
+        + {formatValue(diff.new, format)}
       </pre>
     </>
   );
@@ -36,6 +38,7 @@ const ELEMENT_STATUS_STYLES: Readonly<
 };
 
 function ArrayDiffView({ diff }: { readonly diff: ArrayDiff }) {
+  const format = useValueFormat();
   return (
     <div className="flex flex-col gap-0.5">
       {diff.elements.map((element, index) => {
@@ -45,7 +48,7 @@ function ArrayDiffView({ diff }: { readonly diff: ArrayDiff }) {
             key={element.identityLabel ?? index}
             className={`overflow-x-auto rounded px-2 py-0.5 font-mono text-xs ${style.className}`}
           >
-            {style.prefix} {formatValue(element.value)}
+            {style.prefix} {formatValue(element.value, format)}
             {element.identityLabel !== undefined && element.status !== "unchanged" && (
               <span className="ml-2 text-zinc-500">({element.identityLabel})</span>
             )}
@@ -66,16 +69,17 @@ const ENTRY_STATUS_STYLES: Readonly<
 };
 
 function ObjectEntryView({ entry }: { readonly entry: ObjectEntry }) {
+  const format = useValueFormat();
   const style = ENTRY_STATUS_STYLES[entry.status];
 
   if (entry.status === "changed") {
     return (
       <div className="flex flex-col gap-0.5">
         <pre className="overflow-x-auto rounded bg-red-500/5 px-2 py-0.5 font-mono text-xs text-red-300">
-          - {entry.key}: {formatValue(entry.old)}
+          - {entry.key}: {formatValue(entry.old, format)}
         </pre>
         <pre className="overflow-x-auto rounded bg-emerald-500/5 px-2 py-0.5 font-mono text-xs text-emerald-300">
-          + {entry.key}: {formatValue(entry.new)}
+          + {entry.key}: {formatValue(entry.new, format)}
         </pre>
       </div>
     );
@@ -94,7 +98,7 @@ function ObjectEntryView({ entry }: { readonly entry: ObjectEntry }) {
     <pre
       className={`overflow-x-auto rounded px-2 py-0.5 font-mono text-xs ${style.className} ${background}`}
     >
-      {prefix} {entry.key}: {formatValue(value)}
+      {prefix} {entry.key}: {formatValue(value, format)}
     </pre>
   );
 }
@@ -110,17 +114,19 @@ function ObjectDiffView({ diff }: { readonly diff: ObjectDiff }) {
 }
 
 function CreateOnlyView({ diff }: { readonly diff: CreateOnlyDiff }) {
+  const format = useValueFormat();
   return (
     <pre className="overflow-x-auto rounded bg-emerald-500/5 px-2 py-1 font-mono text-xs text-emerald-300">
-      + {formatValue(diff.value)}
+      + {formatValue(diff.value, format)}
     </pre>
   );
 }
 
 function DeleteOnlyView({ diff }: { readonly diff: DeleteOnlyDiff }) {
+  const format = useValueFormat();
   return (
     <pre className="overflow-x-auto rounded bg-red-500/5 px-2 py-1 font-mono text-xs text-red-300">
-      - {formatValue(diff.value)}
+      - {formatValue(diff.value, format)}
     </pre>
   );
 }
