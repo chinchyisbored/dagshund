@@ -8,9 +8,21 @@ import type {
   StructuralDiffResult,
 } from "../types/structural-diff.ts";
 
-/** Deep equality check via JSON serialization. */
-const deepEqual = (a: unknown, b: unknown): boolean =>
-  JSON.stringify(a) === JSON.stringify(b);
+/** Key-order-independent deep equality check. */
+const deepEqual = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (typeof a !== typeof b || a === null || b === null) return false;
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((item, i) => deepEqual(item, b[i]));
+  }
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const aKeys = Object.keys(a);
+    if (aKeys.length !== Object.keys(b).length) return false;
+    return aKeys.every((key) => key in b && deepEqual(a[key], b[key]));
+  }
+  return false;
+};
 
 /** Check whether a value is a plain object (not null, not array). */
 const isPlainObject = (value: unknown): value is Readonly<Record<string, unknown>> =>

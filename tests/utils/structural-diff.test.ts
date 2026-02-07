@@ -199,6 +199,14 @@ describe("diffObjects", () => {
     );
     expect(changed.entries[0]?.status).toBe("changed");
   });
+
+  test("treats objects with different key ordering as unchanged", () => {
+    const result = diffObjects(
+      { config: { b: 2, a: 1 } },
+      { config: { a: 1, b: 2 } },
+    );
+    expect(result.entries[0]?.status).toBe("unchanged");
+  });
 });
 
 describe("computeStructuralDiff", () => {
