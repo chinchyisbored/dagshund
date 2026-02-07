@@ -5,11 +5,15 @@ import {
   Position,
   useNodeConnections,
 } from "@xyflow/react";
+import { memo } from "react";
 import { useHoverState } from "../hooks/use-hover-context.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
 
 type JobNodeType = Node<DagNodeData, "job">;
+
+const TARGET_HANDLE = { handleType: "target" } as const;
+const SOURCE_HANDLE = { handleType: "source" } as const;
 
 /** Extract the short job name from a resource key like "resources.jobs.etl_pipeline". */
 const formatJobLabel = (resourceKey: string): string => {
@@ -17,10 +21,10 @@ const formatJobLabel = (resourceKey: string): string => {
   return segments[segments.length - 1] ?? resourceKey;
 };
 
-export function JobNode({ id, data }: NodeProps<JobNodeType>) {
+export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType>) {
   const { connectedIds, filterMatchedIds } = useHoverState();
-  const incomingConnections = useNodeConnections({ handleType: "target" });
-  const outgoingConnections = useNodeConnections({ handleType: "source" });
+  const incomingConnections = useNodeConnections(TARGET_HANDLE);
+  const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
   const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
   const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
   const isDimmed = isDimmedByHover || isDimmedByFilter;
@@ -47,4 +51,4 @@ export function JobNode({ id, data }: NodeProps<JobNodeType>) {
       )}
     </div>
   );
-}
+});

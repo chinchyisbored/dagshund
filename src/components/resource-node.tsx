@@ -5,12 +5,16 @@ import {
   Position,
   useNodeConnections,
 } from "@xyflow/react";
+import { memo } from "react";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useHoverState } from "../hooks/use-hover-context.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
 
 type ResourceNodeType = Node<DagNodeData, "resource">;
+
+const TARGET_HANDLE = { handleType: "target" } as const;
+const SOURCE_HANDLE = { handleType: "source" } as const;
 
 /** Map resource type segment to a short display badge. */
 const TYPE_BADGES: Readonly<Record<string, string>> = {
@@ -31,10 +35,10 @@ const extractTypeBadge = (resourceKey: string): string | undefined => {
   return typeSegment !== undefined ? TYPE_BADGES[typeSegment] ?? typeSegment : undefined;
 };
 
-export function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
+export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
   const { connectedIds, filterMatchedIds } = useHoverState();
-  const incomingConnections = useNodeConnections({ handleType: "target" });
-  const outgoingConnections = useNodeConnections({ handleType: "source" });
+  const incomingConnections = useNodeConnections(TARGET_HANDLE);
+  const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
   const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
   const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
   const isDimmed = isDimmedByHover || isDimmedByFilter;
@@ -63,4 +67,4 @@ export function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
       )}
     </div>
   );
-}
+});

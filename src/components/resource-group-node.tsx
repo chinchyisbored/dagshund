@@ -5,11 +5,15 @@ import {
   Position,
   useNodeConnections,
 } from "@xyflow/react";
+import { memo } from "react";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useHoverState } from "../hooks/use-hover-context.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 
 type ResourceGroupNodeType = Node<DagNodeData, "resource-group">;
+
+const TARGET_HANDLE = { handleType: "target" } as const;
+const SOURCE_HANDLE = { handleType: "source" } as const;
 
 /** Derive a type badge for virtual group nodes from their ID convention. */
 const extractGroupBadge = (resourceKey: string, isExternal: boolean): string | undefined => {
@@ -18,10 +22,10 @@ const extractGroupBadge = (resourceKey: string, isExternal: boolean): string | u
   return undefined;
 };
 
-export function ResourceGroupNode({ id, data }: NodeProps<ResourceGroupNodeType>) {
+export const ResourceGroupNode = memo(function ResourceGroupNode({ id, data }: NodeProps<ResourceGroupNodeType>) {
   const { connectedIds, filterMatchedIds } = useHoverState();
-  const incomingConnections = useNodeConnections({ handleType: "target" });
-  const outgoingConnections = useNodeConnections({ handleType: "source" });
+  const incomingConnections = useNodeConnections(TARGET_HANDLE);
+  const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
   const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
   const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
   const isDimmed = isDimmedByHover || isDimmedByFilter;
@@ -56,4 +60,4 @@ export function ResourceGroupNode({ id, data }: NodeProps<ResourceGroupNodeType>
       )}
     </div>
   );
-}
+});

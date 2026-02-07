@@ -5,6 +5,7 @@ import {
   Position,
   useNodeConnections,
 } from "@xyflow/react";
+import { memo } from "react";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useHoverState } from "../hooks/use-hover-context.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
@@ -12,10 +13,13 @@ import { getDiffStateStyles } from "./diff-state-styles.ts";
 
 type TaskNodeType = Node<DagNodeData, "task">;
 
-export function TaskNode({ id, data }: NodeProps<TaskNodeType>) {
+const TARGET_HANDLE = { handleType: "target" } as const;
+const SOURCE_HANDLE = { handleType: "source" } as const;
+
+export const TaskNode = memo(function TaskNode({ id, data }: NodeProps<TaskNodeType>) {
   const { connectedIds, filterMatchedIds } = useHoverState();
-  const incomingConnections = useNodeConnections({ handleType: "target" });
-  const outgoingConnections = useNodeConnections({ handleType: "source" });
+  const incomingConnections = useNodeConnections(TARGET_HANDLE);
+  const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
   const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
   const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
   const isDimmed = isDimmedByHover || isDimmedByFilter;
@@ -38,4 +42,4 @@ export function TaskNode({ id, data }: NodeProps<TaskNodeType>) {
       )}
     </div>
   );
-}
+});

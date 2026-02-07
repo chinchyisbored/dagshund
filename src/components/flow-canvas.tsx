@@ -11,7 +11,7 @@ import {
   ReactFlow,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DetailPanel } from "./detail-panel.tsx";
 import { DiffFilterToolbar } from "./diff-filter-toolbar.tsx";
@@ -56,25 +56,25 @@ export function FlowCanvas({ layout, nodeTypes }: FlowCanvasProps) {
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   const hasFittedRef = useRef(false);
 
-  const handleNodeClick: NodeMouseHandler = (_, node) => {
+  const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelectedNode(node.data as DagNodeData);
-  };
+  }, []);
 
-  const handleClosePanel = () => {
+  const handleClosePanel = useCallback(() => {
     setSelectedNode(null);
-  };
+  }, []);
 
-  const handleNodeMouseEnter: NodeMouseHandler = (_, node) => {
+  const handleNodeMouseEnter: NodeMouseHandler = useCallback((_, node) => {
     setHoveredNodeId(node.id);
-  };
+  }, []);
 
-  const handleNodeMouseLeave: NodeMouseHandler = () => {
+  const handleNodeMouseLeave: NodeMouseHandler = useCallback(() => {
     setHoveredNodeId(null);
-  };
+  }, []);
 
-  const handleInit = (instance: ReactFlowInstance) => {
+  const handleInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
-  };
+  }, []);
 
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
@@ -110,7 +110,7 @@ export function FlowCanvas({ layout, nodeTypes }: FlowCanvasProps) {
   );
 
   const styledEdges = useMemo((): readonly Edge[] => {
-    if (connectedIds === null && filterMatchedIds === null) return [...baseEdges];
+    if (connectedIds === null && filterMatchedIds === null) return baseEdges as Edge[];
     return baseEdges.map((edge) => {
       const baseStyle = edge.style ?? {};
       if (connectedIds !== null) {
