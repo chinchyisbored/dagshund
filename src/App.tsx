@@ -60,8 +60,12 @@ function PlanView({ plan }: { readonly plan: Plan }) {
     <div className="flex h-full flex-col">
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="min-h-0 flex-1">
-        {activeTab === "jobs" && <DagView plan={plan} />}
-        {activeTab === "resources" && <ResourcesView plan={plan} />}
+        <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
+          <DagView plan={plan} />
+        </div>
+        <div className="h-full" style={activeTab !== "resources" ? { display: "none" } : undefined}>
+          <ResourcesView plan={plan} />
+        </div>
       </div>
     </div>
   );
