@@ -413,7 +413,7 @@ function FormatToggle({
 }
 
 export function DetailPanel({ data, onClose }: DetailPanelProps) {
-  const [valueFormat, setValueFormat] = useState<ValueFormat>("json");
+  const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
 
   const toggleFormat = () => setValueFormat((current) => NEXT_FORMAT[current]);
