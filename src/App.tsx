@@ -7,14 +7,16 @@ import {
   type Node,
   type NodeMouseHandler,
   ReactFlow,
+  type ReactFlowInstance,
 } from "@xyflow/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
 import { DetailPanel } from "./components/detail-panel.tsx";
 import { JobNode } from "./components/job-node.tsx";
 import { TaskNode } from "./components/task-node.tsx";
+import { HoverContext } from "./hooks/use-hover-context.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
 import type { DagNodeData } from "./types/graph-types.ts";
@@ -47,6 +49,8 @@ function DagView({ plan }: { readonly plan: Plan }) {
   const layout = usePlanGraph(plan);
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
+  const hasFittedRef = useRef(false);
 
   const handleNodeClick: NodeMouseHandler = (_, node) => {
     setSelectedNode(node.data as DagNodeData);
@@ -64,20 +68,27 @@ function DagView({ plan }: { readonly plan: Plan }) {
     setHoveredNodeId(null);
   };
 
+  const handleInit = (instance: ReactFlowInstance) => {
+    rfInstanceRef.current = instance;
+  };
+
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
+
+  /** Fit the viewport exactly once after the ELK layout produces nodes. */
+  useEffect(() => {
+    if (rfInstanceRef.current && baseNodes.length > 0 && !hasFittedRef.current) {
+      rfInstanceRef.current.fitView();
+      hasFittedRef.current = true;
+    }
+  }, [baseNodes]);
 
   const connectedIds = useMemo(
     () => (hoveredNodeId !== null ? buildConnectedNodeIds(baseEdges, hoveredNodeId) : null),
     [baseEdges, hoveredNodeId],
   );
 
-  const styledNodes = useMemo((): readonly Node[] => {
-    if (connectedIds === null) return [...baseNodes];
-    return baseNodes.map((node) =>
-      connectedIds.has(node.id) ? node : { ...node, style: { ...node.style, opacity: 0.3 } },
-    );
-  }, [baseNodes, connectedIds]);
+  const hoverState = useMemo(() => ({ connectedIds }), [connectedIds]);
 
   const styledEdges = useMemo((): readonly Edge[] => {
     if (connectedIds === null) return [...baseEdges];
@@ -92,22 +103,24 @@ function DagView({ plan }: { readonly plan: Plan }) {
 
   return (
     <div className="flex h-full">
-      <ReactFlow
-        className="flex-1"
-        nodes={styledNodes as Node[]}
-        edges={styledEdges as Edge[]}
-        nodeTypes={NODE_TYPES}
-        defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-        nodesConnectable={false}
-        onNodeClick={handleNodeClick}
-        onNodeMouseEnter={handleNodeMouseEnter}
-        onNodeMouseLeave={handleNodeMouseLeave}
-        fitView
-      >
-        <Background />
-        <Controls />
-        <MiniMap style={{ backgroundColor: "#18181b" }} />
-      </ReactFlow>
+      <HoverContext.Provider value={hoverState}>
+        <ReactFlow
+          className="flex-1"
+          nodes={baseNodes as Node[]}
+          edges={styledEdges as Edge[]}
+          nodeTypes={NODE_TYPES}
+          defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+          nodesConnectable={false}
+          onNodeClick={handleNodeClick}
+          onNodeMouseEnter={handleNodeMouseEnter}
+          onNodeMouseLeave={handleNodeMouseLeave}
+          onInit={handleInit}
+        >
+          <Background />
+          <Controls />
+          <MiniMap style={{ backgroundColor: "#18181b" }} />
+        </ReactFlow>
+      </HoverContext.Provider>
       {selectedNode !== null && <DetailPanel data={selectedNode} onClose={handleClosePanel} />}
     </div>
   );
