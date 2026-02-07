@@ -1,18 +1,7 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
-
-/** Collect all change entries whose key starts with tasks[task_key='<taskKey>']. */
-const collectChangesForTask = (
-  taskKey: string,
-  changes: Readonly<Record<string, ChangeDesc>> | undefined,
-): readonly (readonly [string, ChangeDesc])[] => {
-  if (changes === undefined) {
-    return [];
-  }
-  const prefix = `tasks[task_key='${taskKey}']`;
-  return Object.entries(changes).filter(([key]) => key.startsWith(prefix));
-};
+import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 
 /** Determine if a whole-task change represents an addition (new only, no old). */
 const isTaskAdded = (change: ChangeDesc): boolean =>
@@ -44,7 +33,7 @@ export const resolveTaskDiffState = (
     return "unchanged";
   }
 
-  const exactKey = `tasks[task_key='${taskKey}']`;
+  const exactKey = buildTaskKeyPrefix(taskKey);
   const wholeTaskChange = taskChanges.find(([key]) => key === exactKey);
   if (wholeTaskChange !== undefined) {
     const change = wholeTaskChange[1];

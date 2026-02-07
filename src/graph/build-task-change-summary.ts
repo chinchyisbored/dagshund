@@ -1,10 +1,9 @@
 import type { DiffState } from "../types/diff-state.ts";
 import type { TaskChangeSummary } from "../types/graph-types.ts";
 import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
+import { TASK_KEY_PATTERN } from "../utils/task-key.ts";
 import type { TaskEntry } from "./extract-tasks.ts";
 import { resolveTaskDiffState } from "./resolve-task-diff-state.ts";
-
-const TASK_KEY_PATTERN = /^tasks\[task_key='([^']+)'\]/;
 
 /** Extract all unique task keys referenced in the changes record. */
 const extractTaskKeysFromChanges = (

@@ -15,10 +15,10 @@ type DetailPanelProps = {
 
 const NOISE_ACTIONS: ReadonlySet<string> = new Set(["skip", ""]);
 
-const TASK_KEY_PREFIX_PATTERN = /^tasks\[task_key='[^']*'\]\./;
+import { TASK_KEY_DOT_PREFIX_PATTERN } from "../utils/task-key.ts";
 
 /** Strip the `tasks[task_key='...'].` prefix from a change key for display. */
-const stripTaskPrefix = (key: string): string => key.replace(TASK_KEY_PREFIX_PATTERN, "");
+const stripTaskPrefix = (key: string): string => key.replace(TASK_KEY_DOT_PREFIX_PATTERN, "");
 
 const ACTION_BADGE_COLORS: Readonly<Record<string, string>> = {
   create: "text-emerald-400 bg-emerald-400/10",

@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { TASK_KEY_PATTERN, buildTaskKeyPrefix } from "../utils/task-key.ts";
 
 const taskEntrySchema = z
   .object({
@@ -56,9 +57,6 @@ export const extractJobState = (
 export const extractTaskState = (task: TaskEntry): Readonly<Record<string, unknown>> =>
   task as unknown as Record<string, unknown>;
 
-/** Match whole-task change keys like tasks[task_key='validate'] (no trailing dot). */
-const WHOLE_TASK_KEY_PATTERN = /^tasks\[task_key='([^']+)'\]$/;
-
 /** Extract deleted task entries from a changes record.
  *  Deleted tasks have a whole-task change with old defined and new undefined. */
 export const extractDeletedTaskEntries = (
@@ -68,8 +66,8 @@ export const extractDeletedTaskEntries = (
 
   const deletedTasks: TaskEntry[] = [];
   for (const [key, change] of Object.entries(changes)) {
-    const match = WHOLE_TASK_KEY_PATTERN.exec(key);
-    if (match === null) continue;
+    const match = TASK_KEY_PATTERN.exec(key);
+    if (match?.[1] === undefined || key !== buildTaskKeyPrefix(match[1])) continue;
 
     const changeDesc = change as { readonly old?: unknown; readonly new?: unknown };
     if (changeDesc.old === undefined || changeDesc.new !== undefined) continue;

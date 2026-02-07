@@ -6,3 +6,9 @@ export {
   diffObjects,
   findIdentityKey,
 } from "./structural-diff.ts";
+export {
+  buildTaskKeyPrefix,
+  TASK_KEY_PATTERN,
+  TASK_KEY_DOT_PREFIX_PATTERN,
+  collectChangesForTask,
+} from "./task-key.ts";

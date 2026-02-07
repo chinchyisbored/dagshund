@@ -1,6 +1,7 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
+import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
   extractDeletedTaskEntries,
@@ -67,8 +68,7 @@ const filterTaskChanges = (
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
 ): Readonly<Record<string, ChangeDesc>> | undefined => {
   if (changes === undefined) return undefined;
-  const prefix = `tasks[task_key='${taskKey}']`;
-  const entries = Object.entries(changes).filter(([key]) => key.startsWith(prefix));
+  const entries = collectChangesForTask(taskKey, changes);
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
@@ -103,7 +103,7 @@ const resolveTaskEdgeDiffState = (
   taskKey: string,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
 ): EdgeDiffState | undefined => {
-  const wholeTaskChange = changes?.[`tasks[task_key='${taskKey}']`];
+  const wholeTaskChange = changes?.[buildTaskKeyPrefix(taskKey)];
   if (wholeTaskChange === undefined) return undefined;
   if (wholeTaskChange.new !== undefined && wholeTaskChange.old === undefined) return "added";
   if (wholeTaskChange.old !== undefined && wholeTaskChange.new === undefined) return "removed";
@@ -142,7 +142,7 @@ const buildEdgesForTask = (
     }));
   }
 
-  const dependsOnChangeKey = `tasks[task_key='${taskKey}'].depends_on`;
+  const dependsOnChangeKey = `${buildTaskKeyPrefix(taskKey)}.depends_on`;
   const dependsOnChange = changes?.[dependsOnChangeKey];
 
   if (dependsOnChange === undefined) {
