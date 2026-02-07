@@ -1,7 +1,12 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
-import { extractTaskEntries, type TaskEntry } from "./extract-tasks.ts";
+import {
+  extractJobState,
+  extractTaskEntries,
+  extractTaskState,
+  type TaskEntry,
+} from "./extract-tasks.ts";
 import { resolveTaskDiffState } from "./resolve-task-diff-state.ts";
 
 /** Create a unique node ID for a task within a resource. */
@@ -17,6 +22,7 @@ const buildJobNode = (resourceKey: string, entry: PlanEntry): GraphNode => ({
   resourceKey,
   taskKey: undefined,
   changes: filterJobLevelChanges(entry.changes),
+  resourceState: extractJobState(entry.new_state),
 });
 
 /** Filter changes to only include job-level (non-task) entries. */
@@ -42,6 +48,7 @@ const buildTaskNodes = (
     resourceKey,
     taskKey: task.task_key,
     changes: filterTaskChanges(task.task_key, entry.changes),
+    resourceState: extractTaskState(task),
   }));
 
 /** Filter changes to only include entries for a specific task. */
@@ -96,12 +103,14 @@ const buildRunJobEdges = (
       const targetResourceKey = parseResourceReference(jobId);
       if (targetResourceKey === undefined) return [];
       const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
-      return [{
-        id: `${sourceNodeId}→${targetResourceKey}`,
-        source: sourceNodeId,
-        target: targetResourceKey,
-        label: undefined,
-      }];
+      return [
+        {
+          id: `${sourceNodeId}→${targetResourceKey}`,
+          source: sourceNodeId,
+          target: targetResourceKey,
+          label: undefined,
+        },
+      ];
     });
   });
 

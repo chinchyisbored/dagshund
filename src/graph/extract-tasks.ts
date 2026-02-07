@@ -7,11 +7,7 @@ const taskEntrySchema = z
       .array(z.object({ task_key: z.string() }).readonly())
       .readonly()
       .optional(),
-    run_job_task: z
-      .object({ job_id: z.string() })
-      .passthrough()
-      .readonly()
-      .optional(),
+    run_job_task: z.object({ job_id: z.string() }).passthrough().readonly().optional(),
   })
   .passthrough()
   .readonly();
@@ -40,3 +36,18 @@ export const extractTaskEntries = (newState: unknown): readonly TaskEntry[] => {
   return parsed.data.value?.tasks ?? [];
 };
 
+/** Extract job-level state (all fields except `tasks`) from new_state. */
+export const extractJobState = (
+  newState: unknown,
+): Readonly<Record<string, unknown>> | undefined => {
+  const parsed = newStateSchema.safeParse(newState);
+  if (!parsed.success) return undefined;
+  const value = parsed.data.value;
+  if (value === undefined) return undefined;
+  const { tasks: _, ...rest } = value;
+  return Object.keys(rest).length > 0 ? rest : undefined;
+};
+
+/** Extract task-level state as a plain record from a TaskEntry. */
+export const extractTaskState = (task: TaskEntry): Readonly<Record<string, unknown>> =>
+  task as unknown as Record<string, unknown>;

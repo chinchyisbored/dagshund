@@ -184,6 +184,7 @@ export const toJobFlowNode = (
     resourceKey: node.resourceKey,
     taskKey: node.taskKey,
     changes: node.changes,
+    resourceState: node.resourceState,
   },
 });
 
@@ -204,6 +205,7 @@ export const toTaskFlowNode = (
     resourceKey: node.resourceKey,
     taskKey: node.taskKey,
     changes: node.changes,
+    resourceState: node.resourceState,
   },
 });
 

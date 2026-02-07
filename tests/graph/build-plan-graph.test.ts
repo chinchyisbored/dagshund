@@ -127,5 +127,26 @@ describe("buildPlanGraph", () => {
         expect(hasTaskKey).toBe(false);
       }
     });
+
+    test("attaches resourceState to job node without tasks", async () => {
+      const plan = await loadFixture("mixed-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const jobNode = graph.nodes.find((n) => n.nodeKind === "job");
+      expect(jobNode?.resourceState).toBeDefined();
+      expect(jobNode?.resourceState).toHaveProperty("name", "etl_pipeline");
+      expect(jobNode?.resourceState).toHaveProperty("format", "MULTI_TASK");
+      expect(jobNode?.resourceState).not.toHaveProperty("tasks");
+    });
+
+    test("attaches resourceState to task nodes", async () => {
+      const plan = await loadFixture("mixed-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const extractNode = graph.nodes.find((n) => n.taskKey === "extract");
+      expect(extractNode?.resourceState).toBeDefined();
+      expect(extractNode?.resourceState).toHaveProperty("task_key", "extract");
+      expect(extractNode?.resourceState).toHaveProperty("notebook_task");
+    });
   });
 });

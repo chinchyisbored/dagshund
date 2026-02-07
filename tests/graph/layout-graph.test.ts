@@ -27,6 +27,7 @@ const JOB_NODE: GraphNode = {
   resourceKey: "resources.jobs.etl",
   taskKey: undefined,
   changes: undefined,
+  resourceState: undefined,
 };
 
 const TASK_EXTRACT: GraphNode = {
@@ -37,6 +38,7 @@ const TASK_EXTRACT: GraphNode = {
   resourceKey: "resources.jobs.etl",
   taskKey: "extract",
   changes: undefined,
+  resourceState: undefined,
 };
 
 const TASK_TRANSFORM: GraphNode = {
@@ -47,6 +49,7 @@ const TASK_TRANSFORM: GraphNode = {
   resourceKey: "resources.jobs.etl",
   taskKey: "transform",
   changes: undefined,
+  resourceState: undefined,
 };
 
 const SINGLE_JOB_GRAPH: PlanGraph = {

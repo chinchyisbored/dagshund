@@ -11,6 +11,7 @@ export type GraphNode = {
   readonly resourceKey: string;
   readonly taskKey: string | undefined;
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
+  readonly resourceState: Readonly<Record<string, unknown>> | undefined;
 };
 
 export type GraphEdge = {
@@ -33,4 +34,5 @@ export type DagNodeData = {
   readonly resourceKey: string;
   readonly taskKey: string | undefined;
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
+  readonly resourceState: Readonly<Record<string, unknown>> | undefined;
 };
