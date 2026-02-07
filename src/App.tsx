@@ -6,6 +6,7 @@ import {
   MiniMap,
   type Node,
   type NodeMouseHandler,
+  Panel,
   ReactFlow,
   type ReactFlowInstance,
 } from "@xyflow/react";
@@ -14,11 +15,13 @@ import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
 import { DetailPanel } from "./components/detail-panel.tsx";
+import { DiffFilterToolbar } from "./components/diff-filter-toolbar.tsx";
 import { JobNode } from "./components/job-node.tsx";
 import { TaskNode } from "./components/task-node.tsx";
 import { HoverContext } from "./hooks/use-hover-context.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
+import type { DiffState } from "./types/diff-state.ts";
 import type { DagNodeData } from "./types/graph-types.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
@@ -49,6 +52,7 @@ function DagView({ plan }: { readonly plan: Plan }) {
   const layout = usePlanGraph(plan);
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   const hasFittedRef = useRef(false);
 
@@ -88,19 +92,46 @@ function DagView({ plan }: { readonly plan: Plan }) {
     [baseEdges, hoveredNodeId],
   );
 
-  const hoverState = useMemo(() => ({ connectedIds }), [connectedIds]);
+  const filterMatchedIds = useMemo((): ReadonlySet<string> | null => {
+    if (filterDiffState === null) return null;
+    const matched = new Set<string>();
+    for (const node of baseNodes) {
+      const data = node.data as DagNodeData;
+      if (data.diffState === filterDiffState) {
+        matched.add(node.id);
+      }
+    }
+    return matched;
+  }, [baseNodes, filterDiffState]);
+
+  const hoverState = useMemo(
+    () => ({ connectedIds, filterMatchedIds }),
+    [connectedIds, filterMatchedIds],
+  );
 
   const styledEdges = useMemo((): readonly Edge[] => {
-    if (connectedIds === null) return [...baseEdges];
+    if (connectedIds === null && filterMatchedIds === null) return [...baseEdges];
     return baseEdges.map((edge) => {
-      const isConnected =
-        edge.source === hoveredNodeId || edge.target === hoveredNodeId;
       const baseStyle = edge.style ?? {};
-      return isConnected
-        ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
-        : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
+      // Hover styling takes precedence when active
+      if (connectedIds !== null) {
+        const isConnected =
+          edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+        return isConnected
+          ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
+          : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
+      }
+      // Filter dimming: dim edges where neither endpoint is in the matched set
+      if (filterMatchedIds !== null) {
+        const isRelevant =
+          filterMatchedIds.has(edge.source) || filterMatchedIds.has(edge.target);
+        return isRelevant
+          ? { ...edge, style: baseStyle }
+          : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
+      }
+      return { ...edge, style: baseStyle };
     });
-  }, [baseEdges, connectedIds, hoveredNodeId]);
+  }, [baseEdges, connectedIds, filterMatchedIds, hoveredNodeId]);
 
   return (
     <div className="flex h-full">
@@ -117,6 +148,9 @@ function DagView({ plan }: { readonly plan: Plan }) {
           onNodeMouseLeave={handleNodeMouseLeave}
           onInit={handleInit}
         >
+          <Panel position="top-left">
+            <DiffFilterToolbar activeFilter={filterDiffState} onFilterChange={setFilterDiffState} />
+          </Panel>
           <Background />
           <Controls />
           <MiniMap style={{ backgroundColor: "#18181b" }} />

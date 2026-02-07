@@ -18,16 +18,20 @@ const formatJobLabel = (resourceKey: string): string => {
 };
 
 export function JobNode({ id, data }: NodeProps<JobNodeType>) {
-  const { connectedIds } = useHoverState();
+  const { connectedIds, filterMatchedIds } = useHoverState();
   const incomingConnections = useNodeConnections({ handleType: "target" });
   const outgoingConnections = useNodeConnections({ handleType: "source" });
-  const isDimmed = connectedIds !== null && !connectedIds.has(id);
+  const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
+  const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
+  const isDimmed = isDimmedByHover || isDimmedByFilter;
+  const isFilterHighlighted = filterMatchedIds !== null && filterMatchedIds.has(id);
   const styles = getDiffStateStyles(data.diffState);
+  const opacityClass = isFilterHighlighted ? "opacity-100" : styles.opacity;
   const jobName = formatJobLabel(data.resourceKey);
 
   return (
     <div
-      className={`h-full w-full rounded-xl border-2 ${styles.border} ${styles.opacity}`}
+      className={`h-full w-full rounded-xl border-2 ${styles.border} ${opacityClass}`}
       style={isDimmed ? { opacity: 0.3 } : undefined}
     >
       {incomingConnections.length > 0 && (
