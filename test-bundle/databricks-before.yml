@@ -1,9 +1,21 @@
-# Databricks Asset Bundle — "after" state for generating plan diffs.
+# Databricks Asset Bundle for generating plan JSON fixtures.
 #
-# This file represents the desired state. After deploying databricks.yml (the "before" state),
-# copy this file over databricks.yml and run `databricks bundle plan -o json` to capture the diff.
+# "Before" state — deploy this first, then swap to databricks-after.yml for the plan diff.
 #
-# See databricks.yml header for full workflow.
+# Usage:
+#   cd test-bundle/
+#
+#   # 1. Deploy the "before" state
+#   DATABRICKS_BUNDLE_ENGINE=direct databricks bundle deploy
+#
+#   # 2. Swap to "after" state
+#   cp databricks-after.yml databricks.yml
+#
+#   # 3. Capture plan
+#   DATABRICKS_BUNDLE_ENGINE=direct databricks bundle plan -o json > ../tests/fixtures/complex-plan-with-resources.json
+#
+#   # 4. Restore "before" state
+#   git checkout databricks.yml
 
 bundle:
   name: dagshund-test-bundle
@@ -27,7 +39,7 @@ resources:
             - task_key: extract
           environment_key: default
           notebook_task:
-            notebook_path: /Workspace/etl/transform_v2
+            notebook_path: /Workspace/etl/transform
 
         - task_key: load
           depends_on:
@@ -36,18 +48,12 @@ resources:
           notebook_task:
             notebook_path: /Workspace/etl/load
 
-        - task_key: aggregate
+        - task_key: validate
           depends_on:
             - task_key: load
           environment_key: default
           notebook_task:
-            notebook_path: /Workspace/etl/aggregate
-
-        - task_key: trigger_quality_check
-          depends_on:
-            - task_key: aggregate
-          run_job_task:
-            job_id: ${resources.jobs.data_quality_pipeline.id}
+            notebook_path: /Workspace/etl/validate
 
     data_quality_pipeline:
       name: data_quality_pipeline
@@ -68,8 +74,8 @@ resources:
           notebook_task:
             notebook_path: /Workspace/quality/validate_schema
             base_parameters:
-              strict_mode: "true"
-              sample_size: "10000"
+              strict_mode: "false"
+              sample_size: "1000"
 
         - task_key: check_nulls
           depends_on:
@@ -78,24 +84,9 @@ resources:
           notebook_task:
             notebook_path: /Workspace/quality/check_nulls
 
-        - task_key: check_duplicates
-          depends_on:
-            - task_key: validate_schema
-          environment_key: default
-          notebook_task:
-            notebook_path: /Workspace/quality/check_duplicates
-
-        - task_key: check_referential_integrity
-          depends_on:
-            - task_key: validate_schema
-          environment_key: default
-          notebook_task:
-            notebook_path: /Workspace/quality/check_referential_integrity
-
         - task_key: compute_statistics
           depends_on:
             - task_key: check_nulls
-            - task_key: check_duplicates
           environment_key: default
           python_wheel_task:
             package_name: quality_metrics
@@ -104,18 +95,9 @@ resources:
               - "--output"
               - "/dbfs/quality/stats"
 
-        - task_key: anomaly_detection
-          depends_on:
-            - task_key: compute_statistics
-          environment_key: default
-          notebook_task:
-            notebook_path: /Workspace/quality/anomaly_detection
-
         - task_key: aggregate_results
           depends_on:
             - task_key: check_nulls
-            - task_key: check_duplicates
-            - task_key: check_referential_integrity
           environment_key: default
           notebook_task:
             notebook_path: /Workspace/quality/aggregate_results
@@ -123,27 +105,24 @@ resources:
         - task_key: generate_report
           depends_on:
             - task_key: aggregate_results
-            - task_key: anomaly_detection
           environment_key: default
           notebook_task:
             notebook_path: /Workspace/quality/generate_report
+
+        - task_key: notify_stakeholders
+          depends_on:
+            - task_key: generate_report
+          environment_key: default
+          notebook_task:
+            notebook_path: /Workspace/quality/notify_stakeholders
 
   schemas:
     analytics:
       catalog_name: dagshund
       name: analytics
-      comment: "Analytics schema for production data"
+      comment: "Analytics schema"
       properties:
         owner: "data-engineering"
-        environment: "production"
-
-    analytics_staging:
-      catalog_name: dagshund
-      name: analytics_staging
-      comment: "Staging schema for analytics data"
-      properties:
-        owner: "data-engineering"
-        environment: "staging"
 
   volumes:
     raw_data:
@@ -151,4 +130,11 @@ resources:
       schema_name: analytics
       name: raw_data
       volume_type: MANAGED
-      comment: "Raw data volume for ingestion pipeline"
+      comment: "Raw data volume"
+
+  registered_models:
+    quality_metrics:
+      catalog_name: dagshund
+      schema_name: analytics
+      name: quality_metrics
+      comment: "Quality metrics model"
