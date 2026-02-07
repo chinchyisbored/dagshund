@@ -1,13 +1,8 @@
-import type { Edge, Node } from "@xyflow/react";
 import { useEffect, useState } from "react";
 import { buildPlanGraph } from "../graph/build-plan-graph.ts";
 import { toReactFlowElements } from "../graph/layout-graph.ts";
+import type { LayoutResult } from "../types/layout-result.ts";
 import type { Plan } from "../types/plan-schema.ts";
-
-type LayoutResult = {
-  readonly nodes: readonly Node[];
-  readonly edges: readonly Edge[];
-};
 
 /** Async transformation of Plan → React Flow nodes and edges. */
 export const usePlanGraph = (plan: Plan): LayoutResult | null => {

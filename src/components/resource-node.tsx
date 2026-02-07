@@ -6,6 +6,7 @@ import {
   useNodeConnections,
 } from "@xyflow/react";
 import { memo } from "react";
+import { extractResourceType } from "../graph/build-resource-graph.ts";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useHoverState } from "../hooks/use-hover-context.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
@@ -28,10 +29,9 @@ const TYPE_BADGES: Readonly<Record<string, string>> = {
   experiments: "experiment",
 };
 
-/** Extract the resource type from a resource key like "resources.schemas.analytics". */
+/** Extract the resource type badge from a resource key like "resources.schemas.analytics". */
 const extractTypeBadge = (resourceKey: string): string | undefined => {
-  const segments = resourceKey.split(".");
-  const typeSegment = segments[1];
+  const typeSegment = extractResourceType(resourceKey);
   return typeSegment !== undefined ? TYPE_BADGES[typeSegment] ?? typeSegment : undefined;
 };
 

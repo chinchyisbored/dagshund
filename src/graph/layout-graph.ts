@@ -1,7 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
 import { getEdgeStyle } from "../components/diff-state-styles.ts";
-import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
+import type { DagNodeData, GraphNode, PlanGraph } from "../types/graph-types.ts";
 
 /** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner). */
 const getElk = (() => {
@@ -225,6 +225,12 @@ export const extractLayoutData = (
   return { positions, dimensions };
 };
 
+/** Strip the `id` field from a GraphNode, producing the data payload for React Flow nodes. */
+const toNodeData = (node: GraphNode): DagNodeData => {
+  const { id: _, ...data } = node;
+  return data;
+};
+
 /** Convert a job GraphNode to a React Flow container node. */
 export const toJobFlowNode = (
   node: GraphNode,
@@ -235,17 +241,7 @@ export const toJobFlowNode = (
   type: node.nodeKind,
   position: { x: position.x, y: position.y },
   style: { width: dimension.width, height: dimension.height },
-  data: {
-    label: node.label,
-    diffState: node.diffState,
-    nodeKind: node.nodeKind,
-    resourceKey: node.resourceKey,
-    taskKey: node.taskKey,
-    changes: node.changes,
-    resourceState: node.resourceState,
-    taskChangeSummary: node.taskChangeSummary,
-    external: node.external,
-  },
+  data: toNodeData(node),
 });
 
 /** Convert a task GraphNode to a React Flow child node inside its job. */
@@ -258,17 +254,7 @@ export const toTaskFlowNode = (
   position: { x: position.x, y: position.y },
   parentId: node.resourceKey,
   extent: "parent" as const,
-  data: {
-    label: node.label,
-    diffState: node.diffState,
-    nodeKind: node.nodeKind,
-    resourceKey: node.resourceKey,
-    taskKey: node.taskKey,
-    changes: node.changes,
-    resourceState: node.resourceState,
-    taskChangeSummary: undefined,
-    external: node.external,
-  },
+  data: { ...toNodeData(node), taskChangeSummary: undefined },
 });
 
 /** Assemble React Flow nodes from layout data, with jobs before their children. */
@@ -332,17 +318,7 @@ const toFlatFlowNode = (
   id: node.id,
   type: node.nodeKind,
   position: { x: position.x, y: position.y },
-  data: {
-    label: node.label,
-    diffState: node.diffState,
-    nodeKind: node.nodeKind,
-    resourceKey: node.resourceKey,
-    taskKey: node.taskKey,
-    changes: node.changes,
-    resourceState: node.resourceState,
-    taskChangeSummary: node.taskChangeSummary,
-    external: node.external,
-  },
+  data: toNodeData(node),
 });
 
 /** Flat ELK layout for resource graphs (left-to-right, no compound hierarchy). */

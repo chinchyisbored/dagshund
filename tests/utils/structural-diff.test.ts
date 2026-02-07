@@ -160,12 +160,12 @@ describe("diffObjects", () => {
     expect(removed?.old).toBe(2);
   });
 
-  test("detects changed keys", () => {
+  test("detects modified keys", () => {
     const result = diffObjects({ a: 1 }, { a: 2 });
-    const changed = result.entries.find((e) => e.key === "a");
-    expect(changed?.status).toBe("changed");
-    expect(changed?.old).toBe(1);
-    expect(changed?.new).toBe(2);
+    const modified = result.entries.find((e) => e.key === "a");
+    expect(modified?.status).toBe("modified");
+    expect(modified?.old).toBe(1);
+    expect(modified?.new).toBe(2);
   });
 
   test("detects unchanged keys", () => {
@@ -173,13 +173,13 @@ describe("diffObjects", () => {
     expect(result.entries[0]?.status).toBe("unchanged");
   });
 
-  test("sorts entries: changed → added → removed → unchanged", () => {
+  test("sorts entries: modified → added → removed → unchanged", () => {
     const result = diffObjects(
       { unchanged: 1, removed: 2, changed: "old" },
       { unchanged: 1, added: 3, changed: "new" },
     );
     const statuses = result.entries.map((e) => e.status);
-    expect(statuses).toEqual(["changed", "added", "removed", "unchanged"]);
+    expect(statuses).toEqual(["modified", "added", "removed", "unchanged"]);
   });
 
   test("handles empty objects", () => {
@@ -193,11 +193,11 @@ describe("diffObjects", () => {
     );
     expect(result.entries[0]?.status).toBe("unchanged");
 
-    const changed = diffObjects(
+    const modified = diffObjects(
       { nested: { a: 1 } },
       { nested: { a: 2 } },
     );
-    expect(changed.entries[0]?.status).toBe("changed");
+    expect(modified.entries[0]?.status).toBe("modified");
   });
 
   test("treats objects with different key ordering as unchanged", () => {

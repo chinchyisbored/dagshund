@@ -20,7 +20,7 @@ export type ArrayDiff = {
   readonly elements: readonly ArrayElement[];
 };
 
-export type ObjectEntryStatus = "added" | "removed" | "changed" | "unchanged";
+export type ObjectEntryStatus = "added" | "removed" | "modified" | "unchanged";
 
 export type ObjectEntry = {
   readonly key: string;

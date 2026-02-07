@@ -6,6 +6,7 @@ export {
   diffObjects,
   findIdentityKey,
 } from "./structural-diff.ts";
+export { extractResourceName } from "./resource-key.ts";
 export {
   buildTaskKeyPrefix,
   TASK_KEY_PATTERN,

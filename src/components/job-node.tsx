@@ -8,18 +8,13 @@ import {
 import { memo } from "react";
 import { useHoverState } from "../hooks/use-hover-context.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
+import { extractResourceName } from "../utils/resource-key.ts";
 import { getDiffStateStyles } from "./diff-state-styles.ts";
 
 type JobNodeType = Node<DagNodeData, "job">;
 
 const TARGET_HANDLE = { handleType: "target" } as const;
 const SOURCE_HANDLE = { handleType: "source" } as const;
-
-/** Extract the short job name from a resource key like "resources.jobs.etl_pipeline". */
-const formatJobLabel = (resourceKey: string): string => {
-  const segments = resourceKey.split(".");
-  return segments[segments.length - 1] ?? resourceKey;
-};
 
 export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType>) {
   const { connectedIds, filterMatchedIds } = useHoverState();
@@ -31,7 +26,7 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
   const isFilterHighlighted = filterMatchedIds !== null && filterMatchedIds.has(id);
   const styles = getDiffStateStyles(data.diffState);
   const opacityClass = isFilterHighlighted ? "opacity-100" : styles.opacity;
-  const jobName = formatJobLabel(data.resourceKey);
+  const jobName = extractResourceName(data.resourceKey);
 
   return (
     <div

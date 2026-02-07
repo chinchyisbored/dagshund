@@ -194,7 +194,7 @@ describe("buildPlanGraph", () => {
       expect(extractNode?.resourceState).toHaveProperty("notebook_task");
     });
 
-    test("job node has taskChangeSummary with changed tasks", async () => {
+    test("job node has taskChangeSummary with modified tasks", async () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
 

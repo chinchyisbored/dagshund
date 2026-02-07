@@ -181,9 +181,9 @@ export const diffArrays = (
   return { kind: "array", elements };
 };
 
-/** Sort order for object entry statuses: changed → added → removed → unchanged. */
+/** Sort order for object entry statuses: modified → added → removed → unchanged. */
 const STATUS_ORDER: Readonly<Record<ObjectEntryStatus, number>> = {
-  changed: 0,
+  modified: 0,
   added: 1,
   removed: 2,
   unchanged: 3,
@@ -204,7 +204,7 @@ export const diffObjects = (
     const newVal = newObj[key];
 
     if (hasOld && hasNew) {
-      const status: ObjectEntryStatus = deepEqual(oldVal, newVal) ? "unchanged" : "changed";
+      const status: ObjectEntryStatus = deepEqual(oldVal, newVal) ? "unchanged" : "modified";
       entries.push({ key, status, old: oldVal, new: newVal });
     } else if (hasNew) {
       entries.push({ key, status: "added", old: undefined, new: newVal });
@@ -213,7 +213,7 @@ export const diffObjects = (
     }
   }
 
-  // Sort: changed → added → removed → unchanged
+  // Sort: modified → added → removed → unchanged
   entries.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
   return { kind: "object", entries };

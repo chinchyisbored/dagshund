@@ -1,4 +1,5 @@
 import type { DiffState } from "../types/diff-state.ts";
+import type { EdgeDiffState } from "../types/graph-types.ts";
 
 export type DiffStateStyles = {
   readonly border: string;
@@ -48,11 +49,11 @@ export type EdgeStyle = {
   readonly strokeDasharray: string | undefined;
 };
 
-const EDGE_STYLES: Readonly<Record<"added" | "removed" | "unchanged", EdgeStyle>> = {
+const EDGE_STYLES: Readonly<Record<EdgeDiffState, EdgeStyle>> = {
   added: { stroke: "#10b981", opacity: 1, strokeDasharray: undefined },
   removed: { stroke: "#ef4444", opacity: 1, strokeDasharray: "6 4" },
   unchanged: { stroke: "#52525b", opacity: 1, strokeDasharray: undefined },
 };
 
 /** Get inline CSS style for an edge based on its resolved state. */
-export const getEdgeStyle = (state: "added" | "removed" | "unchanged"): EdgeStyle => EDGE_STYLES[state];
+export const getEdgeStyle = (state: EdgeDiffState): EdgeStyle => EDGE_STYLES[state];

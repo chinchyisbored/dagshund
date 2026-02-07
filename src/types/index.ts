@@ -1,12 +1,14 @@
 export type { DiffState } from "./diff-state.ts";
 export type {
   DagNodeData,
+  EdgeDiffState,
   GraphEdge,
   GraphNode,
   NodeKind,
   PlanGraph,
   TaskChangeSummary,
 } from "./graph-types.ts";
+export type { LayoutResult } from "./layout-result.ts";
 export type {
   ActionType,
   ChangeDesc,

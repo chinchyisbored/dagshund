@@ -1,13 +1,8 @@
-import type { Edge, Node } from "@xyflow/react";
 import { useEffect, useState } from "react";
 import { buildResourceGraph } from "../graph/build-resource-graph.ts";
 import { layoutResourceGraph } from "../graph/layout-graph.ts";
+import type { LayoutResult } from "../types/layout-result.ts";
 import type { Plan } from "../types/plan-schema.ts";
-
-type LayoutResult = {
-  readonly nodes: readonly Node[];
-  readonly edges: readonly Edge[];
-};
 
 /** Async transformation of Plan → React Flow nodes and edges for non-job resources. */
 export const useResourceGraph = (plan: Plan): LayoutResult | null => {

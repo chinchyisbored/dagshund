@@ -157,18 +157,18 @@ const ENTRY_STATUS_STYLES: Readonly<
 > = {
   added: { className: "text-emerald-300" },
   removed: { className: "text-red-300" },
-  changed: { className: "text-amber-300" },
+  modified: { className: "text-amber-300" },
   unchanged: { className: "text-zinc-500" },
 };
 
 const ENTRY_BACKGROUND: Readonly<Record<ObjectEntry["status"], string>> = {
   added: "bg-emerald-500/5",
   removed: "bg-red-500/5",
-  changed: "",
+  modified: "",
   unchanged: "",
 };
 
-function ChangedEntryView({ entry }: { readonly entry: ObjectEntry }) {
+function ModifiedEntryView({ entry }: { readonly entry: ObjectEntry }) {
   const format = useValueFormat();
   const formattedOld = formatValue(entry.old, format);
   const formattedNew = formatValue(entry.new, format);
@@ -197,8 +197,8 @@ function ObjectEntryView({ entry }: { readonly entry: ObjectEntry }) {
   const format = useValueFormat();
   const style = ENTRY_STATUS_STYLES[entry.status];
 
-  if (entry.status === "changed") {
-    return <ChangedEntryView entry={entry} />;
+  if (entry.status === "modified") {
+    return <ModifiedEntryView entry={entry} />;
   }
 
   const prefix = entry.status === "added" ? "+" : entry.status === "removed" ? "-" : " ";

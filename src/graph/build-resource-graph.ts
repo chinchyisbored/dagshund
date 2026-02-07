@@ -1,6 +1,7 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
+import { extractResourceName } from "../utils/resource-key.ts";
 
 /** Unity Catalog resource types that live under the UC → catalog → schema hierarchy. */
 const UC_TYPES: ReadonlySet<string> = new Set([
@@ -21,12 +22,6 @@ export const isJobEntry = (key: string): boolean =>
 /** Check whether a resource type belongs under Unity Catalog. */
 export const isUnityCatalogType = (resourceType: string): boolean =>
   UC_TYPES.has(resourceType);
-
-/** Extract the short resource name from a plan key (last segment). */
-const extractResourceName = (key: string): string => {
-  const segments = key.split(".");
-  return segments[segments.length - 1] ?? key;
-};
 
 /**
  * Safely extract a named field from a plan entry's state.

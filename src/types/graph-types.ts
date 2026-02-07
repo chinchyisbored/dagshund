@@ -39,14 +39,4 @@ export type PlanGraph = {
 };
 
 /** Data payload carried by each React Flow node (produced by toReactFlowNode). */
-export type DagNodeData = {
-  readonly label: string;
-  readonly diffState: DiffState;
-  readonly nodeKind: NodeKind;
-  readonly resourceKey: string;
-  readonly taskKey: string | undefined;
-  readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
-  readonly resourceState: Readonly<Record<string, unknown>> | undefined;
-  readonly taskChangeSummary: TaskChangeSummary | undefined;
-  readonly external: boolean;
-};
+export type DagNodeData = Omit<GraphNode, "id">;
