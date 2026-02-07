@@ -32,7 +32,9 @@
 # db: ""
 
 # Auto-start daemon if not running (can also use BEADS_AUTO_START_DAEMON)
-# auto-start-daemon: true
+# Disabled: daemon constantly re-exports issues.jsonl, causing file-modified
+# conflicts with editors and agents. Pre-commit hook handles JSONL export.
+auto-start-daemon: false
 
 # Debounce interval for auto-flush (can also use BEADS_FLUSH_DEBOUNCE)
 # flush-debounce: "5s"
