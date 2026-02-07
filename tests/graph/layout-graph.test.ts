@@ -179,8 +179,8 @@ describe("topologicalSortTasks", () => {
 
 describe("buildElkCompoundGraph", () => {
   test("creates hierarchical ELK graph with jobs containing task children", async () => {
-    const { buildElkCompoundGraph } = await loadModule();
-    const elkGraph = buildElkCompoundGraph(SINGLE_JOB_GRAPH);
+    const { buildElkCompoundGraph, groupNodesByJob } = await loadModule();
+    const elkGraph = buildElkCompoundGraph(groupNodesByJob(SINGLE_JOB_GRAPH.nodes), SINGLE_JOB_GRAPH.edges);
 
     expect(elkGraph.id).toBe("root");
     expect(elkGraph.children).toHaveLength(1);
@@ -194,8 +194,8 @@ describe("buildElkCompoundGraph", () => {
   });
 
   test("nests edges inside their parent job container", async () => {
-    const { buildElkCompoundGraph } = await loadModule();
-    const elkGraph = buildElkCompoundGraph(SINGLE_JOB_GRAPH);
+    const { buildElkCompoundGraph, groupNodesByJob } = await loadModule();
+    const elkGraph = buildElkCompoundGraph(groupNodesByJob(SINGLE_JOB_GRAPH.nodes), SINGLE_JOB_GRAPH.edges);
 
     const jobElk = elkGraph.children[0];
     expect(jobElk.edges).toHaveLength(1);
@@ -207,15 +207,15 @@ describe("buildElkCompoundGraph", () => {
   });
 
   test("sets LEFT-to-RIGHT direction on job containers", async () => {
-    const { buildElkCompoundGraph } = await loadModule();
-    const elkGraph = buildElkCompoundGraph(SINGLE_JOB_GRAPH);
+    const { buildElkCompoundGraph, groupNodesByJob } = await loadModule();
+    const elkGraph = buildElkCompoundGraph(groupNodesByJob(SINGLE_JOB_GRAPH.nodes), SINGLE_JOB_GRAPH.edges);
 
     expect(elkGraph.children[0].layoutOptions["elk.direction"]).toBe("RIGHT");
   });
 
   test("returns empty children for empty graph", async () => {
     const { buildElkCompoundGraph } = await loadModule();
-    const elkGraph = buildElkCompoundGraph({ nodes: [], edges: [] });
+    const elkGraph = buildElkCompoundGraph([], []);
     expect(elkGraph.children).toHaveLength(0);
   });
 });
