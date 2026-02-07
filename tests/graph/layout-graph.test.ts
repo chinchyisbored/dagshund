@@ -340,9 +340,9 @@ describe("toFlowEdges", () => {
       { id: "e3", source: "e", target: "f", label: undefined, diffState: "unchanged" },
     ]);
 
-    expect(edges[0].style).toEqual({ stroke: "#10b981", opacity: 1 });
-    expect(edges[1].style).toEqual({ stroke: "#ef4444", opacity: 0.4 });
-    expect(edges[2].style).toEqual({ stroke: "#52525b", opacity: 1 });
+    expect(edges[0].style).toEqual({ stroke: "#10b981", opacity: 1, strokeDasharray: undefined });
+    expect(edges[1].style).toEqual({ stroke: "#ef4444", opacity: 1, strokeDasharray: "6 4" });
+    expect(edges[2].style).toEqual({ stroke: "#52525b", opacity: 1, strokeDasharray: undefined });
   });
 });
 

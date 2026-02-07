@@ -301,7 +301,7 @@ export const toFlowEdges = (edges: PlanGraph["edges"]): readonly Edge[] =>
       target: edge.target,
       label: edge.label,
       type: "bezier",
-      style: { stroke: style.stroke, opacity: style.opacity },
+      style: { stroke: style.stroke, opacity: style.opacity, strokeDasharray: style.strokeDasharray },
     };
   });
 

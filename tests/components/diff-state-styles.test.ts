@@ -11,12 +11,13 @@ describe("getDiffStateStyles", () => {
     expect(styles.opacity).toBe("opacity-100");
   });
 
-  test("removed returns red classes with 40% opacity", () => {
+  test("removed returns red dashed classes with full opacity", () => {
     const styles = getDiffStateStyles("removed");
     expect(styles.border).toBe("border-red-500");
+    expect(styles.borderStyle).toBe("border-dashed");
     expect(styles.background).toBe("bg-red-500/10");
     expect(styles.text).toBe("text-red-400");
-    expect(styles.opacity).toBe("opacity-40");
+    expect(styles.opacity).toBe("opacity-100");
   });
 
   test("modified returns amber classes with full opacity", () => {
