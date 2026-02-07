@@ -30,6 +30,7 @@ const buildJobNode = (
   changes: filterJobLevelChanges(entry.changes),
   resourceState: extractJobState(entry.new_state),
   taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
+  external: false,
 });
 
 /** Filter changes to only include job-level (non-task) entries. */
@@ -57,6 +58,7 @@ const buildTaskNodes = (
     changes: filterTaskChanges(task.task_key, entry.changes),
     resourceState: extractTaskState(task),
     taskChangeSummary: undefined,
+    external: false,
   }));
 
 /** Filter changes to only include entries for a specific task. */

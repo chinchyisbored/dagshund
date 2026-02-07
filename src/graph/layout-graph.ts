@@ -242,6 +242,7 @@ export const toJobFlowNode = (
     changes: node.changes,
     resourceState: node.resourceState,
     taskChangeSummary: node.taskChangeSummary,
+    external: node.external,
   },
 });
 
@@ -264,6 +265,7 @@ export const toTaskFlowNode = (
     changes: node.changes,
     resourceState: node.resourceState,
     taskChangeSummary: undefined,
+    external: node.external,
   },
 });
 
@@ -337,6 +339,7 @@ const toFlatFlowNode = (
     changes: node.changes,
     resourceState: node.resourceState,
     taskChangeSummary: node.taskChangeSummary,
+    external: node.external,
   },
 });
 

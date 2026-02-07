@@ -450,6 +450,12 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
         )}
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {data.external && (
+            <div className="mb-3 rounded border border-dashed border-zinc-600/60 bg-zinc-800/40 px-3 py-2 text-xs text-zinc-400">
+              Untracked by this bundle
+            </div>
+          )}
+
           {data.nodeKind === "job" && data.taskChangeSummary !== undefined && (
             <TaskChangesSummary summary={data.taskChangeSummary} />
           )}

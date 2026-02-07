@@ -29,6 +29,7 @@ const JOB_NODE: GraphNode = {
   changes: undefined,
   resourceState: undefined,
   taskChangeSummary: undefined,
+  external: false,
 };
 
 const TASK_EXTRACT: GraphNode = {
@@ -41,6 +42,7 @@ const TASK_EXTRACT: GraphNode = {
   changes: undefined,
   resourceState: undefined,
   taskChangeSummary: undefined,
+  external: false,
 };
 
 const TASK_TRANSFORM: GraphNode = {
@@ -53,6 +55,7 @@ const TASK_TRANSFORM: GraphNode = {
   changes: undefined,
   resourceState: undefined,
   taskChangeSummary: undefined,
+  external: false,
 };
 
 const SINGLE_JOB_GRAPH: PlanGraph = {

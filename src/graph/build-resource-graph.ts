@@ -80,10 +80,11 @@ const buildResourceNode = (key: string, entry: PlanEntry): GraphNode => ({
   changes: entry.changes,
   resourceState: extractResourceState(entry),
   taskChangeSummary: undefined,
+  external: false,
 });
 
 /** Build a virtual container node (UC root, catalog, workspace root). */
-const buildGroupNode = (id: string, label: string): GraphNode => ({
+const buildGroupNode = (id: string, label: string, external = false): GraphNode => ({
   id,
   label,
   nodeKind: "resource-group",
@@ -93,6 +94,7 @@ const buildGroupNode = (id: string, label: string): GraphNode => ({
   changes: undefined,
   resourceState: undefined,
   taskChangeSummary: undefined,
+  external,
 });
 
 /** Build a unique edge, returning undefined if source === target. */
@@ -170,6 +172,9 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
       addEdge(buildEdge("uc-root", catalogId));
     }
 
+    // Track phantom schema nodes to avoid duplicates
+    const createdPhantoms = new Set<string>();
+
     for (const [key, entry] of ucEntries) {
       const resourceType = extractResourceType(key);
       const catalog = extractStateField(entry, "catalog_name");
@@ -181,7 +186,7 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
         // Schemas and catalogs link directly to their catalog node
         addEdge(buildEdge(catalogId, key));
       } else {
-        // Volumes and models: try to link to their schema, fall back to catalog
+        // Volumes and models: try to link to their schema
         const schemaName = extractStateField(entry, "schema_name");
         const schemaKey =
           schemaName !== undefined && catalog !== undefined
@@ -190,6 +195,15 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
 
         if (schemaKey !== undefined) {
           addEdge(buildEdge(schemaKey, key));
+        } else if (schemaName !== undefined && catalog !== undefined) {
+          // Create a phantom node for an external (non-DABs-managed) schema
+          const phantomId = `external::${catalog}.${schemaName}`;
+          if (!createdPhantoms.has(phantomId)) {
+            createdPhantoms.add(phantomId);
+            nodes.push(buildGroupNode(phantomId, schemaName, true));
+            addEdge(buildEdge(catalogId, phantomId));
+          }
+          addEdge(buildEdge(phantomId, key));
         } else {
           addEdge(buildEdge(catalogId, key));
         }

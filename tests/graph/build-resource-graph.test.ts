@@ -192,7 +192,7 @@ describe("buildResourceGraph", () => {
     );
   });
 
-  test("falls back to catalog when schema not found", () => {
+  test("creates phantom schema node when schema not in plan", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.volumes.orphan_vol": {
@@ -204,8 +204,94 @@ describe("buildResourceGraph", () => {
       },
     });
 
+    // Phantom schema node should exist
+    const phantom = graph.nodes.find((n) => n.id === "external::dagshund.missing");
+    expect(phantom).toBeDefined();
+    expect(phantom?.nodeKind).toBe("resource-group");
+    expect(phantom?.external).toBe(true);
+    expect(phantom?.label).toBe("missing");
+
+    // Edge chain: catalog → phantom → volume
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("catalog::dagshund→resources.volumes.orphan_vol");
+    expect(edgePairs).toContain("catalog::dagshund→external::dagshund.missing");
+    expect(edgePairs).toContain("external::dagshund.missing→resources.volumes.orphan_vol");
+  });
+
+  test("falls back to catalog when both schema and catalog are missing", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.volumes.no_schema": {
+          action: "create",
+          new_state: {
+            value: { catalog_name: "dagshund", name: "no_schema" },
+          },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("catalog::dagshund→resources.volumes.no_schema");
+    // No phantom nodes
+    const phantoms = graph.nodes.filter((n) => n.id.startsWith("external::"));
+    expect(phantoms).toHaveLength(0);
+  });
+
+  test("deduplicates phantom schema nodes for multiple resources", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.volumes.vol_a": {
+          action: "create",
+          new_state: {
+            value: { catalog_name: "dagshund", schema_name: "ext_schema", name: "vol_a" },
+          },
+        },
+        "resources.volumes.vol_b": {
+          action: "create",
+          new_state: {
+            value: { catalog_name: "dagshund", schema_name: "ext_schema", name: "vol_b" },
+          },
+        },
+      },
+    });
+
+    // Only one phantom node despite two volumes referencing the same external schema
+    const phantoms = graph.nodes.filter((n) => n.id === "external::dagshund.ext_schema");
+    expect(phantoms).toHaveLength(1);
+
+    // Both volumes link through the phantom
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("external::dagshund.ext_schema→resources.volumes.vol_a");
+    expect(edgePairs).toContain("external::dagshund.ext_schema→resources.volumes.vol_b");
+  });
+
+  test("real group nodes have external: false", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+      },
+    });
+
+    const ucRoot = graph.nodes.find((n) => n.id === "uc-root");
+    expect(ucRoot?.external).toBe(false);
+    const catalog = graph.nodes.find((n) => n.id === "catalog::dagshund");
+    expect(catalog?.external).toBe(false);
+  });
+
+  test("resource nodes have external: false", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+      },
+    });
+
+    const schema = graph.nodes.find((n) => n.id === "resources.schemas.analytics");
+    expect(schema?.external).toBe(false);
   });
 
   test("honors explicit depends_on edges", () => {
@@ -328,12 +414,27 @@ describe("buildResourceGraph", () => {
       expect(edgePairs).toContain("workspace-root→resources.experiments.audit_analysis");
     });
 
-    test("external_imports volume falls back to catalog (no matching schema)", async () => {
+    test("external_imports volume links through phantom schema node", async () => {
       const plan = await loadFixture("complex-plan.json");
       const graph = buildResourceGraph(plan);
 
+      // Phantom schema node should exist for dagshund_no_dabs
+      const phantom = graph.nodes.find(
+        (n) => n.id === "external::dagshund.dagshund_no_dabs",
+      );
+      expect(phantom).toBeDefined();
+      expect(phantom?.external).toBe(true);
+      expect(phantom?.label).toBe("dagshund_no_dabs");
+      expect(phantom?.nodeKind).toBe("resource-group");
+
+      // Edge chain: catalog → phantom → volume
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-      expect(edgePairs).toContain("catalog::dagshund→resources.volumes.external_imports");
+      expect(edgePairs).toContain(
+        "catalog::dagshund→external::dagshund.dagshund_no_dabs",
+      );
+      expect(edgePairs).toContain(
+        "external::dagshund.dagshund_no_dabs→resources.volumes.external_imports",
+      );
     });
   });
 });

@@ -20,6 +20,7 @@ export type GraphNode = {
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
   readonly resourceState: Readonly<Record<string, unknown>> | undefined;
   readonly taskChangeSummary: TaskChangeSummary | undefined;
+  readonly external: boolean;
 };
 
 export type EdgeDiffState = "added" | "removed" | "unchanged";
@@ -47,4 +48,5 @@ export type DagNodeData = {
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
   readonly resourceState: Readonly<Record<string, unknown>> | undefined;
   readonly taskChangeSummary: TaskChangeSummary | undefined;
+  readonly external: boolean;
 };
