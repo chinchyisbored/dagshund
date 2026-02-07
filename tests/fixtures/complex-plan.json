@@ -308,11 +308,6 @@
           "queue": {
             "enabled": true
           },
-          "depends_on": [
-            {
-              "node": "resources.jobs.etl_pipeline"
-            }
-          ],
           "tasks": [
             {
               "notebook_task": {
