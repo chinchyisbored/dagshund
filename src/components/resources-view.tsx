@@ -11,24 +11,18 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import "@xyflow/react/dist/style.css";
-import "./styles/output.css";
 
-import { DetailPanel } from "./components/detail-panel.tsx";
-import { DiffFilterToolbar } from "./components/diff-filter-toolbar.tsx";
-import { JobNode } from "./components/job-node.tsx";
-import { ResourcesView } from "./components/resources-view.tsx";
-import { TabBar } from "./components/tab-bar.tsx";
-import { TaskNode } from "./components/task-node.tsx";
-import { hasNonJobResources } from "./graph/build-resource-graph.ts";
-import { HoverContext } from "./hooks/use-hover-context.ts";
-import { usePlanGraph } from "./hooks/use-plan-graph.ts";
-import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
-import type { DiffState } from "./types/diff-state.ts";
-import type { DagNodeData } from "./types/graph-types.ts";
-import type { Plan } from "./types/plan-schema.ts";
+import { DetailPanel } from "./detail-panel.tsx";
+import { DiffFilterToolbar } from "./diff-filter-toolbar.tsx";
+import { ResourceGroupNode } from "./resource-group-node.tsx";
+import { ResourceNode } from "./resource-node.tsx";
+import { HoverContext } from "../hooks/use-hover-context.ts";
+import { useResourceGraph } from "../hooks/use-resource-graph.ts";
+import type { DiffState } from "../types/diff-state.ts";
+import type { DagNodeData } from "../types/graph-types.ts";
+import type { Plan } from "../types/plan-schema.ts";
 
-const NODE_TYPES = { job: JobNode, task: TaskNode };
+const NODE_TYPES = { resource: ResourceNode, "resource-group": ResourceGroupNode };
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
   type: "smoothstep",
@@ -51,8 +45,8 @@ const buildConnectedNodeIds = (
   return connected;
 };
 
-function DagView({ plan }: { readonly plan: Plan }) {
-  const layout = usePlanGraph(plan);
+export function ResourcesView({ plan }: { readonly plan: Plan }) {
+  const layout = useResourceGraph(plan);
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
@@ -82,7 +76,6 @@ function DagView({ plan }: { readonly plan: Plan }) {
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
 
-  /** Fit the viewport exactly once after the ELK layout produces nodes. */
   useEffect(() => {
     if (rfInstanceRef.current && baseNodes.length > 0 && !hasFittedRef.current) {
       rfInstanceRef.current.fitView();
@@ -116,7 +109,6 @@ function DagView({ plan }: { readonly plan: Plan }) {
     if (connectedIds === null && filterMatchedIds === null) return [...baseEdges];
     return baseEdges.map((edge) => {
       const baseStyle = edge.style ?? {};
-      // Hover styling takes precedence when active
       if (connectedIds !== null) {
         const isConnected =
           edge.source === hoveredNodeId || edge.target === hoveredNodeId;
@@ -124,7 +116,6 @@ function DagView({ plan }: { readonly plan: Plan }) {
           ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
           : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
       }
-      // Filter dimming: dim edges where neither endpoint is in the matched set
       if (filterMatchedIds !== null) {
         const isRelevant =
           filterMatchedIds.has(edge.source) || filterMatchedIds.has(edge.target);
@@ -160,67 +151,6 @@ function DagView({ plan }: { readonly plan: Plan }) {
         </ReactFlow>
       </HoverContext.Provider>
       {selectedNode !== null && <DetailPanel data={selectedNode} onClose={handleClosePanel} />}
-    </div>
-  );
-}
-
-function LoadingIndicator() {
-  return (
-    <div className="flex h-full items-center justify-center text-zinc-500">Loading plan...</div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500">
-      <p className="text-lg">No plan loaded</p>
-      <p className="text-sm text-zinc-600">Pipe a plan to get started:</p>
-      <code className="rounded bg-zinc-800 px-3 py-1.5 text-sm text-zinc-400">
-        databricks bundle plan -o json | dagshund
-      </code>
-    </div>
-  );
-}
-
-function ErrorMessage({ message }: { readonly message: string }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-red-400">
-      <p className="text-lg">Failed to load plan</p>
-      <code className="max-w-lg rounded bg-zinc-800 px-3 py-1.5 text-sm text-red-300">
-        {message}
-      </code>
-    </div>
-  );
-}
-
-function PlanView({ plan }: { readonly plan: Plan }) {
-  const showTabs = hasNonJobResources(plan);
-  const [activeTab, setActiveTab] = useState<"jobs" | "resources">("jobs");
-
-  if (!showTabs) {
-    return <DagView plan={plan} />;
-  }
-
-  return (
-    <div className="flex h-full flex-col">
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="min-h-0 flex-1">
-        {activeTab === "jobs" && <DagView plan={plan} />}
-        {activeTab === "resources" && <ResourcesView plan={plan} />}
-      </div>
-    </div>
-  );
-}
-
-export function App() {
-  const planState = useStdinPlan();
-
-  return (
-    <div className="h-screen w-screen bg-zinc-950">
-      {planState.status === "loading" && <LoadingIndicator />}
-      {planState.status === "empty" && <EmptyState />}
-      {planState.status === "error" && <ErrorMessage message={planState.message} />}
-      {planState.status === "ready" && <PlanView plan={planState.plan} />}
     </div>
   );
 }

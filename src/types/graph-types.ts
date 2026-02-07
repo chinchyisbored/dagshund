@@ -8,7 +8,7 @@ export type TaskChangeSummaryEntry = {
 
 export type TaskChangeSummary = readonly TaskChangeSummaryEntry[];
 
-export type NodeKind = "job" | "task";
+export type NodeKind = "job" | "task" | "resource" | "resource-group";
 
 export type GraphNode = {
   readonly id: string;

@@ -4,6 +4,40 @@
   "lineage": "ceaa767d-0fa0-47ac-8680-2bb6ec48866b",
   "serial": 6,
   "plan": {
+    "resources.alerts.stale_pipeline_alert": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "display_name": "Stale Pipeline Alert",
+          "evaluation": {
+            "comparison_operator": "GREATER_THAN",
+            "source": {
+              "name": "hours_since_last_run"
+            },
+            "threshold": {
+              "value": {
+                "double_value": 24
+              }
+            }
+          },
+          "parent_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/resources",
+          "query_text": "SELECT TIMESTAMPDIFF(HOUR, MAX(end_time), CURRENT_TIMESTAMP()) AS hours_since_last_run FROM system.lakeflow.job_run_timeline WHERE job_name = 'etl_pipeline'",
+          "schedule": {
+            "quartz_cron_schedule": "0 0 * * * ?",
+            "timezone_id": "UTC"
+          },
+          "warehouse_id": "799f096837f0aaaa"
+        }
+      }
+    },
+    "resources.experiments.audit_analysis": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "/Users/databricks.squiggly592@passfwd.com/audit_analysis"
+        }
+      }
+    },
     "resources.jobs.data_quality_pipeline": {
       "action": "update",
       "new_state": {
@@ -989,6 +1023,18 @@
             "environment": "staging",
             "owner": "data-engineering"
           }
+        }
+      }
+    },
+    "resources.volumes.external_imports": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "comment": "Import volume for external data feeds",
+          "name": "external_imports",
+          "schema_name": "dagshund_no_dabs",
+          "volume_type": "MANAGED"
         }
       }
     },

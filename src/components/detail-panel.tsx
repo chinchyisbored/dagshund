@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { DagNodeData, TaskChangeSummary } from "../types/graph-types.ts";
+import type { DagNodeData, NodeKind, TaskChangeSummary } from "../types/graph-types.ts";
 import type { ChangeDesc } from "../types/plan-schema.ts";
 import { ValueFormatContext, useValueFormat } from "../hooks/use-value-format.ts";
 import type { ValueFormat } from "../utils/format-value.ts";
@@ -159,7 +159,7 @@ function ObjectStateCard({
   variant,
 }: {
   readonly label: string;
-  readonly nodeKind: "job" | "task";
+  readonly nodeKind: NodeKind;
   readonly resourceState: Readonly<Record<string, unknown>>;
   readonly variant: "added" | "removed";
 }) {

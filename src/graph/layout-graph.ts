@@ -5,6 +5,8 @@ import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
 
 export const NODE_WIDTH = 200;
 const NODE_HEIGHT_TASK = 50;
+const NODE_HEIGHT_RESOURCE = 50;
+const NODE_HEIGHT_GROUP = 40;
 
 const JOB_PADDING_TOP = 40;
 const JOB_PADDING_SIDE = 20;
@@ -314,6 +316,74 @@ export const toReactFlowElements = async (
 
   return {
     nodes: assembleFlowNodes(groups, positions, dimensions),
+    edges: toFlowEdges(graph.edges),
+  };
+};
+
+/** Convert a GraphNode to a React Flow node at the given position (flat, no parent). */
+const toFlatFlowNode = (
+  node: GraphNode,
+  position: { readonly x: number; readonly y: number },
+): Node => ({
+  id: node.id,
+  type: node.nodeKind,
+  position: { x: position.x, y: position.y },
+  data: {
+    label: node.label,
+    diffState: node.diffState,
+    nodeKind: node.nodeKind,
+    resourceKey: node.resourceKey,
+    taskKey: node.taskKey,
+    changes: node.changes,
+    resourceState: node.resourceState,
+    taskChangeSummary: node.taskChangeSummary,
+  },
+});
+
+/** Flat ELK layout for resource graphs (left-to-right, no compound hierarchy). */
+export const layoutResourceGraph = async (
+  graph: PlanGraph,
+): Promise<{ readonly nodes: readonly Node[]; readonly edges: readonly Edge[] }> => {
+  if (graph.nodes.length === 0) {
+    return { nodes: [], edges: [] };
+  }
+
+  const elkGraph = {
+    id: "root",
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.direction": "RIGHT",
+      "elk.spacing.nodeNode": "40",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "80",
+      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+      "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+    },
+    children: graph.nodes.map((node) => ({
+      id: node.id,
+      width: NODE_WIDTH,
+      height: node.nodeKind === "resource-group" ? NODE_HEIGHT_GROUP : NODE_HEIGHT_RESOURCE,
+    })),
+    edges: graph.edges.map((edge) => ({
+      id: edge.id,
+      sources: [edge.source],
+      targets: [edge.target],
+    })),
+  };
+
+  const elkResult = await getElk().layout(elkGraph);
+
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const flowNodes: Node[] = [];
+
+  for (const child of elkResult.children ?? []) {
+    const graphNode = nodeById.get(child.id);
+    if (graphNode !== undefined) {
+      flowNodes.push(toFlatFlowNode(graphNode, { x: child.x ?? 0, y: child.y ?? 0 }));
+    }
+  }
+
+  return {
+    nodes: flowNodes,
     edges: toFlowEdges(graph.edges),
   };
 };

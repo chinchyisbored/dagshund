@@ -152,3 +152,30 @@ resources:
       name: raw_data
       volume_type: MANAGED
       comment: "Raw data volume for ingestion pipeline"
+
+    external_imports:
+      catalog_name: dagshund
+      schema_name: dagshund_no_dabs
+      name: external_imports
+      volume_type: MANAGED
+      comment: "Import volume for external data feeds"
+
+  experiments:
+    audit_analysis:
+      name: /Users/databricks.squiggly592@passfwd.com/audit_analysis
+
+  alerts:
+    stale_pipeline_alert:
+      display_name: "Stale Pipeline Alert"
+      query_text: "SELECT TIMESTAMPDIFF(HOUR, MAX(end_time), CURRENT_TIMESTAMP()) AS hours_since_last_run FROM system.lakeflow.job_run_timeline WHERE job_name = 'etl_pipeline'"
+      warehouse_id: 799f096837f0aaaa
+      schedule:
+        quartz_cron_schedule: "0 0 * * * ?"
+        timezone_id: "UTC"
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: hours_since_last_run
+        threshold:
+          value:
+            double_value: 24
