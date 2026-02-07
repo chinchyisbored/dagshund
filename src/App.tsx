@@ -31,7 +31,6 @@ import type { Plan } from "./types/plan-schema.ts";
 const NODE_TYPES = { job: JobNode, task: TaskNode };
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
-  type: "smoothstep",
   style: { stroke: "#71717a", strokeWidth: 2 },
 };
 

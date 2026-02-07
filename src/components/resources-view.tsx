@@ -25,7 +25,6 @@ import type { Plan } from "../types/plan-schema.ts";
 const NODE_TYPES = { resource: ResourceNode, "resource-group": ResourceGroupNode };
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
-  type: "smoothstep",
   style: { stroke: "#71717a", strokeWidth: 2 },
 };
 
