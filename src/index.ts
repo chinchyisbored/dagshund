@@ -36,6 +36,7 @@ const detectOpenCommand = (): string => {
 const plan = await readStdinPlan();
 
 const server = serve({
+  hostname: "127.0.0.1",
   routes: {
     "/api/plan": () => Response.json(plan),
     "/*": index,
