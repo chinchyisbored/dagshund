@@ -3,6 +3,17 @@ import ELK from "elkjs/lib/elk.bundled.js";
 import { getEdgeStyle } from "../components/diff-state-styles.ts";
 import type { GraphNode, PlanGraph } from "../types/graph-types.ts";
 
+/** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner). */
+const getElk = (() => {
+  let instance: InstanceType<typeof ELK> | undefined;
+  return (): InstanceType<typeof ELK> => {
+    if (!instance) {
+      instance = new ELK();
+    }
+    return instance;
+  };
+})();
+
 export const NODE_WIDTH = 200;
 const NODE_HEIGHT_TASK = 50;
 const NODE_HEIGHT_RESOURCE = 50;
@@ -11,15 +22,6 @@ const NODE_HEIGHT_GROUP = 40;
 const JOB_PADDING_TOP = 40;
 const JOB_PADDING_SIDE = 20;
 const JOB_PADDING_BOTTOM = 20;
-
-/** Lazily instantiate ELK to avoid Worker creation at import time (breaks Bun test runner). */
-let elkInstance: InstanceType<typeof ELK> | undefined;
-const getElk = (): InstanceType<typeof ELK> => {
-  if (!elkInstance) {
-    elkInstance = new ELK();
-  }
-  return elkInstance;
-};
 
 export type JobGroup = {
   readonly job: GraphNode;
