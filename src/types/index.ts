@@ -5,6 +5,8 @@ export type {
   GraphNode,
   NodeKind,
   PlanGraph,
+  TaskChangeSummary,
+  TaskChangeSummaryEntry,
 } from "./graph-types.ts";
 export type {
   ActionType,

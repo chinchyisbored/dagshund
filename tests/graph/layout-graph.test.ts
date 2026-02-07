@@ -28,6 +28,7 @@ const JOB_NODE: GraphNode = {
   taskKey: undefined,
   changes: undefined,
   resourceState: undefined,
+  taskChangeSummary: undefined,
 };
 
 const TASK_EXTRACT: GraphNode = {
@@ -39,6 +40,7 @@ const TASK_EXTRACT: GraphNode = {
   taskKey: "extract",
   changes: undefined,
   resourceState: undefined,
+  taskChangeSummary: undefined,
 };
 
 const TASK_TRANSFORM: GraphNode = {
@@ -50,6 +52,7 @@ const TASK_TRANSFORM: GraphNode = {
   taskKey: "transform",
   changes: undefined,
   resourceState: undefined,
+  taskChangeSummary: undefined,
 };
 
 const SINGLE_JOB_GRAPH: PlanGraph = {

@@ -45,6 +45,14 @@ describe("buildPlanGraph", () => {
       }
     });
 
+    test("job node has no taskChangeSummary for a create plan (redundant)", async () => {
+      const plan = await loadFixture("sample-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const jobNode = graph.nodes.find((n) => n.nodeKind === "job");
+      expect(jobNode?.taskChangeSummary).toBeUndefined();
+    });
+
     test("creates correct edges from depends_on", async () => {
       const plan = await loadFixture("sample-plan.json");
       const graph = buildPlanGraph(plan);
@@ -147,6 +155,30 @@ describe("buildPlanGraph", () => {
       expect(extractNode?.resourceState).toBeDefined();
       expect(extractNode?.resourceState).toHaveProperty("task_key", "extract");
       expect(extractNode?.resourceState).toHaveProperty("notebook_task");
+    });
+
+    test("job node has taskChangeSummary with changed tasks", async () => {
+      const plan = await loadFixture("mixed-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const jobNode = graph.nodes.find((n) => n.nodeKind === "job");
+      expect(jobNode?.taskChangeSummary).toBeDefined();
+      const summary = jobNode?.taskChangeSummary ?? [];
+      expect(summary.length).toBeGreaterThan(0);
+
+      const taskKeys = summary.map((e) => e.taskKey);
+      expect(taskKeys).toContain("transform");
+      expect(taskKeys).toContain("aggregate");
+    });
+
+    test("task nodes have undefined taskChangeSummary", async () => {
+      const plan = await loadFixture("mixed-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const taskNodes = graph.nodes.filter((n) => n.nodeKind === "task");
+      for (const task of taskNodes) {
+        expect(task.taskChangeSummary).toBeUndefined();
+      }
     });
   });
 });

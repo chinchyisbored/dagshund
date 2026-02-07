@@ -1,4 +1,4 @@
-import type { DagNodeData } from "../types/graph-types.ts";
+import type { DagNodeData, TaskChangeSummary } from "../types/graph-types.ts";
 import type { ChangeDesc } from "../types/plan-schema.ts";
 import { formatValue } from "../utils/format-value.ts";
 import { computeStructuralDiff } from "../utils/structural-diff.ts";
@@ -112,6 +112,47 @@ function filterMeaningfulChanges(
   return Object.entries(changes).filter(([, change]) => !NOISE_ACTIONS.has(change.action));
 }
 
+const DIFF_STATE_PREFIX: Readonly<Record<string, string>> = {
+  added: "+",
+  removed: "-",
+  modified: "~",
+};
+
+function TaskChangeLine({
+  taskKey,
+  diffState,
+}: {
+  readonly taskKey: string;
+  readonly diffState: DagNodeData["diffState"];
+}) {
+  const styles = getDiffStateStyles(diffState);
+  return (
+    <div className="flex items-center justify-between py-0.5">
+      <span className={`font-mono text-xs ${styles.text}`}>
+        {DIFF_STATE_PREFIX[diffState] ?? " "} {taskKey}
+      </span>
+      <DiffStateBadge diffState={diffState} />
+    </div>
+  );
+}
+
+function TaskChangesSummary({ summary }: { readonly summary: TaskChangeSummary }) {
+  return (
+    <div className="mb-3">
+      <div className="my-2 flex items-center gap-2">
+        <div className="h-px flex-1 bg-zinc-700/50" />
+        <span className="whitespace-nowrap text-xs text-zinc-500">Task Changes</span>
+        <div className="h-px flex-1 bg-zinc-700/50" />
+      </div>
+      <div className="flex flex-col gap-0.5">
+        {summary.map((entry) => (
+          <TaskChangeLine key={entry.taskKey} taskKey={entry.taskKey} diffState={entry.diffState} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DetailPanel({ data, onClose }: DetailPanelProps) {
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
   const showConfig = data.resourceState !== undefined && !SHOWS_FULL_STATE.has(data.diffState);
@@ -148,6 +189,9 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
+        {data.nodeKind === "job" && data.taskChangeSummary !== undefined && (
+          <TaskChangesSummary summary={data.taskChangeSummary} />
+        )}
         {meaningfulChanges.length > 0 && (
           <div className="flex flex-col gap-2">
             {meaningfulChanges.map(([fieldPath, change]) => (
@@ -171,9 +215,11 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
           </>
         )}
 
-        {meaningfulChanges.length === 0 && !hasUnmodifiedState && (
-          <p className="py-8 text-center text-sm text-zinc-500">No changes</p>
-        )}
+        {meaningfulChanges.length === 0 &&
+          !hasUnmodifiedState &&
+          data.taskChangeSummary === undefined && (
+            <p className="py-8 text-center text-sm text-zinc-500">No changes</p>
+          )}
       </div>
     </div>
   );

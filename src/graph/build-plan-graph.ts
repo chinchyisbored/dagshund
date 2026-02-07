@@ -1,6 +1,7 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
+import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
   extractJobState,
   extractTaskEntries,
@@ -14,7 +15,11 @@ const buildTaskNodeId = (resourceKey: string, taskKey: string): string =>
   `${resourceKey}::${taskKey}`;
 
 /** Create a job-level graph node for a plan entry. */
-const buildJobNode = (resourceKey: string, entry: PlanEntry): GraphNode => ({
+const buildJobNode = (
+  resourceKey: string,
+  entry: PlanEntry,
+  tasks: readonly TaskEntry[],
+): GraphNode => ({
   id: resourceKey,
   label: resourceKey,
   nodeKind: "job",
@@ -23,6 +28,7 @@ const buildJobNode = (resourceKey: string, entry: PlanEntry): GraphNode => ({
   taskKey: undefined,
   changes: filterJobLevelChanges(entry.changes),
   resourceState: extractJobState(entry.new_state),
+  taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
 });
 
 /** Filter changes to only include job-level (non-task) entries. */
@@ -49,6 +55,7 @@ const buildTaskNodes = (
     taskKey: task.task_key,
     changes: filterTaskChanges(task.task_key, entry.changes),
     resourceState: extractTaskState(task),
+    taskChangeSummary: undefined,
   }));
 
 /** Filter changes to only include entries for a specific task. */
@@ -80,7 +87,7 @@ const buildEntryGraph = (
 ): { readonly nodes: readonly GraphNode[]; readonly edges: readonly GraphEdge[] } => {
   const tasks = extractTaskEntries(entry.new_state);
   return {
-    nodes: [buildJobNode(resourceKey, entry), ...buildTaskNodes(resourceKey, entry, tasks)],
+    nodes: [buildJobNode(resourceKey, entry, tasks), ...buildTaskNodes(resourceKey, entry, tasks)],
     edges: buildTaskEdges(resourceKey, tasks),
   };
 };

@@ -1,6 +1,13 @@
 import type { DiffState } from "./diff-state.ts";
 import type { ChangeDesc } from "./plan-schema.ts";
 
+export type TaskChangeSummaryEntry = {
+  readonly taskKey: string;
+  readonly diffState: DiffState;
+};
+
+export type TaskChangeSummary = readonly TaskChangeSummaryEntry[];
+
 export type NodeKind = "job" | "task";
 
 export type GraphNode = {
@@ -12,6 +19,7 @@ export type GraphNode = {
   readonly taskKey: string | undefined;
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
   readonly resourceState: Readonly<Record<string, unknown>> | undefined;
+  readonly taskChangeSummary: TaskChangeSummary | undefined;
 };
 
 export type GraphEdge = {
@@ -35,4 +43,5 @@ export type DagNodeData = {
   readonly taskKey: string | undefined;
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
   readonly resourceState: Readonly<Record<string, unknown>> | undefined;
+  readonly taskChangeSummary: TaskChangeSummary | undefined;
 };
