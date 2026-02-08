@@ -420,10 +420,13 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
 
   return (
     <ValueFormatContext.Provider value={valueFormat}>
-      <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-outline bg-surface-raised">
+      <div className="flex h-full w-[390px] shrink-0 flex-col border-l border-outline bg-surface-raised">
         <div className="flex items-center justify-between border-b border-outline-subtle px-4 py-3">
-          <h2 className="truncate text-sm font-semibold text-ink">{data.label}</h2>
-          <div className="ml-2 flex items-center gap-1.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-sm font-semibold text-ink">{data.label}</h2>
+            <DiffStateBadge diffState={data.diffState} />
+          </div>
+          <div className="ml-2 flex shrink-0 items-center gap-1.5">
             <FormatToggle format={valueFormat} onToggle={toggleFormat} />
             <button
               type="button"
@@ -442,12 +445,6 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
             </button>
           </div>
         </div>
-
-        {data.diffState !== "added" && data.diffState !== "removed" && (
-          <div className="px-4 py-2">
-            <DiffStateBadge diffState={data.diffState} />
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {data.external && (

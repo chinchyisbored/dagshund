@@ -33,7 +33,7 @@ describe("buildPlanGraph", () => {
 
       expect(jobNodes).toHaveLength(1);
       expect(taskNodes).toHaveLength(4);
-      expect(jobNodes[0]?.label).toBe("resources.jobs.etl_pipeline");
+      expect(jobNodes[0]?.label).toBe("etl_pipeline");
     });
 
     test("all nodes have diffState 'added' for a create plan", async () => {

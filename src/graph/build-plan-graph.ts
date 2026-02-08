@@ -2,6 +2,7 @@ import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
+import { extractResourceName } from "../utils/resource-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
   extractDeletedTaskEntries,
@@ -23,7 +24,7 @@ const buildJobNode = (
   tasks: readonly TaskEntry[],
 ): GraphNode => ({
   id: resourceKey,
-  label: resourceKey,
+  label: extractResourceName(resourceKey),
   nodeKind: "job",
   diffState: mapActionToDiffState(entry.action),
   resourceKey,
