@@ -14,6 +14,17 @@ export const useStdinPlan = (): StdinPlanState => {
   const [state, setState] = useState<StdinPlanState>(INITIAL_STATE);
 
   useEffect(() => {
+    const embedded = (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__;
+    if (embedded !== undefined) {
+      const result = parsePlanJson(embedded);
+      if (result.ok) {
+        setState({ status: "ready", plan: result.data });
+      } else {
+        setState({ status: "error", message: result.error });
+      }
+      return;
+    }
+
     const fetchPlan = async () => {
       try {
         const response = await fetch("/api/plan");

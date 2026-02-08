@@ -23,7 +23,41 @@ bun run test       # Run tests
 bun run build      # Production build to dist/
 ```
 
-## Production
+## Usage
+
+### Dev server (interactive)
+
+Pipe a plan to the dev server for live exploration with hot reload:
+
+```bash
+cat plan.json | bun run dev
+```
+
+Or start the server without a plan and upload one via the UI:
+
+```bash
+bun run dev
+```
+
+### Static HTML export
+
+Generate a single self-contained HTML file with all JS, CSS, and plan data inlined. Opens anywhere — no server needed.
+
+```bash
+# File input → save to disk (CI mode)
+bun src/cli.ts plan.json -o report.html
+
+# Stdin → save to disk
+cat plan.json | bun src/cli.ts -o report.html
+
+# File input → open in browser (writes to temp file)
+bun src/cli.ts plan.json
+
+# Via npm script
+bun run export -- plan.json -o report.html
+```
+
+### Production server
 
 ```bash
 bun run build      # Build for production

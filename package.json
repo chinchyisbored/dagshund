@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "dagshund": "./src/cli.ts"
+  },
   "scripts": {
+    "export": "bun src/cli.ts",
     "dev": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch & bun --hot src/index.ts",
     "build:css": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --minify",
     "build": "bun run build:css && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
