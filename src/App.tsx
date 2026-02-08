@@ -7,6 +7,7 @@ import { JobNode } from "./components/job-node.tsx";
 import { ResourcesView } from "./components/resources-view.tsx";
 import { TabBar } from "./components/tab-bar.tsx";
 import { TaskNode } from "./components/task-node.tsx";
+import { ThemeToggle } from "./components/theme-toggle.tsx";
 import { hasNonJobResources } from "./graph/build-resource-graph.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
@@ -75,7 +76,10 @@ export function App() {
   const planState = useStdinPlan();
 
   return (
-    <div className="h-screen w-screen bg-zinc-950">
+    <div className="relative h-screen w-screen bg-surface">
+      <div className="absolute top-2 right-2 z-50">
+        <ThemeToggle />
+      </div>
       {planState.status === "loading" && <LoadingIndicator />}
       {planState.status === "empty" && <EmptyState />}
       {planState.status === "error" && <ErrorMessage message={planState.message} />}

@@ -30,7 +30,7 @@ type FlowCanvasProps = {
 };
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
-  style: { stroke: "#71717a", strokeWidth: 2 },
+  style: { stroke: "var(--edge-default)", strokeWidth: 2 },
 };
 
 const EMPTY_NODES: readonly never[] = [];
@@ -151,7 +151,7 @@ export function FlowCanvas({ layout, nodeTypes }: FlowCanvasProps) {
           </Panel>
           <Background />
           <Controls />
-          <MiniMap style={{ backgroundColor: "#18181b" }} />
+          <MiniMap style={{ backgroundColor: "var(--minimap-bg)" }} />
         </ReactFlow>
       </HoverContext.Provider>
       {selectedNode !== null && <DetailPanel data={selectedNode} onClose={handleClosePanel} />}

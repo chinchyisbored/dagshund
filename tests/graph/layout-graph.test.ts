@@ -8,6 +8,27 @@ import type { GraphNode, PlanGraph } from "../../src/types/graph-types.ts";
  * The full ELK layout pipeline is verified visually via `bun run dev`.
  */
 
+// Polyfill getComputedStyle for Bun's test runner (no DOM available).
+// Returns dark-mode CSS variable values so edge style tests get realistic values.
+const CSS_VAR_VALUES: Readonly<Record<string, string>> = {
+  "--edge-added": "#10b981",
+  "--edge-removed": "#ef4444",
+  "--edge-unchanged": "#52525b",
+  "--edge-default": "#71717a",
+};
+
+if (typeof globalThis.getComputedStyle === "undefined") {
+  // biome-ignore lint/suspicious/noExplicitAny: polyfill for test environment
+  (globalThis as any).getComputedStyle = () => ({
+    getPropertyValue: (name: string) => CSS_VAR_VALUES[name] ?? "",
+  });
+}
+
+if (typeof globalThis.document === "undefined") {
+  // biome-ignore lint/suspicious/noExplicitAny: polyfill for test environment
+  (globalThis as any).document = { documentElement: {} };
+}
+
 // Dynamic import to avoid module-level ELK Worker instantiation in tests.
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import workaround for ELK Worker
 let mod: any;

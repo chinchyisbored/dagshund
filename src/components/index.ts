@@ -11,3 +11,4 @@ export { ResourcesView } from "./resources-view.tsx";
 export { StructuralDiffView } from "./structural-diff-view.tsx";
 export { TabBar } from "./tab-bar.tsx";
 export { TaskNode } from "./task-node.tsx";
+export { ThemeToggle } from "./theme-toggle.tsx";

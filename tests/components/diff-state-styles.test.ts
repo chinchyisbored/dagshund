@@ -3,36 +3,36 @@ import { getDiffStateStyles } from "../../src/components/diff-state-styles.ts";
 import type { DiffState } from "../../src/types/diff-state.ts";
 
 describe("getDiffStateStyles", () => {
-  test("added returns emerald classes with full opacity", () => {
+  test("added returns themed diff classes with full opacity", () => {
     const styles = getDiffStateStyles("added");
-    expect(styles.border).toBe("border-emerald-500");
-    expect(styles.background).toBe("bg-emerald-500/10");
-    expect(styles.text).toBe("text-emerald-300");
+    expect(styles.border).toBe("border-diff-added");
+    expect(styles.background).toBe("bg-diff-added-soft");
+    expect(styles.text).toBe("text-diff-added");
     expect(styles.opacity).toBe("opacity-100");
   });
 
-  test("removed returns red dashed classes with full opacity", () => {
+  test("removed returns themed diff dashed classes with full opacity", () => {
     const styles = getDiffStateStyles("removed");
-    expect(styles.border).toBe("border-red-500");
+    expect(styles.border).toBe("border-diff-removed");
     expect(styles.borderStyle).toBe("border-dashed");
-    expect(styles.background).toBe("bg-red-500/10");
-    expect(styles.text).toBe("text-red-400");
+    expect(styles.background).toBe("bg-diff-removed-soft");
+    expect(styles.text).toBe("text-diff-removed");
     expect(styles.opacity).toBe("opacity-100");
   });
 
-  test("modified returns amber classes with full opacity", () => {
+  test("modified returns themed diff classes with full opacity", () => {
     const styles = getDiffStateStyles("modified");
-    expect(styles.border).toBe("border-amber-500");
-    expect(styles.background).toBe("bg-amber-500/10");
-    expect(styles.text).toBe("text-amber-300");
+    expect(styles.border).toBe("border-diff-modified");
+    expect(styles.background).toBe("bg-diff-modified-soft");
+    expect(styles.text).toBe("text-diff-modified");
     expect(styles.opacity).toBe("opacity-100");
   });
 
-  test("unchanged returns zinc classes with full opacity", () => {
+  test("unchanged returns themed diff classes with full opacity", () => {
     const styles = getDiffStateStyles("unchanged");
-    expect(styles.border).toBe("border-zinc-600");
-    expect(styles.background).toBe("bg-zinc-800");
-    expect(styles.text).toBe("text-zinc-300");
+    expect(styles.border).toBe("border-diff-unchanged-border");
+    expect(styles.background).toBe("bg-diff-unchanged-bg");
+    expect(styles.text).toBe("text-diff-unchanged-text");
     expect(styles.opacity).toBe("opacity-100");
   });
 

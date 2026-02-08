@@ -1,1 +1,108 @@
 @import "tailwindcss";
+
+/* --- Design Tokens --- */
+
+/* Light mode (default) */
+:root {
+  --surface: #f8f9fb;
+  --surface-raised: #ffffff;
+  --surface-inset: #eef0f4;
+  --surface-hover: #e4e6ec;
+  --ink: #1a1d27;
+  --ink-secondary: #4b5263;
+  --ink-muted: #6b7280;
+  --ink-faint: #9ca3b4;
+  --outline: #d1d5e0;
+  --outline-subtle: #e2e5ed;
+  --accent: #3b6ce7;
+  --accent-hover: #2d5bd4;
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.08);
+  --diff-added: #059669;
+  --diff-added-soft: rgba(5, 150, 105, 0.08);
+  --diff-removed: #dc2626;
+  --diff-removed-soft: rgba(220, 38, 38, 0.08);
+  --diff-modified: #d97706;
+  --diff-modified-soft: rgba(217, 119, 6, 0.08);
+  --diff-unchanged-border: #d1d5e0;
+  --diff-unchanged-bg: #eef0f4;
+  --diff-unchanged-text: #4b5263;
+  --edge-added: #059669;
+  --edge-removed: #dc2626;
+  --edge-unchanged: #9ca3b4;
+  --edge-default: #9ca3b4;
+  --canvas-dot: #d1d5e0;
+  --minimap-bg: #eef0f4;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Dark mode */
+.dark {
+  --surface: #0f1117;
+  --surface-raised: #1a1d27;
+  --surface-inset: #242836;
+  --surface-hover: #2d3244;
+  --ink: #e8eaf0;
+  --ink-secondary: #a0a6b8;
+  --ink-muted: #6b7280;
+  --ink-faint: #4b5263;
+  --outline: #363c4e;
+  --outline-subtle: #2a2f3e;
+  --accent: #5b8def;
+  --accent-hover: #7da3f5;
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.1);
+  --diff-added: #10b981;
+  --diff-added-soft: rgba(16, 185, 129, 0.1);
+  --diff-removed: #ef4444;
+  --diff-removed-soft: rgba(239, 68, 68, 0.1);
+  --diff-modified: #f59e0b;
+  --diff-modified-soft: rgba(245, 158, 11, 0.1);
+  --diff-unchanged-border: #363c4e;
+  --diff-unchanged-bg: #242836;
+  --diff-unchanged-text: #a0a6b8;
+  --edge-added: #10b981;
+  --edge-removed: #ef4444;
+  --edge-unchanged: #52525b;
+  --edge-default: #71717a;
+  --canvas-dot: #363c4e;
+  --minimap-bg: #18181b;
+  --shadow-sm: none;
+  --shadow-md: none;
+}
+
+/* Register tokens as Tailwind theme colors */
+@theme {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-hover: var(--surface-hover);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-outline: var(--outline);
+  --color-outline-subtle: var(--outline-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-diff-added: var(--diff-added);
+  --color-diff-added-soft: var(--diff-added-soft);
+  --color-diff-removed: var(--diff-removed);
+  --color-diff-removed-soft: var(--diff-removed-soft);
+  --color-diff-modified: var(--diff-modified);
+  --color-diff-modified-soft: var(--diff-modified-soft);
+  --color-diff-unchanged-border: var(--diff-unchanged-border);
+  --color-diff-unchanged-bg: var(--diff-unchanged-bg);
+  --color-diff-unchanged-text: var(--diff-unchanged-text);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+}
+
+/* Base styles */
+html {
+  background-color: var(--surface);
+  color: var(--ink);
+}
