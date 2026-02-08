@@ -11,10 +11,10 @@ import type { GraphNode, PlanGraph } from "../../src/types/graph-types.ts";
 // Polyfill getComputedStyle for Bun's test runner (no DOM available).
 // Returns dark-mode CSS variable values so edge style tests get realistic values.
 const CSS_VAR_VALUES: Readonly<Record<string, string>> = {
-  "--edge-added": "#10b981",
-  "--edge-removed": "#ef4444",
-  "--edge-unchanged": "#52525b",
-  "--edge-default": "#71717a",
+  "--edge-added": "#9ece6a",
+  "--edge-removed": "#f7768e",
+  "--edge-unchanged": "#3b4261",
+  "--edge-default": "#545c7e",
 };
 
 if (typeof globalThis.getComputedStyle === "undefined") {
@@ -361,9 +361,9 @@ describe("toFlowEdges", () => {
       { id: "e3", source: "e", target: "f", label: undefined, diffState: "unchanged" },
     ]);
 
-    expect(edges[0].style).toEqual({ stroke: "#10b981", opacity: 1, strokeDasharray: undefined });
-    expect(edges[1].style).toEqual({ stroke: "#ef4444", opacity: 1, strokeDasharray: "6 4" });
-    expect(edges[2].style).toEqual({ stroke: "#52525b", opacity: 1, strokeDasharray: undefined });
+    expect(edges[0].style).toEqual({ stroke: "#9ece6a", opacity: 1, strokeDasharray: undefined });
+    expect(edges[1].style).toEqual({ stroke: "#f7768e", opacity: 1, strokeDasharray: "6 4" });
+    expect(edges[2].style).toEqual({ stroke: "#3b4261", opacity: 1, strokeDasharray: undefined });
   });
 });
 

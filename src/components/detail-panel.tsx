@@ -21,16 +21,16 @@ import { TASK_KEY_DOT_PREFIX_PATTERN } from "../utils/task-key.ts";
 const stripTaskPrefix = (key: string): string => key.replace(TASK_KEY_DOT_PREFIX_PATTERN, "");
 
 const ACTION_BADGE_COLORS: Readonly<Record<string, string>> = {
-  create: "text-emerald-400 bg-emerald-400/10",
-  update: "text-amber-400 bg-amber-400/10",
-  update_id: "text-amber-400 bg-amber-400/10",
-  delete: "text-red-400 bg-red-400/10",
-  recreate: "text-orange-400 bg-orange-400/10",
-  resize: "text-blue-400 bg-blue-400/10",
+  create: "text-action-create bg-action-create-soft",
+  update: "text-action-update bg-action-update-soft",
+  update_id: "text-action-update bg-action-update-soft",
+  delete: "text-action-delete bg-action-delete-soft",
+  recreate: "text-action-recreate bg-action-recreate-soft",
+  resize: "text-action-resize bg-action-resize-soft",
 };
 
 function ActionBadge({ action }: { readonly action: string }) {
-  const colors = ACTION_BADGE_COLORS[action] ?? "text-zinc-400 bg-zinc-400/10";
+  const colors = ACTION_BADGE_COLORS[action] ?? "text-badge-text bg-badge-bg";
   return <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${colors}`}>{action}</span>;
 }
 
@@ -55,9 +55,9 @@ function ChangeEntry({
   const diffResult = computeStructuralDiff(change);
 
   return (
-    <div className="rounded border border-zinc-700/50 bg-zinc-800/50 p-3">
+    <div className="rounded border border-outline-subtle bg-surface-raised/50 p-3">
       <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-xs text-zinc-300">{stripTaskPrefix(fieldPath)}</span>
+        <span className="font-mono text-xs text-ink-secondary">{stripTaskPrefix(fieldPath)}</span>
         <ActionBadge action={change.action} />
       </div>
       <StructuralDiffView result={diffResult} />
@@ -81,13 +81,13 @@ function ResourceStateView({
       {sortedKeys.map((key) => {
         const formatted = formatValue(resourceState[key], format);
         return (
-          <div key={key} className="rounded border border-zinc-800 bg-zinc-800/30 px-3 py-2">
-            <span className="font-mono text-xs text-zinc-400">{key}</span>
+          <div key={key} className="rounded border border-outline-subtle bg-surface-raised/30 px-3 py-2">
+            <span className="font-mono text-xs text-ink-secondary">{key}</span>
             <div className="mt-1">
               {formatted.split("\n").map((line, i) => (
                 <div
                   key={i}
-                  className="whitespace-pre-wrap break-words font-mono text-xs text-zinc-500"
+                  className="whitespace-pre-wrap break-words font-mono text-xs text-ink-muted"
                   style={VALUE_HANGING_INDENT}
                 >
                   {line}
@@ -104,9 +104,9 @@ function ResourceStateView({
 function SectionDivider({ label }: { readonly label: string }) {
   return (
     <div className="my-4 flex items-center gap-2">
-      <div className="h-px flex-1 bg-zinc-700/50" />
-      <span className="whitespace-nowrap text-xs text-zinc-500">{label}</span>
-      <div className="h-px flex-1 bg-zinc-700/50" />
+      <div className="h-px flex-1 bg-outline-subtle" />
+      <span className="whitespace-nowrap text-xs text-ink-muted">{label}</span>
+      <div className="h-px flex-1 bg-outline-subtle" />
     </div>
   );
 }
@@ -114,8 +114,8 @@ function SectionDivider({ label }: { readonly label: string }) {
 const STATE_FIELD_STYLES: Readonly<
   Record<"added" | "removed", { readonly prefix: string; readonly text: string }>
 > = {
-  added: { prefix: "+", text: "text-emerald-300" },
-  removed: { prefix: "-", text: "text-red-400" },
+  added: { prefix: "+", text: "text-diff-added" },
+  removed: { prefix: "-", text: "text-diff-removed" },
 };
 
 function StateFieldRow({
@@ -131,20 +131,20 @@ function StateFieldRow({
   const style = STATE_FIELD_STYLES[variant];
   const formatted = formatValue(value, format);
   return (
-    <div className="rounded border border-zinc-700/40 bg-zinc-800/30 px-3 py-2">
+    <div className="rounded border border-outline-subtle bg-surface-raised/30 px-3 py-2">
       <PrefixedBlock prefix={`${style.prefix} `} text={fieldKey} className={style.text} />
       <PrefixedBlock
         prefix={`${style.prefix}   `}
         text={formatted}
-        className={`${style.text} opacity-80`}
+        className={style.text}
       />
     </div>
   );
 }
 
 const OBJECT_CARD_STYLES: Readonly<Record<"added" | "removed", { readonly border: string }>> = {
-  added: { border: "border-emerald-500/60" },
-  removed: { border: "border-red-500/60" },
+  added: { border: "border-diff-added/60" },
+  removed: { border: "border-diff-removed/60" },
 };
 
 const OBJECT_CARD_SUBTITLE: Readonly<Record<"added" | "removed", string>> = {
@@ -167,15 +167,15 @@ function ObjectStateCard({
   const sortedKeys = Object.keys(resourceState).toSorted();
 
   return (
-    <div className={`rounded-lg border ${style.border} bg-zinc-800/50`}>
+    <div className={`rounded-lg border ${style.border} bg-surface-raised/50`}>
       <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
-        <span className="font-mono text-sm text-zinc-200">{label}</span>
+        <span className="font-mono text-sm text-ink">{label}</span>
         <DiffStateBadge diffState={variant} />
       </div>
-      <p className="px-3 pb-2 text-xs italic text-zinc-500">
+      <p className="px-3 pb-2 text-xs italic text-ink-muted">
         This {nodeKind} {OBJECT_CARD_SUBTITLE[variant]}
       </p>
-      <div className="flex flex-col gap-1.5 border-t border-zinc-700/40 p-3">
+      <div className="flex flex-col gap-1.5 border-t border-outline-subtle p-3">
         {sortedKeys.map((key) => (
           <StateFieldRow key={key} fieldKey={key} value={resourceState[key]} variant={variant} />
         ))}
@@ -354,11 +354,11 @@ function RawJsonDisclosure({ data }: { readonly data: DagNodeData }) {
   if (rawData === undefined) return null;
 
   return (
-    <div className="mt-4 border-t border-zinc-700/50 pt-3">
+    <div className="mt-4 border-t border-outline-subtle pt-3">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300"
+        className="flex w-full items-center gap-1.5 text-xs text-ink-muted hover:text-ink-secondary"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -376,7 +376,7 @@ function RawJsonDisclosure({ data }: { readonly data: DagNodeData }) {
         Raw JSON
       </button>
       {isOpen && (
-        <pre className="mt-2 max-h-[400px] overflow-auto rounded border border-zinc-700/50 bg-zinc-950 p-3 font-mono text-xs text-zinc-400">
+        <pre className="mt-2 max-h-[400px] overflow-auto rounded border border-outline-subtle bg-code-bg p-3 font-mono text-xs text-ink-muted">
           {JSON.stringify(rawData, null, 2)}
         </pre>
       )}
@@ -405,7 +405,7 @@ function FormatToggle({
     <button
       type="button"
       onClick={onToggle}
-      className="rounded border border-zinc-600 px-2 py-0.5 font-mono text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+      className="rounded border border-outline px-2 py-0.5 font-mono text-xs text-ink-muted hover:border-ink-faint hover:text-ink"
     >
       {FORMAT_TOGGLE_LABELS[format]}
     </button>
@@ -420,15 +420,15 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
 
   return (
     <ValueFormatContext.Provider value={valueFormat}>
-      <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-zinc-700 bg-zinc-900">
-        <div className="flex items-center justify-between border-b border-zinc-700/50 px-4 py-3">
-          <h2 className="truncate text-sm font-semibold text-zinc-100">{data.label}</h2>
+      <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-outline bg-surface-raised">
+        <div className="flex items-center justify-between border-b border-outline-subtle px-4 py-3">
+          <h2 className="truncate text-sm font-semibold text-ink">{data.label}</h2>
           <div className="ml-2 flex items-center gap-1.5">
             <FormatToggle format={valueFormat} onToggle={toggleFormat} />
             <button
               type="button"
               onClick={onClose}
-              className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              className="rounded p-1 text-ink-muted hover:bg-surface-hover hover:text-ink-secondary"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -451,7 +451,7 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {data.external && (
-            <div className="mb-3 rounded border border-dashed border-zinc-600/60 bg-zinc-800/40 px-3 py-2 text-xs text-zinc-400">
+            <div className="mb-3 rounded border border-dashed border-outline/60 bg-surface-inset/40 px-3 py-2 text-xs text-ink-muted">
               Untracked by this bundle
             </div>
           )}
@@ -474,7 +474,7 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
             meaningfulChanges.length === 0 &&
             data.resourceState === undefined &&
             data.taskChangeSummary === undefined && (
-              <p className="py-8 text-center text-sm text-zinc-500">No changes</p>
+              <p className="py-8 text-center text-sm text-ink-muted">No changes</p>
             )}
 
           <RawJsonDisclosure data={data} />

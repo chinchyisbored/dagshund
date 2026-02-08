@@ -54,16 +54,16 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
       title={data.label}
     >
       {incomingConnections.length > 0 && (
-        <Handle type="target" position={Position.Left} className="!bg-zinc-500" />
+        <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
       <span className="truncate">{data.label}</span>
       {typeBadge !== undefined && (
-        <span className="shrink-0 rounded bg-zinc-700/60 px-1.5 py-0.5 text-[10px] text-zinc-400">
+        <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
           {typeBadge}
         </span>
       )}
       {outgoingConnections.length > 0 && (
-        <Handle type="source" position={Position.Right} className="!bg-zinc-500" />
+        <Handle type="source" position={Position.Right} className="!bg-handle" />
       )}
     </div>
   );

@@ -34,7 +34,7 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
       style={isDimmed ? { opacity: 0.3 } : undefined}
     >
       {incomingConnections.length > 0 && (
-        <Handle type="target" position={Position.Left} className="!bg-zinc-500" />
+        <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
       <div
         className={`rounded-t-[10px] px-4 py-2 text-xs font-semibold uppercase tracking-wide ${styles.background} ${styles.text}`}
@@ -42,7 +42,7 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
         {jobName}
       </div>
       {outgoingConnections.length > 0 && (
-        <Handle type="source" position={Position.Right} className="!bg-zinc-500" />
+        <Handle type="source" position={Position.Right} className="!bg-handle" />
       )}
     </div>
   );

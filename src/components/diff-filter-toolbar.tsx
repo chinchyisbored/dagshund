@@ -13,20 +13,20 @@ const FILTER_BUTTONS: readonly FilterButton[] = [
   {
     state: "added",
     label: "Added",
-    activeClasses: "bg-emerald-500/20 border-emerald-500 text-emerald-300",
-    inactiveClasses: "border-zinc-600 text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400",
+    activeClasses: "bg-diff-added-soft border-diff-added text-diff-added",
+    inactiveClasses: "border-outline text-ink-muted hover:border-diff-added/50 hover:text-diff-added",
   },
   {
     state: "modified",
     label: "Modified",
-    activeClasses: "bg-amber-500/20 border-amber-500 text-amber-300",
-    inactiveClasses: "border-zinc-600 text-zinc-400 hover:border-amber-500/50 hover:text-amber-400",
+    activeClasses: "bg-diff-modified-soft border-diff-modified text-diff-modified",
+    inactiveClasses: "border-outline text-ink-muted hover:border-diff-modified/50 hover:text-diff-modified",
   },
   {
     state: "removed",
     label: "Removed",
-    activeClasses: "bg-red-500/20 border-red-500 text-red-400",
-    inactiveClasses: "border-zinc-600 text-zinc-400 hover:border-red-500/50 hover:text-red-400",
+    activeClasses: "bg-diff-removed-soft border-diff-removed text-diff-removed",
+    inactiveClasses: "border-outline text-ink-muted hover:border-diff-removed/50 hover:text-diff-removed",
   },
 ];
 

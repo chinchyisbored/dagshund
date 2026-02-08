@@ -98,14 +98,14 @@ function ScalarDiffView({ diff }: { readonly diff: ScalarDiff }) {
   const format = useValueFormat();
   return (
     <>
-      <div className="mb-1 rounded bg-red-500/5 px-2 py-1">
-        <PrefixedBlock prefix="- " text={formatValue(diff.old, format)} className="text-red-300" />
+      <div className="mb-1 rounded bg-diff-removed-soft px-2 py-1">
+        <PrefixedBlock prefix="- " text={formatValue(diff.old, format)} className="text-diff-removed" />
       </div>
-      <div className="rounded bg-emerald-500/5 px-2 py-1">
+      <div className="rounded bg-diff-added-soft px-2 py-1">
         <PrefixedBlock
           prefix="+ "
           text={formatValue(diff.new, format)}
-          className="text-emerald-300"
+          className="text-diff-added"
         />
       </div>
     </>
@@ -115,14 +115,14 @@ function ScalarDiffView({ diff }: { readonly diff: ScalarDiff }) {
 const ELEMENT_STATUS_STYLES: Readonly<
   Record<ArrayElement["status"], { readonly prefix: string; readonly className: string }>
 > = {
-  added: { prefix: "+", className: "text-emerald-300" },
-  removed: { prefix: "-", className: "text-red-300" },
-  unchanged: { prefix: " ", className: "text-zinc-500" },
+  added: { prefix: "+", className: "text-diff-added" },
+  removed: { prefix: "-", className: "text-diff-removed" },
+  unchanged: { prefix: " ", className: "text-ink-muted" },
 };
 
 const ELEMENT_BACKGROUND: Readonly<Record<ArrayElement["status"], string>> = {
-  added: "bg-emerald-500/5",
-  removed: "bg-red-500/5",
+  added: "bg-diff-added-soft",
+  removed: "bg-diff-removed-soft",
   unchanged: "",
 };
 
@@ -155,15 +155,15 @@ function ArrayDiffView({ diff }: { readonly diff: ArrayDiff }) {
 const ENTRY_STATUS_STYLES: Readonly<
   Record<ObjectEntry["status"], { readonly className: string }>
 > = {
-  added: { className: "text-emerald-300" },
-  removed: { className: "text-red-300" },
-  modified: { className: "text-amber-300" },
-  unchanged: { className: "text-zinc-500" },
+  added: { className: "text-diff-added" },
+  removed: { className: "text-diff-removed" },
+  modified: { className: "text-diff-modified" },
+  unchanged: { className: "text-ink-muted" },
 };
 
 const ENTRY_BACKGROUND: Readonly<Record<ObjectEntry["status"], string>> = {
-  added: "bg-emerald-500/5",
-  removed: "bg-red-500/5",
+  added: "bg-diff-added-soft",
+  removed: "bg-diff-removed-soft",
   modified: "",
   unchanged: "",
 };
@@ -175,18 +175,18 @@ function ModifiedEntryView({ entry }: { readonly entry: ObjectEntry }) {
 
   return (
     <div className="flex flex-col gap-0.5">
-      <div className="rounded bg-red-500/5 px-2 py-0.5">
+      <div className="rounded bg-diff-removed-soft px-2 py-0.5">
         <PrefixedBlock
           prefix="- "
           text={buildEntryText(entry.key, formattedOld)}
-          className="text-red-300"
+          className="text-diff-removed"
         />
       </div>
-      <div className="rounded bg-emerald-500/5 px-2 py-0.5">
+      <div className="rounded bg-diff-added-soft px-2 py-0.5">
         <PrefixedBlock
           prefix="+ "
           text={buildEntryText(entry.key, formattedNew)}
-          className="text-emerald-300"
+          className="text-diff-added"
         />
       </div>
     </div>
@@ -230,11 +230,11 @@ function ObjectDiffView({ diff }: { readonly diff: ObjectDiff }) {
 function CreateOnlyView({ diff }: { readonly diff: CreateOnlyDiff }) {
   const format = useValueFormat();
   return (
-    <div className="rounded bg-emerald-500/5 px-2 py-1">
+    <div className="rounded bg-diff-added-soft px-2 py-1">
       <PrefixedBlock
         prefix="+ "
         text={formatValue(diff.value, format)}
-        className="text-emerald-300"
+        className="text-diff-added"
       />
     </div>
   );
@@ -243,11 +243,11 @@ function CreateOnlyView({ diff }: { readonly diff: CreateOnlyDiff }) {
 function DeleteOnlyView({ diff }: { readonly diff: DeleteOnlyDiff }) {
   const format = useValueFormat();
   return (
-    <div className="rounded bg-red-500/5 px-2 py-1">
+    <div className="rounded bg-diff-removed-soft px-2 py-1">
       <PrefixedBlock
         prefix="- "
         text={formatValue(diff.value, format)}
-        className="text-red-300"
+        className="text-diff-removed"
       />
     </div>
   );
@@ -258,7 +258,7 @@ export function StructuralDiffView({ result }: StructuralDiffViewProps) {
   return (
     <div>
       {baselineLabel === "remote" && (
-        <span className="mb-1 block text-xs text-zinc-500">(vs remote)</span>
+        <span className="mb-1 block text-xs text-ink-muted">(vs remote)</span>
       )}
       {diff.kind === "scalar" && <ScalarDiffView diff={diff} />}
       {diff.kind === "array" && <ArrayDiffView diff={diff} />}

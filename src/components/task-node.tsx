@@ -34,11 +34,11 @@ export const TaskNode = memo(function TaskNode({ id, data }: NodeProps<TaskNodeT
       title={data.label}
     >
       {incomingConnections.length > 0 && (
-        <Handle type="target" position={Position.Left} className="!bg-zinc-500" />
+        <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
       <span>{data.label}</span>
       {outgoingConnections.length > 0 && (
-        <Handle type="source" position={Position.Right} className="!bg-zinc-500" />
+        <Handle type="source" position={Position.Right} className="!bg-handle" />
       )}
     </div>
   );

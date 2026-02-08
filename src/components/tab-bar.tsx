@@ -17,7 +17,7 @@ const TABS: readonly TabConfig[] = [
 
 export function TabBar({ activeTab, onTabChange }: TabBarProps) {
   return (
-    <div className="flex border-b border-zinc-700">
+    <div className="flex border-b border-outline">
       {TABS.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
@@ -27,8 +27,8 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
             onClick={() => onTabChange(tab.id)}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               isActive
-                ? "border-b-2 border-zinc-300 text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-300"
+                ? "border-b-2 border-ink text-ink"
+                : "text-ink-muted hover:text-ink-secondary"
             }`}
           >
             {tab.label}

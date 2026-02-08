@@ -22,16 +22,16 @@ function DagView({ plan }: { readonly plan: Plan }) {
 
 function LoadingIndicator() {
   return (
-    <div className="flex h-full items-center justify-center text-zinc-500">Loading plan...</div>
+    <div className="flex h-full items-center justify-center text-ink-muted">Loading plan...</div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500">
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-ink-muted">
       <p className="text-lg">No plan loaded</p>
-      <p className="text-sm text-zinc-600">Pipe a plan to get started:</p>
-      <code className="rounded bg-zinc-800 px-3 py-1.5 text-sm text-zinc-400">
+      <p className="text-sm text-ink-faint">Pipe a plan to get started:</p>
+      <code className="rounded bg-code-bg px-3 py-1.5 text-sm text-ink-muted">
         databricks bundle plan -o json | dagshund
       </code>
     </div>
@@ -40,9 +40,9 @@ function EmptyState() {
 
 function ErrorMessage({ message }: { readonly message: string }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-red-400">
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-danger">
       <p className="text-lg">Failed to load plan</p>
-      <code className="max-w-lg rounded bg-zinc-800 px-3 py-1.5 text-sm text-red-300">
+      <code className="max-w-lg rounded bg-code-bg px-3 py-1.5 text-sm text-danger">
         {message}
       </code>
     </div>
