@@ -104,130 +104,179 @@ const buildEdge = (source: string, target: string): GraphEdge | undefined =>
         diffState: "unchanged",
       };
 
+/** Filter defined edges from buildEdge results. */
+const filterDefinedEdges = (
+  edges: readonly (GraphEdge | undefined)[],
+): readonly GraphEdge[] => edges.filter((e): e is GraphEdge => e !== undefined);
+
+/** Build a lookup from "catalog.schema" → schema plan key for linking volumes/models to schemas. */
+const buildSchemaLookup = (
+  ucEntries: readonly (readonly [string, PlanEntry])[],
+): ReadonlyMap<string, string> =>
+  new Map(
+    ucEntries
+      .filter(([key]) => extractResourceType(key) === "schemas")
+      .flatMap(([key, entry]) => {
+        const name = extractStateField(entry, "name");
+        const catalog = extractStateField(entry, "catalog_name");
+        return name !== undefined && catalog !== undefined
+          ? [[`${catalog}.${name}`, key] as const]
+          : [];
+      }),
+  );
+
+/** Build phantom schema nodes for UC resources whose schema is not in the plan. */
+const buildPhantomSchemaNodes = (
+  ucEntries: readonly (readonly [string, PlanEntry])[],
+  schemaLookup: ReadonlyMap<string, string>,
+): ReadonlyMap<string, { readonly node: GraphNode; readonly parentEdge: GraphEdge | undefined }> => {
+  const phantomEntries = ucEntries.flatMap(([key, entry]) => {
+    const resourceType = extractResourceType(key);
+    if (resourceType === "schemas" || resourceType === "catalogs") return [];
+
+    const schemaName = extractStateField(entry, "schema_name");
+    const catalog = extractStateField(entry, "catalog_name");
+    if (schemaName === undefined || catalog === undefined) return [];
+    if (schemaLookup.has(`${catalog}.${schemaName}`)) return [];
+
+    const phantomId = `external::${catalog}.${schemaName}`;
+    const catalogId = `catalog::${catalog}`;
+    return [
+      [
+        phantomId,
+        {
+          node: buildGroupNode(phantomId, schemaName, true),
+          parentEdge: buildEdge(catalogId, phantomId),
+        },
+      ] as const,
+    ];
+  });
+
+  return new Map(phantomEntries);
+};
+
+/** Build the UC hierarchy subgraph: root, catalogs, schemas, phantom schemas, and resource nodes. */
+const buildUcGraph = (
+  ucEntries: readonly (readonly [string, PlanEntry])[],
+  schemaLookup: ReadonlyMap<string, string>,
+): PlanGraph => {
+  if (ucEntries.length === 0) return { nodes: [], edges: [] };
+
+  const ucRoot = buildGroupNode("uc-root", "Unity Catalog");
+
+  // Unique catalog names → catalog group nodes + edges from UC root
+  const catalogNames = [
+    ...new Set(
+      ucEntries.flatMap(([, entry]) => {
+        const catalog = extractStateField(entry, "catalog_name");
+        return catalog !== undefined ? [catalog] : [];
+      }),
+    ),
+  ];
+  const catalogNodes = catalogNames.map((name) => buildGroupNode(`catalog::${name}`, name));
+  const catalogEdges = filterDefinedEdges(
+    catalogNames.map((name) => buildEdge("uc-root", `catalog::${name}`)),
+  );
+
+  // Phantom schema nodes (deduplicated by Map key)
+  const phantomMap = buildPhantomSchemaNodes(ucEntries, schemaLookup);
+  const phantomNodes = [...phantomMap.values()].map(({ node }) => node);
+  const phantomEdges = filterDefinedEdges([...phantomMap.values()].map(({ parentEdge }) => parentEdge));
+
+  // Resource nodes + hierarchy edges
+  const resourceNodes = ucEntries.map(([key, entry]) => buildResourceNode(key, entry));
+  const hierarchyEdges = filterDefinedEdges(
+    ucEntries.map(([key, entry]) => {
+      const resourceType = extractResourceType(key);
+      const catalog = extractStateField(entry, "catalog_name");
+      const catalogId = catalog !== undefined ? `catalog::${catalog}` : "uc-root";
+
+      if (resourceType === "schemas" || resourceType === "catalogs") {
+        return buildEdge(catalogId, key);
+      }
+
+      const schemaName = extractStateField(entry, "schema_name");
+      const schemaKey =
+        schemaName !== undefined && catalog !== undefined
+          ? schemaLookup.get(`${catalog}.${schemaName}`)
+          : undefined;
+
+      if (schemaKey !== undefined) return buildEdge(schemaKey, key);
+      if (schemaName !== undefined && catalog !== undefined) {
+        return buildEdge(`external::${catalog}.${schemaName}`, key);
+      }
+      return buildEdge(catalogId, key);
+    }),
+  );
+
+  return {
+    nodes: [ucRoot, ...catalogNodes, ...phantomNodes, ...resourceNodes],
+    edges: [...catalogEdges, ...phantomEdges, ...hierarchyEdges],
+  };
+};
+
+/** Build the workspace subgraph: root node + flat resource nodes with edges. */
+const buildWorkspaceGraph = (
+  workspaceEntries: readonly (readonly [string, PlanEntry])[],
+): PlanGraph => {
+  if (workspaceEntries.length === 0) return { nodes: [], edges: [] };
+
+  const root = buildGroupNode("workspace-root", "Workspace");
+  const resourceNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
+  const resourceEdges = filterDefinedEdges(
+    workspaceEntries.map(([key]) => buildEdge("workspace-root", key)),
+  );
+
+  return {
+    nodes: [root, ...resourceNodes],
+    edges: resourceEdges,
+  };
+};
+
+/** Collect explicit depends_on edges from all plan entries. */
+const collectDependsOnEdges = (
+  entries: readonly (readonly [string, PlanEntry])[],
+): readonly GraphEdge[] =>
+  filterDefinedEdges(
+    entries.flatMap(([key, entry]) =>
+      (entry.depends_on ?? []).map((dep) => buildEdge(dep.node, key)),
+    ),
+  );
+
+/** Deduplicate edges, keeping the first occurrence of each edge id. */
+const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => {
+  const seen = new Set<string>();
+  return edges.filter((edge) => {
+    if (seen.has(edge.id)) return false;
+    seen.add(edge.id);
+    return true;
+  });
+};
+
 /** Build the complete resource graph for non-job plan entries. */
 export const buildResourceGraph = (plan: Plan): PlanGraph => {
   const entries = Object.entries(plan.plan ?? {}).filter(([key]) => !isJobEntry(key));
 
-  if (entries.length === 0) {
-    return { nodes: [], edges: [] };
-  }
+  if (entries.length === 0) return { nodes: [], edges: [] };
 
-  const nodes: GraphNode[] = [];
-  const edges: GraphEdge[] = [];
-  const edgeIds = new Set<string>();
+  const ucEntries = entries.filter(([key]) => {
+    const resourceType = extractResourceType(key);
+    return resourceType !== undefined && isUnityCatalogType(resourceType);
+  });
+  const workspaceEntries = entries.filter(([key]) => {
+    const resourceType = extractResourceType(key);
+    return resourceType === undefined || !isUnityCatalogType(resourceType);
+  });
 
-  const addEdge = (edge: GraphEdge | undefined): void => {
-    if (edge !== undefined && !edgeIds.has(edge.id)) {
-      edgeIds.add(edge.id);
-      edges.push(edge);
-    }
+  const schemaLookup = buildSchemaLookup(ucEntries);
+  const ucGraph = buildUcGraph(ucEntries, schemaLookup);
+  const workspaceGraph = buildWorkspaceGraph(workspaceEntries);
+  const dependsOnEdges = collectDependsOnEdges(entries);
+
+  return {
+    nodes: [...ucGraph.nodes, ...workspaceGraph.nodes],
+    edges: deduplicateEdges([...ucGraph.edges, ...workspaceGraph.edges, ...dependsOnEdges]),
   };
-
-  // Classify entries
-  const ucEntries: (readonly [string, PlanEntry])[] = [];
-  const workspaceEntries: (readonly [string, PlanEntry])[] = [];
-
-  for (const [key, entry] of entries) {
-    const resourceType = extractResourceType(key);
-    if (resourceType !== undefined && isUnityCatalogType(resourceType)) {
-      ucEntries.push([key, entry]);
-    } else {
-      workspaceEntries.push([key, entry]);
-    }
-  }
-
-  // Build a lookup from schema name → schema plan key (for linking volumes/models to schemas)
-  const schemaNameToKey = new Map<string, string>();
-  for (const [key, entry] of ucEntries) {
-    const resourceType = extractResourceType(key);
-    if (resourceType === "schemas") {
-      const name = extractStateField(entry, "name");
-      const catalog = extractStateField(entry, "catalog_name");
-      if (name !== undefined && catalog !== undefined) {
-        schemaNameToKey.set(`${catalog}.${name}`, key);
-      }
-    }
-  }
-
-  // UC hierarchy
-  if (ucEntries.length > 0) {
-    const ucRoot = buildGroupNode("uc-root", "Unity Catalog");
-    nodes.push(ucRoot);
-
-    // Collect unique catalogs
-    const catalogs = new Set<string>();
-    for (const [, entry] of ucEntries) {
-      const catalog = extractStateField(entry, "catalog_name");
-      if (catalog !== undefined) catalogs.add(catalog);
-    }
-
-    for (const catalog of catalogs) {
-      const catalogId = `catalog::${catalog}`;
-      nodes.push(buildGroupNode(catalogId, catalog));
-      addEdge(buildEdge("uc-root", catalogId));
-    }
-
-    // Track phantom schema nodes to avoid duplicates
-    const createdPhantoms = new Set<string>();
-
-    for (const [key, entry] of ucEntries) {
-      const resourceType = extractResourceType(key);
-      const catalog = extractStateField(entry, "catalog_name");
-      const catalogId = catalog !== undefined ? `catalog::${catalog}` : "uc-root";
-      const node = buildResourceNode(key, entry);
-      nodes.push(node);
-
-      if (resourceType === "schemas" || resourceType === "catalogs") {
-        // Schemas and catalogs link directly to their catalog node
-        addEdge(buildEdge(catalogId, key));
-      } else {
-        // Volumes and models: try to link to their schema
-        const schemaName = extractStateField(entry, "schema_name");
-        const schemaKey =
-          schemaName !== undefined && catalog !== undefined
-            ? schemaNameToKey.get(`${catalog}.${schemaName}`)
-            : undefined;
-
-        if (schemaKey !== undefined) {
-          addEdge(buildEdge(schemaKey, key));
-        } else if (schemaName !== undefined && catalog !== undefined) {
-          // Create a phantom node for an external (non-DABs-managed) schema
-          const phantomId = `external::${catalog}.${schemaName}`;
-          if (!createdPhantoms.has(phantomId)) {
-            createdPhantoms.add(phantomId);
-            nodes.push(buildGroupNode(phantomId, schemaName, true));
-            addEdge(buildEdge(catalogId, phantomId));
-          }
-          addEdge(buildEdge(phantomId, key));
-        } else {
-          addEdge(buildEdge(catalogId, key));
-        }
-      }
-    }
-  }
-
-  // Workspace hierarchy
-  if (workspaceEntries.length > 0) {
-    const workspaceRoot = buildGroupNode("workspace-root", "Workspace");
-    nodes.push(workspaceRoot);
-
-    for (const [key, entry] of workspaceEntries) {
-      nodes.push(buildResourceNode(key, entry));
-      addEdge(buildEdge("workspace-root", key));
-    }
-  }
-
-  // Honor explicit depends_on edges from plan entries
-  for (const [key, entry] of entries) {
-    if (entry.depends_on !== undefined) {
-      for (const dep of entry.depends_on) {
-        // dep.node is the plan key of the dependency
-        addEdge(buildEdge(dep.node, key));
-      }
-    }
-  }
-
-  return { nodes, edges };
 };
 
 /** Check whether a plan has any non-job resource entries. */
