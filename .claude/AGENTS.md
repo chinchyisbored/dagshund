@@ -65,12 +65,49 @@ If issues are found: fix them, then re-run pass 3 until clean.
 
 ### After Review
 When all 3 passes are clean:
-1. `bd close <id> --reason "description of what was implemented"`
-2. Present the work to the human with a brief summary of:
+1. Present the work to the human with a brief summary of:
    - What was implemented
    - Any interesting decisions made
    - Any new issues filed during the work
-   - What's recommended next (from `bd ready`)
+2. Get human approval
+3. `git add <specific files>` — stage changes (NEVER skip, NEVER combine with commit)
+4. `git commit -m "..."` — the commit IS the deliverable
+5. `bd close <id>` — only AFTER code is committed
+6. `glab issue close <number>` — close the matching GitLab issue (ALWAYS in sync with beads)
+7. Move to next work (or recommend next from `bd ready`)
+
+## Branch-per-Epic Workflow
+
+Work is organized into epics (GitLab milestones). Each epic gets one branch and one MR.
+
+### Starting an epic
+1. `git checkout -b <epic-branch>` — e.g. `review-r2/core-bugs`
+2. Present the epic's issues to the human and wait for go-ahead
+
+### Per issue within the epic
+1. `bd update <id> --status=in_progress`
+2. Implement the fix/feature
+3. Build + test (`bun run build`, `bun test`, `bunx tsc --noEmit`)
+4. Run 3-pass review (see above)
+5. Present to human, get approval
+6. `git add <specific files>`
+7. `git commit -m "fix: ..."` — one commit per issue
+8. `bd close <id>`
+9. `glab issue close <number>`
+10. Next issue in the epic
+
+### Closing the epic
+1. All issues done, all beads + GitLab issues closed
+2. `git push -u origin <epic-branch>`
+3. `glab mr create` — MR targeting `main`, referencing the milestone
+4. Close the epic bead + GitLab milestone
+5. Merge, move to next epic
+
+### Rules
+- One branch per epic, one MR per epic
+- Individual issues are individual commits on that branch
+- Beads and GitLab are ALWAYS kept in sync
+- Epics are worked sequentially (at most one active epic branch at a time)
 
 ## Task Priority Guide
 
@@ -80,17 +117,6 @@ When all 3 passes are clean:
 - **P3**: Nice to have, backlog material
 - **P4**: Wishlist, maybe someday
 
-## Session End Protocol
-
-1. Make sure all in-progress work is either completed or has status updated
-2. File issues for any loose threads or ideas discussed but not implemented
-3. Run `bd sync` to flush the database
-4. Commit and push all changes including `.beads/`
-5. Present a session summary:
-   - What got done
-   - What's still open
-   - Suggested next session starting point
-
 ## Important Rules
 
 - **Always wait for human input** before choosing work at session start
@@ -99,34 +125,39 @@ When all 3 passes are clean:
 - **Keep the human in the loop** — mention what you're doing, what you're filing, what you're finding
 - The human enjoys collaborating and steering the code. This is a partnership, not delegation.
 
-## Landing the Plane (Session Completion)
+## Session Close Protocol
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
 
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed):
+1. **Finish in-progress work** — complete or update status on anything mid-flight
+2. **File issues** for any loose threads or ideas discussed but not implemented
+3. **Run quality gates** (if code changed):
    ```bash
    bun run lint       # Biome lint check
    bun run test       # Run tests
    bunx tsc --noEmit  # Type-check
    bun run build      # Verify production build
    ```
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+4. **Commit all code** — `git add <files>` then `git commit` (separate commands, never combined)
+5. **Close beads + GitLab** — `bd close <id>` + `glab issue close <number>` for each finished issue
+6. **Sync and push**:
    ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
+   bd sync            # exports JSONL and stages it (does NOT commit)
+   git commit         # commit the staged JSONL (pre-commit hook re-exports)
+   git push           # push everything
    ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+7. **Verify** — `git status` MUST show clean tree, up to date with origin
+8. **Hand off** — present session summary: what got done, what's open, suggested next starting point
+
+### `bd sync` — when and how
+- `bd sync` stages the beads JSONL but does NOT commit it
+- A pre-push hook blocks push if there are uncommitted changes
+- So: always `bd sync` → `git commit` → `git push` (in that order)
+- NEVER run `bd sync` before committing source code — it modifies the git index and will unstage your files
+- NEVER manually `git add .beads/issues.jsonl` — the pre-commit hook handles it
 
 **CRITICAL RULES:**
 - Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
+- NEVER stop before pushing — that leaves work stranded locally
+- NEVER say "ready to push when you are" — YOU must push
 - If push fails, resolve and retry until it succeeds

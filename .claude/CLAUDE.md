@@ -7,20 +7,24 @@ Shows job task DAGs with diff highlighting: green for new resources, red with re
 and neutral for unchanged. Users can click on nodes to inspect the detailed changes for each resource.
 
 The tool runs locally (`bun run dev`) and accepts plan JSON either via file upload or stdin pipe.
+It can also export a single self-contained HTML file (`bun run export`) for CI/CD artifacts or sharing — no server needed.
 
 ## Stack
 
 - TypeScript (strict mode)
 - React 19 + Bun
 - React Flow (@xyflow/react) for interactive DAG rendering
+- ELK (elkjs) for automatic graph layout
 - Tailwind CSS for styling
 - Zod for runtime validation of plan JSON input
+- yaml for YAML plan input support
 
 ## Development Commands
 
 ```bash
 bun install        # Install dependencies
 bun run dev        # Start dev server with hot reload (http://localhost:3000)
+bun run export     # Static HTML export (self-contained, no server needed)
 bun run lint       # Check code with Biome (bun run lint:fix to auto-fix)
 bun run test       # Run tests (bun run test:watch for watch mode)
 bunx tsc --noEmit  # Type-check without emitting
@@ -76,13 +80,18 @@ These are non-negotiable:
 
 ```
 src/
-  parser/        — Parse and validate databricks bundle plan JSON
-  graph/         — Transform parsed plan into DAG nodes and edges
-  components/    — React components (each in its own file)
-  types/         — Shared TypeScript types and Zod schemas
-  utils/         — Pure utility functions
-  hooks/         — Custom React hooks
-  styles/        — Tailwind config, any custom CSS
+  index.ts         — Dev server entry point (Bun HTTP server, serves API + static files)
+  index.html       — HTML template for dev server and production build
+  frontend.tsx     — React frontend entry point (mounts App into DOM)
+  App.tsx          — Root React component
+  cli.ts           — CLI entry point for static HTML export
+  parser/          — Parse and validate databricks bundle plan JSON
+  graph/           — Transform parsed plan into DAG nodes and edges
+  components/      — React components (each in its own file)
+  types/           — Shared TypeScript types and Zod schemas
+  utils/           — Pure utility functions
+  hooks/           — Custom React hooks
+  styles/          — Tailwind config, any custom CSS
 ```
 
 Each directory should have an `index.ts` barrel export. Keep files small and focused.

@@ -17,6 +17,7 @@ bun install
 
 ```bash
 bun run dev        # Start dev server with hot reload (http://localhost:3000)
+bun run export     # Static HTML export (self-contained, no server needed)
 bun run lint       # Check code with Biome
 bun run lint:fix   # Auto-fix lint issues
 bun run test       # Run tests
