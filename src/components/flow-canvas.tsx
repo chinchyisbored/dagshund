@@ -1,5 +1,4 @@
 import {
-  Background,
   Controls,
   type DefaultEdgeOptions,
   type Edge,
@@ -149,7 +148,6 @@ export function FlowCanvas({ layout, nodeTypes }: FlowCanvasProps) {
           <Panel position="top-left">
             <DiffFilterToolbar activeFilter={filterDiffState} onFilterChange={setFilterDiffState} />
           </Panel>
-          <Background />
           <Controls />
           <MiniMap style={{ backgroundColor: "var(--minimap-bg)" }} />
         </ReactFlow>
