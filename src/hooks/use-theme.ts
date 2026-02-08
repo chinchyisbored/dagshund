@@ -1,21 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type ThemePreference = "light" | "dark" | "system";
-type ResolvedTheme = "light" | "dark";
+type ThemePreference = "light" | "dark" | "high-contrast" | "system";
+type ResolvedTheme = "light" | "dark" | "high-contrast";
 
 const STORAGE_KEY = "dagshund-theme";
 
 const readPreference = (): ThemePreference => {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark" || stored === "system") return stored;
+  if (
+    stored === "light" ||
+    stored === "dark" ||
+    stored === "high-contrast" ||
+    stored === "system"
+  )
+    return stored;
   return "system";
 };
 
-const resolveSystemTheme = (): ResolvedTheme =>
-  window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+const resolveSystemTheme = (): ResolvedTheme => {
+  if (window.matchMedia("(prefers-contrast: more)").matches)
+    return "high-contrast";
+  return window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
+};
 
 const applyToDom = (resolved: ResolvedTheme): void => {
-  document.documentElement.classList.toggle("dark", resolved === "dark");
+  const classes = document.documentElement.classList;
+  classes.toggle("dark", resolved === "dark");
+  classes.toggle("high-contrast", resolved === "high-contrast");
 };
 
 export const useTheme = (): {
@@ -23,8 +36,10 @@ export const useTheme = (): {
   readonly resolved: ResolvedTheme;
   readonly setPreference: (next: ThemePreference) => void;
 } => {
-  const [preference, setPreferenceState] = useState<ThemePreference>(readPreference);
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(resolveSystemTheme);
+  const [preference, setPreferenceState] =
+    useState<ThemePreference>(readPreference);
+  const [systemTheme, setSystemTheme] =
+    useState<ResolvedTheme>(resolveSystemTheme);
 
   const resolved = useMemo<ResolvedTheme>(
     () => (preference === "system" ? systemTheme : preference),
@@ -38,12 +53,17 @@ export const useTheme = (): {
 
   // Listen for OS preference changes
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (event: MediaQueryListEvent) => {
-      setSystemTheme(event.matches ? "dark" : "light");
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const contrastQuery = window.matchMedia("(prefers-contrast: more)");
+
+    const update = () => setSystemTheme(resolveSystemTheme());
+
+    darkQuery.addEventListener("change", update);
+    contrastQuery.addEventListener("change", update);
+    return () => {
+      darkQuery.removeEventListener("change", update);
+      contrastQuery.removeEventListener("change", update);
     };
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
   const setPreference = useCallback((next: ThemePreference) => {

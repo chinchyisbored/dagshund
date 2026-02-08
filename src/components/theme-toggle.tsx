@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTheme } from "../hooks/use-theme.ts";
 
 /** Sun icon — shown in dark mode (click to switch to light). */
@@ -43,21 +43,76 @@ const MoonIcon = () => (
   </svg>
 );
 
+/** Contrast icon — half-filled circle for high contrast toggle. */
+const ContrastIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor" />
+  </svg>
+);
+
 export function ThemeToggle() {
   const { resolved, setPreference } = useTheme();
 
-  const handleClick = useCallback(() => {
-    setPreference(resolved === "dark" ? "light" : "dark");
+  // Track the last non-HC theme so contrast toggle can return to it
+  const previousThemeRef = useRef<"light" | "dark">(
+    resolved === "high-contrast" ? "dark" : resolved === "light" ? "light" : "dark",
+  );
+
+  useEffect(() => {
+    if (resolved !== "high-contrast") {
+      previousThemeRef.current = resolved;
+    }
+  }, [resolved]);
+
+  // Sun/moon: always toggles light↔dark, exits HC if active.
+  // HC is visually dark, so sun icon → go to light.
+  const handleThemeClick = useCallback(() => {
+    const isLight = resolved === "light";
+    setPreference(isLight ? "dark" : "light");
+  }, [resolved, setPreference]);
+
+  // Contrast: toggles HC on/off, returning to previous theme when toggling off.
+  const handleContrastClick = useCallback(() => {
+    if (resolved === "high-contrast") {
+      setPreference(previousThemeRef.current);
+    } else {
+      setPreference("high-contrast");
+    }
   }, [resolved, setPreference]);
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className="rounded-md p-1.5 text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
-      aria-label={resolved === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-    >
-      {resolved === "dark" ? <SunIcon /> : <MoonIcon />}
-    </button>
+    <div className="flex items-center gap-0.5">
+      <button
+        type="button"
+        onClick={handleThemeClick}
+        className="rounded-md p-1.5 text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+        aria-label={
+          resolved === "light" ? "Switch to dark mode" : "Switch to light mode"
+        }
+      >
+        {resolved === "light" ? <MoonIcon /> : <SunIcon />}
+      </button>
+      <button
+        type="button"
+        onClick={handleContrastClick}
+        className={`rounded-md p-1.5 transition-colors hover:bg-surface-hover hover:text-ink ${
+          resolved === "high-contrast" ? "text-ink" : "text-ink-muted"
+        }`}
+        aria-label="Toggle high contrast mode"
+      >
+        <ContrastIcon />
+      </button>
+    </div>
   );
 }
