@@ -33,12 +33,28 @@ const detectOpenCommand = (): string => {
   }
 };
 
+const ALLOWED_HOSTS: ReadonlySet<string> = new Set([
+  "localhost",
+  "127.0.0.1",
+]);
+
+/** Reject requests with a Host header that doesn't match localhost to mitigate DNS rebinding. */
+const isAllowedHost = (request: Request): boolean => {
+  const host = request.headers.get("host");
+  if (host === null) return false;
+  const hostname = host.replace(/:\d+$/, "");
+  return ALLOWED_HOSTS.has(hostname);
+};
+
+const FORBIDDEN_RESPONSE = () => new Response("Forbidden", { status: 403 });
+
 const plan = await readStdinPlan();
 
 const server = serve({
   hostname: "127.0.0.1",
   routes: {
-    "/api/plan": () => Response.json(plan),
+    "/api/plan": (request) =>
+      isAllowedHost(request) ? Response.json(plan) : FORBIDDEN_RESPONSE(),
     "/*": index,
   },
 
