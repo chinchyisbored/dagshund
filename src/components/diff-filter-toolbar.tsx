@@ -45,7 +45,7 @@ export function DiffFilterToolbar({ activeFilter, onFilterChange }: DiffFilterTo
             key={button.state}
             type="button"
             onClick={() => onFilterChange(isActive ? null : button.state)}
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
               isActive ? button.activeClasses : button.inactiveClasses
             }`}
           >

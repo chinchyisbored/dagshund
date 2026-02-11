@@ -96,7 +96,7 @@ export function ThemeToggle() {
       <button
         type="button"
         onClick={handleThemeClick}
-        className="rounded-md p-1.5 text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+        className="rounded-md p-1.5 text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         aria-label={
           resolved === "light" ? "Switch to dark mode" : "Switch to light mode"
         }
@@ -106,7 +106,7 @@ export function ThemeToggle() {
       <button
         type="button"
         onClick={handleContrastClick}
-        className={`rounded-md p-1.5 transition-colors hover:bg-surface-hover hover:text-ink ${
+        className={`rounded-md p-1.5 transition-colors hover:bg-surface-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
           resolved === "high-contrast" ? "text-ink" : "text-ink-muted"
         }`}
         aria-label="Toggle high contrast mode"

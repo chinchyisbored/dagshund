@@ -23,7 +23,7 @@ export function RawJsonDisclosure({ data }: { readonly data: DagNodeData }) {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center gap-1.5 text-xs text-ink-muted hover:text-ink-secondary"
+        className="flex w-full items-center gap-1.5 rounded text-xs text-ink-muted hover:text-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

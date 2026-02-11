@@ -44,7 +44,7 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded p-1 text-ink-muted hover:bg-surface-hover hover:text-ink-secondary"
+              className="rounded p-1 text-ink-muted hover:bg-surface-hover hover:text-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
