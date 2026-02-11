@@ -15,16 +15,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DetailPanel } from "./detail-panel.tsx";
 import { DiffFilterToolbar } from "./diff-filter-toolbar.tsx";
 import { HoverContext } from "../hooks/use-hover-context.ts";
+import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 
-export type FlowCanvasLayout = {
-  readonly nodes: readonly Node[];
-  readonly edges: readonly Edge[];
-};
-
 type FlowCanvasProps = {
-  readonly layout: FlowCanvasLayout | null;
+  readonly layoutState: GraphLayoutState;
   readonly nodeTypes: NodeTypes;
 };
 
@@ -48,7 +44,7 @@ const buildConnectedNodeIds = (
   return connected;
 };
 
-export function FlowCanvas({ layout, nodeTypes }: FlowCanvasProps) {
+export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
@@ -75,6 +71,7 @@ export function FlowCanvas({ layout, nodeTypes }: FlowCanvasProps) {
     rfInstanceRef.current = instance;
   }, []);
 
+  const layout = layoutState.status === "ready" ? layoutState.layout : null;
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
 
@@ -129,6 +126,14 @@ export function FlowCanvas({ layout, nodeTypes }: FlowCanvasProps) {
       return { ...edge, style: baseStyle };
     });
   }, [baseEdges, connectedIds, filterMatchedIds, hoveredNodeId]);
+
+  if (layoutState.status === "error") {
+    return (
+      <div className="flex h-full items-center justify-center text-danger">
+        <p>Layout failed: {layoutState.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full">

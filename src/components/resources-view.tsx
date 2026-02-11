@@ -7,6 +7,6 @@ import type { Plan } from "../types/plan-schema.ts";
 const NODE_TYPES = { resource: ResourceNode, "resource-group": ResourceGroupNode };
 
 export function ResourcesView({ plan }: { readonly plan: Plan }) {
-  const layout = useResourceGraph(plan);
-  return <FlowCanvas layout={layout} nodeTypes={NODE_TYPES} />;
+  const layoutState = useResourceGraph(plan);
+  return <FlowCanvas layoutState={layoutState} nodeTypes={NODE_TYPES} />;
 }

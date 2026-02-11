@@ -16,8 +16,8 @@ import type { Plan } from "./types/plan-schema.ts";
 const NODE_TYPES = { job: JobNode, task: TaskNode };
 
 function DagView({ plan }: { readonly plan: Plan }) {
-  const layout = usePlanGraph(plan);
-  return <FlowCanvas layout={layout} nodeTypes={NODE_TYPES} />;
+  const layoutState = usePlanGraph(plan);
+  return <FlowCanvas layoutState={layoutState} nodeTypes={NODE_TYPES} />;
 }
 
 function LoadingIndicator() {
