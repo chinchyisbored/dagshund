@@ -60,6 +60,17 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelectedNode(node.data as DagNodeData);
     setSelectedNodeId(node.id);
+
+    const instance = rfInstanceRef.current;
+    if (instance === null) return;
+
+    const currentZoom = instance.getZoom();
+    const parent = node.parentId !== undefined ? instance.getNode(node.parentId) : undefined;
+    const absoluteX = node.position.x + (parent?.position.x ?? 0);
+    const absoluteY = node.position.y + (parent?.position.y ?? 0);
+    const width = node.measured?.width ?? node.width ?? 200;
+    const height = node.measured?.height ?? node.height ?? 50;
+    instance.setCenter(absoluteX + width / 2, absoluteY + height / 2, { duration: 300, zoom: currentZoom });
   }, []);
 
   const handleClosePanel = useCallback(() => {
