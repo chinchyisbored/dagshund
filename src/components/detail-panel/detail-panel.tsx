@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
 import { ValueFormatContext } from "../../hooks/use-value-format.ts";
@@ -28,6 +28,14 @@ function filterMeaningfulChanges(
 export function DetailPanel({ data, onClose }: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   const toggleFormat = () => setValueFormat((current) => NEXT_FORMAT[current]);
 
