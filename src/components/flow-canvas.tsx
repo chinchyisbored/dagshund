@@ -168,6 +168,7 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           onNodeClick={handleNodeClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
+          onPaneClick={handleClosePanel}
           onInit={handleInit}
         >
           <Panel position="top-left">
