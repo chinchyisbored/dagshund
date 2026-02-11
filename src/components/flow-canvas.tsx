@@ -12,7 +12,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { DetailPanel } from "./detail-panel.tsx";
+import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar } from "./diff-filter-toolbar.tsx";
 import { HoverContext } from "../hooks/use-hover-context.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";

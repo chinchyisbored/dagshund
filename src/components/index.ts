@@ -1,6 +1,5 @@
-export { DetailPanel } from "./detail-panel.tsx";
+export { DetailPanel } from "./detail-panel/index.ts";
 export { FlowCanvas } from "./flow-canvas.tsx";
-export type { FlowCanvasLayout } from "./flow-canvas.tsx";
 export { DiffFilterToolbar } from "./diff-filter-toolbar.tsx";
 export type { DiffStateStyles } from "./diff-state-styles.ts";
 export { getDiffStateStyles } from "./diff-state-styles.ts";
