@@ -1,7 +1,16 @@
+import { z } from "zod/v4";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
+
+/** Schema for new_state: { value: { ...fields } }. */
+const newStateSchema = z.object({
+  value: z.record(z.string(), z.unknown()).readonly().optional(),
+}).readonly();
+
+/** Schema for remote_state: { ...fields }. */
+const remoteStateSchema = z.record(z.string(), z.unknown()).readonly();
 
 /** Unity Catalog resource types that live under the UC → catalog → schema hierarchy. */
 const UC_TYPES: ReadonlySet<string> = new Set([
@@ -28,18 +37,15 @@ export const isUnityCatalogType = (resourceType: string): boolean =>
  * Checks new_state.value first (for live resources), then remote_state (for deleted resources).
  */
 export const extractStateField = (entry: PlanEntry, field: string): string | undefined => {
-  const newState = entry.new_state;
-  if (typeof newState === "object" && newState !== null && "value" in newState) {
-    const value = (newState as { readonly value: unknown }).value;
-    if (typeof value === "object" && value !== null && field in value) {
-      const fieldValue = (value as Record<string, unknown>)[field];
-      if (typeof fieldValue === "string") return fieldValue;
-    }
+  const parsedNew = newStateSchema.safeParse(entry.new_state);
+  if (parsedNew.success) {
+    const fieldValue = parsedNew.data.value?.[field];
+    if (typeof fieldValue === "string") return fieldValue;
   }
 
-  const remoteState = entry.remote_state;
-  if (typeof remoteState === "object" && remoteState !== null && field in remoteState) {
-    const fieldValue = (remoteState as Record<string, unknown>)[field];
+  const parsedRemote = remoteStateSchema.safeParse(entry.remote_state);
+  if (parsedRemote.success) {
+    const fieldValue = parsedRemote.data[field];
     if (typeof fieldValue === "string") return fieldValue;
   }
 
@@ -48,17 +54,14 @@ export const extractStateField = (entry: PlanEntry, field: string): string | und
 
 /** Extract the flat state object from a plan entry (new_state.value or remote_state). */
 const extractResourceState = (entry: PlanEntry): Readonly<Record<string, unknown>> | undefined => {
-  const newState = entry.new_state;
-  if (typeof newState === "object" && newState !== null && "value" in newState) {
-    const value = (newState as { readonly value: unknown }).value;
-    if (typeof value === "object" && value !== null) {
-      return value as Readonly<Record<string, unknown>>;
-    }
+  const parsedNew = newStateSchema.safeParse(entry.new_state);
+  if (parsedNew.success && parsedNew.data.value !== undefined) {
+    return parsedNew.data.value;
   }
 
-  const remoteState = entry.remote_state;
-  if (typeof remoteState === "object" && remoteState !== null) {
-    return remoteState as Readonly<Record<string, unknown>>;
+  const parsedRemote = remoteStateSchema.safeParse(entry.remote_state);
+  if (parsedRemote.success) {
+    return parsedRemote.data;
   }
 
   return undefined;
