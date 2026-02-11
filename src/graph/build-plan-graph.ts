@@ -2,6 +2,7 @@ import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
+import { isJobEntry } from "./build-resource-graph.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
@@ -266,9 +267,9 @@ const buildRunJobEdges = (
   });
 };
 
-/** Build the complete plan graph from all plan entries. */
+/** Build the complete plan graph from job entries only. */
 export const buildPlanGraph = (plan: Plan): PlanGraph => {
-  const entries = Object.entries(plan.plan ?? {});
+  const entries = Object.entries(plan.plan ?? {}).filter(([key]) => isJobEntry(key));
   const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry));
   return {
     nodes: graphs.flatMap((g) => g.nodes),
