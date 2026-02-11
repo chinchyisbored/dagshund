@@ -131,6 +131,9 @@ const readDistAssets = async (): Promise<{
 const escapeForScriptTag = (content: string): string =>
   content.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
 
+const escapeForStyleTag = (content: string): string =>
+  content.replace(/<\/style/gi, "<\\/style");
+
 const assembleHtml = (css: string, js: string, planData: Plan): string => {
   const safeJson = escapeForScriptTag(JSON.stringify(planData));
   const safeJs = escapeForScriptTag(js);
@@ -142,7 +145,7 @@ const assembleHtml = (css: string, js: string, planData: Plan): string => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:;" />
   <title>dagshund</title>
-  <style>${css}</style>
+  <style>${escapeForStyleTag(css)}</style>
 </head>
 <body>
   <div id="root"></div>
