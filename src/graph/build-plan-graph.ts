@@ -1,4 +1,5 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import type { DiffState } from "../types/diff-state.ts";
 import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
@@ -239,6 +240,10 @@ const buildJobIdMap = (
 };
 
 /** Create edges from tasks with run_job_task to the target job. */
+/** Map a task's DiffState to an EdgeDiffState (edges have no "modified" state). */
+const toEdgeDiffState = (taskDiff: DiffState): EdgeDiffState =>
+  taskDiff === "added" || taskDiff === "removed" ? taskDiff : "unchanged";
+
 const buildRunJobEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
 ): readonly GraphEdge[] => {
@@ -254,13 +259,16 @@ const buildRunJobEdges = (
           : jobIdMap.get(jobId);
       if (targetResourceKey === undefined) return [];
       const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
+      const diffState = toEdgeDiffState(
+        resolveTaskDiffState(task.task_key, entry.action, entry.changes),
+      );
       return [
         {
           id: `${sourceNodeId}→${targetResourceKey}`,
           source: sourceNodeId,
           target: targetResourceKey,
           label: undefined,
-          diffState: "unchanged" as const,
+          diffState,
         },
       ];
     });

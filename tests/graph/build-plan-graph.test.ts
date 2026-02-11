@@ -241,7 +241,7 @@ describe("buildPlanGraph", () => {
           e.target === "resources.jobs.data_quality_pipeline",
       );
       expect(crossJobEdge).toBeDefined();
-      expect(crossJobEdge?.diffState).toBe("unchanged");
+      expect(crossJobEdge?.diffState).toBe("added");
     });
   });
 });
