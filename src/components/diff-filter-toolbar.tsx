@@ -44,6 +44,7 @@ export function DiffFilterToolbar({ activeFilter, onFilterChange }: DiffFilterTo
           <button
             key={button.state}
             type="button"
+            aria-pressed={isActive}
             onClick={() => onFilterChange(isActive ? null : button.state)}
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
               isActive ? button.activeClasses : button.inactiveClasses
