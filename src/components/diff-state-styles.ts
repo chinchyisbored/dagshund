@@ -19,7 +19,7 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
   },
   removed: {
     border: "border-diff-removed",
-    borderStyle: "border-dashed",
+    borderStyle: "",
     background: "bg-diff-removed-soft",
     text: "text-diff-removed",
     opacity: "opacity-100",
@@ -42,6 +42,16 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
 
 /** Get Tailwind class bundles for a given diff state. */
 export const getDiffStateStyles = (diffState: DiffState): DiffStateStyles => STYLES[diffState];
+
+/** Non-color diff indicator prefix for color-blind accessibility. Returns undefined for unchanged. */
+const DIFF_BADGES: Readonly<Record<DiffState, string | undefined>> = {
+  added: "+",
+  removed: "\u2212",
+  modified: "~",
+  unchanged: undefined,
+};
+
+export const getDiffBadge = (diffState: DiffState): string | undefined => DIFF_BADGES[diffState];
 
 export type EdgeStyle = {
   readonly stroke: string;

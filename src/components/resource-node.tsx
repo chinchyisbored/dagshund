@@ -1,5 +1,6 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
+import { getDiffBadge } from "./diff-state-styles.ts";
 import { extractResourceType } from "../graph/build-resource-graph.ts";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
@@ -28,6 +29,7 @@ const extractTypeBadge = (resourceKey: string): string | undefined => {
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
   const { isDimmed, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
   const typeBadge = extractTypeBadge(data.resourceKey);
+  const diffBadge = getDiffBadge(data.diffState);
 
   return (
     <div
@@ -38,7 +40,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
       {hasIncoming && (
         <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
-      <span className="truncate">{data.label}</span>
+      <span className="truncate">{diffBadge !== undefined && <span className="mr-1 font-semibold" aria-hidden="true">{diffBadge}</span>}{data.label}</span>
       {typeBadge !== undefined && (
         <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
           {typeBadge}

@@ -1,5 +1,6 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
+import { getDiffBadge } from "./diff-state-styles.ts";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
@@ -18,6 +19,7 @@ export const ResourceGroupNode = memo(function ResourceGroupNode({ id, data }: N
 
   const isExternal = data.external;
   const groupBadge = extractGroupBadge(data.resourceKey, isExternal);
+  const diffBadge = getDiffBadge(data.diffState);
   const borderStyleOverride = isExternal ? "border-dashed" : styles.borderStyle;
 
   return (
@@ -32,7 +34,7 @@ export const ResourceGroupNode = memo(function ResourceGroupNode({ id, data }: N
       {hasIncoming && (
         <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
-      <span className="truncate">{data.label}</span>
+      <span className="truncate">{diffBadge !== undefined && <span className="mr-1" aria-hidden="true">{diffBadge}</span>}{data.label}</span>
       {groupBadge !== undefined && (
         <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
           {groupBadge}

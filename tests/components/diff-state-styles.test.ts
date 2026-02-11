@@ -11,10 +11,10 @@ describe("getDiffStateStyles", () => {
     expect(styles.opacity).toBe("opacity-100");
   });
 
-  test("removed returns themed diff dashed classes with full opacity", () => {
+  test("removed returns themed diff classes with full opacity and no dashed border", () => {
     const styles = getDiffStateStyles("removed");
     expect(styles.border).toBe("border-diff-removed");
-    expect(styles.borderStyle).toBe("border-dashed");
+    expect(styles.borderStyle).toBe("");
     expect(styles.background).toBe("bg-diff-removed-soft");
     expect(styles.text).toBe("text-diff-removed");
     expect(styles.opacity).toBe("opacity-100");

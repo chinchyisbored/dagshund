@@ -1,5 +1,6 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
+import { getDiffBadge } from "./diff-state-styles.ts";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
@@ -8,6 +9,7 @@ type TaskNodeType = Node<DagNodeData, "task">;
 
 export const TaskNode = memo(function TaskNode({ id, data }: NodeProps<TaskNodeType>) {
   const { isDimmed, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
+  const badge = getDiffBadge(data.diffState);
 
   return (
     <div
@@ -18,7 +20,7 @@ export const TaskNode = memo(function TaskNode({ id, data }: NodeProps<TaskNodeT
       {hasIncoming && (
         <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
-      <span>{data.label}</span>
+      <span>{badge !== undefined && <span className="mr-1 font-semibold" aria-hidden="true">{badge}</span>}{data.label}</span>
       {hasOutgoing && (
         <Handle type="source" position={Position.Right} className="!bg-handle" />
       )}
