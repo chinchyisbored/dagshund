@@ -27,14 +27,14 @@ const extractTypeBadge = (resourceKey: string): string | undefined => {
 };
 
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
-  const { isDimmed, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
+  const { isDimmed, dimOpacity, isHovered, isSelected, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
   const typeBadge = extractTypeBadge(data.resourceKey);
   const diffBadge = getDiffBadge(data.diffState);
 
   return (
     <div
-      style={{ width: NODE_WIDTH, ...(isDimmed ? { opacity: 0.3 } : undefined) }}
-      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm hover:shadow-md ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
+      style={{ width: NODE_WIDTH, ...(isSelected ? { boxShadow: `0 0 0 2.5px ${styles.hoverGlow}` } : isHovered ? { boxShadow: `0 0 0 1.5px ${styles.hoverGlow}` } : undefined), ...(isDimmed ? { opacity: dimOpacity } : undefined) }}
+      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
       {hasIncoming && (

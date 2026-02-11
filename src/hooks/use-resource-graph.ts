@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { buildResourceGraph } from "../graph/build-resource-graph.ts";
 import { layoutResourceGraph } from "../graph/layout-graph.ts";
-import type { LayoutResult } from "../types/layout-result.ts";
 import type { Plan } from "../types/plan-schema.ts";
 import type { GraphLayoutState } from "./use-plan-graph.ts";
 

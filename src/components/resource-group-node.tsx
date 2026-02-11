@@ -15,7 +15,7 @@ const extractGroupBadge = (resourceKey: string, isExternal: boolean): string | u
 };
 
 export const ResourceGroupNode = memo(function ResourceGroupNode({ id, data }: NodeProps<ResourceGroupNodeType>) {
-  const { isDimmed, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
+  const { isDimmed, dimOpacity, isHovered, isSelected, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
 
   const isExternal = data.external;
   const groupBadge = extractGroupBadge(data.resourceKey, isExternal);
@@ -26,9 +26,10 @@ export const ResourceGroupNode = memo(function ResourceGroupNode({ id, data }: N
     <div
       style={{
         width: NODE_WIDTH,
-        ...(isDimmed ? { opacity: 0.3 } : undefined),
+        ...(isSelected ? { boxShadow: `0 0 0 2.5px ${styles.hoverGlow}` } : isHovered ? { boxShadow: `0 0 0 1.5px ${styles.hoverGlow}` } : undefined),
+        ...(isDimmed ? { opacity: dimOpacity } : undefined),
       }}
-      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm font-semibold hover:shadow-md ${styles.border} ${borderStyleOverride} ${styles.background} ${styles.text}`}
+      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm font-semibold ${styles.border} ${borderStyleOverride} ${styles.background} ${styles.text}`}
       title={data.label}
     >
       {hasIncoming && (

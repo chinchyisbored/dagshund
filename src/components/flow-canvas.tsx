@@ -30,41 +30,43 @@ const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
 
 const EMPTY_NODES: readonly never[] = [];
 const EMPTY_EDGES: readonly never[] = [];
+const HOVER_DEBOUNCE_MS = 50;
 
-/** Returns the hovered node ID plus all node IDs sharing an edge with it.
- *  When a job (parent) node is hovered, its child tasks are included too. */
+/** Returns the given node ID plus all node IDs sharing an edge with it.
+ *  When a job (parent) node is targeted, its child tasks are included too. */
 const buildConnectedNodeIds = (
   nodes: readonly Node[],
   edges: readonly Edge[],
-  hoveredNodeId: string,
+  targetNodeId: string,
 ): ReadonlySet<string> => {
-  const connected = new Set<string>([hoveredNodeId]);
+  const connected = new Set<string>([targetNodeId]);
   for (const edge of edges) {
-    if (edge.source === hoveredNodeId) connected.add(edge.target);
-    if (edge.target === hoveredNodeId) connected.add(edge.source);
+    if (edge.source === targetNodeId) connected.add(edge.target);
+    if (edge.target === targetNodeId) connected.add(edge.source);
   }
   for (const node of nodes) {
-    if (node.parentId === hoveredNodeId) connected.add(node.id);
+    if (node.parentId === targetNodeId) connected.add(node.id);
   }
   return connected;
 };
 
 export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   const hasFittedRef = useRef(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const HOVER_DEBOUNCE_MS = 50;
-
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelectedNode(node.data as DagNodeData);
+    setSelectedNodeId(node.id);
   }, []);
 
   const handleClosePanel = useCallback(() => {
     setSelectedNode(null);
+    setSelectedNodeId(null);
   }, []);
 
   const handleNodeMouseEnter: NodeMouseHandler = useCallback((_, node) => {
@@ -104,6 +106,11 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
     [baseNodes, baseEdges, hoveredNodeId],
   );
 
+  const selectedConnectedIds = useMemo(
+    () => (selectedNodeId !== null ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, selectedNodeId) : null),
+    [baseNodes, baseEdges, selectedNodeId],
+  );
+
   const filterMatchedIds = useMemo((): ReadonlySet<string> | null => {
     if (filterDiffState === null) return null;
     const matched = new Set<string>();
@@ -117,12 +124,12 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   }, [baseNodes, filterDiffState]);
 
   const hoverState = useMemo(
-    () => ({ connectedIds, filterMatchedIds }),
-    [connectedIds, filterMatchedIds],
+    () => ({ hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds }),
+    [hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds],
   );
 
   const styledEdges = useMemo((): readonly Edge[] => {
-    if (connectedIds === null && filterMatchedIds === null) return baseEdges as Edge[];
+    if (connectedIds === null && selectedConnectedIds === null && filterMatchedIds === null) return baseEdges as Edge[];
     return baseEdges.map((edge) => {
       const baseStyle = edge.style ?? {};
       if (connectedIds !== null) {
@@ -143,9 +150,20 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           ? { ...edge, style: baseStyle }
           : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
       }
+      if (selectedConnectedIds !== null) {
+        const isDirectlyConnected =
+          edge.source === selectedNodeId || edge.target === selectedNodeId;
+        const isBetweenConnected =
+          selectedConnectedIds.has(edge.source) && selectedConnectedIds.has(edge.target);
+        return isDirectlyConnected
+          ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5 } }
+          : isBetweenConnected
+            ? { ...edge, style: baseStyle }
+            : { ...edge, style: { ...baseStyle, opacity: 0.3 } };
+      }
       return { ...edge, style: baseStyle };
     });
-  }, [baseEdges, connectedIds, filterMatchedIds, hoveredNodeId]);
+  }, [baseEdges, connectedIds, selectedConnectedIds, filterMatchedIds, hoveredNodeId, selectedNodeId]);
 
   if (layoutState.status === "error") {
     return (

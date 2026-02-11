@@ -8,13 +8,13 @@ import type { DagNodeData } from "../types/graph-types.ts";
 type TaskNodeType = Node<DagNodeData, "task">;
 
 export const TaskNode = memo(function TaskNode({ id, data }: NodeProps<TaskNodeType>) {
-  const { isDimmed, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
+  const { isDimmed, dimOpacity, isHovered, isSelected, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
   const badge = getDiffBadge(data.diffState);
 
   return (
     <div
-      style={{ width: NODE_WIDTH, ...(isDimmed ? { opacity: 0.3 } : undefined) }}
-      className={`cursor-pointer truncate rounded-lg border-2 px-4 py-2 text-sm hover:shadow-md ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
+      style={{ width: NODE_WIDTH, ...(isSelected ? { boxShadow: `0 0 0 2.5px ${styles.hoverGlow}` } : isHovered ? { boxShadow: `0 0 0 1.5px ${styles.hoverGlow}` } : undefined), ...(isDimmed ? { opacity: dimOpacity } : undefined) }}
+      className={`cursor-pointer truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
       {hasIncoming && (

@@ -7,6 +7,7 @@ export type DiffStateStyles = {
   readonly background: string;
   readonly text: string;
   readonly opacity: string;
+  readonly hoverGlow: string;
 };
 
 const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
@@ -16,6 +17,7 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
     background: "bg-diff-added-soft",
     text: "text-diff-added",
     opacity: "opacity-100",
+    hoverGlow: "var(--diff-added)",
   },
   removed: {
     border: "border-diff-removed",
@@ -23,6 +25,7 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
     background: "bg-diff-removed-soft",
     text: "text-diff-removed",
     opacity: "opacity-100",
+    hoverGlow: "var(--diff-removed)",
   },
   modified: {
     border: "border-diff-modified",
@@ -30,6 +33,7 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
     background: "bg-diff-modified-soft",
     text: "text-diff-modified",
     opacity: "opacity-100",
+    hoverGlow: "var(--diff-modified)",
   },
   unchanged: {
     border: "border-diff-unchanged-border",
@@ -37,6 +41,7 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
     background: "bg-diff-unchanged-bg",
     text: "text-diff-unchanged-text",
     opacity: "opacity-100",
+    hoverGlow: "var(--diff-unchanged-border)",
   },
 };
 
