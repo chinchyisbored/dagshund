@@ -1,5 +1,6 @@
 import { chmodSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
@@ -29,8 +30,22 @@ const parseArgs = (argv: readonly string[]): CliArgs => {
 
 // --- Plan reading ---
 
+const ALLOWED_EXTENSIONS: ReadonlySet<string> = new Set([".json", ".yaml", ".yml"]);
+
+const sanitizePath = (raw: string): string => {
+  const resolved = resolve(raw);
+  if (raw.includes("..")) {
+    console.warn(`dagshund: warning: path contains '..' sequences, resolved to ${resolved}`);
+  }
+  const extension = resolved.slice(resolved.lastIndexOf(".")).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(extension)) {
+    console.warn(`dagshund: warning: unexpected file extension '${extension}'`);
+  }
+  return resolved;
+};
+
 const readPlanFromFile = async (path: string): Promise<Plan> => {
-  const file = Bun.file(path);
+  const file = Bun.file(sanitizePath(path));
   const exists = await file.exists();
   if (!exists) {
     console.error(`dagshund: file not found: ${path}`);
