@@ -1,4 +1,5 @@
-import { chmodSync } from "node:fs";
+import { chmodSync, unlinkSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
@@ -195,14 +196,22 @@ const main = async (): Promise<void> => {
     await Bun.write(outputPath, html);
     console.log(`dagshund: exported to ${outputPath}`);
   } else {
-    const tmpPath = `${
-      // biome-ignore lint/complexity/useLiteralKeys: TypeScript strict noPropertyAccessFromIndexSignature requires bracket notation
-      process.env["TMPDIR"] ?? "/tmp"
-    }/dagshund-${Date.now()}.html`;
+    // biome-ignore lint/complexity/useLiteralKeys: TypeScript strict noPropertyAccessFromIndexSignature requires bracket notation
+    const tmpDir = process.env["XDG_RUNTIME_DIR"] ?? process.env["TMPDIR"] ?? "/tmp";
+    const tmpPath = `${tmpDir}/dagshund-${randomUUID()}.html`;
     await Bun.write(tmpPath, html);
     chmodSync(tmpPath, 0o600);
     console.log(`dagshund: opening ${tmpPath}`);
     Bun.spawn([detectOpenCommand(), tmpPath]);
+
+    const CLEANUP_DELAY_MS = 30_000;
+    setTimeout(() => {
+      try {
+        unlinkSync(tmpPath);
+      } catch {
+        // File may already be deleted — ignore
+      }
+    }, CLEANUP_DELAY_MS);
   }
 };
 
