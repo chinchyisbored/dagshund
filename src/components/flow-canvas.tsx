@@ -31,8 +31,10 @@ const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
 const EMPTY_NODES: readonly never[] = [];
 const EMPTY_EDGES: readonly never[] = [];
 
-/** Returns the hovered node ID plus all node IDs sharing an edge with it. */
+/** Returns the hovered node ID plus all node IDs sharing an edge with it.
+ *  When a job (parent) node is hovered, its child tasks are included too. */
 const buildConnectedNodeIds = (
+  nodes: readonly Node[],
   edges: readonly Edge[],
   hoveredNodeId: string,
 ): ReadonlySet<string> => {
@@ -40,6 +42,9 @@ const buildConnectedNodeIds = (
   for (const edge of edges) {
     if (edge.source === hoveredNodeId) connected.add(edge.target);
     if (edge.target === hoveredNodeId) connected.add(edge.source);
+  }
+  for (const node of nodes) {
+    if (node.parentId === hoveredNodeId) connected.add(node.id);
   }
   return connected;
 };
@@ -50,6 +55,9 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   const hasFittedRef = useRef(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const HOVER_DEBOUNCE_MS = 50;
 
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelectedNode(node.data as DagNodeData);
@@ -60,11 +68,19 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   }, []);
 
   const handleNodeMouseEnter: NodeMouseHandler = useCallback((_, node) => {
-    setHoveredNodeId(node.id);
+    if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setHoveredNodeId(node.id);
+      hoverTimerRef.current = null;
+    }, HOVER_DEBOUNCE_MS);
   }, []);
 
   const handleNodeMouseLeave: NodeMouseHandler = useCallback(() => {
-    setHoveredNodeId(null);
+    if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setHoveredNodeId(null);
+      hoverTimerRef.current = null;
+    }, HOVER_DEBOUNCE_MS);
   }, []);
 
   const handleInit = useCallback((instance: ReactFlowInstance) => {
@@ -84,8 +100,8 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   }, [baseNodes]);
 
   const connectedIds = useMemo(
-    () => (hoveredNodeId !== null ? buildConnectedNodeIds(baseEdges, hoveredNodeId) : null),
-    [baseEdges, hoveredNodeId],
+    () => (hoveredNodeId !== null ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, hoveredNodeId) : null),
+    [baseNodes, baseEdges, hoveredNodeId],
   );
 
   const filterMatchedIds = useMemo((): ReadonlySet<string> | null => {
@@ -110,11 +126,15 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
     return baseEdges.map((edge) => {
       const baseStyle = edge.style ?? {};
       if (connectedIds !== null) {
-        const isConnected =
+        const isDirectlyConnected =
           edge.source === hoveredNodeId || edge.target === hoveredNodeId;
-        return isConnected
+        const isBetweenConnected =
+          connectedIds.has(edge.source) && connectedIds.has(edge.target);
+        return isDirectlyConnected
           ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
-          : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
+          : isBetweenConnected
+            ? { ...edge, style: baseStyle }
+            : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
       }
       if (filterMatchedIds !== null) {
         const isRelevant =
