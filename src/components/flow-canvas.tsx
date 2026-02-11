@@ -177,7 +177,7 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           <MiniMap style={{ backgroundColor: "var(--minimap-bg)" }} />
         </ReactFlow>
       </HoverContext.Provider>
-      {selectedNode !== null && <DetailPanel data={selectedNode} onClose={handleClosePanel} />}
+      {selectedNode !== null && <DetailPanel key={selectedNode.resourceKey} data={selectedNode} onClose={handleClosePanel} />}
     </div>
   );
 }
