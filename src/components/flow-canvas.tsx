@@ -1,8 +1,6 @@
 import {
-  Controls,
   type DefaultEdgeOptions,
   type Edge,
-  MiniMap,
   type Node,
   type NodeMouseHandler,
   type NodeTypes,
@@ -87,6 +85,10 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
 
   const handleInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
+  }, []);
+
+  const handleFitView = useCallback(() => {
+    rfInstanceRef.current?.fitView();
   }, []);
 
   const layout = layoutState.status === "ready" ? layoutState.layout : null;
@@ -192,6 +194,7 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           nodeTypes={nodeTypes}
           defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
           nodesConnectable={false}
+          proOptions={{ hideAttribution: true }}
           onNodeClick={handleNodeClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
@@ -201,8 +204,19 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           <Panel position="top-left">
             <DiffFilterToolbar activeFilter={filterDiffState} onFilterChange={setFilterDiffState} diffStateCounts={diffStateCounts} />
           </Panel>
-          <Controls />
-          <MiniMap style={{ backgroundColor: "var(--minimap-bg)" }} />
+          <Panel position="bottom-right">
+            <button
+              type="button"
+              onClick={handleFitView}
+              className="rounded-md border border-outline bg-surface-raised p-1.5 text-ink-muted shadow-sm transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Fit view"
+              title="Reset view"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+            </button>
+          </Panel>
         </ReactFlow>
       </HoverContext.Provider>
       {selectedNode !== null && <DetailPanel key={selectedNode.resourceKey} data={selectedNode} onClose={handleClosePanel} />}
