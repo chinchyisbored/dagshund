@@ -13,7 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DetailPanel } from "./detail-panel/index.ts";
-import { DiffFilterToolbar } from "./diff-filter-toolbar.tsx";
+import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { HoverContext } from "../hooks/use-hover-context.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import type { DiffState } from "../types/diff-state.ts";
@@ -99,6 +99,15 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
       rfInstanceRef.current.fitView();
       hasFittedRef.current = true;
     }
+  }, [baseNodes]);
+
+  const diffStateCounts = useMemo((): Readonly<Record<FilterableDiffState, number>> => {
+    const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };
+    for (const node of baseNodes) {
+      const state = (node.data as DagNodeData).diffState;
+      if (state in counts) counts[state as FilterableDiffState]++;
+    }
+    return counts;
   }, [baseNodes]);
 
   const connectedIds = useMemo(
@@ -190,7 +199,7 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           onInit={handleInit}
         >
           <Panel position="top-left">
-            <DiffFilterToolbar activeFilter={filterDiffState} onFilterChange={setFilterDiffState} />
+            <DiffFilterToolbar activeFilter={filterDiffState} onFilterChange={setFilterDiffState} diffStateCounts={diffStateCounts} />
           </Panel>
           <Controls />
           <MiniMap style={{ backgroundColor: "var(--minimap-bg)" }} />

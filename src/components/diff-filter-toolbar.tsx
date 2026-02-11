@@ -1,6 +1,6 @@
 import type { DiffState } from "../types/diff-state.ts";
 
-type FilterableDiffState = Exclude<DiffState, "unchanged">;
+export type FilterableDiffState = Exclude<DiffState, "unchanged">;
 
 type FilterButton = {
   readonly state: FilterableDiffState;
@@ -33,24 +33,32 @@ const FILTER_BUTTONS: readonly FilterButton[] = [
 type DiffFilterToolbarProps = {
   readonly activeFilter: DiffState | null;
   readonly onFilterChange: (state: DiffState | null) => void;
+  readonly diffStateCounts: Readonly<Record<FilterableDiffState, number>>;
 };
 
-export function DiffFilterToolbar({ activeFilter, onFilterChange }: DiffFilterToolbarProps) {
+export function DiffFilterToolbar({ activeFilter, onFilterChange, diffStateCounts }: DiffFilterToolbarProps) {
   return (
     <div className="flex gap-1.5">
       {FILTER_BUTTONS.map((button) => {
+        const count = diffStateCounts[button.state];
         const isActive = activeFilter === button.state;
+        const isDisabled = count === 0;
         return (
           <button
             key={button.state}
             type="button"
             aria-pressed={isActive}
+            disabled={isDisabled}
             onClick={() => onFilterChange(isActive ? null : button.state)}
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-              isActive ? button.activeClasses : button.inactiveClasses
+              isDisabled
+                ? "cursor-default border-outline text-ink-muted opacity-40"
+                : isActive
+                  ? button.activeClasses
+                  : button.inactiveClasses
             }`}
           >
-            {button.label}
+            {button.label} ({count})
           </button>
         );
       })}
