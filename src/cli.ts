@@ -1,4 +1,4 @@
-import { chmodSync, unlinkSync } from "node:fs";
+import { chmodSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
@@ -218,15 +218,6 @@ const main = async (): Promise<void> => {
     chmodSync(tmpPath, 0o600);
     console.log(`dagshund: opening ${tmpPath}`);
     Bun.spawn([detectOpenCommand(), tmpPath]);
-
-    const CLEANUP_DELAY_MS = 30_000;
-    setTimeout(() => {
-      try {
-        unlinkSync(tmpPath);
-      } catch {
-        // File may already be deleted — ignore
-      }
-    }, CLEANUP_DELAY_MS);
   }
 };
 
