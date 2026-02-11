@@ -225,6 +225,10 @@ export const extractLayoutData = (
   return { positions, dimensions };
 };
 
+/** Build a descriptive aria-label for screen readers, e.g. "added task: ingest_raw_data". */
+const buildAriaLabel = (node: GraphNode): string =>
+  `${node.diffState} ${node.nodeKind}: ${node.label}`;
+
 /** Strip the `id` field from a GraphNode, producing the data payload for React Flow nodes. */
 const toNodeData = (node: GraphNode): DagNodeData => {
   const { id: _, ...data } = node;
@@ -242,6 +246,7 @@ export const toJobFlowNode = (
   position: { x: position.x, y: position.y },
   style: { width: dimension.width, height: dimension.height },
   data: toNodeData(node),
+  ariaLabel: buildAriaLabel(node),
 });
 
 /** Convert a task GraphNode to a React Flow child node inside its job. */
@@ -255,6 +260,7 @@ export const toTaskFlowNode = (
   parentId: node.resourceKey,
   extent: "parent" as const,
   data: { ...toNodeData(node), taskChangeSummary: undefined },
+  ariaLabel: buildAriaLabel(node),
 });
 
 /** Assemble React Flow nodes from layout data, with jobs before their children. */
@@ -319,6 +325,7 @@ const toFlatFlowNode = (
   type: node.nodeKind,
   position: { x: position.x, y: position.y },
   data: toNodeData(node),
+  ariaLabel: buildAriaLabel(node),
 });
 
 /** Flat ELK layout for resource graphs (left-to-right, no compound hierarchy). */
