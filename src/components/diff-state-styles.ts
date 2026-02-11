@@ -49,21 +49,11 @@ export type EdgeStyle = {
   readonly strokeDasharray: string | undefined;
 };
 
-/** Read a CSS custom property from the document root. */
-const getCssVar = (name: string): string =>
-  getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-
-/** Get inline CSS style for an edge based on its resolved state, reading themed CSS variables. */
-export const getEdgeStyle = (state: EdgeDiffState): EdgeStyle => {
-  const styleMap: Readonly<Record<EdgeDiffState, { readonly varName: string; readonly strokeDasharray: string | undefined }>> = {
-    added: { varName: "--edge-added", strokeDasharray: undefined },
-    removed: { varName: "--edge-removed", strokeDasharray: "6 4" },
-    unchanged: { varName: "--edge-unchanged", strokeDasharray: undefined },
-  };
-  const config = styleMap[state];
-  return {
-    stroke: getCssVar(config.varName),
-    opacity: 1,
-    strokeDasharray: config.strokeDasharray,
-  };
+const EDGE_STYLES: Readonly<Record<EdgeDiffState, EdgeStyle>> = {
+  added: { stroke: "var(--edge-added)", opacity: 1, strokeDasharray: undefined },
+  removed: { stroke: "var(--edge-removed)", opacity: 1, strokeDasharray: "6 4" },
+  unchanged: { stroke: "var(--edge-unchanged)", opacity: 1, strokeDasharray: undefined },
 };
+
+/** Get inline CSS style for an edge based on its diff state. Uses CSS variables directly so the browser resolves them reactively on theme change. */
+export const getEdgeStyle = (state: EdgeDiffState): EdgeStyle => EDGE_STYLES[state];
