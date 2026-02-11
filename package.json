@@ -10,7 +10,7 @@
     "export": "bun src/cli.ts",
     "dev": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch & bun --hot src/index.ts",
     "build:css": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --minify",
-    "build": "bun run build:css && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
+    "build": "rm -rf dist && bun run build:css && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
     "start": "NODE_ENV=production bun src/index.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
