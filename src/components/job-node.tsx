@@ -14,7 +14,7 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
 
   return (
     <div
-      className={`h-full w-full rounded-xl border-2 ${styles.border} ${styles.borderStyle} ${opacityClass}`}
+      className={`h-full w-full cursor-pointer rounded-xl border-2 hover:shadow-md ${styles.border} ${styles.borderStyle} ${opacityClass}`}
       style={isDimmed ? { opacity: 0.3 } : undefined}
     >
       {hasIncoming && (

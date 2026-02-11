@@ -34,7 +34,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
   return (
     <div
       style={{ width: NODE_WIDTH, ...(isDimmed ? { opacity: 0.3 } : undefined) }}
-      className={`flex items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
+      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm hover:shadow-md ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
       {hasIncoming && (

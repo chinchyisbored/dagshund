@@ -14,7 +14,7 @@ export const TaskNode = memo(function TaskNode({ id, data }: NodeProps<TaskNodeT
   return (
     <div
       style={{ width: NODE_WIDTH, ...(isDimmed ? { opacity: 0.3 } : undefined) }}
-      className={`truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
+      className={`cursor-pointer truncate rounded-lg border-2 px-4 py-2 text-sm hover:shadow-md ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
       {hasIncoming && (

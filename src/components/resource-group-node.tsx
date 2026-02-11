@@ -28,7 +28,7 @@ export const ResourceGroupNode = memo(function ResourceGroupNode({ id, data }: N
         width: NODE_WIDTH,
         ...(isDimmed ? { opacity: 0.3 } : undefined),
       }}
-      className={`flex items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm font-semibold ${styles.border} ${borderStyleOverride} ${styles.background} ${styles.text}`}
+      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm font-semibold hover:shadow-md ${styles.border} ${borderStyleOverride} ${styles.background} ${styles.text}`}
       title={data.label}
     >
       {hasIncoming && (
