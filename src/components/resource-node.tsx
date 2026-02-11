@@ -1,21 +1,11 @@
-import {
-  Handle,
-  type Node,
-  type NodeProps,
-  Position,
-  useNodeConnections,
-} from "@xyflow/react";
+import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { extractResourceType } from "../graph/build-resource-graph.ts";
 import { NODE_WIDTH } from "../graph/index.ts";
-import { useHoverState } from "../hooks/use-hover-context.ts";
+import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
-import { getDiffStateStyles } from "./diff-state-styles.ts";
 
 type ResourceNodeType = Node<DagNodeData, "resource">;
-
-const TARGET_HANDLE = { handleType: "target" } as const;
-const SOURCE_HANDLE = { handleType: "source" } as const;
 
 /** Map resource type segment to a short display badge. */
 const TYPE_BADGES: Readonly<Record<string, string>> = {
@@ -36,15 +26,7 @@ const extractTypeBadge = (resourceKey: string): string | undefined => {
 };
 
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
-  const { connectedIds, filterMatchedIds } = useHoverState();
-  const incomingConnections = useNodeConnections(TARGET_HANDLE);
-  const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
-  const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
-  const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
-  const isDimmed = isDimmedByHover || isDimmedByFilter;
-  const isFilterHighlighted = filterMatchedIds !== null && filterMatchedIds.has(id);
-  const styles = getDiffStateStyles(data.diffState);
-  const opacityClass = isFilterHighlighted ? "opacity-100" : styles.opacity;
+  const { isDimmed, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
   const typeBadge = extractTypeBadge(data.resourceKey);
 
   return (
@@ -53,7 +35,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
       className={`flex items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
-      {incomingConnections.length > 0 && (
+      {hasIncoming && (
         <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
       <span className="truncate">{data.label}</span>
@@ -62,7 +44,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
           {typeBadge}
         </span>
       )}
-      {outgoingConnections.length > 0 && (
+      {hasOutgoing && (
         <Handle type="source" position={Position.Right} className="!bg-handle" />
       )}
     </div>
