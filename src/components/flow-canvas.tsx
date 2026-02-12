@@ -64,13 +64,14 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
     const instance = rfInstanceRef.current;
     if (instance === null) return;
 
+    const internal = instance.getInternalNode(node.id);
+    if (internal === undefined) return;
+
     const currentZoom = instance.getZoom();
-    const parent = node.parentId !== undefined ? instance.getNode(node.parentId) : undefined;
-    const absoluteX = node.position.x + (parent?.position.x ?? 0);
-    const absoluteY = node.position.y + (parent?.position.y ?? 0);
-    const width = node.measured?.width ?? node.width ?? 200;
-    const height = node.measured?.height ?? node.height ?? 50;
-    instance.setCenter(absoluteX + width / 2, absoluteY + height / 2, { duration: 300, zoom: currentZoom });
+    const { x, y } = internal.internals.positionAbsolute;
+    const width = internal.measured.width ?? 200;
+    const height = internal.measured.height ?? 50;
+    instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom: currentZoom });
   }, []);
 
   const handleClosePanel = useCallback(() => {

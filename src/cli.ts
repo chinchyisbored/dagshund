@@ -1,6 +1,6 @@
 import { chmodSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
@@ -195,6 +195,18 @@ const detectOpenCommand = (): string => {
   }
 };
 
+const tryOpenBrowser = async (target: string): Promise<void> => {
+  const proc = Bun.spawn([detectOpenCommand(), target], {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    console.warn(`dagshund: could not open browser automatically`);
+    console.warn(`dagshund: open this file manually: ${target}`);
+  }
+};
+
 // --- Main ---
 
 const main = async (): Promise<void> => {
@@ -213,11 +225,11 @@ const main = async (): Promise<void> => {
   } else {
     // biome-ignore lint/complexity/useLiteralKeys: TypeScript strict noPropertyAccessFromIndexSignature requires bracket notation
     const tmpDir = process.env["XDG_RUNTIME_DIR"] ?? process.env["TMPDIR"] ?? "/tmp";
-    const tmpPath = `${tmpDir}/dagshund-${randomUUID()}.html`;
+    const tmpPath = join(tmpDir, `dagshund-${randomUUID()}.html`);
     await Bun.write(tmpPath, html);
     chmodSync(tmpPath, 0o600);
     console.log(`dagshund: opening ${tmpPath}`);
-    Bun.spawn([detectOpenCommand(), tmpPath]);
+    await tryOpenBrowser(tmpPath);
   }
 };
 

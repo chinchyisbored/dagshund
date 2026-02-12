@@ -33,6 +33,18 @@ const detectOpenCommand = (): string => {
   }
 };
 
+const tryOpenBrowser = async (url: string): Promise<void> => {
+  const proc = Bun.spawn([detectOpenCommand(), url], {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    console.warn("dagshund: could not open browser automatically");
+    console.warn(`dagshund: open this URL manually: ${url}`);
+  }
+};
+
 const ALLOWED_HOSTS: ReadonlySet<string> = new Set([
   "localhost",
   "127.0.0.1",
@@ -67,5 +79,5 @@ const server = serve({
 console.log(`dagshund running at ${server.url}`);
 
 if (plan) {
-  Bun.spawn([detectOpenCommand(), server.url.toString()]);
+  tryOpenBrowser(server.url.toString());
 }
