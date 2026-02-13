@@ -3,6 +3,7 @@ import { memo } from "react";
 import { getDiffBadge } from "./diff-state-styles.ts";
 import { extractResourceType } from "../graph/build-resource-graph.ts";
 import { NODE_WIDTH } from "../graph/index.ts";
+import { useJobNavigation } from "../hooks/use-job-navigation.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 
@@ -14,10 +15,17 @@ const TYPE_BADGES: Readonly<Record<string, string>> = {
   volumes: "volume",
   registered_models: "model",
   catalogs: "catalog",
+  database_catalogs: "db catalog",
   dashboards: "dashboard",
   genie_spaces: "genie",
   apps: "app",
   experiments: "experiment",
+  jobs: "job",
+  pipelines: "pipeline",
+  clusters: "cluster",
+  model_serving_endpoints: "serving",
+  sql_warehouses: "warehouse",
+  secret_scopes: "secret",
 };
 
 /** Extract the resource type badge from a resource key like "resources.schemas.analytics". */
@@ -30,6 +38,8 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
   const { isDimmed, dimOpacity, isHovered, isSelected, opacityClass, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
   const typeBadge = extractTypeBadge(data.resourceKey);
   const diffBadge = getDiffBadge(data.diffState);
+  const navigateToJob = useJobNavigation();
+  const isJob = extractResourceType(data.resourceKey) === "jobs";
 
   return (
     <div
@@ -41,11 +51,21 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
         <Handle type="target" position={Position.Left} className="!bg-handle" />
       )}
       <span className="truncate">{diffBadge !== undefined && <span className="mr-1 font-semibold" aria-hidden="true">{diffBadge}</span>}{data.label}</span>
-      {typeBadge !== undefined && (
+      {isJob && navigateToJob !== null ? (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); navigateToJob(data.resourceKey); }}
+          className="shrink-0 cursor-pointer rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text transition-all hover:bg-accent/20 hover:text-accent hover:ring-1 hover:ring-accent/40"
+          title="View in Jobs tab"
+          aria-label="View in Jobs tab"
+        >
+          job →
+        </button>
+      ) : typeBadge !== undefined ? (
         <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
           {typeBadge}
         </span>
-      )}
+      ) : null}
       {hasOutgoing && (
         <Handle type="source" position={Position.Right} className="!bg-handle" />
       )}

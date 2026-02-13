@@ -11,8 +11,8 @@ type TabConfig = {
 };
 
 const TABS: readonly TabConfig[] = [
-  { id: "jobs", label: "Jobs" },
   { id: "resources", label: "Resources" },
+  { id: "jobs", label: "Jobs" },
 ];
 
 export function TabBar({ activeTab, onTabChange }: TabBarProps) {

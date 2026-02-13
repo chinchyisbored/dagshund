@@ -3,7 +3,6 @@ import {
   buildResourceGraph,
   extractResourceType,
   extractStateField,
-  hasNonJobResources,
   isJobEntry,
   isUnityCatalogType,
 } from "../../src/graph/build-resource-graph.ts";
@@ -51,6 +50,7 @@ describe("isUnityCatalogType", () => {
     expect(isUnityCatalogType("volumes")).toBe(true);
     expect(isUnityCatalogType("registered_models")).toBe(true);
     expect(isUnityCatalogType("catalogs")).toBe(true);
+    expect(isUnityCatalogType("database_catalogs")).toBe(true);
   });
 
   test("returns false for non-UC types", () => {
@@ -87,31 +87,6 @@ describe("extractStateField", () => {
   });
 });
 
-describe("hasNonJobResources", () => {
-  test("returns false for empty plan", () => {
-    expect(hasNonJobResources({})).toBe(false);
-  });
-
-  test("returns false for jobs-only plan", () => {
-    expect(
-      hasNonJobResources({
-        plan: { "resources.jobs.my_job": { action: "create" } },
-      }),
-    ).toBe(false);
-  });
-
-  test("returns true when non-job resources exist", () => {
-    expect(
-      hasNonJobResources({
-        plan: {
-          "resources.jobs.my_job": { action: "create" },
-          "resources.schemas.analytics": { action: "update" },
-        },
-      }),
-    ).toBe(true);
-  });
-});
-
 describe("buildResourceGraph", () => {
   test("returns empty graph for empty plan", () => {
     const graph = buildResourceGraph({});
@@ -119,12 +94,22 @@ describe("buildResourceGraph", () => {
     expect(graph.edges).toHaveLength(0);
   });
 
-  test("returns empty graph for jobs-only plan", () => {
+  test("includes jobs as workspace resource nodes", () => {
     const graph = buildResourceGraph({
       plan: { "resources.jobs.my_job": { action: "create" } },
     });
-    expect(graph.nodes).toHaveLength(0);
-    expect(graph.edges).toHaveLength(0);
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("resources.jobs.my_job");
+    expect(graph.nodes).toHaveLength(2);
+
+    const jobNode = graph.nodes.find((n) => n.id === "resources.jobs.my_job");
+    expect(jobNode?.diffState).toBe("added");
+    expect(jobNode?.nodeKind).toBe("resource");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→resources.jobs.my_job");
   });
 
   test("creates UC hierarchy for schema entries", () => {
@@ -377,12 +362,12 @@ describe("buildResourceGraph", () => {
   });
 
   describe("complex-plan.json fixture", () => {
-    test("creates nodes for all 7 non-job resources", async () => {
+    test("creates nodes for all 9 resources including jobs", async () => {
       const plan = await loadFixture("complex-plan.json");
       const graph = buildResourceGraph(plan);
 
       const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
-      expect(resourceNodes).toHaveLength(7);
+      expect(resourceNodes).toHaveLength(9);
 
       const resourceIds = resourceNodes.map((n) => n.id);
       expect(resourceIds).toContain("resources.schemas.analytics");
@@ -392,6 +377,8 @@ describe("buildResourceGraph", () => {
       expect(resourceIds).toContain("resources.registered_models.quality_metrics");
       expect(resourceIds).toContain("resources.alerts.stale_pipeline_alert");
       expect(resourceIds).toContain("resources.experiments.audit_analysis");
+      expect(resourceIds).toContain("resources.jobs.data_quality_pipeline");
+      expect(resourceIds).toContain("resources.jobs.etl_pipeline");
     });
 
     test("creates UC root, catalog, and workspace group nodes", async () => {
@@ -423,13 +410,15 @@ describe("buildResourceGraph", () => {
       expect(edgePairs).toContain("resources.schemas.analytics→resources.volumes.raw_data");
     });
 
-    test("workspace resources are linked to workspace root", async () => {
+    test("workspace resources including jobs are linked to workspace root", async () => {
       const plan = await loadFixture("complex-plan.json");
       const graph = buildResourceGraph(plan);
 
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
       expect(edgePairs).toContain("workspace-root→resources.alerts.stale_pipeline_alert");
       expect(edgePairs).toContain("workspace-root→resources.experiments.audit_analysis");
+      expect(edgePairs).toContain("workspace-root→resources.jobs.data_quality_pipeline");
+      expect(edgePairs).toContain("workspace-root→resources.jobs.etl_pipeline");
     });
 
     test("external_imports volume links through phantom schema node", async () => {
@@ -454,5 +443,85 @@ describe("buildResourceGraph", () => {
         "external::dagshund.dagshund_no_dabs→resources.volumes.external_imports",
       );
     });
+  });
+
+  test("database_catalogs entry with child schema creates real catalog group node", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_catalogs.lakebase_cat": {
+          action: "create",
+          new_state: { value: { name: "lakebase_cat" } },
+        },
+        "resources.schemas.lb_schema": {
+          action: "create",
+          new_state: { value: { catalog_name: "lakebase_cat", name: "lb_schema" } },
+        },
+      },
+    });
+
+    const catalog = graph.nodes.find((n) => n.id === "catalog::lakebase_cat");
+    expect(catalog).toBeDefined();
+    expect(catalog?.external).toBe(false);
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("uc-root→catalog::lakebase_cat");
+    // database_catalogs has no catalog_name — it IS a catalog, so links to uc-root
+    expect(edgePairs).toContain("uc-root→resources.database_catalogs.lakebase_cat");
+    expect(edgePairs).toContain("catalog::lakebase_cat→resources.schemas.lb_schema");
+  });
+
+  test("standalone database_catalogs entry appears under uc-root", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_catalogs.standalone": {
+          action: "create",
+          new_state: { value: { name: "standalone" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("uc-root");
+    expect(nodeIds).toContain("resources.database_catalogs.standalone");
+
+    // No catalog group node since no child references catalog_name
+    const groupNodes = graph.nodes.filter((n) => n.nodeKind === "resource-group");
+    expect(groupNodes).toHaveLength(1); // only uc-root
+  });
+
+  test("job depends_on cross-type edges appear in resource graph", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+        "resources.jobs.etl_pipeline": {
+          action: "create",
+          depends_on: [{ node: "resources.schemas.analytics" }],
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("resources.schemas.analytics→resources.jobs.etl_pipeline");
+  });
+
+  test("job-to-job depends_on edges are excluded from resource graph", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.job_a": { action: "create" },
+        "resources.jobs.job_b": {
+          action: "create",
+          depends_on: [{ node: "resources.jobs.job_a" }],
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).not.toContain("resources.jobs.job_a→resources.jobs.job_b");
+    // Both still link to workspace root
+    expect(edgePairs).toContain("workspace-root→resources.jobs.job_a");
+    expect(edgePairs).toContain("workspace-root→resources.jobs.job_b");
   });
 });

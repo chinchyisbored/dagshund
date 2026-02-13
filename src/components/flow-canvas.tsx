@@ -21,6 +21,8 @@ import type { DagNodeData } from "../types/graph-types.ts";
 type FlowCanvasProps = {
   readonly layoutState: GraphLayoutState;
   readonly nodeTypes: NodeTypes;
+  readonly focusNodeId?: string | null;
+  readonly onFocusComplete?: () => void;
 };
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
@@ -49,7 +51,7 @@ const buildConnectedNodeIds = (
   return connected;
 };
 
-export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
+export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplete }: FlowCanvasProps) {
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -112,10 +114,25 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   /** Fit the viewport exactly once after the layout produces nodes. */
   useEffect(() => {
     if (rfInstanceRef.current && baseNodes.length > 0 && !hasFittedRef.current) {
-      rfInstanceRef.current.fitView();
+      rfInstanceRef.current.fitView({ maxZoom: 1, padding: 0.15 });
       hasFittedRef.current = true;
     }
   }, [baseNodes]);
+
+  /** Pan to a specific node when focusNodeId is set (cross-tab navigation). */
+  useEffect(() => {
+    if (focusNodeId === null || focusNodeId === undefined) return;
+    const instance = rfInstanceRef.current;
+    if (instance === null) return;
+    const internal = instance.getInternalNode(focusNodeId);
+    if (internal === undefined) return;
+    const zoom = instance.getZoom();
+    const { x, y } = internal.internals.positionAbsolute;
+    const width = internal.measured.width ?? 200;
+    const height = internal.measured.height ?? 50;
+    instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom });
+    onFocusComplete?.();
+  }, [focusNodeId, onFocusComplete]);
 
   const diffStateCounts = useMemo((): Readonly<Record<FilterableDiffState, number>> => {
     const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };

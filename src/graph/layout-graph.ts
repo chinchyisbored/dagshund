@@ -14,7 +14,7 @@ const getElk = (() => {
   };
 })();
 
-export const NODE_WIDTH = 200;
+export const NODE_WIDTH = 220;
 const NODE_HEIGHT_TASK = 50;
 const NODE_HEIGHT_RESOURCE = 50;
 const NODE_HEIGHT_GROUP = 40;

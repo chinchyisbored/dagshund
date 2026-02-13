@@ -1,5 +1,5 @@
 export { buildPlanGraph } from "./build-plan-graph.ts";
-export { buildResourceGraph, hasNonJobResources } from "./build-resource-graph.ts";
+export { buildResourceGraph } from "./build-resource-graph.ts";
 export { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 export type { TaskEntry } from "./extract-tasks.ts";
 export { extractDeletedTaskEntries, extractTaskEntries } from "./extract-tasks.ts";

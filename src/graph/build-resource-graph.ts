@@ -12,10 +12,16 @@ const newStateSchema = z.object({
 /** Schema for remote_state: { ...fields }. */
 const remoteStateSchema = z.record(z.string(), z.unknown()).readonly();
 
-/** Unity Catalog resource types that live under the UC → catalog → schema hierarchy. */
+/** Catalog-tier types — direct children of uc-root. */
+const CATALOG_TIER_TYPES: ReadonlySet<string> = new Set(["catalogs", "database_catalogs"]);
+
+/** Schema-tier types — nest under catalogs. */
+const SCHEMA_TIER_TYPES: ReadonlySet<string> = new Set(["schemas"]);
+
+/** All UC resource types (union of tiers + leaf types). */
 const UC_TYPES: ReadonlySet<string> = new Set([
-  "catalogs",
-  "schemas",
+  ...CATALOG_TIER_TYPES,
+  ...SCHEMA_TIER_TYPES,
   "volumes",
   "registered_models",
 ]);
@@ -124,7 +130,10 @@ const buildSchemaLookup = (
 ): ReadonlyMap<string, string> =>
   new Map(
     ucEntries
-      .filter(([key]) => extractResourceType(key) === "schemas")
+      .filter(([key]) => {
+        const rt = extractResourceType(key);
+        return rt !== undefined && SCHEMA_TIER_TYPES.has(rt);
+      })
       .flatMap(([key, entry]) => {
         const name = extractStateField(entry, "name");
         const catalog = extractStateField(entry, "catalog_name");
@@ -140,7 +149,10 @@ const buildCatalogLookup = (
 ): ReadonlySet<string> =>
   new Set(
     ucEntries
-      .filter(([key]) => extractResourceType(key) === "catalogs")
+      .filter(([key]) => {
+        const rt = extractResourceType(key);
+        return rt !== undefined && CATALOG_TIER_TYPES.has(rt);
+      })
       .flatMap(([, entry]) => {
         const name = extractStateField(entry, "name");
         return name !== undefined ? [name] : [];
@@ -154,7 +166,7 @@ const buildPhantomSchemaNodes = (
 ): ReadonlyMap<string, { readonly node: GraphNode; readonly parentEdge: GraphEdge | undefined }> => {
   const phantomEntries = ucEntries.flatMap(([key, entry]) => {
     const resourceType = extractResourceType(key);
-    if (resourceType === "schemas" || resourceType === "catalogs") return [];
+    if (resourceType !== undefined && (CATALOG_TIER_TYPES.has(resourceType) || SCHEMA_TIER_TYPES.has(resourceType))) return [];
 
     const schemaName = extractStateField(entry, "schema_name");
     const catalog = extractStateField(entry, "catalog_name");
@@ -217,7 +229,7 @@ const buildUcGraph = (
       const catalogId = catalog !== undefined ? `catalog::${catalog}` : "uc-root";
       const edgeDiff = toEdgeDiffState(entry);
 
-      if (resourceType === "schemas" || resourceType === "catalogs") {
+      if (resourceType !== undefined && (SCHEMA_TIER_TYPES.has(resourceType) || CATALOG_TIER_TYPES.has(resourceType))) {
         return buildEdge(catalogId, key, edgeDiff);
       }
 
@@ -259,13 +271,15 @@ const buildWorkspaceGraph = (
   };
 };
 
-/** Collect explicit depends_on edges from all plan entries. */
+/** Collect explicit depends_on edges, skipping job-to-job edges (deployment ordering, not hierarchy). */
 const collectDependsOnEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
 ): readonly GraphEdge[] =>
   filterDefinedEdges(
     entries.flatMap(([key, entry]) =>
-      (entry.depends_on ?? []).map((dep) => buildEdge(dep.node, key, toEdgeDiffState(entry))),
+      (entry.depends_on ?? [])
+        .filter((dep) => !(isJobEntry(key) && isJobEntry(dep.node)))
+        .map((dep) => buildEdge(dep.node, key, toEdgeDiffState(entry))),
     ),
   );
 
@@ -279,9 +293,9 @@ const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => 
   });
 };
 
-/** Build the complete resource graph for non-job plan entries. */
+/** Build the complete resource graph for all plan entries. */
 export const buildResourceGraph = (plan: Plan): PlanGraph => {
-  const entries = Object.entries(plan.plan ?? {}).filter(([key]) => !isJobEntry(key));
+  const entries = Object.entries(plan.plan ?? {});
 
   if (entries.length === 0) return { nodes: [], edges: [] };
 
@@ -305,7 +319,3 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
     edges: deduplicateEdges([...ucGraph.edges, ...workspaceGraph.edges, ...dependsOnEdges]),
   };
 };
-
-/** Check whether a plan has any non-job resource entries. */
-export const hasNonJobResources = (plan: Plan): boolean =>
-  Object.keys(plan.plan ?? {}).some((key) => !isJobEntry(key));

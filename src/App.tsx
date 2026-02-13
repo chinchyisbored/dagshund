@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
@@ -8,16 +8,22 @@ import { ResourcesView } from "./components/resources-view.tsx";
 import { TabBar } from "./components/tab-bar.tsx";
 import { TaskNode } from "./components/task-node.tsx";
 import { ThemeToggle } from "./components/theme-toggle.tsx";
-import { hasNonJobResources } from "./graph/build-resource-graph.ts";
+import { JobNavigationContext } from "./hooks/use-job-navigation.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
 const NODE_TYPES = { job: JobNode, task: TaskNode };
 
-function DagView({ plan }: { readonly plan: Plan }) {
+type DagViewProps = {
+  readonly plan: Plan;
+  readonly focusNodeId?: string | null;
+  readonly onFocusComplete?: () => void;
+};
+
+function DagView({ plan, focusNodeId, onFocusComplete }: DagViewProps) {
   const layoutState = usePlanGraph(plan);
-  return <FlowCanvas layoutState={layoutState} nodeTypes={NODE_TYPES} />;
+  return <FlowCanvas layoutState={layoutState} nodeTypes={NODE_TYPES} focusNodeId={focusNodeId} onFocusComplete={onFocusComplete} />;
 }
 
 function LoadingIndicator() {
@@ -57,22 +63,29 @@ function ErrorMessage({ message }: { readonly message: string }) {
 }
 
 function PlanView({ plan }: { readonly plan: Plan }) {
-  const showTabs = hasNonJobResources(plan);
-  const [activeTab, setActiveTab] = useState<"jobs" | "resources">("jobs");
+  const [activeTab, setActiveTab] = useState<"jobs" | "resources">("resources");
+  const [focusJobId, setFocusJobId] = useState<string | null>(null);
 
-  if (!showTabs) {
-    return <DagView plan={plan} />;
-  }
+  const handleNavigateToJob = useCallback((jobResourceKey: string) => {
+    setActiveTab("jobs");
+    setFocusJobId(jobResourceKey);
+  }, []);
+
+  const handleFocusComplete = useCallback(() => {
+    setFocusJobId(null);
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="min-h-0 flex-1">
         <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
-          <DagView plan={plan} />
+          <DagView plan={plan} focusNodeId={focusJobId} onFocusComplete={handleFocusComplete} />
         </div>
         <div className="h-full" style={activeTab !== "resources" ? { display: "none" } : undefined}>
-          <ResourcesView plan={plan} />
+          <JobNavigationContext.Provider value={handleNavigateToJob}>
+            <ResourcesView plan={plan} />
+          </JobNavigationContext.Provider>
         </div>
       </div>
     </div>
