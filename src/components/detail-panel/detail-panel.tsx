@@ -14,6 +14,7 @@ import { TaskChangesSummary } from "./task-changes-summary.tsx";
 type DetailPanelProps = {
   readonly data: DagNodeData;
   readonly onClose: () => void;
+  readonly width: number;
 };
 
 const NOISE_ACTIONS: ReadonlySet<string> = new Set(["skip", ""]);
@@ -25,7 +26,7 @@ function filterMeaningfulChanges(
   return Object.entries(changes).filter(([, change]) => !NOISE_ACTIONS.has(change.action));
 }
 
-export function DetailPanel({ data, onClose }: DetailPanelProps) {
+export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
 
@@ -41,7 +42,7 @@ export function DetailPanel({ data, onClose }: DetailPanelProps) {
 
   return (
     <ValueFormatContext.Provider value={valueFormat}>
-      <div className="flex h-full w-[390px] shrink-0 flex-col border-l border-outline bg-surface-raised">
+      <div className="flex h-full shrink-0 flex-col border-l border-outline bg-surface-raised" style={{ width }}>
         <div className="flex items-center justify-between border-b border-outline-subtle px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="truncate text-sm font-semibold text-ink">{data.label}</h2>

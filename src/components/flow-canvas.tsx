@@ -14,6 +14,7 @@ import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { HoverContext } from "../hooks/use-hover-context.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
+import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 
@@ -53,6 +54,7 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
+  const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   const hasFittedRef = useRef(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,7 +233,21 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           </Panel>
         </ReactFlow>
       </HoverContext.Provider>
-      {selectedNode !== null && <DetailPanel key={selectedNode.resourceKey} data={selectedNode} onClose={handleClosePanel} />}
+      {selectedNode !== null && (
+        <>
+          <div
+            className="flex w-2 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-accent/40"
+            onPointerDown={handleResizePointerDown}
+          >
+            <svg width="4" height="16" viewBox="0 0 4 16" className="text-ink-muted/50">
+              <circle cx="2" cy="3" r="1" fill="currentColor" />
+              <circle cx="2" cy="8" r="1" fill="currentColor" />
+              <circle cx="2" cy="13" r="1" fill="currentColor" />
+            </svg>
+          </div>
+          <DetailPanel key={selectedNode.resourceKey} data={selectedNode} onClose={handleClosePanel} width={panelWidth} />
+        </>
+      )}
     </div>
   );
 }
