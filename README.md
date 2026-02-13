@@ -1,68 +1,90 @@
 # Dagshund
 
-Interactive web-based visualizer for `databricks bundle plan -o json` output.
-Shows job task DAGs with diff highlighting for added, removed, modified, and unchanged resources.
+Visualizer for `databricks bundle plan -o json` output. Shows job task DAGs with diff highlighting for added, removed, modified, and unchanged resources.
 
-## Prerequisites
+Distributed as a Python package — no Node/Bun needed on the user's machine.
 
-- [Bun](https://bun.com) v1.3.8+
-
-## Getting Started
+## Install
 
 ```bash
-bun install
-```
-
-## Development
-
-```bash
-bun run dev        # Start dev server with hot reload (http://localhost:3000)
-bun run export     # Static HTML export (self-contained, no server needed)
-bun run lint       # Check code with Biome
-bun run lint:fix   # Auto-fix lint issues
-bun run test       # Run tests
-bun run build      # Production build to dist/
+pip install dagshund
+# or
+uvx dagshund --help
 ```
 
 ## Usage
 
-### Dev server (interactive)
+### Browser mode (default)
+
+Opens an interactive DAG visualization in the browser:
+
+```bash
+# From file
+dagshund plan.json
+
+# From stdin
+databricks bundle plan -o json | dagshund
+
+# Export to file instead of opening browser
+dagshund plan.json -o report.html
+cat plan.json | dagshund -o report.html
+```
+
+### Text mode
+
+Prints a colored diff summary to the terminal:
+
+```bash
+dagshund --text plan.json
+cat plan.json | dagshund -t
+```
+
+## Development
+
+### Prerequisites
+
+- [Bun](https://bun.com) v1.3.8+ (for JS/browser visualization development)
+- [uv](https://docs.astral.sh/uv/) (for Python package development)
+- [just](https://just.systems/) (task runner)
+
+### Setup
+
+```bash
+just install       # Install JS dependencies
+```
+
+### Commands
+
+```bash
+# JS (browser visualization)
+just dev           # Dev server with hot reload (http://localhost:3000)
+just build         # Production build
+just test-js       # Run JS tests
+just lint          # Biome lint check
+just typecheck     # TypeScript type-check
+just template      # Build template.html for Python package
+
+# Python
+uv run dagshund --version
+uv run pytest tests/ -v
+
+# Combined
+just test          # Run both JS and Python tests
+just check         # lint + typecheck + all tests
+```
+
+### Dev server
 
 Pipe a plan to the dev server for live exploration with hot reload:
 
 ```bash
-cat plan.json | bun run dev
+cd js && cat tests/fixtures/complex-plan.json | bun run dev
 ```
 
-Or start the server without a plan and upload one via the UI:
+Or start without a plan and upload via the UI:
 
 ```bash
-bun run dev
-```
-
-### Static HTML export
-
-Generate a single self-contained HTML file with all JS, CSS, and plan data inlined. Opens anywhere — no server needed.
-
-```bash
-# File input → save to disk (CI mode)
-bun src/cli.ts plan.json -o report.html
-
-# Stdin → save to disk
-cat plan.json | bun src/cli.ts -o report.html
-
-# File input → open in browser (writes to temp file)
-bun src/cli.ts plan.json
-
-# Via npm script
-bun run export -- plan.json -o report.html
-```
-
-### Production server
-
-```bash
-bun run build      # Build for production
-bun run start      # Serve production build
+just dev
 ```
 
 ## Structural Diff

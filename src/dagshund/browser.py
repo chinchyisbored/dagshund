@@ -16,7 +16,7 @@ def _find_template() -> Path:
     template_path = Path(__file__).parent / "_assets" / "template.html"
     if not template_path.exists():
         print(
-            "dagshund: template.html not found. Run 'make template' in the repo root first.",
+            "dagshund: template.html not found. Run 'just template' in the repo root first.",
             file=sys.stderr,
         )
         sys.exit(1)

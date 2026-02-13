@@ -2,33 +2,45 @@
 
 ## Project
 
-An interactive web-based visualizer for `databricks bundle plan -o json` output (direct deployment engine).
-Shows job task DAGs with diff highlighting: green for new resources, red with reduced opacity for deletions,
-and neutral for unchanged. Users can click on nodes to inspect the detailed changes for each resource.
+A Python CLI tool and interactive web visualizer for `databricks bundle plan -o json` output.
+Distributed via PyPI (`uvx dagshund`). Shows job task DAGs with diff highlighting: green for new
+resources, red with reduced opacity for deletions, and neutral for unchanged.
 
-The tool runs locally (`bun run dev`) and accepts plan JSON either via file upload or stdin pipe.
-It can also export a single self-contained HTML file (`bun run export`) for CI/CD artifacts or sharing — no server needed.
+Two output modes:
+- **Browser mode** (default): opens an interactive DAG visualization in the browser
+- **Text mode** (`--text`): prints a colored diff summary to the terminal
 
 ## Stack
 
-- TypeScript (strict mode)
-- React 19 + Bun
+- **Python** (>=3.10) — CLI, text rendering, zero runtime dependencies
+- **TypeScript** (strict mode) + React 19 + Bun — browser visualization (in `js/`)
 - React Flow (@xyflow/react) for interactive DAG rendering
 - ELK (elkjs) for automatic graph layout
 - Tailwind CSS for styling
 - Zod for runtime validation of plan JSON input
-- yaml for YAML plan input support
 
 ## Development Commands
 
 ```bash
-bun install        # Install dependencies
-bun run dev        # Start dev server with hot reload (http://localhost:3000)
-bun run export     # Static HTML export (self-contained, no server needed)
-bun run lint       # Check code with Biome (bun run lint:fix to auto-fix)
-bun run test       # Run tests (bun run test:watch for watch mode)
-bunx tsc --noEmit  # Type-check without emitting
-bun run build      # Production build to dist/
+# Python (from repo root)
+uv run dagshund --version              # Run the CLI
+uv run dagshund plan.json              # Open plan in browser
+uv run dagshund -t plan.json           # Text mode
+uv run dagshund plan.json -o out.html  # Export to file
+uv run pytest tests/ -v                # Run Python tests
+
+# JS (via just from repo root)
+just install       # bun install in js/
+just dev           # Start dev server with hot reload (http://localhost:3000)
+just build         # Production build to js/dist/
+just test-js       # Run JS tests
+just lint          # Biome lint check
+just typecheck     # TypeScript type-check
+just template      # Build template.html for Python package
+
+# Combined
+just test          # Run both JS and Python tests
+just check         # lint + typecheck + all tests
 ```
 
 ## Coding Philosophy — Read This First
@@ -79,22 +91,36 @@ These are non-negotiable:
 ## File Organization
 
 ```
-src/
-  index.ts         — Dev server entry point (Bun HTTP server, serves API + static files)
-  index.html       — HTML template for dev server and production build
-  frontend.tsx     — React frontend entry point (mounts App into DOM)
-  App.tsx          — Root React component
-  cli.ts           — CLI entry point for static HTML export
-  parser/          — Parse and validate databricks bundle plan JSON
-  graph/           — Transform parsed plan into DAG nodes and edges
-  components/      — React components (each in its own file)
-  types/           — Shared TypeScript types and Zod schemas
-  utils/           — Pure utility functions
-  hooks/           — Custom React hooks
-  styles/          — Tailwind config, any custom CSS
+pyproject.toml           — Python package definition
+justfile                 — Task runner (just install, just dev, just test, etc.)
+src/dagshund/            — Python source
+  __init__.py            — Package init + version
+  __main__.py            — python -m dagshund support
+  cli.py                 — CLI entry point, arg parsing
+  browser.py             — HTML template injection + browser opening
+  text.py                — Terminal text rendering
+  _assets/               — Built artifacts (template.html is gitignored)
+js/                      — TypeScript/React source (browser visualization)
+  package.json           — JS package definition
+  src/                   — TS/TSX source files
+    index.ts             — Dev server entry point
+    index.html           — HTML template for dev/build
+    frontend.tsx         — React entry point
+    App.tsx              — Root React component
+    cli.ts               — JS CLI for static HTML export
+    parser/              — Plan JSON parsing + Zod validation
+    graph/               — DAG graph construction
+    components/          — React components (each in its own file)
+    types/               — TypeScript types and Zod schemas
+    utils/               — Pure utility functions
+    hooks/               — Custom React hooks
+    styles/              — Tailwind CSS
+  tests/                 — JS test files + fixtures
+  scripts/               — Build scripts (build-template.ts)
+tests/                   — Python tests
 ```
 
-Each directory should have an `index.ts` barrel export. Keep files small and focused.
+Each JS directory should have an `index.ts` barrel export. Keep files small and focused.
 
 ## Naming Conventions
 

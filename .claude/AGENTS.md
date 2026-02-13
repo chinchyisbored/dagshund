@@ -87,7 +87,7 @@ Work is organized into epics (GitLab milestones). Each epic gets one branch and 
 ### Per issue within the epic
 1. `bd update <id> --status=in_progress`
 2. Implement the fix/feature
-3. Build + test (`bun run build`, `bun test`, `bunx tsc --noEmit`)
+3. Build + test (`just build`, `just test`, `just typecheck`)
 4. Run 3-pass review (see above)
 5. Present to human, get approval
 6. `git add <specific files>`
@@ -133,10 +133,8 @@ Work is organized into epics (GitLab milestones). Each epic gets one branch and 
 2. **File issues** for any loose threads or ideas discussed but not implemented
 3. **Run quality gates** (if code changed):
    ```bash
-   bun run lint       # Biome lint check
-   bun run test       # Run tests
-   bunx tsc --noEmit  # Type-check
-   bun run build      # Verify production build
+   just check         # lint + typecheck + all tests (JS + Python)
+   just build         # Verify production build
    ```
 4. **Commit all code** — `git add <files>` then `git commit` (separate commands, never combined)
 5. **Close beads + GitLab** — `bd close <id>` + `glab issue close <number>` for each finished issue
