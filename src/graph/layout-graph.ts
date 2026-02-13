@@ -143,10 +143,13 @@ export const buildElkCompoundGraph = (
   layoutOptions: {
     "elk.algorithm": "layered",
     "elk.direction": "RIGHT",
+    "elk.separateConnectedComponents": "false",
     "elk.spacing.nodeNode": "60",
     "elk.layered.spacing.nodeNodeBetweenLayers": "80",
+    "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+    "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
   },
-  children: groups.map((group) => {
+  children: [...groups].sort((a, b) => a.job.label.localeCompare(b.job.label)).map((group) => {
     const taskIds = new Set(group.tasks.map((t) => t.id));
     return {
       id: group.job.id,
