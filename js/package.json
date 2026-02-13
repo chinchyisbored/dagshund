@@ -17,7 +17,8 @@
     "lint": "biome check src/ tests/",
     "lint:fix": "biome check --write src/ tests/",
     "format": "biome format src/ tests/",
-    "format:fix": "biome format --write src/ tests/"
+    "format:fix": "biome format --write src/ tests/",
+    "build:template": "bun scripts/build-template.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.0",
