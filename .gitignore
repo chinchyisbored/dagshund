@@ -6,7 +6,7 @@ out
 dist
 
 # generated css
-src/styles/output.css
+js/src/styles/output.css
 *.tgz
 
 # code coverage
@@ -38,3 +38,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # beads lock file
 .beads/.jsonl.lock
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+
+# Built JS template (generated artifact)
+src/dagshund/_assets/template.html
