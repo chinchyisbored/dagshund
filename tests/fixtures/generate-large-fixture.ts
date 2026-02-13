@@ -82,7 +82,7 @@ const buildJob = (name: string, action: string, jobId: number, tasks: readonly T
 
   // Add remote_state for updates
   if (action === "update") {
-    entry.remote_state = {
+    entry["remote_state"] = {
       created_time: 1770407353832,
       creator_user_name: "databricks.squiggly592@passfwd.com",
       job_id: jobId,
@@ -136,7 +136,7 @@ const buildOrchestratorJob = (
   };
 
   if (action === "update") {
-    entry.remote_state = {
+    entry["remote_state"] = {
       created_time: 1770407353832,
       creator_user_name: "databricks.squiggly592@passfwd.com",
       job_id: jobId,
@@ -256,7 +256,7 @@ const totalJobs = Object.keys(plan).filter((k) => k.startsWith("resources.jobs."
 const totalTasks = Object.values(plan)
   .map((v) => {
     const entry = v as Record<string, unknown>;
-    const newState = entry.new_state as { value?: { tasks?: unknown[] } } | undefined;
+    const newState = entry["new_state"] as { value?: { tasks?: unknown[] } } | undefined;
     return newState?.value?.tasks?.length ?? 0;
   })
   .reduce((a, b) => a + b, 0);
