@@ -22,7 +22,10 @@ function DagView({ plan }: { readonly plan: Plan }) {
 
 function LoadingIndicator() {
   return (
-    <div className="flex h-full items-center justify-center text-ink-muted">Loading plan...</div>
+    <div className="flex h-full items-center justify-center gap-3 text-ink-muted">
+      <div className="h-3 w-3 animate-pulse rounded-full bg-ink-muted" />
+      <span>Loading plan…</span>
+    </div>
   );
 }
 
@@ -45,6 +48,10 @@ function ErrorMessage({ message }: { readonly message: string }) {
       <code className="max-w-lg rounded bg-code-bg px-3 py-1.5 text-sm text-danger">
         {message}
       </code>
+      <p className="max-w-lg text-center text-sm text-ink-muted">
+        Ensure your plan was generated with a compatible version of{" "}
+        <code className="rounded bg-code-bg px-1.5 py-0.5 text-xs">databricks bundle plan -o json</code>
+      </p>
     </div>
   );
 }
