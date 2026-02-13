@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
-import type { GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
+import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
 
@@ -95,8 +95,14 @@ const buildGroupNode = (id: string, label: string, external = false): GraphNode 
   external,
 });
 
+/** Map an entry's action to an edge diff state (added/removed only; modified → unchanged). */
+const toEdgeDiffState = (entry: PlanEntry): EdgeDiffState => {
+  const state = mapActionToDiffState(entry.action);
+  return state === "added" || state === "removed" ? state : "unchanged";
+};
+
 /** Build a unique edge, returning undefined if source === target. */
-const buildEdge = (source: string, target: string): GraphEdge | undefined =>
+const buildEdge = (source: string, target: string, diffState: GraphEdge["diffState"] = "unchanged"): GraphEdge | undefined =>
   source === target
     ? undefined
     : {
@@ -104,7 +110,7 @@ const buildEdge = (source: string, target: string): GraphEdge | undefined =>
         source,
         target,
         label: undefined,
-        diffState: "unchanged",
+        diffState,
       };
 
 /** Filter defined edges from buildEdge results. */
@@ -193,9 +199,10 @@ const buildUcGraph = (
       const resourceType = extractResourceType(key);
       const catalog = extractStateField(entry, "catalog_name");
       const catalogId = catalog !== undefined ? `catalog::${catalog}` : "uc-root";
+      const edgeDiff = toEdgeDiffState(entry);
 
       if (resourceType === "schemas" || resourceType === "catalogs") {
-        return buildEdge(catalogId, key);
+        return buildEdge(catalogId, key, edgeDiff);
       }
 
       const schemaName = extractStateField(entry, "schema_name");
@@ -204,11 +211,11 @@ const buildUcGraph = (
           ? schemaLookup.get(`${catalog}.${schemaName}`)
           : undefined;
 
-      if (schemaKey !== undefined) return buildEdge(schemaKey, key);
+      if (schemaKey !== undefined) return buildEdge(schemaKey, key, edgeDiff);
       if (schemaName !== undefined && catalog !== undefined) {
-        return buildEdge(`external::${catalog}.${schemaName}`, key);
+        return buildEdge(`external::${catalog}.${schemaName}`, key, edgeDiff);
       }
-      return buildEdge(catalogId, key);
+      return buildEdge(catalogId, key, edgeDiff);
     }),
   );
 
@@ -227,7 +234,7 @@ const buildWorkspaceGraph = (
   const root = buildGroupNode("workspace-root", "Workspace");
   const resourceNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
   const resourceEdges = filterDefinedEdges(
-    workspaceEntries.map(([key]) => buildEdge("workspace-root", key)),
+    workspaceEntries.map(([key, entry]) => buildEdge("workspace-root", key, toEdgeDiffState(entry))),
   );
 
   return {
@@ -242,7 +249,7 @@ const collectDependsOnEdges = (
 ): readonly GraphEdge[] =>
   filterDefinedEdges(
     entries.flatMap(([key, entry]) =>
-      (entry.depends_on ?? []).map((dep) => buildEdge(dep.node, key)),
+      (entry.depends_on ?? []).map((dep) => buildEdge(dep.node, key, toEdgeDiffState(entry))),
     ),
   );
 
