@@ -267,6 +267,10 @@ describe("buildResourceGraph", () => {
   test("real group nodes have external: false", () => {
     const graph = buildResourceGraph({
       plan: {
+        "resources.catalogs.dagshund": {
+          action: "update",
+          new_state: { value: { name: "dagshund" } },
+        },
         "resources.schemas.analytics": {
           action: "update",
           new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
@@ -278,6 +282,20 @@ describe("buildResourceGraph", () => {
     expect(ucRoot?.external).toBe(false);
     const catalog = graph.nodes.find((n) => n.id === "catalog::dagshund");
     expect(catalog?.external).toBe(false);
+  });
+
+  test("catalog group node is phantom when catalog is not a plan entry", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+      },
+    });
+
+    const catalog = graph.nodes.find((n) => n.id === "catalog::dagshund");
+    expect(catalog?.external).toBe(true);
   });
 
   test("resource nodes have external: false", () => {

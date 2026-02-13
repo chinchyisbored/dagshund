@@ -8,9 +8,9 @@ import type { DagNodeData } from "../types/graph-types.ts";
 type ResourceGroupNodeType = Node<DagNodeData, "resource-group">;
 
 /** Derive a type badge for virtual group nodes from their ID convention. */
-const extractGroupBadge = (resourceKey: string, isExternal: boolean): string | undefined => {
-  if (isExternal) return "schema";
+const extractGroupBadge = (resourceKey: string): string | undefined => {
   if (resourceKey.startsWith("catalog::")) return "catalog";
+  if (resourceKey.startsWith("external::")) return "schema";
   return undefined;
 };
 
@@ -18,7 +18,7 @@ export const ResourceGroupNode = memo(function ResourceGroupNode({ id, data }: N
   const { isDimmed, dimOpacity, isHovered, isSelected, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
 
   const isExternal = data.external;
-  const groupBadge = extractGroupBadge(data.resourceKey, isExternal);
+  const groupBadge = extractGroupBadge(data.resourceKey);
   const diffBadge = getDiffBadge(data.diffState);
   const borderStyleOverride = isExternal ? "border-dashed" : styles.borderStyle;
 

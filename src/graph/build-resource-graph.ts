@@ -134,6 +134,19 @@ const buildSchemaLookup = (
       }),
   );
 
+/** Build a set of catalog names that are actual plan entries (not just referenced). */
+const buildCatalogLookup = (
+  ucEntries: readonly (readonly [string, PlanEntry])[],
+): ReadonlySet<string> =>
+  new Set(
+    ucEntries
+      .filter(([key]) => extractResourceType(key) === "catalogs")
+      .flatMap(([, entry]) => {
+        const name = extractStateField(entry, "name");
+        return name !== undefined ? [name] : [];
+      }),
+  );
+
 /** Build phantom schema nodes for UC resources whose schema is not in the plan. */
 const buildPhantomSchemaNodes = (
   ucEntries: readonly (readonly [string, PlanEntry])[],
@@ -168,6 +181,7 @@ const buildPhantomSchemaNodes = (
 const buildUcGraph = (
   ucEntries: readonly (readonly [string, PlanEntry])[],
   schemaLookup: ReadonlyMap<string, string>,
+  catalogLookup: ReadonlySet<string>,
 ): PlanGraph => {
   if (ucEntries.length === 0) return { nodes: [], edges: [] };
 
@@ -182,7 +196,9 @@ const buildUcGraph = (
       }),
     ),
   ];
-  const catalogNodes = catalogNames.map((name) => buildGroupNode(`catalog::${name}`, name));
+  const catalogNodes = catalogNames.map((name) =>
+    buildGroupNode(`catalog::${name}`, name, !catalogLookup.has(name)),
+  );
   const catalogEdges = filterDefinedEdges(
     catalogNames.map((name) => buildEdge("uc-root", `catalog::${name}`)),
   );
@@ -279,7 +295,8 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
   });
 
   const schemaLookup = buildSchemaLookup(ucEntries);
-  const ucGraph = buildUcGraph(ucEntries, schemaLookup);
+  const catalogLookup = buildCatalogLookup(ucEntries);
+  const ucGraph = buildUcGraph(ucEntries, schemaLookup, catalogLookup);
   const workspaceGraph = buildWorkspaceGraph(workspaceEntries);
   const dependsOnEdges = collectDependsOnEdges(entries);
 
