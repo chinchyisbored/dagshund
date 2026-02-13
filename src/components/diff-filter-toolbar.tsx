@@ -50,7 +50,7 @@ export function DiffFilterToolbar({ activeFilter, onFilterChange, diffStateCount
             aria-pressed={isActive}
             disabled={isDisabled}
             onClick={() => onFilterChange(isActive ? null : button.state)}
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+            className={`rounded-md border bg-surface-raised px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
               isDisabled
                 ? "cursor-default border-outline text-ink-muted opacity-40"
                 : isActive

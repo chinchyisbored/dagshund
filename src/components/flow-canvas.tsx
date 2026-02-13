@@ -215,10 +215,10 @@ export function FlowCanvas({ layoutState, nodeTypes }: FlowCanvasProps) {
           onPaneClick={handleClosePanel}
           onInit={handleInit}
         >
-          <Panel position="top-left">
+          <Panel position="top-left" className="z-10">
             <DiffFilterToolbar activeFilter={filterDiffState} onFilterChange={setFilterDiffState} diffStateCounts={diffStateCounts} />
           </Panel>
-          <Panel position="bottom-right">
+          <Panel position="bottom-right" className="z-10">
             <button
               type="button"
               onClick={handleFitView}
