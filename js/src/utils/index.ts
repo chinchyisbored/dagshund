@@ -1,5 +1,6 @@
 export type { ValueFormat } from "./format-value.ts";
 export { formatValue } from "./format-value.ts";
+export { tryOpenBrowser } from "./open-browser.ts";
 export { extractResourceName } from "./resource-key.ts";
 export {
   computeStructuralDiff,

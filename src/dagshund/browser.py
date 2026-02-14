@@ -35,7 +35,10 @@ def _validate_plan_json(raw: str) -> dict:
 
 
 def _escape_for_script_tag(content: str) -> str:
-    """Escape content that will be placed inside a <script> tag."""
+    """Escape content that will be placed inside a <script> tag.
+
+    Keep in sync with escapeForScriptTag() in js/src/html-assembler.ts.
+    """
     return content.replace("</script", r"<\/script").replace("<!--", r"<\!--")
 
 
