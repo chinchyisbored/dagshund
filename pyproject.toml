@@ -67,6 +67,9 @@ ignore = [
     "TC006", # runtime cast as string
 ]
 
+[tool.ty.rules]
+all = "error"
+
 [tool.pytest.ini_options]
 cache_dir = "./.cache/pytest"
 pythonpath = ["src"]
