@@ -19,7 +19,7 @@
   --danger: #f52a65;
   --danger-soft: rgba(245, 42, 101, 0.08);
   --diff-added: #587539;
-  --diff-added-soft: rgba(88, 117, 57, 0.16);
+  --diff-added-soft: rgba(88, 117, 57, 0.24);
   --diff-removed: #f52a65;
   --diff-removed-soft: rgba(245, 42, 101, 0.16);
   --diff-modified: #8c6c3e;
