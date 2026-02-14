@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from dagshund import DagshundError
+from dagshund.browser import _inject_plan
 from dagshund.cli import read_plan
 from dagshund.text import render_text
 
@@ -89,6 +90,12 @@ def test_render_text_raises_on_non_object():
     """render_text raises DagshundError when JSON is not an object."""
     with pytest.raises(DagshundError, match="must be an object"):
         render_text("[1, 2, 3]")
+
+
+def test_inject_plan_raises_on_missing_placeholder():
+    """_inject_plan raises DagshundError when placeholder is absent."""
+    with pytest.raises(DagshundError, match="placeholder"):
+        _inject_plan("<html>no placeholder here</html>", {"key": "value"})
 
 
 def test_browser_mode_file_output():

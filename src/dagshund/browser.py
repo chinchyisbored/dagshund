@@ -42,6 +42,10 @@ def _escape_for_script_tag(content: str) -> str:
 
 def _inject_plan(template: str, plan_data: dict) -> str:
     """Replace the placeholder in template HTML with actual plan JSON."""
+    if PLACEHOLDER not in template:
+        raise DagshundError(
+            f"placeholder {PLACEHOLDER} not found in template — template may be outdated, rebuild with 'just template'"
+        )
     safe_json = _escape_for_script_tag(json.dumps(plan_data, separators=(",", ":")))
     return template.replace(PLACEHOLDER, safe_json)
 
