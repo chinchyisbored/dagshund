@@ -3,6 +3,7 @@ type Tab = "jobs" | "resources";
 type TabBarProps = {
   readonly activeTab: Tab;
   readonly onTabChange: (tab: Tab) => void;
+  readonly counts: Readonly<Record<Tab, number>>;
 };
 
 type TabConfig = {
@@ -15,7 +16,7 @@ const TABS: readonly TabConfig[] = [
   { id: "jobs", label: "Jobs" },
 ];
 
-export function TabBar({ activeTab, onTabChange }: TabBarProps) {
+export function TabBar({ activeTab, onTabChange, counts }: TabBarProps) {
   return (
     <div className="flex border-b border-outline">
       {TABS.map((tab) => {
@@ -32,6 +33,7 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
             }`}
           >
             {tab.label}
+            <span className="ml-1.5 text-xs text-ink-muted">({counts[tab.id]})</span>
           </button>
         );
       })}

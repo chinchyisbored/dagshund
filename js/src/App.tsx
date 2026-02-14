@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
@@ -12,6 +12,20 @@ import { JobNavigationContext } from "./hooks/use-job-navigation.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
+
+/** Count plan entries by tab: jobs vs resources. */
+const countByTab = (plan: Plan): Readonly<Record<"jobs" | "resources", number>> => {
+  let jobs = 0;
+  let resources = 0;
+  for (const key of Object.keys(plan.plan ?? {})) {
+    if (key.startsWith("resources.jobs.")) {
+      jobs++;
+    } else {
+      resources++;
+    }
+  }
+  return { jobs, resources };
+};
 
 const NODE_TYPES = { job: JobNode, task: TaskNode };
 
@@ -72,6 +86,7 @@ function ErrorMessage({ message }: { readonly message: string }) {
 function PlanView({ plan }: { readonly plan: Plan }) {
   const [activeTab, setActiveTab] = useState<"jobs" | "resources">("resources");
   const [focusJobId, setFocusJobId] = useState<string | null>(null);
+  const tabCounts = useMemo(() => countByTab(plan), [plan]);
 
   const handleNavigateToJob = useCallback((jobResourceKey: string) => {
     setActiveTab("jobs");
@@ -84,7 +99,7 @@ function PlanView({ plan }: { readonly plan: Plan }) {
 
   return (
     <div className="flex h-full flex-col">
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} counts={tabCounts} />
       <div className="min-h-0 flex-1">
         <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
           <DagView plan={plan} focusNodeId={focusJobId} onFocusComplete={handleFocusComplete} />
