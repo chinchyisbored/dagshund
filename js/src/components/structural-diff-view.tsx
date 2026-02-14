@@ -140,15 +140,11 @@ function ArrayDiffView({ diff }: { readonly diff: ArrayDiff }) {
         const style = ELEMENT_STATUS_STYLES[element.status];
         const bg = ELEMENT_BACKGROUND[element.status];
         const formatted = formatValue(element.value, format);
-        const suffix =
-          element.identityLabel !== undefined && element.status !== "unchanged"
-            ? ` (${element.identityLabel})`
-            : "";
         return (
           <div key={element.identityLabel ?? index} className={`rounded px-2 py-0.5 ${bg}`}>
             <PrefixedBlock
               prefix={`${style.prefix} `}
-              text={`${formatted}${suffix}`}
+              text={formatted}
               className={style.className}
             />
           </div>
