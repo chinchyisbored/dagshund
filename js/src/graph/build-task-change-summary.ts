@@ -50,7 +50,8 @@ export const buildTaskChangeSummary = (
   resourceAction: ActionType | undefined,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
 ): TaskChangeSummary | undefined => {
-  const resourceDiff = resourceAction === "create" ? "added" : resourceAction === "delete" ? "removed" : undefined;
+  const resourceDiff =
+    resourceAction === "create" ? "added" : resourceAction === "delete" ? "removed" : undefined;
   if (resourceDiff === "added" || resourceDiff === "removed") return undefined;
 
   const allKeys = collectAllTaskKeys(tasks, changes);

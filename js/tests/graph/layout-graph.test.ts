@@ -180,7 +180,10 @@ describe("topologicalSortTasks", () => {
 describe("buildElkCompoundGraph", () => {
   test("creates hierarchical ELK graph with jobs containing task children", async () => {
     const { buildElkCompoundGraph, groupNodesByJob } = await loadModule();
-    const elkGraph = buildElkCompoundGraph(groupNodesByJob(SINGLE_JOB_GRAPH.nodes), SINGLE_JOB_GRAPH.edges);
+    const elkGraph = buildElkCompoundGraph(
+      groupNodesByJob(SINGLE_JOB_GRAPH.nodes),
+      SINGLE_JOB_GRAPH.edges,
+    );
 
     expect(elkGraph.id).toBe("root");
     expect(elkGraph.children).toHaveLength(1);
@@ -195,7 +198,10 @@ describe("buildElkCompoundGraph", () => {
 
   test("nests edges inside their parent job container", async () => {
     const { buildElkCompoundGraph, groupNodesByJob } = await loadModule();
-    const elkGraph = buildElkCompoundGraph(groupNodesByJob(SINGLE_JOB_GRAPH.nodes), SINGLE_JOB_GRAPH.edges);
+    const elkGraph = buildElkCompoundGraph(
+      groupNodesByJob(SINGLE_JOB_GRAPH.nodes),
+      SINGLE_JOB_GRAPH.edges,
+    );
 
     const jobElk = elkGraph.children[0];
     expect(jobElk.edges).toHaveLength(1);
@@ -208,7 +214,10 @@ describe("buildElkCompoundGraph", () => {
 
   test("sets LEFT-to-RIGHT direction on job containers", async () => {
     const { buildElkCompoundGraph, groupNodesByJob } = await loadModule();
-    const elkGraph = buildElkCompoundGraph(groupNodesByJob(SINGLE_JOB_GRAPH.nodes), SINGLE_JOB_GRAPH.edges);
+    const elkGraph = buildElkCompoundGraph(
+      groupNodesByJob(SINGLE_JOB_GRAPH.nodes),
+      SINGLE_JOB_GRAPH.edges,
+    );
 
     expect(elkGraph.children[0].layoutOptions["elk.direction"]).toBe("RIGHT");
   });
@@ -340,9 +349,21 @@ describe("toFlowEdges", () => {
       { id: "e3", source: "e", target: "f", label: undefined, diffState: "unchanged" },
     ]);
 
-    expect(edges[0].style).toEqual({ stroke: "var(--edge-added)", opacity: 1, strokeDasharray: undefined });
-    expect(edges[1].style).toEqual({ stroke: "var(--edge-removed)", opacity: 1, strokeDasharray: "6 4" });
-    expect(edges[2].style).toEqual({ stroke: "var(--edge-unchanged)", opacity: 1, strokeDasharray: undefined });
+    expect(edges[0].style).toEqual({
+      stroke: "var(--edge-added)",
+      opacity: 1,
+      strokeDasharray: undefined,
+    });
+    expect(edges[1].style).toEqual({
+      stroke: "var(--edge-removed)",
+      opacity: 1,
+      strokeDasharray: "6 4",
+    });
+    expect(edges[2].style).toEqual({
+      stroke: "var(--edge-unchanged)",
+      opacity: 1,
+      strokeDasharray: undefined,
+    });
   });
 });
 

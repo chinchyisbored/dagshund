@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
+import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
-import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { ValueFormat } from "../../utils/format-value.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { FormatToggle, NEXT_FORMAT } from "./format-toggle.tsx";
@@ -42,7 +42,10 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
 
   return (
     <ValueFormatContext.Provider value={valueFormat}>
-      <div className="flex h-full shrink-0 flex-col border-l border-outline bg-surface-raised" style={{ width }}>
+      <div
+        className="flex h-full shrink-0 flex-col border-l border-outline bg-surface-raised"
+        style={{ width }}
+      >
         <div className="flex items-center justify-between border-b border-outline-subtle px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="truncate text-sm font-semibold text-ink">{data.label}</h2>

@@ -160,6 +160,7 @@ describe("extractTaskState", () => {
         ],
       },
     });
+    // biome-ignore lint/style/noNonNullAssertion: test array has exactly one element
     const state = extractTaskState(tasks[0]!);
     expect(state).toHaveProperty("task_key", "extract");
     expect(state).toHaveProperty("notebook_task");

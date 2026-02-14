@@ -2,9 +2,7 @@ import { useState } from "react";
 import type { DagNodeData } from "../../types/graph-types.ts";
 
 /** Build the raw data object for the disclosure section. */
-const buildRawData = (
-  data: DagNodeData,
-): Readonly<Record<string, unknown>> | undefined => {
+const buildRawData = (data: DagNodeData): Readonly<Record<string, unknown>> | undefined => {
   const parts: Record<string, unknown> = {};
   if (data.resourceState !== undefined) parts["resourceState"] = data.resourceState;
   if (data.changes !== undefined) parts["changes"] = data.changes;

@@ -141,10 +141,7 @@
               "python_wheel_task": {
                 "entry_point": "compute_statistics",
                 "package_name": "quality_metrics",
-                "parameters": [
-                  "--output",
-                  "/dbfs/quality/stats"
-                ]
+                "parameters": ["--output", "/dbfs/quality/stats"]
               },
               "task_key": "compute_statistics"
             },
@@ -259,10 +256,7 @@
               "python_wheel_task": {
                 "entry_point": "compute_statistics",
                 "package_name": "quality_metrics",
-                "parameters": [
-                  "--output",
-                  "/dbfs/quality/stats"
-                ]
+                "parameters": ["--output", "/dbfs/quality/stats"]
               },
               "run_if": "ALL_SUCCESS",
               "task_key": "compute_statistics",

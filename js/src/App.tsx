@@ -23,7 +23,14 @@ type DagViewProps = {
 
 function DagView({ plan, focusNodeId, onFocusComplete }: DagViewProps) {
   const layoutState = usePlanGraph(plan);
-  return <FlowCanvas layoutState={layoutState} nodeTypes={NODE_TYPES} focusNodeId={focusNodeId} onFocusComplete={onFocusComplete} />;
+  return (
+    <FlowCanvas
+      layoutState={layoutState}
+      nodeTypes={NODE_TYPES}
+      focusNodeId={focusNodeId}
+      onFocusComplete={onFocusComplete}
+    />
+  );
 }
 
 function LoadingIndicator() {
@@ -51,12 +58,12 @@ function ErrorMessage({ message }: { readonly message: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 text-danger">
       <p className="text-lg">Failed to load plan</p>
-      <code className="max-w-lg rounded bg-code-bg px-3 py-1.5 text-sm text-danger">
-        {message}
-      </code>
+      <code className="max-w-lg rounded bg-code-bg px-3 py-1.5 text-sm text-danger">{message}</code>
       <p className="max-w-lg text-center text-sm text-ink-muted">
         Ensure your plan was generated with a compatible version of{" "}
-        <code className="rounded bg-code-bg px-1.5 py-0.5 text-xs">databricks bundle plan -o json</code>
+        <code className="rounded bg-code-bg px-1.5 py-0.5 text-xs">
+          databricks bundle plan -o json
+        </code>
       </p>
     </div>
   );

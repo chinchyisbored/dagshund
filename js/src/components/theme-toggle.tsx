@@ -13,6 +13,7 @@ const SunIcon = () => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
   >
     <circle cx="12" cy="12" r="5" />
     <line x1="12" y1="1" x2="12" y2="3" />
@@ -38,6 +39,7 @@ const MoonIcon = () => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
   >
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
   </svg>
@@ -55,6 +57,7 @@ const ContrastIcon = () => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
   >
     <circle cx="12" cy="12" r="10" />
     <path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor" />
@@ -97,9 +100,7 @@ export function ThemeToggle() {
         type="button"
         onClick={handleThemeClick}
         className="rounded-md p-1.5 text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        aria-label={
-          resolved === "light" ? "Switch to dark mode" : "Switch to light mode"
-        }
+        aria-label={resolved === "light" ? "Switch to dark mode" : "Switch to light mode"}
       >
         {resolved === "light" ? <MoonIcon /> : <SunIcon />}
       </button>

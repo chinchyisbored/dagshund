@@ -72,10 +72,12 @@ export function PrefixedBlock({
         const subLines = wrapLine(line, contentMax);
         return subLines.map((sub, j) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: wrapped lines have no stable ID
             key={`${i}-${j}`}
             className={`whitespace-pre-wrap break-words font-mono text-xs ${className}`}
           >
-            {prefix}{sub}
+            {prefix}
+            {sub}
           </div>
         ));
       })}
@@ -99,7 +101,11 @@ function ScalarDiffView({ diff }: { readonly diff: ScalarDiff }) {
   return (
     <>
       <div className="mb-1 rounded bg-diff-removed-soft px-2 py-1">
-        <PrefixedBlock prefix="- " text={formatValue(diff.old, format)} className="text-diff-removed" />
+        <PrefixedBlock
+          prefix="- "
+          text={formatValue(diff.old, format)}
+          className="text-diff-removed"
+        />
       </div>
       <div className="rounded bg-diff-added-soft px-2 py-1">
         <PrefixedBlock
@@ -152,14 +158,13 @@ function ArrayDiffView({ diff }: { readonly diff: ArrayDiff }) {
   );
 }
 
-const ENTRY_STATUS_STYLES: Readonly<
-  Record<ObjectEntry["status"], { readonly className: string }>
-> = {
-  added: { className: "text-diff-added" },
-  removed: { className: "text-diff-removed" },
-  modified: { className: "text-diff-modified" },
-  unchanged: { className: "text-ink-muted" },
-};
+const ENTRY_STATUS_STYLES: Readonly<Record<ObjectEntry["status"], { readonly className: string }>> =
+  {
+    added: { className: "text-diff-added" },
+    removed: { className: "text-diff-removed" },
+    modified: { className: "text-diff-modified" },
+    unchanged: { className: "text-ink-muted" },
+  };
 
 const ENTRY_BACKGROUND: Readonly<Record<ObjectEntry["status"], string>> = {
   added: "bg-diff-added-soft",

@@ -109,7 +109,11 @@ describe("buildTaskChangeSummary", () => {
     const changes: Record<string, ChangeDesc> = {
       "tasks[task_key='new_step']": makeChange("create", undefined, { task_key: "new_step" }),
       "tasks[task_key='transform'].notebook_task": makeChange("update", "/old", "/new"),
-      "tasks[task_key='removed_step']": makeChange("delete", { task_key: "removed_step" }, undefined),
+      "tasks[task_key='removed_step']": makeChange(
+        "delete",
+        { task_key: "removed_step" },
+        undefined,
+      ),
     };
     const result = buildTaskChangeSummary(tasks, "update", changes);
     expect(result).toHaveLength(3);

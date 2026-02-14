@@ -14,19 +14,22 @@ const FILTER_BUTTONS: readonly FilterButton[] = [
     state: "added",
     label: "Added",
     activeClasses: "bg-diff-added-soft border-diff-added text-diff-added",
-    inactiveClasses: "border-outline text-ink-muted hover:border-diff-added/50 hover:text-diff-added",
+    inactiveClasses:
+      "border-outline text-ink-muted hover:border-diff-added/50 hover:text-diff-added",
   },
   {
     state: "modified",
     label: "Modified",
     activeClasses: "bg-diff-modified-soft border-diff-modified text-diff-modified",
-    inactiveClasses: "border-outline text-ink-muted hover:border-diff-modified/50 hover:text-diff-modified",
+    inactiveClasses:
+      "border-outline text-ink-muted hover:border-diff-modified/50 hover:text-diff-modified",
   },
   {
     state: "removed",
     label: "Removed",
     activeClasses: "bg-diff-removed-soft border-diff-removed text-diff-removed",
-    inactiveClasses: "border-outline text-ink-muted hover:border-diff-removed/50 hover:text-diff-removed",
+    inactiveClasses:
+      "border-outline text-ink-muted hover:border-diff-removed/50 hover:text-diff-removed",
   },
 ];
 
@@ -36,7 +39,11 @@ type DiffFilterToolbarProps = {
   readonly diffStateCounts: Readonly<Record<FilterableDiffState, number>>;
 };
 
-export function DiffFilterToolbar({ activeFilter, onFilterChange, diffStateCounts }: DiffFilterToolbarProps) {
+export function DiffFilterToolbar({
+  activeFilter,
+  onFilterChange,
+  diffStateCounts,
+}: DiffFilterToolbarProps) {
   return (
     <div className="flex gap-1.5">
       {FILTER_BUTTONS.map((button) => {

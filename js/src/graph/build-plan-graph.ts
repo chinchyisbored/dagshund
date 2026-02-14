@@ -2,9 +2,9 @@ import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
+import { extractResourceName } from "../utils/resource-key.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { isJobEntry } from "./build-resource-graph.ts";
-import { extractResourceName } from "../utils/resource-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
   extractDeletedTaskEntries,
@@ -254,9 +254,7 @@ const buildRunJobEdges = (
       const jobId = task.run_job_task?.job_id;
       if (jobId === undefined) return [];
       const targetResourceKey =
-        typeof jobId === "string"
-          ? parseResourceReference(jobId)
-          : jobIdMap.get(jobId);
+        typeof jobId === "string" ? parseResourceReference(jobId) : jobIdMap.get(jobId);
       if (targetResourceKey === undefined) return [];
       const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
       const diffState = toEdgeDiffState(

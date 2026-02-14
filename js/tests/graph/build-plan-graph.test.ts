@@ -228,7 +228,14 @@ describe("buildPlanGraph", () => {
         (n) => n.nodeKind === "task" && n.resourceKey === "resources.jobs.etl_pipeline",
       );
       const taskKeys = etlTaskNodes.map((n) => n.taskKey).sort();
-      expect(taskKeys).toEqual(["aggregate", "extract", "load", "transform", "trigger_quality_check", "validate"]);
+      expect(taskKeys).toEqual([
+        "aggregate",
+        "extract",
+        "load",
+        "transform",
+        "trigger_quality_check",
+        "validate",
+      ]);
     });
 
     test("creates cross-job edge from trigger_quality_check to data_quality_pipeline via numeric job_id", async () => {

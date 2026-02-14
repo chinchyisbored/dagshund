@@ -24,11 +24,7 @@ export function StateFieldRow({
   return (
     <div className="rounded border border-outline-subtle bg-surface-raised/30 px-3 py-2">
       <PrefixedBlock prefix={`${style.prefix} `} text={fieldKey} className={style.text} />
-      <PrefixedBlock
-        prefix={`${style.prefix}   `}
-        text={formatted}
-        className={style.text}
-      />
+      <PrefixedBlock prefix={`${style.prefix}   `} text={formatted} className={style.text} />
     </div>
   );
 }

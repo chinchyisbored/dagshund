@@ -7,22 +7,14 @@ const STORAGE_KEY = "dagshund-theme";
 
 const readPreference = (): ThemePreference => {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (
-    stored === "light" ||
-    stored === "dark" ||
-    stored === "high-contrast" ||
-    stored === "system"
-  )
+  if (stored === "light" || stored === "dark" || stored === "high-contrast" || stored === "system")
     return stored;
   return "system";
 };
 
 const resolveSystemTheme = (): ResolvedTheme => {
-  if (window.matchMedia("(prefers-contrast: more)").matches)
-    return "high-contrast";
-  return window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
+  if (window.matchMedia("(prefers-contrast: more)").matches) return "high-contrast";
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 };
 
 const applyToDom = (resolved: ResolvedTheme): void => {
@@ -36,10 +28,8 @@ export const useTheme = (): {
   readonly resolved: ResolvedTheme;
   readonly setPreference: (next: ThemePreference) => void;
 } => {
-  const [preference, setPreferenceState] =
-    useState<ThemePreference>(readPreference);
-  const [systemTheme, setSystemTheme] =
-    useState<ResolvedTheme>(resolveSystemTheme);
+  const [preference, setPreferenceState] = useState<ThemePreference>(readPreference);
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(resolveSystemTheme);
 
   const resolved = useMemo<ResolvedTheme>(
     () => (preference === "system" ? systemTheme : preference),

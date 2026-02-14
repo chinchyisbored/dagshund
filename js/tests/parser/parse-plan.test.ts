@@ -61,7 +61,6 @@ describe("parsePlanJson", () => {
       expect(entry?.depends_on?.[0]?.label).toBe("cluster");
       expect(entry?.depends_on?.[1]?.label).toBeUndefined();
       expect(entry?.action).toBe("create");
-      // biome-ignore lint/complexity/useLiteralKeys: TypeScript noPropertyAccessFromIndexSignature requires bracket notation
       expect(entry?.changes?.["name"]?.action).toBe("create");
     }
   });

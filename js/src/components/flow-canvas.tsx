@@ -9,14 +9,13 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { DetailPanel } from "./detail-panel/index.ts";
-import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { HoverContext } from "../hooks/use-hover-context.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
+import { DetailPanel } from "./detail-panel/index.ts";
+import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 
 type FlowCanvasProps = {
   readonly layoutState: GraphLayoutState;
@@ -51,7 +50,12 @@ const buildConnectedNodeIds = (
   return connected;
 };
 
-export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplete }: FlowCanvasProps) {
+export function FlowCanvas({
+  layoutState,
+  nodeTypes,
+  focusNodeId,
+  onFocusComplete,
+}: FlowCanvasProps) {
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -144,12 +148,18 @@ export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplet
   }, [baseNodes]);
 
   const connectedIds = useMemo(
-    () => (hoveredNodeId !== null ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, hoveredNodeId) : null),
+    () =>
+      hoveredNodeId !== null
+        ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, hoveredNodeId)
+        : null,
     [baseNodes, baseEdges, hoveredNodeId],
   );
 
   const selectedConnectedIds = useMemo(
-    () => (selectedNodeId !== null ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, selectedNodeId) : null),
+    () =>
+      selectedNodeId !== null
+        ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, selectedNodeId)
+        : null,
     [baseNodes, baseEdges, selectedNodeId],
   );
 
@@ -171,14 +181,13 @@ export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplet
   );
 
   const styledEdges = useMemo((): readonly Edge[] => {
-    if (connectedIds === null && selectedConnectedIds === null && filterMatchedIds === null) return baseEdges as Edge[];
+    if (connectedIds === null && selectedConnectedIds === null && filterMatchedIds === null)
+      return baseEdges as Edge[];
     return baseEdges.map((edge) => {
       const baseStyle = edge.style ?? {};
       if (connectedIds !== null) {
-        const isDirectlyConnected =
-          edge.source === hoveredNodeId || edge.target === hoveredNodeId;
-        const isBetweenConnected =
-          connectedIds.has(edge.source) && connectedIds.has(edge.target);
+        const isDirectlyConnected = edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+        const isBetweenConnected = connectedIds.has(edge.source) && connectedIds.has(edge.target);
         return isDirectlyConnected
           ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
           : isBetweenConnected
@@ -186,8 +195,7 @@ export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplet
             : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
       }
       if (filterMatchedIds !== null) {
-        const isRelevant =
-          filterMatchedIds.has(edge.source) || filterMatchedIds.has(edge.target);
+        const isRelevant = filterMatchedIds.has(edge.source) || filterMatchedIds.has(edge.target);
         return isRelevant
           ? { ...edge, style: baseStyle }
           : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
@@ -205,7 +213,14 @@ export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplet
       }
       return { ...edge, style: baseStyle };
     });
-  }, [baseEdges, connectedIds, selectedConnectedIds, filterMatchedIds, hoveredNodeId, selectedNodeId]);
+  }, [
+    baseEdges,
+    connectedIds,
+    selectedConnectedIds,
+    filterMatchedIds,
+    hoveredNodeId,
+    selectedNodeId,
+  ]);
 
   if (layoutState.status === "error") {
     return (
@@ -233,7 +248,11 @@ export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplet
           onInit={handleInit}
         >
           <Panel position="top-left" className="z-10">
-            <DiffFilterToolbar activeFilter={filterDiffState} onFilterChange={setFilterDiffState} diffStateCounts={diffStateCounts} />
+            <DiffFilterToolbar
+              activeFilter={filterDiffState}
+              onFilterChange={setFilterDiffState}
+              diffStateCounts={diffStateCounts}
+            />
           </Panel>
           <Panel position="bottom-right" className="z-10">
             <button
@@ -243,7 +262,18 @@ export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplet
               aria-label="Fit view"
               title="Reset view"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
               </svg>
             </button>
@@ -256,13 +286,24 @@ export function FlowCanvas({ layoutState, nodeTypes, focusNodeId, onFocusComplet
             className="flex w-2 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-accent/40"
             onPointerDown={handleResizePointerDown}
           >
-            <svg width="4" height="16" viewBox="0 0 4 16" className="text-ink-muted/50">
+            <svg
+              width="4"
+              height="16"
+              viewBox="0 0 4 16"
+              className="text-ink-muted/50"
+              aria-hidden="true"
+            >
               <circle cx="2" cy="3" r="1" fill="currentColor" />
               <circle cx="2" cy="8" r="1" fill="currentColor" />
               <circle cx="2" cy="13" r="1" fill="currentColor" />
             </svg>
           </div>
-          <DetailPanel key={selectedNode.resourceKey} data={selectedNode} onClose={handleClosePanel} width={panelWidth} />
+          <DetailPanel
+            key={selectedNode.resourceKey}
+            data={selectedNode}
+            onClose={handleClosePanel}
+            width={panelWidth}
+          />
         </>
       )}
     </div>

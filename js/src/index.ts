@@ -45,10 +45,7 @@ const tryOpenBrowser = async (url: string): Promise<void> => {
   }
 };
 
-const ALLOWED_HOSTS: ReadonlySet<string> = new Set([
-  "localhost",
-  "127.0.0.1",
-]);
+const ALLOWED_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
 
 /** Reject requests with a Host header that doesn't match localhost to mitigate DNS rebinding. */
 const isAllowedHost = (request: Request): boolean => {
@@ -65,8 +62,7 @@ const plan = await readStdinPlan();
 const server = serve({
   hostname: "127.0.0.1",
   routes: {
-    "/api/plan": (request) =>
-      isAllowedHost(request) ? Response.json(plan) : FORBIDDEN_RESPONSE(),
+    "/api/plan": (request) => (isAllowedHost(request) ? Response.json(plan) : FORBIDDEN_RESPONSE()),
     "/*": index,
   },
 

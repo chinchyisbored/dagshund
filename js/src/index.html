@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dagshund</title>
     <script>
-      (function() {
+      (() => {
         var t = localStorage.getItem('dagshund-theme');
         if (t === 'high-contrast') { document.documentElement.classList.add('high-contrast'); return; }
         if (t === 'light' || (!t && window.matchMedia('(prefers-color-scheme: light)').matches)) return;
@@ -18,8 +18,8 @@
     <script>
       // Suppress React Flow's benign ResizeObserver "loop completed" warning.
       // Must run before the dev server's error overlay registers its handler.
-      window.addEventListener("error", function (e) {
-        if (e.message && e.message.startsWith("ResizeObserver loop")) {
+      window.addEventListener("error", (e) => {
+        if (e.message?.startsWith("ResizeObserver loop")) {
           e.stopImmediatePropagation();
         }
       });

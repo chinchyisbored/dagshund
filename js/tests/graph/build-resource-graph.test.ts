@@ -426,9 +426,7 @@ describe("buildResourceGraph", () => {
       const graph = buildResourceGraph(plan);
 
       // Phantom schema node should exist for dagshund_no_dabs
-      const phantom = graph.nodes.find(
-        (n) => n.id === "external::dagshund.dagshund_no_dabs",
-      );
+      const phantom = graph.nodes.find((n) => n.id === "external::dagshund.dagshund_no_dabs");
       expect(phantom).toBeDefined();
       expect(phantom?.external).toBe(true);
       expect(phantom?.label).toBe("dagshund_no_dabs");
@@ -436,9 +434,7 @@ describe("buildResourceGraph", () => {
 
       // Edge chain: catalog → phantom → volume
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-      expect(edgePairs).toContain(
-        "catalog::dagshund→external::dagshund.dagshund_no_dabs",
-      );
+      expect(edgePairs).toContain("catalog::dagshund→external::dagshund.dagshund_no_dabs");
       expect(edgePairs).toContain(
         "external::dagshund.dagshund_no_dabs→resources.volumes.external_imports",
       );

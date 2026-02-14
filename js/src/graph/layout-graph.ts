@@ -94,7 +94,7 @@ export const topologicalSortTasks = (
   }
 
   for (const edge of intraEdges) {
-    adjacency.get(edge.source)!.push(edge.target);
+    adjacency.get(edge.source)?.push(edge.target);
     inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
   }
 
@@ -121,7 +121,7 @@ export const topologicalSortTasks = (
   }
 
   const taskById = new Map(tasks.map((t) => [t.id, t]));
-  const sorted = sortedIds.map((id) => taskById.get(id)!);
+  const sorted = sortedIds.map((id) => taskById.get(id)).filter((t) => t !== undefined);
 
   // Append any disconnected tasks not reached by BFS in original order
   const sortedSet = new Set(sortedIds);
@@ -135,10 +135,7 @@ export const topologicalSortTasks = (
 };
 
 /** Build an ELK compound graph with jobs as parents and tasks as children. */
-export const buildElkCompoundGraph = (
-  groups: readonly JobGroup[],
-  edges: PlanGraph["edges"],
-) => ({
+export const buildElkCompoundGraph = (groups: readonly JobGroup[], edges: PlanGraph["edges"]) => ({
   id: "root",
   layoutOptions: {
     "elk.algorithm": "layered",
@@ -149,42 +146,44 @@ export const buildElkCompoundGraph = (
     "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
     "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
   },
-  children: [...groups].sort((a, b) => a.job.label.localeCompare(b.job.label)).map((group) => {
-    const taskIds = new Set(group.tasks.map((t) => t.id));
-    return {
-      id: group.job.id,
-      layoutOptions: {
-        "elk.algorithm": "layered",
-        "elk.direction": "RIGHT",
-        "elk.hierarchyHandling": "SEPARATE_CHILDREN",
-        "elk.spacing.nodeNode": "40",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "60",
-        "elk.spacing.edgeNode": "20",
-        "elk.layered.spacing.edgeNodeBetweenLayers": "20",
-        "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
-        "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
-        "elk.layered.considerModelOrder.portModelOrder": "true",
-        "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
-        "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
-        "elk.layered.compaction.connectedComponents": "true",
-        "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
-        "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
-        "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
-      },
-      children: topologicalSortTasks(group.tasks, edges).map((task) => ({
-        id: task.id,
-        width: NODE_WIDTH,
-        height: NODE_HEIGHT_TASK,
-      })),
-      edges: edges
-        .filter((edge) => taskIds.has(edge.source) && taskIds.has(edge.target))
-        .map((edge) => ({
-          id: edge.id,
-          sources: [edge.source],
-          targets: [edge.target],
+  children: [...groups]
+    .sort((a, b) => a.job.label.localeCompare(b.job.label))
+    .map((group) => {
+      const taskIds = new Set(group.tasks.map((t) => t.id));
+      return {
+        id: group.job.id,
+        layoutOptions: {
+          "elk.algorithm": "layered",
+          "elk.direction": "RIGHT",
+          "elk.hierarchyHandling": "SEPARATE_CHILDREN",
+          "elk.spacing.nodeNode": "40",
+          "elk.layered.spacing.nodeNodeBetweenLayers": "60",
+          "elk.spacing.edgeNode": "20",
+          "elk.layered.spacing.edgeNodeBetweenLayers": "20",
+          "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+          "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
+          "elk.layered.considerModelOrder.portModelOrder": "true",
+          "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+          "elk.layered.crossingMinimization.forceNodeModelOrder": "true",
+          "elk.layered.compaction.connectedComponents": "true",
+          "elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
+          "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
+          "elk.padding": `[top=${JOB_PADDING_TOP},left=${JOB_PADDING_SIDE},bottom=${JOB_PADDING_BOTTOM},right=${JOB_PADDING_SIDE}]`,
+        },
+        children: topologicalSortTasks(group.tasks, edges).map((task) => ({
+          id: task.id,
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT_TASK,
         })),
-    };
-  }),
+        edges: edges
+          .filter((edge) => taskIds.has(edge.source) && taskIds.has(edge.target))
+          .map((edge) => ({
+            id: edge.id,
+            sources: [edge.source],
+            targets: [edge.target],
+          })),
+      };
+    }),
   edges: collectCrossJobEdges(edges),
 });
 
@@ -296,7 +295,11 @@ export const toFlowEdges = (edges: PlanGraph["edges"]): readonly Edge[] =>
       target: edge.target,
       label: edge.label,
       type: "bezier",
-      style: { stroke: style.stroke, opacity: style.opacity, strokeDasharray: style.strokeDasharray },
+      style: {
+        stroke: style.stroke,
+        opacity: style.opacity,
+        strokeDasharray: style.strokeDasharray,
+      },
     };
   });
 

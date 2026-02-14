@@ -4,8 +4,7 @@ const MIN_WIDTH = 300;
 const MAX_WIDTH = 600;
 const DEFAULT_WIDTH = 390;
 
-const clampWidth = (value: number): number =>
-  Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, value));
+const clampWidth = (value: number): number => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, value));
 
 type ResizeHandle = {
   readonly width: number;

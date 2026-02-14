@@ -1,8 +1,7 @@
 import type { ChangeDesc } from "../types/plan-schema.ts";
 
 /** Build the task key prefix: `tasks[task_key='validate']` */
-export const buildTaskKeyPrefix = (taskKey: string): string =>
-  `tasks[task_key='${taskKey}']`;
+export const buildTaskKeyPrefix = (taskKey: string): string => `tasks[task_key='${taskKey}']`;
 
 /** Match any key starting with `tasks[task_key='...']` — captures the task key. */
 export const TASK_KEY_PATTERN = /^tasks\[task_key='([^']+)'\]/;

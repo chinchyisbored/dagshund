@@ -1,8 +1,8 @@
 export { DetailPanel } from "./detail-panel/index.ts";
-export { FlowCanvas } from "./flow-canvas.tsx";
 export { DiffFilterToolbar } from "./diff-filter-toolbar.tsx";
 export type { DiffStateStyles } from "./diff-state-styles.ts";
 export { getDiffStateStyles } from "./diff-state-styles.ts";
+export { FlowCanvas } from "./flow-canvas.tsx";
 export { JobNode } from "./job-node.tsx";
 export { ResourceGroupNode } from "./resource-group-node.tsx";
 export { ResourceNode } from "./resource-node.tsx";

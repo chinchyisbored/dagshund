@@ -27,11 +27,7 @@ describe("findIdentityKey", () => {
   });
 
   test("detects identity from a single array when the other is empty", () => {
-    const items = [
-      { task_key: "extract" },
-      { task_key: "transform" },
-      { task_key: "load" },
-    ];
+    const items = [{ task_key: "extract" }, { task_key: "transform" }, { task_key: "load" }];
     expect(findIdentityKey(items, [])).toBe("task_key");
   });
 
@@ -187,24 +183,15 @@ describe("diffObjects", () => {
   });
 
   test("deep-compares nested values", () => {
-    const result = diffObjects(
-      { nested: { a: 1 } },
-      { nested: { a: 1 } },
-    );
+    const result = diffObjects({ nested: { a: 1 } }, { nested: { a: 1 } });
     expect(result.entries[0]?.status).toBe("unchanged");
 
-    const modified = diffObjects(
-      { nested: { a: 1 } },
-      { nested: { a: 2 } },
-    );
+    const modified = diffObjects({ nested: { a: 1 } }, { nested: { a: 2 } });
     expect(modified.entries[0]?.status).toBe("modified");
   });
 
   test("treats objects with different key ordering as unchanged", () => {
-    const result = diffObjects(
-      { config: { b: 2, a: 1 } },
-      { config: { a: 1, b: 2 } },
-    );
+    const result = diffObjects({ config: { b: 2, a: 1 } }, { config: { a: 1, b: 2 } });
     expect(result.entries[0]?.status).toBe("unchanged");
   });
 });

@@ -5,9 +5,11 @@ import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
 
 /** Schema for new_state: { value: { ...fields } }. */
-const newStateSchema = z.object({
-  value: z.record(z.string(), z.unknown()).readonly().optional(),
-}).readonly();
+const newStateSchema = z
+  .object({
+    value: z.record(z.string(), z.unknown()).readonly().optional(),
+  })
+  .readonly();
 
 /** Schema for remote_state: { ...fields }. */
 const remoteStateSchema = z.record(z.string(), z.unknown()).readonly();
@@ -27,16 +29,13 @@ const UC_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /** Extract the resource type segment from a plan key like "resources.schemas.analytics". */
-export const extractResourceType = (key: string): string | undefined =>
-  key.split(".")[1];
+export const extractResourceType = (key: string): string | undefined => key.split(".")[1];
 
 /** Check whether a plan key represents a job entry. */
-export const isJobEntry = (key: string): boolean =>
-  key.startsWith("resources.jobs.");
+export const isJobEntry = (key: string): boolean => key.startsWith("resources.jobs.");
 
 /** Check whether a resource type belongs under Unity Catalog. */
-export const isUnityCatalogType = (resourceType: string): boolean =>
-  UC_TYPES.has(resourceType);
+export const isUnityCatalogType = (resourceType: string): boolean => UC_TYPES.has(resourceType);
 
 /**
  * Safely extract a named field from a plan entry's state.
@@ -108,7 +107,11 @@ const toEdgeDiffState = (entry: PlanEntry): EdgeDiffState => {
 };
 
 /** Build a unique edge, returning undefined if source === target. */
-const buildEdge = (source: string, target: string, diffState: GraphEdge["diffState"] = "unchanged"): GraphEdge | undefined =>
+const buildEdge = (
+  source: string,
+  target: string,
+  diffState: GraphEdge["diffState"] = "unchanged",
+): GraphEdge | undefined =>
   source === target
     ? undefined
     : {
@@ -120,9 +123,8 @@ const buildEdge = (source: string, target: string, diffState: GraphEdge["diffSta
       };
 
 /** Filter defined edges from buildEdge results. */
-const filterDefinedEdges = (
-  edges: readonly (GraphEdge | undefined)[],
-): readonly GraphEdge[] => edges.filter((e): e is GraphEdge => e !== undefined);
+const filterDefinedEdges = (edges: readonly (GraphEdge | undefined)[]): readonly GraphEdge[] =>
+  edges.filter((e): e is GraphEdge => e !== undefined);
 
 /** Build a lookup from "catalog.schema" → schema plan key for linking volumes/models to schemas. */
 const buildSchemaLookup = (
@@ -163,10 +165,17 @@ const buildCatalogLookup = (
 const buildPhantomSchemaNodes = (
   ucEntries: readonly (readonly [string, PlanEntry])[],
   schemaLookup: ReadonlyMap<string, string>,
-): ReadonlyMap<string, { readonly node: GraphNode; readonly parentEdge: GraphEdge | undefined }> => {
+): ReadonlyMap<
+  string,
+  { readonly node: GraphNode; readonly parentEdge: GraphEdge | undefined }
+> => {
   const phantomEntries = ucEntries.flatMap(([key, entry]) => {
     const resourceType = extractResourceType(key);
-    if (resourceType !== undefined && (CATALOG_TIER_TYPES.has(resourceType) || SCHEMA_TIER_TYPES.has(resourceType))) return [];
+    if (
+      resourceType !== undefined &&
+      (CATALOG_TIER_TYPES.has(resourceType) || SCHEMA_TIER_TYPES.has(resourceType))
+    )
+      return [];
 
     const schemaName = extractStateField(entry, "schema_name");
     const catalog = extractStateField(entry, "catalog_name");
@@ -218,7 +227,9 @@ const buildUcGraph = (
   // Phantom schema nodes (deduplicated by Map key)
   const phantomMap = buildPhantomSchemaNodes(ucEntries, schemaLookup);
   const phantomNodes = [...phantomMap.values()].map(({ node }) => node);
-  const phantomEdges = filterDefinedEdges([...phantomMap.values()].map(({ parentEdge }) => parentEdge));
+  const phantomEdges = filterDefinedEdges(
+    [...phantomMap.values()].map(({ parentEdge }) => parentEdge),
+  );
 
   // Resource nodes + hierarchy edges
   const resourceNodes = ucEntries.map(([key, entry]) => buildResourceNode(key, entry));
@@ -229,7 +240,10 @@ const buildUcGraph = (
       const catalogId = catalog !== undefined ? `catalog::${catalog}` : "uc-root";
       const edgeDiff = toEdgeDiffState(entry);
 
-      if (resourceType !== undefined && (SCHEMA_TIER_TYPES.has(resourceType) || CATALOG_TIER_TYPES.has(resourceType))) {
+      if (
+        resourceType !== undefined &&
+        (SCHEMA_TIER_TYPES.has(resourceType) || CATALOG_TIER_TYPES.has(resourceType))
+      ) {
         return buildEdge(catalogId, key, edgeDiff);
       }
 
@@ -262,7 +276,9 @@ const buildWorkspaceGraph = (
   const root = buildGroupNode("workspace-root", "Workspace");
   const resourceNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
   const resourceEdges = filterDefinedEdges(
-    workspaceEntries.map(([key, entry]) => buildEdge("workspace-root", key, toEdgeDiffState(entry))),
+    workspaceEntries.map(([key, entry]) =>
+      buildEdge("workspace-root", key, toEdgeDiffState(entry)),
+    ),
   );
 
   return {

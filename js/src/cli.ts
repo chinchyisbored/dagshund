@@ -1,5 +1,5 @@
-import { chmodSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { chmodSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
@@ -147,8 +147,7 @@ const readDistAssets = async (): Promise<{
 const escapeForScriptTag = (content: string): string =>
   content.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
 
-const escapeForStyleTag = (content: string): string =>
-  content.replace(/<\/style/gi, "<\\/style");
+const escapeForStyleTag = (content: string): string => content.replace(/<\/style/gi, "<\\/style");
 
 const assembleHtml = (css: string, js: string, planData: Plan): string => {
   const safeJson = escapeForScriptTag(JSON.stringify(planData));
@@ -223,7 +222,6 @@ const main = async (): Promise<void> => {
     await Bun.write(outputPath, html);
     console.log(`dagshund: exported to ${outputPath}`);
   } else {
-    // biome-ignore lint/complexity/useLiteralKeys: TypeScript strict noPropertyAccessFromIndexSignature requires bracket notation
     const tmpDir = process.env["XDG_RUNTIME_DIR"] ?? process.env["TMPDIR"] ?? "/tmp";
     const tmpPath = join(tmpDir, `dagshund-${randomUUID()}.html`);
     await Bun.write(tmpPath, html);

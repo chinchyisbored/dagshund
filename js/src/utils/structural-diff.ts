@@ -97,10 +97,7 @@ export const findIdentityKey = (
  * Diff two arrays by matching elements via an auto-detected identity key.
  * Falls back to deep-equality matching when no identity key is found.
  */
-export const diffArrays = (
-  oldArr: readonly unknown[],
-  newArr: readonly unknown[],
-): ArrayDiff => {
+export const diffArrays = (oldArr: readonly unknown[], newArr: readonly unknown[]): ArrayDiff => {
   const identityKey = findIdentityKey(oldArr, newArr);
 
   const getIdentity = (item: unknown): string | undefined => {
@@ -245,7 +242,7 @@ export const computeStructuralDiff = (change: ChangeDesc): StructuralDiffResult 
   // Resolve baseline
   const hasOld = change.old !== undefined;
   const baseline = hasOld ? change.old : change.remote;
-  const baselineLabel = hasOld ? "old" : "remote" as const;
+  const baselineLabel = hasOld ? "old" : ("remote" as const);
   const current = change.new;
 
   // If no baseline at all, treat as create-only
