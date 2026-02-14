@@ -13,18 +13,11 @@ import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
-/** Count plan entries by tab: jobs vs resources. */
+/** Count plan entries by tab: jobs vs all resources (resources tab includes jobs). */
 const countByTab = (plan: Plan): Readonly<Record<"jobs" | "resources", number>> => {
-  let jobs = 0;
-  let resources = 0;
-  for (const key of Object.keys(plan.plan ?? {})) {
-    if (key.startsWith("resources.jobs.")) {
-      jobs++;
-    } else {
-      resources++;
-    }
-  }
-  return { jobs, resources };
+  const keys = Object.keys(plan.plan ?? {});
+  const jobs = keys.filter((key) => key.startsWith("resources.jobs.")).length;
+  return { jobs, resources: keys.length };
 };
 
 const NODE_TYPES = { job: JobNode, task: TaskNode };
