@@ -33,11 +33,19 @@ def _parse_plan(raw: str) -> dict:
 
 
 def _escape_for_script_tag(content: str) -> str:
-    """Escape content that will be placed inside a <script> tag.
+    r"""Escape JSON content that will be placed inside a <script> tag.
 
-    Keep in sync with escapeForScriptTag() in js/src/html-assembler.ts.
+    Replaces every ``<`` with ``\u003c`` so the HTML parser never sees a
+    tag-open character inside the script block.  This is the industry-standard
+    approach (used by Django, Rails, etc.) and eliminates an entire class of
+    injection vectors — not just ``</script`` and ``<!--``.
+
+    Only safe for JSON / data strings — NOT for arbitrary JS code (where
+    ``\u003c`` is invalid outside string literals).
+
+    Keep in sync with escapeJsonForScript() in js/src/html-assembler.ts.
     """
-    return content.replace("</script", r"<\/script").replace("<!--", r"<\!--")
+    return content.replace("<", "\\u003c")
 
 
 def _inject_plan(template: str, plan_data: dict) -> str:

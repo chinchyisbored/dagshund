@@ -9,10 +9,29 @@
 import { join } from "node:path";
 
 // --- Escape helpers ---
-// Keep in sync with _escape_for_script_tag() in src/dagshund/browser.py.
 
+/**
+ * Escape a JS code bundle for embedding inside a `<script>` tag.
+ *
+ * Pattern-based: only neutralises the two sequences that can break a
+ * `<script>` block in the HTML parser (`</script` and `<!--`).
+ * Universal `<` replacement is NOT safe here because `\u003c` is only
+ * a valid JS token inside string/template literals, not as an operator.
+ */
 export const escapeForScriptTag = (content: string): string =>
   content.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
+
+/**
+ * Escape a JSON/data string for embedding inside a `<script>` tag.
+ *
+ * Replaces every `<` with `\u003c` — the industry-standard approach
+ * (Django, Rails, etc.) that eliminates an entire class of injection
+ * vectors, not just `</script` and `<!--`.
+ *
+ * Only safe for JSON / data strings, NOT arbitrary JS code.
+ * Keep in sync with `_escape_for_script_tag()` in `src/dagshund/browser.py`.
+ */
+export const escapeJsonForScript = (content: string): string => content.replaceAll("<", "\\u003c");
 
 export const escapeForStyleTag = (content: string): string =>
   content.replace(/<\/style/gi, "<\\/style");

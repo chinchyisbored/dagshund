@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { assembleHtml, escapeForScriptTag, escapeForStyleTag } from "../src/html-assembler.ts";
+import {
+  assembleHtml,
+  escapeForScriptTag,
+  escapeForStyleTag,
+  escapeJsonForScript,
+} from "../src/html-assembler.ts";
 
 describe("escapeForScriptTag", () => {
   test("escapes closing script tags", () => {
@@ -54,6 +59,36 @@ describe("escapeForStyleTag", () => {
 
   test("handles empty string", () => {
     expect(escapeForStyleTag("")).toBe("");
+  });
+});
+
+describe("escapeJsonForScript", () => {
+  test("replaces all < with unicode escape", () => {
+    expect(escapeJsonForScript("<div>hello</div>")).toBe("\\u003cdiv>hello\\u003c/div>");
+  });
+
+  test("escapes closing script tags", () => {
+    expect(escapeJsonForScript("</script>")).toBe("\\u003c/script>");
+  });
+
+  test("escapes HTML comments", () => {
+    expect(escapeJsonForScript("<!--comment-->")).toBe("\\u003c!--comment-->");
+  });
+
+  test("escapes < inside JSON string values", () => {
+    const input = '{"html":"<b>bold</b>"}';
+    const result = escapeJsonForScript(input);
+    expect(result).not.toContain("<");
+    expect(JSON.parse(result)).toEqual({ html: "<b>bold</b>" });
+  });
+
+  test("returns input unchanged when no < present", () => {
+    const input = '{"key":"value","num":42}';
+    expect(escapeJsonForScript(input)).toBe(input);
+  });
+
+  test("handles empty string", () => {
+    expect(escapeJsonForScript("")).toBe("");
   });
 });
 

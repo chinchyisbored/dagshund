@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { assembleHtml, escapeForScriptTag, readDistAssets, runBuild } from "./html-assembler.ts";
+import { assembleHtml, escapeJsonForScript, readDistAssets, runBuild } from "./html-assembler.ts";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 import { tryOpenBrowser } from "./utils/open-browser.ts";
@@ -99,7 +99,7 @@ const main = async (): Promise<void> => {
 
   await runBuild();
   const { js, css } = await readDistAssets();
-  const safeJson = escapeForScriptTag(JSON.stringify(plan));
+  const safeJson = escapeJsonForScript(JSON.stringify(plan));
   const html = assembleHtml(css, js, safeJson);
 
   if (outputPath) {
