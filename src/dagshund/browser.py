@@ -1,11 +1,7 @@
 """Browser-based HTML visualization."""
 
 import json
-import os
 import sys
-import tempfile
-import uuid
-import webbrowser
 from pathlib import Path
 
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
@@ -49,20 +45,12 @@ def _inject_plan(template: str, plan_data: dict) -> str:
     return template.replace(PLACEHOLDER, safe_json)
 
 
-def render_browser(plan_json: str, *, output_path: str | None = None) -> None:
-    """Render plan as interactive HTML and open in browser or save to file."""
+def render_browser(plan_json: str, *, output_path: str) -> None:
+    """Render plan as interactive HTML and export to file."""
     plan_data = _validate_plan_json(plan_json)
     template_path = _find_template()
     template = template_path.read_text(encoding="utf-8")
     html = _inject_plan(template, plan_data)
 
-    if output_path is not None:
-        Path(output_path).write_text(html, encoding="utf-8")
-        print(f"dagshund: exported to {output_path}")
-    else:
-        tmp_dir = os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()
-        tmp_path = os.path.join(tmp_dir, f"dagshund-{uuid.uuid4()}.html")
-        Path(tmp_path).write_text(html, encoding="utf-8")
-        os.chmod(tmp_path, 0o600)
-        print(f"dagshund: opening {tmp_path}")
-        webbrowser.open(f"file://{tmp_path}")
+    Path(output_path).write_text(html, encoding="utf-8")
+    print(f"dagshund: exported to {output_path}")

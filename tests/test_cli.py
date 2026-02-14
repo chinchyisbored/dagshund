@@ -22,40 +22,40 @@ def test_version():
     assert "dagshund 0.1.0" in result.stdout
 
 
-def test_text_mode_with_file():
+def test_default_mode_with_file():
     fixture = FIXTURES_DIR / "sample-plan.json"
-    result = run_dagshund("--text", str(fixture))
+    result = run_dagshund(str(fixture))
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
     assert "create" in result.stdout
 
 
-def test_text_mode_with_stdin():
+def test_default_mode_with_stdin():
     fixture = FIXTURES_DIR / "sample-plan.json"
-    result = run_dagshund("--text", stdin=fixture.read_text())
+    result = run_dagshund(stdin=fixture.read_text())
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
 
 
-def test_text_mode_complex_plan():
+def test_complex_plan():
     fixture = FIXTURES_DIR / "complex-plan.json"
-    result = run_dagshund("-t", str(fixture))
+    result = run_dagshund(str(fixture))
     assert result.returncode == 0
     assert "create" in result.stdout
     assert "update" in result.stdout
     assert "delete" in result.stdout
 
 
-def test_text_mode_shows_summary_counts():
+def test_summary_counts():
     fixture = FIXTURES_DIR / "complex-plan.json"
-    result = run_dagshund("--text", str(fixture))
+    result = run_dagshund(str(fixture))
     assert result.returncode == 0
     # Should have a summary line with counts
     assert "+4 create" in result.stdout or "+4" in result.stdout
 
 
 def test_invalid_json():
-    result = run_dagshund("--text", stdin="not json at all")
+    result = run_dagshund(stdin="not json at all")
     assert result.returncode != 0
     assert "invalid JSON" in result.stderr
 
@@ -63,7 +63,7 @@ def test_invalid_json():
 def test_no_input_on_tty():
     # When stdin is a TTY and no file is given, should exit with usage message
     # We can't easily simulate a TTY, but we can test the file-not-found case
-    result = run_dagshund("--text", "/nonexistent/plan.json")
+    result = run_dagshund("/nonexistent/plan.json")
     assert result.returncode != 0
 
 

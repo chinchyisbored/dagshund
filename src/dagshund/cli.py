@@ -9,7 +9,7 @@ from dagshund import __version__
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        description="Visualize databricks bundle plan output",
+        description="Visualize databricks bundle plan output as a colored diff summary",
     )
     parser.add_argument(
         "--version",
@@ -24,13 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-o",
         "--output",
-        help="Write HTML to this file instead of opening browser",
-    )
-    parser.add_argument(
-        "-t",
-        "--text",
-        action="store_true",
-        help="Render plan as colored text in the terminal instead of HTML",
+        help="Export an interactive HTML visualization to this file",
     )
     return parser
 
@@ -45,8 +39,9 @@ def read_plan(plan_file: str | None) -> str:
         return sys.stdin.read()
 
     print("dagshund: no input file specified and stdin is a TTY", file=sys.stderr)
-    print("Usage: dagshund <plan.json> [-o output.html]", file=sys.stderr)
-    print("       cat plan.json | dagshund [-o output.html]", file=sys.stderr)
+    print("Usage: dagshund <plan.json>", file=sys.stderr)
+    print("       dagshund <plan.json> -o output.html", file=sys.stderr)
+    print("       cat plan.json | dagshund", file=sys.stderr)
     sys.exit(1)
 
 
@@ -56,11 +51,11 @@ def main() -> None:
 
     raw = read_plan(args.plan_file)
 
-    if args.text:
-        from dagshund.text import render_text
-
-        render_text(raw)
-    else:
+    if args.output:
         from dagshund.browser import render_browser
 
         render_browser(raw, output_path=args.output)
+    else:
+        from dagshund.text import render_text
+
+        render_text(raw)
