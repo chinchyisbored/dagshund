@@ -3,7 +3,6 @@
 import json
 import os
 import sys
-from typing import Any
 
 from dagshund import DagshundError
 
@@ -74,7 +73,7 @@ def _parse_resource_key(key: str) -> tuple[str, str]:
     return "", key
 
 
-def _format_value(value: Any) -> str:
+def _format_value(value: object) -> str:
     """Format a value for display, truncating long strings."""
     if value is None:
         return "null"
