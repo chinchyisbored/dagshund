@@ -16,6 +16,8 @@ RED = "\033[31m"
 YELLOW = "\033[33m"
 CYAN = "\033[36m"
 
+UPDATE_ACTIONS: frozenset[str] = frozenset({"update", "recreate", "resize", "update_id"})
+
 
 def _supports_color() -> bool:
     """Check if the terminal supports color output."""
@@ -31,31 +33,27 @@ def _colorize(text: str, color: str, *, use_color: bool) -> str:
 
 
 def _action_color(action: str) -> str:
-    match action:
-        case "create":
-            return GREEN
-        case "delete":
-            return RED
-        case "update" | "recreate" | "resize" | "update_id":
-            return YELLOW
-        case "skip" | "":
-            return DIM
-        case _:
-            return RESET
+    if action == "create":
+        return GREEN
+    if action == "delete":
+        return RED
+    if action in UPDATE_ACTIONS:
+        return YELLOW
+    if action in ("skip", ""):
+        return DIM
+    return RESET
 
 
 def _action_symbol(action: str) -> str:
-    match action:
-        case "create":
-            return "+"
-        case "delete":
-            return "-"
-        case "update" | "recreate" | "resize" | "update_id":
-            return "~"
-        case "skip" | "":
-            return " "
-        case _:
-            return "?"
+    if action == "create":
+        return "+"
+    if action == "delete":
+        return "-"
+    if action in UPDATE_ACTIONS:
+        return "~"
+    if action in ("skip", ""):
+        return " "
+    return "?"
 
 
 def _parse_resource_key(key: str) -> tuple[str, str]:
@@ -107,7 +105,7 @@ def _render_resource(
 
     # Show field-level changes for updates
     changes = entry.get("changes", {})
-    if changes and action in ("update", "recreate", "resize", "update_id"):
+    if changes and action in UPDATE_ACTIONS:
         for field_name, change in sorted(changes.items()):
             change_action = change.get("action", "")
             if change_action in ("skip", ""):
@@ -158,18 +156,8 @@ def _parse_plan(raw: str) -> dict:
     return data
 
 
-def render_text(plan_json: str) -> None:
-    """Parse plan JSON and render colored diff summary to terminal."""
-    data = _parse_plan(plan_json)
-
-    plan = data.get("plan", {})
-    if not plan:
-        print("dagshund: plan is empty", file=sys.stderr)
-        return
-
-    use_color = _supports_color()
-
-    # Header
+def _print_header(data: dict, *, use_color: bool) -> None:
+    """Print the plan version header line."""
     cli_version = data.get("cli_version", "unknown")
     plan_version = data.get("plan_version", "?")
     print(
@@ -181,13 +169,18 @@ def render_text(plan_json: str) -> None:
     )
     print()
 
-    # Group by resource type
+
+def _group_by_resource_type(plan: dict) -> dict[str, list[tuple[str, dict]]]:
+    """Group plan entries by their resource type (jobs, schemas, etc.)."""
     by_type: dict[str, list[tuple[str, dict]]] = {}
     for key, entry in plan.items():
         resource_type, _ = _parse_resource_key(key)
         by_type.setdefault(resource_type, []).append((key, entry))
+    return by_type
 
-    # Render each group
+
+def _print_resource_groups(by_type: dict[str, list[tuple[str, dict]]], *, use_color: bool) -> None:
+    """Print each resource type group with its entries."""
     for resource_type in sorted(by_type):
         entries = by_type[resource_type]
         print(
@@ -202,7 +195,9 @@ def render_text(plan_json: str) -> None:
                 print(line)
         print()
 
-    # Summary
+
+def _print_summary(plan: dict, *, use_color: bool) -> None:
+    """Print the action count summary line."""
     counts = _count_by_action(plan)
     summary_parts = []
     for action, count in sorted(counts.items()):
@@ -210,3 +205,18 @@ def render_text(plan_json: str) -> None:
         symbol = _action_symbol(action)
         summary_parts.append(_colorize(f"{symbol}{count} {action}", color, use_color=use_color))
     print(f"  {', '.join(summary_parts)}")
+
+
+def render_text(plan_json: str) -> None:
+    """Parse plan JSON and render colored diff summary to terminal."""
+    data = _parse_plan(plan_json)
+
+    plan = data.get("plan", {})
+    if not plan:
+        print("dagshund: plan is empty", file=sys.stderr)
+        return
+
+    use_color = _supports_color()
+    _print_header(data, use_color=use_color)
+    _print_resource_groups(_group_by_resource_type(plan), use_color=use_color)
+    _print_summary(plan, use_color=use_color)
