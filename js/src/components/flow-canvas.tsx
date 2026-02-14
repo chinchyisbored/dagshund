@@ -50,6 +50,10 @@ const buildConnectedNodeIds = (
   return connected;
 };
 
+/** React Flow types node.data as Record<string, unknown>; our nodes carry DagNodeData.
+ *  The cast is unavoidable because React Flow's generic param doesn't propagate to event handlers. */
+const getNodeData = (node: Node): DagNodeData => node.data as DagNodeData;
+
 export function FlowCanvas({
   layoutState,
   nodeTypes,
@@ -66,7 +70,7 @@ export function FlowCanvas({
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
-    setSelectedNode(node.data as DagNodeData);
+    setSelectedNode(getNodeData(node));
     setSelectedNodeId(node.id);
 
     const instance = rfInstanceRef.current;
@@ -141,7 +145,7 @@ export function FlowCanvas({
   const diffStateCounts = useMemo((): Readonly<Record<FilterableDiffState, number>> => {
     const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };
     for (const node of baseNodes) {
-      const state = (node.data as DagNodeData).diffState;
+      const state = getNodeData(node).diffState;
       if (state in counts) counts[state as FilterableDiffState]++;
     }
     return counts;
@@ -167,7 +171,7 @@ export function FlowCanvas({
     if (filterDiffState === null) return null;
     const matched = new Set<string>();
     for (const node of baseNodes) {
-      const data = node.data as DagNodeData;
+      const data = getNodeData(node);
       if (data.diffState === filterDiffState) {
         matched.add(node.id);
       }

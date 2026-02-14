@@ -81,7 +81,7 @@ const extractDependsOnKeys = (dependsOn: unknown): ReadonlySet<string> => {
   const keys = new Set<string>();
   for (const entry of dependsOn) {
     if (typeof entry === "object" && entry !== null && "task_key" in entry) {
-      const taskKey = (entry as { readonly task_key: string }).task_key;
+      const { task_key: taskKey } = entry;
       if (typeof taskKey === "string") keys.add(taskKey);
     }
   }
@@ -230,7 +230,7 @@ const buildJobIdMap = (
   for (const [resourceKey, entry] of entries) {
     const remoteState = entry.remote_state;
     if (typeof remoteState === "object" && remoteState !== null && "job_id" in remoteState) {
-      const jobId = (remoteState as { readonly job_id: unknown }).job_id;
+      const { job_id: jobId } = remoteState;
       if (typeof jobId === "number") {
         map.set(jobId, resourceKey);
       }

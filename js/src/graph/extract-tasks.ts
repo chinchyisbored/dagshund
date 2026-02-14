@@ -55,7 +55,7 @@ export const extractJobState = (
 
 /** Extract task-level state as a plain record from a TaskEntry. */
 export const extractTaskState = (task: TaskEntry): Readonly<Record<string, unknown>> =>
-  task as unknown as Record<string, unknown>;
+  Object.fromEntries(Object.entries(task));
 
 /** Extract deleted task entries from a changes record.
  *  Deleted tasks have a whole-task change with old defined and new undefined. */
@@ -69,10 +69,12 @@ export const extractDeletedTaskEntries = (
     const match = TASK_KEY_PATTERN.exec(key);
     if (match?.[1] === undefined || key !== buildTaskKeyPrefix(match[1])) continue;
 
-    const changeDesc = change as { readonly old?: unknown; readonly new?: unknown };
-    if (changeDesc.old === undefined || changeDesc.new !== undefined) continue;
+    if (typeof change !== "object" || change === null) continue;
+    const old = "old" in change ? change.old : undefined;
+    const hasNew = "new" in change && change.new !== undefined;
+    if (old === undefined || hasNew) continue;
 
-    const parsed = taskEntrySchema.safeParse(changeDesc.old);
+    const parsed = taskEntrySchema.safeParse(old);
     if (parsed.success) {
       deletedTasks.push(parsed.data);
     }
