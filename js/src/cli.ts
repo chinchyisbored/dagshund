@@ -32,7 +32,7 @@ const parseArgs = (argv: readonly string[]): CliArgs => {
 
 // --- Plan reading ---
 
-const ALLOWED_EXTENSIONS: ReadonlySet<string> = new Set([".json", ".yaml", ".yml"]);
+const ALLOWED_EXTENSIONS: ReadonlySet<string> = new Set([".json"]);
 
 const sanitizePath = (raw: string): string => {
   const resolved = resolve(raw);

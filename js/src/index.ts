@@ -33,14 +33,15 @@ const isAllowedHost = (request: Request): boolean => {
   return ALLOWED_HOSTS.has(hostname);
 };
 
-const FORBIDDEN_RESPONSE = () => new Response("Forbidden", { status: 403 });
+const createForbiddenResponse = () => new Response("Forbidden", { status: 403 });
 
 const plan = await readStdinPlan();
 
 const server = serve({
   hostname: "127.0.0.1",
   routes: {
-    "/api/plan": (request) => (isAllowedHost(request) ? Response.json(plan) : FORBIDDEN_RESPONSE()),
+    "/api/plan": (request) =>
+      isAllowedHost(request) ? Response.json(plan) : createForbiddenResponse(),
     "/*": index,
   },
 

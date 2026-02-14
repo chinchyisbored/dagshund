@@ -117,6 +117,12 @@ export function FlowCanvas({
     rfInstanceRef.current?.fitView();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
+
   const layout = layoutState.status === "ready" ? layoutState.layout : null;
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;

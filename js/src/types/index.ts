@@ -10,6 +10,7 @@ export type {
   ResourceGraphNode,
   ResourceGroupGraphNode,
   TaskChangeSummary,
+  TaskChangeSummaryEntry,
   TaskGraphNode,
 } from "./graph-types.ts";
 export { toEdgeDiffState } from "./graph-types.ts";
@@ -32,6 +33,8 @@ export { err, ok } from "./result.ts";
 export type {
   ArrayDiff,
   ArrayElement,
+  ArrayElementStatus,
+  BaselineLabel,
   CreateOnlyDiff,
   DeleteOnlyDiff,
   ObjectDiff,

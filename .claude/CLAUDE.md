@@ -144,7 +144,6 @@ Each node in the DAG has exactly one diff state:
 - Click a node → slide-in detail panel showing the full diff for that resource
 - Hover a node → subtle highlight of its immediate dependencies
 - Zoom and pan via React Flow controls
-- Minimap for orientation in large DAGs
 
 ### Data Flow
 ```

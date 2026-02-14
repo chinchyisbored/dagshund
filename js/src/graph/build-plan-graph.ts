@@ -116,6 +116,20 @@ const resolveTaskEdgeDiffState = (
   return undefined;
 };
 
+/** Create a single dependency edge from depTaskKey → taskKey within resourceKey. */
+const buildDepEdge = (
+  resourceKey: string,
+  depTaskKey: string,
+  taskKey: string,
+  diffState: EdgeDiffState,
+): GraphEdge => ({
+  id: `${buildTaskNodeId(resourceKey, depTaskKey)}→${buildTaskNodeId(resourceKey, taskKey)}`,
+  source: buildTaskNodeId(resourceKey, depTaskKey),
+  target: buildTaskNodeId(resourceKey, taskKey),
+  label: undefined,
+  diffState,
+});
+
 /** Build edges with diff states for a single task's dependencies.
  *  Handles create/delete at the resource and task levels, depends_on changes, and unchanged deps. */
 const buildEdgesForTask = (
@@ -127,57 +141,41 @@ const buildEdgesForTask = (
 ): readonly GraphEdge[] => {
   // Resource-level create or delete: all edges inherit that state
   if (resourceDiffState !== "unchanged") {
-    return currentDependsOn.map((dep) => ({
-      id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, taskKey)}`,
-      source: buildTaskNodeId(resourceKey, dep.task_key),
-      target: buildTaskNodeId(resourceKey, taskKey),
-      label: undefined,
-      diffState: resourceDiffState,
-    }));
+    return currentDependsOn.map((dep) =>
+      buildDepEdge(resourceKey, dep.task_key, taskKey, resourceDiffState),
+    );
   }
 
   // Task-level create or delete: all edges inherit the task's state
   const taskEdgeDiffState = resolveTaskEdgeDiffState(taskKey, changes);
   if (taskEdgeDiffState !== undefined) {
-    return currentDependsOn.map((dep) => ({
-      id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, taskKey)}`,
-      source: buildTaskNodeId(resourceKey, dep.task_key),
-      target: buildTaskNodeId(resourceKey, taskKey),
-      label: undefined,
-      diffState: taskEdgeDiffState,
-    }));
+    return currentDependsOn.map((dep) =>
+      buildDepEdge(resourceKey, dep.task_key, taskKey, taskEdgeDiffState),
+    );
   }
 
   const dependsOnChangeKey = `${buildTaskKeyPrefix(taskKey)}.depends_on`;
   const dependsOnChange = changes?.[dependsOnChangeKey];
 
+  // No depends_on change: all edges are unchanged
   if (dependsOnChange === undefined) {
-    // No depends_on change: all edges are unchanged
-    return currentDependsOn.map((dep) => ({
-      id: `${buildTaskNodeId(resourceKey, dep.task_key)}→${buildTaskNodeId(resourceKey, taskKey)}`,
-      source: buildTaskNodeId(resourceKey, dep.task_key),
-      target: buildTaskNodeId(resourceKey, taskKey),
-      label: undefined,
-      diffState: "unchanged" as const,
-    }));
+    return currentDependsOn.map((dep) =>
+      buildDepEdge(resourceKey, dep.task_key, taskKey, "unchanged"),
+    );
   }
 
   // Compare old vs new depends_on arrays
   const oldKeys = extractDependsOnKeys(dependsOnChange.old);
   const newKeys = extractDependsOnKeys(dependsOnChange.new);
-
-  // Build edges for all deps in the union of old and new
   const allDepKeys = new Set([...oldKeys, ...newKeys]);
-  return [...allDepKeys].map((depTaskKey) => {
-    const diffState = resolveDepEdgeDiffState(depTaskKey, oldKeys, newKeys);
-    return {
-      id: `${buildTaskNodeId(resourceKey, depTaskKey)}→${buildTaskNodeId(resourceKey, taskKey)}`,
-      source: buildTaskNodeId(resourceKey, depTaskKey),
-      target: buildTaskNodeId(resourceKey, taskKey),
-      label: undefined,
-      diffState,
-    };
-  });
+  return [...allDepKeys].map((depTaskKey) =>
+    buildDepEdge(
+      resourceKey,
+      depTaskKey,
+      taskKey,
+      resolveDepEdgeDiffState(depTaskKey, oldKeys, newKeys),
+    ),
+  );
 };
 
 /** Build diff-aware edges for all tasks within a resource. */

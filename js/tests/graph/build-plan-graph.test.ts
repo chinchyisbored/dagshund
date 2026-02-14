@@ -1,15 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildPlanGraph } from "../../src/graph/build-plan-graph.ts";
-import { parsePlanJson } from "../../src/parser/parse-plan.ts";
 import type { JobGraphNode, TaskGraphNode } from "../../src/types/graph-types.ts";
-import type { Plan } from "../../src/types/plan-schema.ts";
-
-const loadFixture = async (name: string): Promise<Plan> => {
-  const text = await Bun.file(`tests/fixtures/${name}`).text();
-  const result = parsePlanJson(JSON.parse(text));
-  if (!result.ok) throw new Error(`Fixture parse failed: ${result.error}`);
-  return result.data;
-};
+import { loadFixture } from "../helpers/load-fixture.ts";
 
 describe("buildPlanGraph", () => {
   test("returns empty graph for empty plan", () => {
