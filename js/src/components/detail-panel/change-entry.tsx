@@ -19,9 +19,13 @@ export function ChangeEntry({
 
   return (
     <div className="rounded border border-outline-subtle bg-surface-raised/50 p-3">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-xs text-ink-secondary">{stripTaskPrefix(fieldPath)}</span>
-        <ActionBadge action={change.action} />
+      <div className="mb-2 flex items-start gap-2">
+        <span className="min-w-0 flex-1 break-words font-mono text-xs text-ink-secondary">
+          {stripTaskPrefix(fieldPath)}
+        </span>
+        <span className="shrink-0">
+          <ActionBadge action={change.action} />
+        </span>
       </div>
       <StructuralDiffView result={diffResult} />
     </div>
