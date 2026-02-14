@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from dagshund import __version__
+from dagshund import DagshundError, __version__
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,30 +32,40 @@ def build_parser() -> argparse.ArgumentParser:
 def read_plan(plan_file: str | None) -> str:
     """Read plan JSON from file or stdin."""
     if plan_file is not None:
-        with open(plan_file) as f:
-            return f.read()
+        try:
+            with open(plan_file) as f:
+                return f.read()
+        except FileNotFoundError:
+            raise DagshundError(f"file not found: {plan_file}") from None
+        except OSError as exc:
+            raise DagshundError(f"could not read file: {exc}") from exc
 
     if not sys.stdin.isatty():
         return sys.stdin.read()
 
-    print("dagshund: no input file specified and stdin is a TTY", file=sys.stderr)
-    print("Usage: dagshund <plan.json>", file=sys.stderr)
-    print("       dagshund <plan.json> -o output.html", file=sys.stderr)
-    print("       cat plan.json | dagshund", file=sys.stderr)
-    sys.exit(1)
+    raise DagshundError(
+        "no input file specified and stdin is a TTY\n"
+        "Usage: dagshund <plan.json>\n"
+        "       dagshund <plan.json> -o output.html\n"
+        "       cat plan.json | dagshund"
+    )
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    raw = read_plan(args.plan_file)
+    try:
+        raw = read_plan(args.plan_file)
 
-    if args.output:
-        from dagshund.browser import render_browser
+        if args.output:
+            from dagshund.browser import render_browser
 
-        render_browser(raw, output_path=args.output)
-    else:
-        from dagshund.text import render_text
+            render_browser(raw, output_path=args.output)
+        else:
+            from dagshund.text import render_text
 
-        render_text(raw)
+            render_text(raw)
+    except DagshundError as exc:
+        print(f"dagshund: {exc}", file=sys.stderr)
+        sys.exit(1)

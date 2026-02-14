@@ -4,6 +4,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from dagshund import DagshundError
+from dagshund.cli import read_plan
+from dagshund.text import render_text
+
 FIXTURES_DIR = Path(__file__).parent.parent / "js" / "tests" / "fixtures"
 
 
@@ -65,6 +71,24 @@ def test_no_input_on_tty():
     # We can't easily simulate a TTY, but we can test the file-not-found case
     result = run_dagshund("/nonexistent/plan.json")
     assert result.returncode != 0
+
+
+def test_read_plan_raises_on_missing_file():
+    """read_plan raises DagshundError for nonexistent files (no subprocess needed)."""
+    with pytest.raises(DagshundError, match="file not found"):
+        read_plan("/nonexistent/plan.json")
+
+
+def test_render_text_raises_on_invalid_json():
+    """render_text raises DagshundError for bad JSON (no subprocess needed)."""
+    with pytest.raises(DagshundError, match="invalid JSON"):
+        render_text("not json at all")
+
+
+def test_render_text_raises_on_non_object():
+    """render_text raises DagshundError when JSON is not an object."""
+    with pytest.raises(DagshundError, match="must be an object"):
+        render_text("[1, 2, 3]")
 
 
 def test_browser_mode_file_output():

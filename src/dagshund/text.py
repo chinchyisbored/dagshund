@@ -5,6 +5,8 @@ import os
 import sys
 from typing import Any
 
+from dagshund import DagshundError
+
 # ANSI color codes
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -140,17 +142,25 @@ def _count_by_action(entries: dict[str, dict]) -> dict[str, int]:
     return counts
 
 
-def render_text(plan_json: str) -> None:
-    """Parse plan JSON and render colored diff summary to terminal."""
+def _parse_plan(raw: str) -> dict:
+    """Parse and validate plan JSON.
+
+    Keep in sync with _parse_plan() in browser.py — both share the same contract.
+    """
     try:
-        data = json.loads(plan_json)
+        data = json.loads(raw)
     except json.JSONDecodeError as exc:
-        print(f"dagshund: invalid JSON: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise DagshundError(f"invalid JSON: {exc}") from exc
 
     if not isinstance(data, dict):
-        print("dagshund: plan JSON must be an object", file=sys.stderr)
-        sys.exit(1)
+        raise DagshundError("plan JSON must be an object")
+
+    return data
+
+
+def render_text(plan_json: str) -> None:
+    """Parse plan JSON and render colored diff summary to terminal."""
+    data = _parse_plan(plan_json)
 
     plan = data.get("plan", {})
     if not plan:
@@ -198,7 +208,5 @@ def render_text(plan_json: str) -> None:
     for action, count in sorted(counts.items()):
         color = _action_color(action)
         symbol = _action_symbol(action)
-        summary_parts.append(
-            _colorize(f"{symbol}{count} {action}", color, use_color=use_color)
-        )
+        summary_parts.append(_colorize(f"{symbol}{count} {action}", color, use_color=use_color))
     print(f"  {', '.join(summary_parts)}")
