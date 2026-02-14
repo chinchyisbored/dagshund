@@ -10,18 +10,36 @@ export type TaskChangeSummary = readonly TaskChangeSummaryEntry[];
 
 export type NodeKind = "job" | "task" | "resource" | "resource-group";
 
-export type GraphNode = {
+/** Fields shared across all node kinds (composed via intersection, not inheritance). */
+type BaseGraphNode = {
   readonly id: string;
   readonly label: string;
-  readonly nodeKind: NodeKind;
   readonly diffState: DiffState;
   readonly resourceKey: string;
-  readonly taskKey: string | undefined;
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
   readonly resourceState: Readonly<Record<string, unknown>> | undefined;
+};
+
+export type JobGraphNode = BaseGraphNode & {
+  readonly nodeKind: "job";
   readonly taskChangeSummary: TaskChangeSummary | undefined;
+};
+
+export type TaskGraphNode = BaseGraphNode & {
+  readonly nodeKind: "task";
+  readonly taskKey: string;
+};
+
+export type ResourceGraphNode = BaseGraphNode & {
+  readonly nodeKind: "resource";
+};
+
+export type ResourceGroupGraphNode = BaseGraphNode & {
+  readonly nodeKind: "resource-group";
   readonly external: boolean;
 };
+
+export type GraphNode = JobGraphNode | TaskGraphNode | ResourceGraphNode | ResourceGroupGraphNode;
 
 export type EdgeDiffState = "added" | "removed" | "unchanged";
 
@@ -38,5 +56,8 @@ export type PlanGraph = {
   readonly edges: readonly GraphEdge[];
 };
 
+/** Distributive Omit that preserves discriminated unions. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 /** Data payload carried by each React Flow node (produced by toReactFlowNode). */
-export type DagNodeData = Omit<GraphNode, "id">;
+export type DagNodeData = DistributiveOmit<GraphNode, "id">;

@@ -1,7 +1,13 @@
 import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
 import { getEdgeStyle } from "../components/diff-state-styles.ts";
-import type { DagNodeData, GraphNode, PlanGraph } from "../types/graph-types.ts";
+import type {
+  DagNodeData,
+  GraphNode,
+  JobGraphNode,
+  PlanGraph,
+  TaskGraphNode,
+} from "../types/graph-types.ts";
 
 /** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner). */
 const getElk = (() => {
@@ -24,15 +30,15 @@ const JOB_PADDING_SIDE = 20;
 const JOB_PADDING_BOTTOM = 20;
 
 export type JobGroup = {
-  readonly job: GraphNode;
-  readonly tasks: readonly GraphNode[];
+  readonly job: JobGraphNode;
+  readonly tasks: readonly TaskGraphNode[];
 };
 
 /** Group graph nodes by job, pairing each job with its child tasks. */
 export const groupNodesByJob = (nodes: readonly GraphNode[]): readonly JobGroup[] => {
-  const jobs = nodes.filter((n) => n.nodeKind === "job");
+  const jobs = nodes.filter((n): n is JobGraphNode => n.nodeKind === "job");
   const tasksByResource = Map.groupBy(
-    nodes.filter((n) => n.nodeKind === "task"),
+    nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task"),
     (t) => t.resourceKey,
   );
   return jobs.map((job) => ({

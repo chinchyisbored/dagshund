@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildPlanGraph } from "../../src/graph/build-plan-graph.ts";
 import { parsePlanJson } from "../../src/parser/parse-plan.ts";
+import type { JobGraphNode, TaskGraphNode } from "../../src/types/graph-types.ts";
 import type { Plan } from "../../src/types/plan-schema.ts";
 
 const loadFixture = async (name: string): Promise<Plan> => {
@@ -92,7 +93,9 @@ describe("buildPlanGraph", () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
 
-      const validateNode = graph.nodes.find((n) => n.taskKey === "validate");
+      const validateNode = graph.nodes.find(
+        (n) => n.nodeKind === "task" && n.taskKey === "validate",
+      );
       expect(validateNode).toBeDefined();
       expect(validateNode?.diffState).toBe("removed");
     });
@@ -109,7 +112,8 @@ describe("buildPlanGraph", () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
 
-      const findTask = (taskKey: string) => graph.nodes.find((n) => n.taskKey === taskKey);
+      const findTask = (taskKey: string) =>
+        graph.nodes.find((n) => n.nodeKind === "task" && n.taskKey === taskKey);
 
       expect(findTask("extract")?.diffState).toBe("unchanged");
       expect(findTask("load")?.diffState).toBe("unchanged");
@@ -153,7 +157,9 @@ describe("buildPlanGraph", () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
 
-      const transformNode = graph.nodes.find((n) => n.taskKey === "transform");
+      const transformNode = graph.nodes.find(
+        (n) => n.nodeKind === "task" && n.taskKey === "transform",
+      );
       expect(transformNode?.changes).toBeDefined();
       expect(
         transformNode?.changes?.["tasks[task_key='transform'].notebook_task.notebook_path"],
@@ -188,7 +194,7 @@ describe("buildPlanGraph", () => {
       const plan = await loadFixture("mixed-plan.json");
       const graph = buildPlanGraph(plan);
 
-      const extractNode = graph.nodes.find((n) => n.taskKey === "extract");
+      const extractNode = graph.nodes.find((n) => n.nodeKind === "task" && n.taskKey === "extract");
       expect(extractNode?.resourceState).toBeDefined();
       expect(extractNode?.resourceState).toHaveProperty("task_key", "extract");
       expect(extractNode?.resourceState).toHaveProperty("notebook_task");
@@ -214,7 +220,8 @@ describe("buildPlanGraph", () => {
 
       const taskNodes = graph.nodes.filter((n) => n.nodeKind === "task");
       for (const task of taskNodes) {
-        expect(task.taskChangeSummary).toBeUndefined();
+        // taskChangeSummary does not exist on TaskGraphNode — verify it's absent at runtime
+        expect((task as unknown as JobGraphNode).taskChangeSummary).toBeUndefined();
       }
     });
   });
@@ -225,7 +232,8 @@ describe("buildPlanGraph", () => {
       const graph = buildPlanGraph(plan);
 
       const etlTaskNodes = graph.nodes.filter(
-        (n) => n.nodeKind === "task" && n.resourceKey === "resources.jobs.etl_pipeline",
+        (n): n is TaskGraphNode =>
+          n.nodeKind === "task" && n.resourceKey === "resources.jobs.etl_pipeline",
       );
       const taskKeys = etlTaskNodes.map((n) => n.taskKey).sort();
       expect(taskKeys).toEqual([

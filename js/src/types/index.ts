@@ -4,9 +4,13 @@ export type {
   EdgeDiffState,
   GraphEdge,
   GraphNode,
+  JobGraphNode,
   NodeKind,
   PlanGraph,
+  ResourceGraphNode,
+  ResourceGroupGraphNode,
   TaskChangeSummary,
+  TaskGraphNode,
 } from "./graph-types.ts";
 export type { LayoutResult } from "./layout-result.ts";
 export type {

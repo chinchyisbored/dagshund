@@ -7,6 +7,7 @@ import {
   isUnityCatalogType,
 } from "../../src/graph/build-resource-graph.ts";
 import { parsePlanJson } from "../../src/parser/parse-plan.ts";
+import type { ResourceGroupGraphNode } from "../../src/types/graph-types.ts";
 import type { Plan } from "../../src/types/plan-schema.ts";
 
 const loadFixture = async (name: string): Promise<Plan> => {
@@ -193,7 +194,7 @@ describe("buildResourceGraph", () => {
     const phantom = graph.nodes.find((n) => n.id === "external::dagshund.missing");
     expect(phantom).toBeDefined();
     expect(phantom?.nodeKind).toBe("resource-group");
-    expect(phantom?.external).toBe(true);
+    expect((phantom as ResourceGroupGraphNode | undefined)?.external).toBe(true);
     expect(phantom?.label).toBe("missing");
 
     // Edge chain: catalog → phantom → volume
@@ -264,9 +265,9 @@ describe("buildResourceGraph", () => {
     });
 
     const ucRoot = graph.nodes.find((n) => n.id === "uc-root");
-    expect(ucRoot?.external).toBe(false);
+    expect((ucRoot as ResourceGroupGraphNode | undefined)?.external).toBe(false);
     const catalog = graph.nodes.find((n) => n.id === "catalog::dagshund");
-    expect(catalog?.external).toBe(false);
+    expect((catalog as ResourceGroupGraphNode | undefined)?.external).toBe(false);
   });
 
   test("catalog group node is phantom when catalog is not a plan entry", () => {
@@ -280,10 +281,10 @@ describe("buildResourceGraph", () => {
     });
 
     const catalog = graph.nodes.find((n) => n.id === "catalog::dagshund");
-    expect(catalog?.external).toBe(true);
+    expect((catalog as ResourceGroupGraphNode | undefined)?.external).toBe(true);
   });
 
-  test("resource nodes have external: false", () => {
+  test("resource nodes have nodeKind 'resource' (no external field)", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.schemas.analytics": {
@@ -294,7 +295,8 @@ describe("buildResourceGraph", () => {
     });
 
     const schema = graph.nodes.find((n) => n.id === "resources.schemas.analytics");
-    expect(schema?.external).toBe(false);
+    expect(schema?.nodeKind).toBe("resource");
+    expect("external" in (schema ?? {})).toBe(false);
   });
 
   test("honors explicit depends_on edges", () => {
@@ -428,7 +430,7 @@ describe("buildResourceGraph", () => {
       // Phantom schema node should exist for dagshund_no_dabs
       const phantom = graph.nodes.find((n) => n.id === "external::dagshund.dagshund_no_dabs");
       expect(phantom).toBeDefined();
-      expect(phantom?.external).toBe(true);
+      expect((phantom as ResourceGroupGraphNode | undefined)?.external).toBe(true);
       expect(phantom?.label).toBe("dagshund_no_dabs");
       expect(phantom?.nodeKind).toBe("resource-group");
 
@@ -457,7 +459,7 @@ describe("buildResourceGraph", () => {
 
     const catalog = graph.nodes.find((n) => n.id === "catalog::lakebase_cat");
     expect(catalog).toBeDefined();
-    expect(catalog?.external).toBe(false);
+    expect((catalog as ResourceGroupGraphNode | undefined)?.external).toBe(false);
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("uc-root→catalog::lakebase_cat");

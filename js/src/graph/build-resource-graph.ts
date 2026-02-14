@@ -1,6 +1,12 @@
 import { z } from "zod/v4";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
-import type { EdgeDiffState, GraphEdge, GraphNode, PlanGraph } from "../types/graph-types.ts";
+import type {
+  EdgeDiffState,
+  GraphEdge,
+  PlanGraph,
+  ResourceGraphNode,
+  ResourceGroupGraphNode,
+} from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
 
@@ -73,30 +79,25 @@ const extractResourceState = (entry: PlanEntry): Readonly<Record<string, unknown
 };
 
 /** Build a GraphNode for a real plan resource entry. */
-const buildResourceNode = (key: string, entry: PlanEntry): GraphNode => ({
+const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => ({
   id: key,
   label: extractResourceName(key),
   nodeKind: "resource",
   diffState: mapActionToDiffState(entry.action),
   resourceKey: key,
-  taskKey: undefined,
   changes: entry.changes,
   resourceState: extractResourceState(entry),
-  taskChangeSummary: undefined,
-  external: false,
 });
 
 /** Build a virtual container node (UC root, catalog, workspace root). */
-const buildGroupNode = (id: string, label: string, external = false): GraphNode => ({
+const buildGroupNode = (id: string, label: string, external = false): ResourceGroupGraphNode => ({
   id,
   label,
   nodeKind: "resource-group",
   diffState: "unchanged",
   resourceKey: id,
-  taskKey: undefined,
   changes: undefined,
   resourceState: undefined,
-  taskChangeSummary: undefined,
   external,
 });
 
@@ -167,7 +168,7 @@ const buildPhantomSchemaNodes = (
   schemaLookup: ReadonlyMap<string, string>,
 ): ReadonlyMap<
   string,
-  { readonly node: GraphNode; readonly parentEdge: GraphEdge | undefined }
+  { readonly node: ResourceGroupGraphNode; readonly parentEdge: GraphEdge | undefined }
 > => {
   const phantomEntries = ucEntries.flatMap(([key, entry]) => {
     const resourceType = extractResourceType(key);

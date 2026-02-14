@@ -2,10 +2,10 @@ import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { NODE_WIDTH } from "../graph/index.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
-import type { DagNodeData } from "../types/graph-types.ts";
+import type { ResourceGroupGraphNode } from "../types/graph-types.ts";
 import { getDiffBadge } from "./diff-state-styles.ts";
 
-type ResourceGroupNodeType = Node<DagNodeData, "resource-group">;
+type ResourceGroupNodeType = Node<Omit<ResourceGroupGraphNode, "id">, "resource-group">;
 
 /** Derive a type badge for virtual group nodes from their ID convention. */
 const extractGroupBadge = (resourceKey: string): string | undefined => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { GraphNode, PlanGraph } from "../../src/types/graph-types.ts";
+import type { JobGraphNode, PlanGraph, TaskGraphNode } from "../../src/types/graph-types.ts";
 
 /**
  * These tests import pure helper functions from layout-graph.ts.
@@ -19,20 +19,18 @@ const loadModule = async () => {
   return mod;
 };
 
-const JOB_NODE: GraphNode = {
+const JOB_NODE: JobGraphNode = {
   id: "resources.jobs.etl",
   label: "resources.jobs.etl",
   nodeKind: "job",
   diffState: "added",
   resourceKey: "resources.jobs.etl",
-  taskKey: undefined,
   changes: undefined,
   resourceState: undefined,
   taskChangeSummary: undefined,
-  external: false,
 };
 
-const TASK_EXTRACT: GraphNode = {
+const TASK_EXTRACT: TaskGraphNode = {
   id: "resources.jobs.etl::extract",
   label: "extract",
   nodeKind: "task",
@@ -41,11 +39,9 @@ const TASK_EXTRACT: GraphNode = {
   taskKey: "extract",
   changes: undefined,
   resourceState: undefined,
-  taskChangeSummary: undefined,
-  external: false,
 };
 
-const TASK_TRANSFORM: GraphNode = {
+const TASK_TRANSFORM: TaskGraphNode = {
   id: "resources.jobs.etl::transform",
   label: "transform",
   nodeKind: "task",
@@ -54,8 +50,6 @@ const TASK_TRANSFORM: GraphNode = {
   taskKey: "transform",
   changes: undefined,
   resourceState: undefined,
-  taskChangeSummary: undefined,
-  external: false,
 };
 
 const SINGLE_JOB_GRAPH: PlanGraph = {
@@ -79,8 +73,12 @@ describe("groupNodesByJob", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].job.id).toBe("resources.jobs.etl");
     expect(groups[0].tasks).toHaveLength(2);
-    expect(groups[0].tasks.map((t: GraphNode) => t.id)).toContain("resources.jobs.etl::extract");
-    expect(groups[0].tasks.map((t: GraphNode) => t.id)).toContain("resources.jobs.etl::transform");
+    expect(groups[0].tasks.map((t: TaskGraphNode) => t.id)).toContain(
+      "resources.jobs.etl::extract",
+    );
+    expect(groups[0].tasks.map((t: TaskGraphNode) => t.id)).toContain(
+      "resources.jobs.etl::transform",
+    );
   });
 
   test("returns empty array for empty nodes", async () => {
@@ -91,12 +89,12 @@ describe("groupNodesByJob", () => {
 
   test("handles multiple jobs", async () => {
     const { groupNodesByJob } = await loadModule();
-    const secondJob: GraphNode = {
+    const secondJob: JobGraphNode = {
       ...JOB_NODE,
       id: "resources.jobs.ingest",
       resourceKey: "resources.jobs.ingest",
     };
-    const secondTask: GraphNode = {
+    const secondTask: TaskGraphNode = {
       ...TASK_EXTRACT,
       id: "resources.jobs.ingest::load",
       resourceKey: "resources.jobs.ingest",
@@ -112,19 +110,19 @@ describe("topologicalSortTasks", () => {
   test("sorts tasks so dependencies come before dependents", async () => {
     const { topologicalSortTasks } = await loadModule();
 
-    const taskA: GraphNode = {
+    const taskA: TaskGraphNode = {
       ...TASK_EXTRACT,
       id: "resources.jobs.etl::aggregate_results",
       taskKey: "aggregate_results",
       label: "aggregate_results",
     };
-    const taskB: GraphNode = {
+    const taskB: TaskGraphNode = {
       ...TASK_EXTRACT,
       id: "resources.jobs.etl::setup_env",
       taskKey: "setup_env",
       label: "setup_env",
     };
-    const taskC: GraphNode = {
+    const taskC: TaskGraphNode = {
       ...TASK_EXTRACT,
       id: "resources.jobs.etl::run_tests",
       taskKey: "run_tests",
@@ -140,7 +138,7 @@ describe("topologicalSortTasks", () => {
     ];
 
     const sorted = topologicalSortTasks(tasks, edges);
-    const sortedKeys = sorted.map((t: GraphNode) => t.taskKey);
+    const sortedKeys = sorted.map((t: TaskGraphNode) => t.taskKey);
 
     const setupIdx = sortedKeys.indexOf("setup_env");
     const runIdx = sortedKeys.indexOf("run_tests");
@@ -153,26 +151,26 @@ describe("topologicalSortTasks", () => {
   test("preserves original order for tasks with no edges", async () => {
     const { topologicalSortTasks } = await loadModule();
 
-    const taskA: GraphNode = { ...TASK_EXTRACT, id: "j::a", taskKey: "a" };
-    const taskB: GraphNode = { ...TASK_EXTRACT, id: "j::b", taskKey: "b" };
-    const taskC: GraphNode = { ...TASK_EXTRACT, id: "j::c", taskKey: "c" };
+    const taskA: TaskGraphNode = { ...TASK_EXTRACT, id: "j::a", taskKey: "a" };
+    const taskB: TaskGraphNode = { ...TASK_EXTRACT, id: "j::b", taskKey: "b" };
+    const taskC: TaskGraphNode = { ...TASK_EXTRACT, id: "j::c", taskKey: "c" };
 
     const sorted = topologicalSortTasks([taskA, taskB, taskC], []);
-    const sortedKeys = sorted.map((t: GraphNode) => t.taskKey);
+    const sortedKeys = sorted.map((t: TaskGraphNode) => t.taskKey);
     expect(sortedKeys).toEqual(["a", "b", "c"]);
   });
 
   test("ignores edges from other jobs", async () => {
     const { topologicalSortTasks } = await loadModule();
 
-    const taskA: GraphNode = { ...TASK_EXTRACT, id: "j::a", taskKey: "a" };
-    const taskB: GraphNode = { ...TASK_EXTRACT, id: "j::b", taskKey: "b" };
+    const taskA: TaskGraphNode = { ...TASK_EXTRACT, id: "j::a", taskKey: "a" };
+    const taskB: TaskGraphNode = { ...TASK_EXTRACT, id: "j::b", taskKey: "b" };
 
     // Edge from a different job — should be ignored
     const edges = [{ source: "other::x", target: "j::a" }];
 
     const sorted = topologicalSortTasks([taskA, taskB], edges);
-    const sortedKeys = sorted.map((t: GraphNode) => t.taskKey);
+    const sortedKeys = sorted.map((t: TaskGraphNode) => t.taskKey);
     expect(sortedKeys).toEqual(["a", "b"]);
   });
 });

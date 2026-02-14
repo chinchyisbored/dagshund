@@ -119,11 +119,14 @@ export function FlowCanvas({
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
 
-  /** Fit the viewport exactly once after the layout produces nodes. */
+  /** Fit the viewport exactly once after the layout produces nodes.
+   *  requestAnimationFrame defers until React Flow has measured node dimensions. */
   useEffect(() => {
     if (rfInstanceRef.current && baseNodes.length > 0 && !hasFittedRef.current) {
-      rfInstanceRef.current.fitView({ maxZoom: 1, padding: 0.15 });
       hasFittedRef.current = true;
+      requestAnimationFrame(() => {
+        rfInstanceRef.current?.fitView({ maxZoom: 1, padding: 0.15 });
+      });
     }
   }, [baseNodes]);
 
@@ -226,14 +229,6 @@ export function FlowCanvas({
     selectedNodeId,
   ]);
 
-  if (layoutState.status === "loading") {
-    return (
-      <div className="flex h-full items-center justify-center text-ink-muted">
-        <p className="animate-pulse">Computing layout...</p>
-      </div>
-    );
-  }
-
   if (layoutState.status === "error") {
     return (
       <div className="flex h-full items-center justify-center text-danger">
@@ -245,6 +240,11 @@ export function FlowCanvas({
   return (
     <div className="flex h-full">
       <HoverContext.Provider value={hoverState}>
+        {layoutState.status === "loading" && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/80">
+            <p className="animate-pulse text-ink-muted">Computing layout...</p>
+          </div>
+        )}
         <ReactFlow
           className="flex-1"
           nodes={baseNodes as Node[]}
