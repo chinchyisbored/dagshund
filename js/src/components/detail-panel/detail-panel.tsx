@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useJobNavigation } from "../../hooks/use-job-navigation.ts";
 import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
@@ -26,6 +27,21 @@ function filterMeaningfulChanges(
   return Object.entries(changes).filter(([, change]) => !NOISE_ACTIONS.has(change.action));
 }
 
+function ViewInJobsTabButton({ resourceKey }: { readonly resourceKey: string }) {
+  const navigateToJob = useJobNavigation();
+  if (navigateToJob === null) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => navigateToJob(resourceKey)}
+      className="mb-3 flex w-full items-center justify-center gap-1.5 rounded border border-accent/30 bg-accent/5 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+    >
+      View in Jobs tab
+      <span aria-hidden="true">&rarr;</span>
+    </button>
+  );
+}
+
 export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
@@ -39,6 +55,16 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
   }, [onClose]);
 
   const toggleFormat = () => setValueFormat((current) => NEXT_FORMAT[current]);
+
+  const hasTaskSummary =
+    (data.nodeKind === "job" || data.nodeKind === "resource") &&
+    data.taskChangeSummary !== undefined;
+
+  const showNoChanges =
+    data.diffState === "modified" &&
+    meaningfulChanges.length === 0 &&
+    data.resourceState === undefined &&
+    !hasTaskSummary;
 
   return (
     <ValueFormatContext.Provider value={valueFormat}>
@@ -78,8 +104,10 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
             </div>
           )}
 
-          {data.nodeKind === "job" && data.taskChangeSummary !== undefined && (
-            <TaskChangesSummary summary={data.taskChangeSummary} />
+          {hasTaskSummary && <TaskChangesSummary summary={data.taskChangeSummary} />}
+
+          {data.nodeKind === "resource" && data.taskChangeSummary !== undefined && (
+            <ViewInJobsTabButton resourceKey={data.resourceKey} />
           )}
 
           {(data.diffState === "added" || data.diffState === "removed") && (
@@ -99,12 +127,7 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
             <ResourceStateView resourceState={data.resourceState ?? {}} />
           )}
 
-          {data.diffState === "modified" &&
-            meaningfulChanges.length === 0 &&
-            data.resourceState === undefined &&
-            (data.nodeKind !== "job" || data.taskChangeSummary === undefined) && (
-              <p className="py-8 text-center text-sm text-ink-muted">No changes</p>
-            )}
+          {showNoChanges && <p className="py-8 text-center text-sm text-ink-muted">No changes</p>}
 
           <RawJsonDisclosure data={data} />
         </div>

@@ -32,6 +32,8 @@ export type TaskGraphNode = BaseGraphNode & {
 
 export type ResourceGraphNode = BaseGraphNode & {
   readonly nodeKind: "resource";
+  /** Present only for job resources; undefined for all other resource types. */
+  readonly taskChangeSummary: TaskChangeSummary | undefined;
 };
 
 export type ResourceGroupGraphNode = BaseGraphNode & {

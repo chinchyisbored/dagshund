@@ -6,7 +6,7 @@ import {
   isJobEntry,
   isUnityCatalogType,
 } from "../../src/graph/build-resource-graph.ts";
-import type { ResourceGroupGraphNode } from "../../src/types/graph-types.ts";
+import type { ResourceGraphNode, ResourceGroupGraphNode } from "../../src/types/graph-types.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 describe("extractResourceType", () => {
@@ -513,5 +513,195 @@ describe("buildResourceGraph", () => {
     // Both still link to workspace root
     expect(edgePairs).toContain("workspace-root→resources.jobs.job_a");
     expect(edgePairs).toContain("workspace-root→resources.jobs.job_b");
+  });
+
+  describe("job resource node filtering", () => {
+    test("job resource node has taskChangeSummary when tasks have changes", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.jobs.my_job": {
+            action: "update",
+            new_state: {
+              value: {
+                name: "my_job",
+                tasks: [
+                  { task_key: "ingest" },
+                  { task_key: "transform", depends_on: [{ task_key: "ingest" }] },
+                ],
+              },
+            },
+            changes: {
+              "tasks[task_key='transform'].notebook_task.notebook_path": {
+                action: "update",
+                old: "/old/path",
+                new: "/new/path",
+              },
+            },
+          },
+        },
+      });
+
+      const jobNode = graph.nodes.find(
+        (n) => n.id === "resources.jobs.my_job",
+      ) as ResourceGraphNode;
+      expect(jobNode.taskChangeSummary).toBeDefined();
+      expect(jobNode.taskChangeSummary).toHaveLength(1);
+      const firstEntry = jobNode.taskChangeSummary?.[0];
+      expect(firstEntry?.taskKey).toBe("transform");
+      expect(firstEntry?.diffState).toBe("modified");
+    });
+
+    test("job resource node has task-level keys filtered from changes", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.jobs.my_job": {
+            action: "update",
+            new_state: {
+              value: {
+                name: "my_job",
+                tasks: [{ task_key: "ingest" }],
+              },
+            },
+            changes: {
+              name: { action: "update", old: "old_name", new: "my_job" },
+              "tasks[task_key='ingest'].notebook_task.notebook_path": {
+                action: "update",
+                old: "/old",
+                new: "/new",
+              },
+            },
+          },
+        },
+      });
+
+      const jobNode = graph.nodes.find(
+        (n) => n.id === "resources.jobs.my_job",
+      ) as ResourceGraphNode;
+      expect(jobNode.changes).toBeDefined();
+      expect(Object.keys(jobNode.changes ?? {})).toEqual(["name"]);
+    });
+
+    test("job resource node has tasks filtered from resourceState", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.jobs.my_job": {
+            action: "update",
+            new_state: {
+              value: {
+                name: "my_job",
+                max_concurrent_runs: 1,
+                tasks: [{ task_key: "ingest" }],
+              },
+            },
+          },
+        },
+      });
+
+      const jobNode = graph.nodes.find(
+        (n) => n.id === "resources.jobs.my_job",
+      ) as ResourceGraphNode;
+      expect(jobNode.resourceState).toBeDefined();
+      expect(Object.keys(jobNode.resourceState ?? {})).toContain("name");
+      expect(Object.keys(jobNode.resourceState ?? {})).toContain("max_concurrent_runs");
+      expect(Object.keys(jobNode.resourceState ?? {})).not.toContain("tasks");
+    });
+
+    test("non-job resource node has taskChangeSummary undefined", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.schemas.analytics": {
+            action: "update",
+            new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+          },
+        },
+      });
+
+      const schemaNode = graph.nodes.find(
+        (n) => n.id === "resources.schemas.analytics",
+      ) as ResourceGraphNode;
+      expect(schemaNode.taskChangeSummary).toBeUndefined();
+    });
+
+    test("created job has taskChangeSummary undefined (all tasks inherit job state)", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.jobs.new_job": {
+            action: "create",
+            new_state: {
+              value: {
+                name: "new_job",
+                tasks: [
+                  { task_key: "ingest" },
+                  { task_key: "transform", depends_on: [{ task_key: "ingest" }] },
+                ],
+              },
+            },
+          },
+        },
+      });
+
+      const jobNode = graph.nodes.find(
+        (n) => n.id === "resources.jobs.new_job",
+      ) as ResourceGraphNode;
+      expect(jobNode.taskChangeSummary).toBeUndefined();
+    });
+
+    test("deleted job has taskChangeSummary undefined (all tasks inherit job state)", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.jobs.old_job": {
+            action: "delete",
+            remote_state: { name: "old_job", job_id: 123 },
+          },
+        },
+      });
+
+      const jobNode = graph.nodes.find(
+        (n) => n.id === "resources.jobs.old_job",
+      ) as ResourceGraphNode;
+      expect(jobNode.taskChangeSummary).toBeUndefined();
+    });
+
+    test("updated job with only job-level changes has taskChangeSummary undefined", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.jobs.my_job": {
+            action: "update",
+            new_state: {
+              value: {
+                name: "my_job",
+                tasks: [{ task_key: "ingest" }],
+              },
+            },
+            changes: {
+              name: { action: "update", old: "old_name", new: "my_job" },
+            },
+          },
+        },
+      });
+
+      const jobNode = graph.nodes.find(
+        (n) => n.id === "resources.jobs.my_job",
+      ) as ResourceGraphNode;
+      expect(jobNode.taskChangeSummary).toBeUndefined();
+    });
+
+    test("job with no tasks has taskChangeSummary undefined", () => {
+      const graph = buildResourceGraph({
+        plan: {
+          "resources.jobs.empty_job": {
+            action: "update",
+            new_state: {
+              value: { name: "empty_job" },
+            },
+          },
+        },
+      });
+
+      const jobNode = graph.nodes.find(
+        (n) => n.id === "resources.jobs.empty_job",
+      ) as ResourceGraphNode;
+      expect(jobNode.taskChangeSummary).toBeUndefined();
+    });
   });
 });

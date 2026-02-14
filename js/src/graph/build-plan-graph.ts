@@ -10,7 +10,11 @@ import {
 } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
-import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
+import {
+  buildTaskKeyPrefix,
+  collectChangesForTask,
+  filterJobLevelChanges,
+} from "../utils/task-key.ts";
 import { isJobEntry } from "./build-resource-graph.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
@@ -41,15 +45,6 @@ const buildJobNode = (
   resourceState: extractJobState(entry.new_state),
   taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
 });
-
-/** Filter changes to only include job-level (non-task) entries. */
-const filterJobLevelChanges = (
-  changes: Readonly<Record<string, ChangeDesc>> | undefined,
-): Readonly<Record<string, ChangeDesc>> | undefined => {
-  if (changes === undefined) return undefined;
-  const entries = Object.entries(changes).filter(([key]) => !key.startsWith("tasks["));
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-};
 
 /** Create task-level graph nodes from extracted tasks. */
 const buildTaskNodes = (

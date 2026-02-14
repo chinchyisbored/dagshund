@@ -9,6 +9,9 @@ import {
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
+import { filterJobLevelChanges } from "../utils/task-key.ts";
+import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
+import { extractJobState, extractTaskEntries } from "./extract-tasks.ts";
 
 /** Schema for new_state: { value: { ...fields } }. */
 const newStateSchema = z
@@ -79,15 +82,31 @@ const extractResourceState = (entry: PlanEntry): Readonly<Record<string, unknown
 };
 
 /** Build a GraphNode for a real plan resource entry. */
-const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => ({
-  id: key,
-  label: extractResourceName(key),
-  nodeKind: "resource",
-  diffState: mapActionToDiffState(entry.action),
-  resourceKey: key,
-  changes: entry.changes,
-  resourceState: extractResourceState(entry),
-});
+const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => {
+  if (isJobEntry(key)) {
+    const tasks = extractTaskEntries(entry.new_state);
+    return {
+      id: key,
+      label: extractResourceName(key),
+      nodeKind: "resource",
+      diffState: mapActionToDiffState(entry.action),
+      resourceKey: key,
+      changes: filterJobLevelChanges(entry.changes),
+      resourceState: extractJobState(entry.new_state),
+      taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
+    };
+  }
+  return {
+    id: key,
+    label: extractResourceName(key),
+    nodeKind: "resource",
+    diffState: mapActionToDiffState(entry.action),
+    resourceKey: key,
+    changes: entry.changes,
+    resourceState: extractResourceState(entry),
+    taskChangeSummary: undefined,
+  };
+};
 
 /** Build a virtual container node (UC root, catalog, workspace root). */
 const buildGroupNode = (id: string, label: string, external = false): ResourceGroupGraphNode => ({
