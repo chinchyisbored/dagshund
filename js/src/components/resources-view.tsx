@@ -8,5 +8,11 @@ const NODE_TYPES = { resource: ResourceNode, "resource-group": ResourceGroupNode
 
 export function ResourcesView({ plan }: { readonly plan: Plan }) {
   const layoutState = useResourceGraph(plan);
-  return <FlowCanvas layoutState={layoutState} nodeTypes={NODE_TYPES} />;
+  return (
+    <FlowCanvas
+      layoutState={layoutState}
+      nodeTypes={NODE_TYPES}
+      emptyLabel="No resources in this plan"
+    />
+  );
 }

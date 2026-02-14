@@ -22,6 +22,7 @@ type FlowCanvasProps = {
   readonly nodeTypes: NodeTypes;
   readonly focusNodeId?: string | null;
   readonly onFocusComplete?: () => void;
+  readonly emptyLabel?: string;
 };
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
@@ -59,6 +60,7 @@ export function FlowCanvas({
   nodeTypes,
   focusNodeId,
   onFocusComplete,
+  emptyLabel,
 }: FlowCanvasProps) {
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -233,6 +235,14 @@ export function FlowCanvas({
     return (
       <div className="flex h-full items-center justify-center text-danger">
         <p>Layout failed: {layoutState.message}</p>
+      </div>
+    );
+  }
+
+  if (layoutState.status === "ready" && baseNodes.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-ink-muted">
+        <p>{emptyLabel ?? "No nodes in this plan"}</p>
       </div>
     );
   }

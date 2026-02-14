@@ -43,6 +43,7 @@ function DagView({ plan, focusNodeId, onFocusComplete }: DagViewProps) {
       nodeTypes={NODE_TYPES}
       focusNodeId={focusNodeId}
       onFocusComplete={onFocusComplete}
+      emptyLabel="No jobs in this plan"
     />
   );
 }
