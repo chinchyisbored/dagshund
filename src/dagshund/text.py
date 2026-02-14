@@ -20,9 +20,17 @@ UPDATE_ACTIONS: frozenset[str] = frozenset({"update", "recreate", "resize", "upd
 
 
 def _supports_color() -> bool:
-    """Check if the terminal supports color output."""
-    if os.environ.get("NO_COLOR"):
+    """Check if the terminal supports color output.
+
+    Precedence: NO_COLOR (any value) > FORCE_COLOR (non-zero) > isatty().
+    NO_COLOR spec: presence disables color regardless of value.
+    FORCE_COLOR convention: "0" means unset, any other value forces color on.
+    """
+    if "NO_COLOR" in os.environ:
         return False
+    force = os.environ.get("FORCE_COLOR", "")
+    if force and force != "0":
+        return True
     return sys.stdout.isatty()
 
 
