@@ -30,29 +30,15 @@ export type JobGroup = {
 
 /** Group graph nodes by job, pairing each job with its child tasks. */
 export const groupNodesByJob = (nodes: readonly GraphNode[]): readonly JobGroup[] => {
-  const jobMap = new Map<string, { job: GraphNode; tasks: GraphNode[] }>();
-
-  for (const node of nodes) {
-    if (node.nodeKind === "job") {
-      const existing = jobMap.get(node.resourceKey);
-      if (existing) {
-        existing.job = node;
-      } else {
-        jobMap.set(node.resourceKey, { job: node, tasks: [] });
-      }
-    }
-  }
-
-  for (const node of nodes) {
-    if (node.nodeKind === "task") {
-      const group = jobMap.get(node.resourceKey);
-      if (group) {
-        group.tasks.push(node);
-      }
-    }
-  }
-
-  return [...jobMap.values()];
+  const jobs = nodes.filter((n) => n.nodeKind === "job");
+  const tasksByResource = Map.groupBy(
+    nodes.filter((n) => n.nodeKind === "task"),
+    (t) => t.resourceKey,
+  );
+  return jobs.map((job) => ({
+    job,
+    tasks: tasksByResource.get(job.resourceKey) ?? [],
+  }));
 };
 
 /** Extract the parent job ID from a node ID (task IDs contain "::", job IDs don't). */
@@ -77,7 +63,9 @@ const collectCrossJobEdges = (
   });
 };
 
-/** Topologically sort tasks within a job so ELK model order matches dependency flow. */
+/** Topologically sort tasks within a job so ELK model order matches dependency flow.
+ *  Uses Kahn's algorithm with local mutable state (adjacency map, in-degree map, queue)
+ *  as a deliberate exception to immutability-by-default — the algorithm requires it. */
 export const topologicalSortTasks = (
   tasks: readonly GraphNode[],
   edges: readonly { readonly source: string; readonly target: string }[],
