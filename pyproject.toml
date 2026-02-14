@@ -26,7 +26,48 @@ classifiers = [
 dagshund = "dagshund.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "prek==0.3.2",
+    "pytest==8.3.5",
+    "ruff==0.15.1",
+    "ty==0.0.17",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dagshund"]
+
+[tool.ruff]
+line-length = 120
+cache-dir = "./.cache/ruff"
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"
+
+[tool.ruff.lint]
+select = [
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "E",   # pycodestyle errors
+    "I",   # isort
+    "N",   # pep8 naming
+    "RUF", # ruff specifics
+    "PT",  # pytest
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "C4",  # misuse of comprehensions
+    "ICN", # import conventions
+    "SIM", # simplifications
+    "RET", # proper return statements
+    "TC",  # type checking
+]
+ignore = [
+    "E501",  # line too long
+    "B904",  # raise from none/exception
+    "TC006", # runtime cast as string
+]
+
+[tool.pytest.ini_options]
+cache_dir = "./.cache/pytest"
+pythonpath = ["src"]
+testpaths = ["tests"]

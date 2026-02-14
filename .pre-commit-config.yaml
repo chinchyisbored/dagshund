@@ -1,0 +1,60 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: check-added-large-files
+        args: ['--maxkb=1024']
+      - id: detect-private-key
+      - id: name-tests-test
+        args: [--pytest-test-first]
+      # - id: no-commit-to-branch
+      #   args: [--branch, main]
+
+  - repo: local
+    hooks:
+      - id: ruff-check-local
+        name: ruff-check(local-env)
+        entry: ruff check
+        language: system
+        types: [python]
+        args: [--config=./pyproject.toml, --force-exclude]
+        require_serial: true
+
+  - repo: local
+    hooks:
+      - id: ruff-format-local
+        name: ruff-format(local-env)
+        entry: ruff format
+        language: system
+        types: [python]
+        args: [--config=./pyproject.toml, --force-exclude]
+        require_serial: true
+
+  - repo: local
+    hooks:
+      - id: ty-local
+        name: ty(local-env)
+        entry: ty check
+        language: system
+        types: [python]
+        require_serial: true
+
+  - repo: local
+    hooks:
+      - id: beads-export
+        name: beads(export)
+        entry: bd hook pre-commit
+        language: system
+        always_run: true
+        pass_filenames: false
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.10
+    hooks:
+      - id: uv-lock
