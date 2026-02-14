@@ -211,9 +211,9 @@ export const diffObjects = (
   }
 
   // Sort: modified → added → removed → unchanged
-  entries.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+  const sorted = entries.toSorted((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
-  return { kind: "object", entries };
+  return { kind: "object", entries: sorted };
 };
 
 /**
