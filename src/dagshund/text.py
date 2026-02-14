@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from collections import Counter
 
 from dagshund import DagshundError
 
@@ -138,13 +139,7 @@ def _render_resource(
 
 def _count_by_action(entries: dict[str, dict]) -> dict[str, int]:
     """Count resources by action type."""
-    counts: dict[str, int] = {}
-    for entry in entries.values():
-        action = entry.get("action", "unchanged")
-        if not action:
-            action = "unchanged"
-        counts[action] = counts.get(action, 0) + 1
-    return counts
+    return dict(Counter(entry.get("action") or "unchanged" for entry in entries.values()))
 
 
 def _parse_plan(raw: str) -> dict:
