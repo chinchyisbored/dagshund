@@ -226,6 +226,14 @@ export function FlowCanvas({
     selectedNodeId,
   ]);
 
+  if (layoutState.status === "loading") {
+    return (
+      <div className="flex h-full items-center justify-center text-ink-muted">
+        <p className="animate-pulse">Computing layout...</p>
+      </div>
+    );
+  }
+
   if (layoutState.status === "error") {
     return (
       <div className="flex h-full items-center justify-center text-danger">
