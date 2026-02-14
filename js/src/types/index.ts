@@ -12,6 +12,7 @@ export type {
   TaskChangeSummary,
   TaskGraphNode,
 } from "./graph-types.ts";
+export { toEdgeDiffState } from "./graph-types.ts";
 export type { LayoutResult } from "./layout-result.ts";
 export type {
   ActionType,

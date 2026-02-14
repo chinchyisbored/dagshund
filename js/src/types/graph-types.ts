@@ -43,6 +43,10 @@ export type GraphNode = JobGraphNode | TaskGraphNode | ResourceGraphNode | Resou
 
 export type EdgeDiffState = "added" | "removed" | "unchanged";
 
+/** Map a DiffState to an EdgeDiffState (edges have no "modified" state). */
+export const toEdgeDiffState = (state: DiffState): EdgeDiffState =>
+  state === "added" || state === "removed" ? state : "unchanged";
+
 export type GraphEdge = {
   readonly id: string;
   readonly source: string;

@@ -1,11 +1,11 @@
 import { z } from "zod/v4";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
-import type {
-  EdgeDiffState,
-  GraphEdge,
-  PlanGraph,
-  ResourceGraphNode,
-  ResourceGroupGraphNode,
+import {
+  type GraphEdge,
+  type PlanGraph,
+  type ResourceGraphNode,
+  type ResourceGroupGraphNode,
+  toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
@@ -101,11 +101,9 @@ const buildGroupNode = (id: string, label: string, external = false): ResourceGr
   external,
 });
 
-/** Map an entry's action to an edge diff state (added/removed only; modified → unchanged). */
-const toEdgeDiffState = (entry: PlanEntry): EdgeDiffState => {
-  const state = mapActionToDiffState(entry.action);
-  return state === "added" || state === "removed" ? state : "unchanged";
-};
+/** Map an entry's action to an edge diff state. */
+const entryEdgeDiffState = (entry: PlanEntry) =>
+  toEdgeDiffState(mapActionToDiffState(entry.action));
 
 /** Build a unique edge, returning undefined if source === target. */
 const buildEdge = (
@@ -239,7 +237,7 @@ const buildUcGraph = (
       const resourceType = extractResourceType(key);
       const catalog = extractStateField(entry, "catalog_name");
       const catalogId = catalog !== undefined ? `catalog::${catalog}` : "uc-root";
-      const edgeDiff = toEdgeDiffState(entry);
+      const edgeDiff = entryEdgeDiffState(entry);
 
       if (
         resourceType !== undefined &&
@@ -278,7 +276,7 @@ const buildWorkspaceGraph = (
   const resourceNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
   const resourceEdges = filterDefinedEdges(
     workspaceEntries.map(([key, entry]) =>
-      buildEdge("workspace-root", key, toEdgeDiffState(entry)),
+      buildEdge("workspace-root", key, entryEdgeDiffState(entry)),
     ),
   );
 
@@ -296,7 +294,7 @@ const collectDependsOnEdges = (
     entries.flatMap(([key, entry]) =>
       (entry.depends_on ?? [])
         .filter((dep) => !(isJobEntry(key) && isJobEntry(dep.node)))
-        .map((dep) => buildEdge(dep.node, key, toEdgeDiffState(entry))),
+        .map((dep) => buildEdge(dep.node, key, entryEdgeDiffState(entry))),
     ),
   );
 
