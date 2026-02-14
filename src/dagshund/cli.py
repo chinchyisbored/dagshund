@@ -5,11 +5,20 @@ import sys
 
 from dagshund import DagshundError, __version__
 
+EPILOG = """\
+examples:
+  dagshund plan.json                       text diff summary
+  dagshund plan.json -o output.html        export interactive HTML
+  databricks bundle plan -o json | dagshund   pipe from Databricks CLI
+"""
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
         description="Visualize databricks bundle plan output as a colored diff summary",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--version",
