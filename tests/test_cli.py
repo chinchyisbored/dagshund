@@ -102,7 +102,7 @@ def test_browser_mode_file_output():
     """Test browser mode writes valid HTML when -o is specified."""
     template = Path(__file__).parent.parent / "src" / "dagshund" / "_assets" / "template.html"
     if not template.exists():
-        return  # Skip if template not built
+        pytest.skip("template.html not built; run 'just template' first")  # ty: ignore[invalid-argument-type,too-many-positional-arguments]
 
     fixture = FIXTURES_DIR / "sample-plan.json"
     import tempfile
