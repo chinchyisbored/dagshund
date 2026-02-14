@@ -15,8 +15,8 @@ type StructuralDiffViewProps = {
   readonly result: StructuralDiffResult;
 };
 
-/** Max characters per rendered line (including prefix). Conservative for the 380px detail panel. */
-const MAX_LINE_CHARS = 40;
+/** Max characters per rendered line (including prefix). Fits ~300px at monospace ~7.2px/char. */
+const MAX_LINE_CHARS = 60;
 
 const BREAK_CHARS = " /-_.,";
 

@@ -48,7 +48,7 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
       >
         <div className="flex items-center justify-between border-b border-outline-subtle px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <h2 className="text-sm font-semibold text-ink">{data.label}</h2>
+            <h2 className="truncate text-sm font-semibold text-ink">{data.label}</h2>
             <DiffStateBadge diffState={data.diffState} />
           </div>
           <div className="ml-2 flex shrink-0 items-center gap-1.5">
