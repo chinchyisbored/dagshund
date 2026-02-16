@@ -68,16 +68,6 @@ For example, in a `depends_on` array where each element has a `task_key` field, 
 
 When no suitable identity key exists (e.g. arrays of scalars or objects without a unique string key), the engine falls back to deep-equality matching.
 
-### Identity Label Annotation
-
-When an array element is added or removed and was matched via an identity key, the UI annotates it with the key-value pair used for identification. For example:
-
-```
-+ { task_key: "check_referential_integrity", ... }  (task_key=check_referential_integrity)
-```
-
-The `(task_key=check_referential_integrity)` label tells you which value was used to identify this element as a new addition (or removal). Unchanged elements don't show the label to reduce noise.
-
 ### Remote Fallback
 
 When a resource has no `old` value in the plan output (e.g. it was never previously deployed), the diff engine falls back to comparing against the `remote` value instead. When this happens, the UI shows a `(vs remote)` indicator above the diff so you know the baseline isn't the last-deployed state but the current remote state.
