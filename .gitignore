@@ -47,3 +47,4 @@ __pycache__/
 
 # Built JS template (generated artifact)
 src/dagshund/_assets/template.html
+js/src/dagshund/
