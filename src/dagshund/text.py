@@ -122,14 +122,14 @@ def _render_resource(
             field_symbol = _action_symbol(change_action)
             line = f"      {field_symbol} {field_name}"
 
-            old_val = change.get("old")
-            new_val = change.get("new")
-            if old_val is not None and new_val is not None:
-                line += f": {_format_value(old_val)} -> {_format_value(new_val)}"
-            elif new_val is not None:
-                line += f": {_format_value(new_val)}"
-            elif old_val is not None:
-                line += f": {_format_value(old_val)}"
+            has_old = "old" in change
+            has_new = "new" in change
+            if has_old and has_new:
+                line += f": {_format_value(change['old'])} -> {_format_value(change['new'])}"
+            elif has_new:
+                line += f": {_format_value(change['new'])}"
+            elif has_old:
+                line += f": {_format_value(change['old'])}"
 
             lines.append(_colorize(line, field_color, use_color=use_color))
 

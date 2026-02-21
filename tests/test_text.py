@@ -225,6 +225,46 @@ def test_render_resource_empty_action_omits_label() -> None:
     assert "()" not in lines[0]
 
 
+def test_render_resource_field_change_null_old_shows_transition() -> None:
+    entry = {
+        "action": "update",
+        "changes": {"field": {"action": "update", "old": None, "new": "value"}},
+    }
+
+    lines = _render_resource("resources.jobs.pipeline", entry, use_color=False)
+
+    assert len(lines) == 2
+    assert "null" in lines[1]
+    assert "->" in lines[1]
+    assert '"value"' in lines[1]
+
+
+def test_render_resource_field_change_null_new_shows_transition() -> None:
+    entry = {
+        "action": "update",
+        "changes": {"field": {"action": "update", "old": "value", "new": None}},
+    }
+
+    lines = _render_resource("resources.jobs.pipeline", entry, use_color=False)
+
+    assert len(lines) == 2
+    assert '"value"' in lines[1]
+    assert "->" in lines[1]
+    assert "null" in lines[1]
+
+
+def test_render_resource_field_change_both_null_shows_transition() -> None:
+    entry = {
+        "action": "update",
+        "changes": {"field": {"action": "update", "old": None, "new": None}},
+    }
+
+    lines = _render_resource("resources.jobs.pipeline", entry, use_color=False)
+
+    assert len(lines) == 2
+    assert "null -> null" in lines[1]
+
+
 def test_render_resource_with_color_includes_ansi() -> None:
     lines = _render_resource("resources.jobs.etl", {"action": "create"}, use_color=True)
 
