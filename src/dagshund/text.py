@@ -217,7 +217,7 @@ def _print_summary(resources: ResourceChanges, *, use_color: bool) -> None:
     print(f"  {parts}")
 
 
-def _all_unchanged(resources: ResourceChanges) -> bool:
+def _check_all_unchanged(resources: ResourceChanges) -> bool:
     """Check if every resource in the plan is unchanged (skip or empty action)."""
     return all(not _action_config(entry.get("action", "")).changed for entry in resources.values())
 
@@ -235,7 +235,7 @@ def render_text(plan_json: str) -> None:
     use_color = _supports_color()
     _print_header(plan, use_color=use_color)
 
-    if _all_unchanged(resources):
+    if _check_all_unchanged(resources):
         print(
             _colorize(
                 f"  No changes ({len(resources)} resources unchanged)",
