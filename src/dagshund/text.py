@@ -137,7 +137,7 @@ def _render_resource(
 def _count_by_action(entries: ResourceChangeMap) -> dict[str, int]:
     """Count resources by action type, using display names."""
     return dict(
-        Counter(_display_action(entry.get("action") or "unchanged") for entry in entries.values())
+        Counter(_display_action(entry.get("action", "")) for entry in entries.values())
     )
 
 
