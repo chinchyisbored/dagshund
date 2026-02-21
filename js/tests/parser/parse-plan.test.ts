@@ -151,7 +151,7 @@ describe("parsePlanFromString", () => {
   });
 
   test("round-trips through invalid fixture file", async () => {
-    const fixture = await Bun.file("tests/fixtures/invalid-plan.json").text();
+    const fixture = await Bun.file("../fixtures/invalid-plan.json").text();
     const result = parsePlanFromString(fixture);
     expect(result.ok).toBe(false);
   });

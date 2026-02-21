@@ -1,43 +1,25 @@
-# dependencies (bun install)
+# Dependencies
 node_modules
 
-# output
+# Build output
 out
 dist
-
-# generated css
-js/src/styles/output.css
 *.tgz
 
-# code coverage
+# Generated CSS
+js/src/styles/output.css
+
+# Built JS template (generated artifact)
+src/dagshund/_assets/template.html
+js/src/dagshund/
+
+# Code coverage
 coverage
 *.lcov
 
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# caches
-.eslintcache
+# Caches
 .cache
 *.tsbuildinfo
-
-# IntelliJ based IDEs
-.idea
-
-# Finder (MacOS) folder config
-.DS_Store
-
-# beads lock file
-.beads/.jsonl.lock
 
 # Python
 __pycache__/
@@ -45,6 +27,5 @@ __pycache__/
 *.egg-info/
 .venv/
 
-# Built JS template (generated artifact)
-src/dagshund/_assets/template.html
-js/src/dagshund/
+# Beads lock file
+.beads/.jsonl.lock

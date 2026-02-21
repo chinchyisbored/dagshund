@@ -14,7 +14,7 @@ install:
     uv run prek install
 
 # Start JS dev server in background
-dev plan_file=(js_dir / "test-bundle/real_fixture.json"):
+dev plan_file="fixtures/complex-plan.json":
     #!/usr/bin/env bash
     cat "{{plan_file}}" | bun run --cwd {{js_dir}} dev &>/dev/null &
     disown

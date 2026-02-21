@@ -28,7 +28,7 @@ def test_cli_version_flag() -> None:
 
 
 def test_cli_text_mode_with_file(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "real_fixture.json"))
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
     assert "create" in result.stdout
@@ -79,7 +79,7 @@ def test_main_text_mode_with_file(
     fixtures_dir: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "real_fixture.json")])
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "complex-plan.json")])
 
     main()
 
@@ -107,7 +107,7 @@ def test_main_output_flag_writes_html(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     output = tmp_path / "out.html"
-    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "real_fixture.json"), "-o", str(output)])
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "complex-plan.json"), "-o", str(output)])
 
     main()
 
@@ -124,7 +124,7 @@ def test_main_browser_flag_opens_browser(
     output = tmp_path / "out.html"
     monkeypatch.setattr(
         "sys.argv",
-        ["dagshund", str(fixtures_dir / "real_fixture.json"), "-o", str(output), "-b"],
+        ["dagshund", str(fixtures_dir / "complex-plan.json"), "-o", str(output), "-b"],
     )
 
     # webbrowser is imported lazily inside main(), so monkeypatch can't
@@ -142,7 +142,7 @@ def test_main_browser_without_output_exits_with_error(
     monkeypatch: pytest.MonkeyPatch,
     fixtures_dir: Path,
 ) -> None:
-    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "real_fixture.json"), "-b"])
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "complex-plan.json"), "-b"])
 
     with pytest.raises(SystemExit) as exc_info:
         main()

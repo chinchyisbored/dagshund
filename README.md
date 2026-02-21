@@ -85,35 +85,24 @@ just install       # Install JS dependencies
 ### Commands
 
 ```bash
-# JS (browser visualization)
 just dev           # Dev server with hot reload (http://localhost:3000)
-just build         # Production build
-just test-js       # Run JS tests
-just lint          # Biome lint check
-just typecheck     # TypeScript type-check
-just template      # Build template.html for Python package
-
-# Python
-uv run dagshund --version
-uv run pytest tests/ -v
-
-# Combined
-just test          # Run both JS and Python tests
+just dev-down      # Stop dev server
+just build         # JS template + Python wheel
+just test          # All tests (JS + Python)
+just test-js       # JS tests only
 just check         # lint + typecheck + all tests
+just lint          # Biome + Ruff (check only)
+just typecheck     # tsc + ty
 ```
 
 ### Dev server
 
-Pipe a plan to the dev server for live exploration with hot reload:
+Start the dev server with a plan piped via stdin (defaults to `fixtures/complex-plan.json`):
 
 ```bash
-cd js && cat tests/fixtures/complex-plan.json | bun run dev
-```
-
-Or start without a plan and upload via the UI:
-
-```bash
-just dev
+just dev                          # uses default fixture
+just dev path/to/your/plan.json   # use a specific plan
+just dev-down                     # stop the server
 ```
 
 ## License

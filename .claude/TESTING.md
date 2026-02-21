@@ -23,10 +23,9 @@ Every function with failure modes should have tests for both success and failure
 ### Running Tests
 
 ```bash
-just test          # JS + Python tests
+just test          # All tests (JS + Python)
+just test-js       # JS tests only
 just check         # lint + typecheck + all tests
-uv run pytest -v   # Python only, verbose
-uv run pytest -k "parse_plan"  # Run tests matching expression
 ```
 
 The `-k` expression is a pytest keyword filter, NOT a file path.
@@ -175,10 +174,10 @@ def test_find_template_raises_when_missing(tmp_path: Path) -> None:
 
 ### Fixtures (pytest)
 
-Use built-in fixtures (`tmp_path`, `capsys`, `monkeypatch`). JSON test data lives in `js/test-bundle/` (shared with JS). Reference with:
+Use built-in fixtures (`tmp_path`, `capsys`, `monkeypatch`). JSON test data lives in `fixtures/` at the repo root (shared with JS). Reference with:
 
 ```python
-FIXTURES_DIR = Path(__file__).parent.parent / "js" / "test-bundle"
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 ```
 
 ---
@@ -278,7 +277,7 @@ test("parses complex plan", async () => {
 });
 ```
 
-Fixtures live in `js/tests/fixtures/` and are shared with Python tests.
+Fixtures live in `fixtures/` at the repo root and are shared with Python tests.
 
 ### Mocking
 
