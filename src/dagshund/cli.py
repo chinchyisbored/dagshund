@@ -51,7 +51,7 @@ def read_plan(plan_file: str | None) -> str:
     """Read plan JSON from file or stdin."""
     if plan_file is not None:
         try:
-            with open(plan_file) as f:
+            with open(plan_file, encoding="utf-8") as f:
                 return f.read()
         except FileNotFoundError:
             raise DagshundError(f"file not found: {plan_file}") from None
