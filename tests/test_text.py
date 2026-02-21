@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from dagshund import DagshundError
 from dagshund.text import (
     DIM,
     GREEN,
@@ -360,14 +361,14 @@ def test_print_summary_shows_action_counts(capsys: pytest.CaptureFixture[str]) -
 # --- render_text (integration) ---
 
 
-def test_render_text_empty_plan_prints_warning(capsys: pytest.CaptureFixture[str]) -> None:
-    render_text('{"plan": {}}')
-    assert "plan is empty" in capsys.readouterr().err
+def test_render_text_empty_plan_raises_error() -> None:
+    with pytest.raises(DagshundError, match="plan is empty"):
+        render_text('{"plan": {}}')
 
 
-def test_render_text_missing_plan_key_prints_warning(capsys: pytest.CaptureFixture[str]) -> None:
-    render_text('{"cli_version": "1.0"}')
-    assert "plan is empty" in capsys.readouterr().err
+def test_render_text_missing_plan_key_raises_error() -> None:
+    with pytest.raises(DagshundError, match="plan is empty"):
+        render_text('{"cli_version": "1.0"}')
 
 
 def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFixture[str]) -> None:

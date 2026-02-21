@@ -4,7 +4,7 @@ import os
 import sys
 from collections import Counter
 
-from dagshund import parse_plan
+from dagshund import DagshundError, parse_plan
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -198,8 +198,7 @@ def render_text(plan_json: str) -> None:
 
     plan = data.get("plan", {})
     if not plan:
-        print("dagshund: plan is empty", file=sys.stderr)
-        return
+        raise DagshundError("plan is empty")
 
     use_color = _supports_color()
     _print_header(data, use_color=use_color)
