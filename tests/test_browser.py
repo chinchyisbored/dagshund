@@ -68,8 +68,14 @@ def test_inject_plan_replaces_placeholder() -> None:
 
 
 def test_inject_plan_missing_placeholder_raises() -> None:
-    with pytest.raises(DagshundError, match="placeholder"):
+    with pytest.raises(DagshundError, match="not found"):
         _inject_plan("<html>no placeholder</html>", {"key": "value"})
+
+
+def test_inject_plan_duplicate_placeholder_raises() -> None:
+    template = f"<script>{PLACEHOLDER}</script><!-- {PLACEHOLDER} -->"
+    with pytest.raises(DagshundError, match="found 2"):
+        _inject_plan(template, {"key": "value"})
 
 
 def test_inject_plan_escapes_angle_brackets_in_values() -> None:

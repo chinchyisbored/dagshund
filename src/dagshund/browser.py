@@ -34,12 +34,15 @@ def _escape_for_script_tag(content: str) -> str:
 
 def _inject_plan(template: str, plan_data: dict) -> str:
     """Replace the placeholder in template HTML with actual plan JSON."""
-    if PLACEHOLDER not in template:
+    count = template.count(PLACEHOLDER)
+    if count == 0:
         raise DagshundError(
             f"placeholder {PLACEHOLDER} not found in template — template may be outdated, rebuild with 'just template'"
         )
+    if count > 1:
+        raise DagshundError(f"expected 1 placeholder in template, found {count}")
     safe_json = _escape_for_script_tag(json.dumps(plan_data, separators=(",", ":")))
-    return template.replace(PLACEHOLDER, safe_json)
+    return template.replace(PLACEHOLDER, safe_json, 1)
 
 
 def render_browser(plan_json: str, *, output_path: str) -> None:
