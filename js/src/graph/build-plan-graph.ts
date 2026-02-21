@@ -19,9 +19,9 @@ import { isJobEntry } from "./build-resource-graph.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
   extractDeletedTaskEntries,
-  extractJobState,
-  extractTaskEntries,
   extractTaskState,
+  resolveJobState,
+  resolveTaskEntries,
   type TaskEntry,
 } from "./extract-tasks.ts";
 import { resolveTaskDiffState } from "./resolve-task-diff-state.ts";
@@ -42,7 +42,7 @@ const buildJobNode = (
   diffState: mapActionToDiffState(entry.action),
   resourceKey,
   changes: filterJobLevelChanges(entry.changes),
-  resourceState: extractJobState(entry.new_state),
+  resourceState: resolveJobState(entry.new_state, entry.remote_state),
   taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
 });
 
@@ -199,7 +199,7 @@ const buildEntryGraph = (
   resourceKey: string,
   entry: PlanEntry,
 ): { readonly nodes: readonly GraphNode[]; readonly edges: readonly GraphEdge[] } => {
-  const tasks = extractTaskEntries(entry.new_state);
+  const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
   const deletedTasks = extractDeletedTaskEntries(entry.changes);
   const allTasks = [...tasks, ...deletedTasks];
 
@@ -241,7 +241,7 @@ const buildRunJobEdges = (
 ): readonly GraphEdge[] => {
   const jobIdMap = buildJobIdMap(entries);
   return entries.flatMap(([resourceKey, entry]) => {
-    const tasks = extractTaskEntries(entry.new_state);
+    const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
     return tasks.flatMap((task) => {
       const jobId = task.run_job_task?.job_id;
       if (jobId === undefined) return [];

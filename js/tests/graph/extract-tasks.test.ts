@@ -2,8 +2,12 @@ import { describe, expect, test } from "bun:test";
 import {
   extractDeletedTaskEntries,
   extractJobState,
+  extractJobStateFromRemoteState,
   extractTaskEntries,
+  extractTaskEntriesFromRemoteState,
   extractTaskState,
+  resolveJobState,
+  resolveTaskEntries,
 } from "../../src/graph/extract-tasks.ts";
 
 describe("extractTaskEntries", () => {
@@ -87,6 +91,108 @@ describe("extractJobState", () => {
 
   test("returns undefined for invalid input", () => {
     expect(extractJobState("invalid")).toBeUndefined();
+  });
+});
+
+describe("extractTaskEntriesFromRemoteState", () => {
+  test("extracts tasks from flat remote_state with tasks array", () => {
+    const remoteState = {
+      name: "etl_pipeline",
+      tasks: [
+        { task_key: "extract" },
+        { task_key: "transform", depends_on: [{ task_key: "extract" }] },
+      ],
+    };
+    const tasks = extractTaskEntriesFromRemoteState(remoteState);
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]?.task_key).toBe("extract");
+    expect(tasks[1]?.depends_on).toHaveLength(1);
+  });
+
+  test("returns empty array when remote_state is undefined", () => {
+    expect(extractTaskEntriesFromRemoteState(undefined)).toEqual([]);
+  });
+
+  test("returns empty array when remote_state has no tasks", () => {
+    expect(extractTaskEntriesFromRemoteState({ name: "alert" })).toEqual([]);
+  });
+
+  test("returns empty array for non-object input", () => {
+    expect(extractTaskEntriesFromRemoteState("invalid")).toEqual([]);
+  });
+});
+
+describe("resolveTaskEntries", () => {
+  test("prefers new_state tasks when available", () => {
+    const newState = { value: { tasks: [{ task_key: "from_new" }] } };
+    const remoteState = { tasks: [{ task_key: "from_remote" }] };
+    const tasks = resolveTaskEntries(newState, remoteState);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]?.task_key).toBe("from_new");
+  });
+
+  test("falls back to remote_state when new_state is undefined", () => {
+    const remoteState = { tasks: [{ task_key: "from_remote" }] };
+    const tasks = resolveTaskEntries(undefined, remoteState);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]?.task_key).toBe("from_remote");
+  });
+
+  test("falls back to remote_state when new_state has no tasks", () => {
+    const newState = { value: { name: "job" } };
+    const remoteState = { tasks: [{ task_key: "from_remote" }] };
+    const tasks = resolveTaskEntries(newState, remoteState);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]?.task_key).toBe("from_remote");
+  });
+
+  test("returns empty when both sources have no tasks", () => {
+    expect(resolveTaskEntries(undefined, undefined)).toEqual([]);
+    expect(resolveTaskEntries(undefined, { name: "job" })).toEqual([]);
+  });
+});
+
+describe("extractJobStateFromRemoteState", () => {
+  test("returns remote_state fields excluding tasks", () => {
+    const remoteState = {
+      name: "etl_pipeline",
+      format: "MULTI_TASK",
+      tasks: [{ task_key: "extract" }],
+    };
+    const state = extractJobStateFromRemoteState(remoteState);
+    expect(state).toHaveProperty("name", "etl_pipeline");
+    expect(state).toHaveProperty("format", "MULTI_TASK");
+    expect(state).not.toHaveProperty("tasks");
+  });
+
+  test("returns undefined when remote_state is undefined", () => {
+    expect(extractJobStateFromRemoteState(undefined)).toBeUndefined();
+  });
+
+  test("returns undefined for non-object input", () => {
+    expect(extractJobStateFromRemoteState("invalid")).toBeUndefined();
+  });
+});
+
+describe("resolveJobState", () => {
+  test("prefers new_state when available", () => {
+    const newState = { value: { name: "from_new", tasks: [] } };
+    const remoteState = { name: "from_remote", tasks: [] };
+    const state = resolveJobState(newState, remoteState);
+    expect(state).toHaveProperty("name", "from_new");
+  });
+
+  test("falls back to remote_state when new_state is undefined", () => {
+    const remoteState = { name: "from_remote", tasks: [] };
+    const state = resolveJobState(undefined, remoteState);
+    expect(state).toHaveProperty("name", "from_remote");
+  });
+
+  test("falls back to remote_state when new_state.value only has tasks", () => {
+    const newState = { value: { tasks: [{ task_key: "extract" }] } };
+    const remoteState = { name: "from_remote", tasks: [] };
+    const state = resolveJobState(newState, remoteState);
+    expect(state).toHaveProperty("name", "from_remote");
   });
 });
 

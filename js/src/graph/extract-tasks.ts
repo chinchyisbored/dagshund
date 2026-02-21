@@ -30,6 +30,13 @@ const newStateSchema = z
   })
   .readonly();
 
+const remoteStateTasksSchema = z
+  .object({
+    tasks: z.array(taskEntrySchema).readonly().optional(),
+  })
+  .passthrough()
+  .readonly();
+
 export type TaskEntry = z.infer<typeof taskEntrySchema>;
 
 /** Safely extract task entries from a PlanEntry's untyped new_state. */
@@ -39,6 +46,23 @@ export const extractTaskEntries = (newState: unknown): readonly TaskEntry[] => {
     return [];
   }
   return parsed.data.value?.tasks ?? [];
+};
+
+/** Extract task entries from a PlanEntry's remote_state (flat shape, no value wrapper). */
+export const extractTaskEntriesFromRemoteState = (remoteState: unknown): readonly TaskEntry[] => {
+  const parsed = remoteStateTasksSchema.safeParse(remoteState);
+  if (!parsed.success) return [];
+  return parsed.data.tasks ?? [];
+};
+
+/** Extract task entries, preferring new_state and falling back to remote_state for skip resources. */
+export const resolveTaskEntries = (
+  newState: unknown,
+  remoteState: unknown,
+): readonly TaskEntry[] => {
+  const fromNewState = extractTaskEntries(newState);
+  if (fromNewState.length > 0) return fromNewState;
+  return extractTaskEntriesFromRemoteState(remoteState);
 };
 
 /** Extract job-level state (all fields except `tasks`) from new_state. */
@@ -52,6 +76,23 @@ export const extractJobState = (
   const { tasks: _, ...rest } = value;
   return Object.keys(rest).length > 0 ? rest : undefined;
 };
+
+/** Extract job-level state (all fields except `tasks`) from remote_state. */
+export const extractJobStateFromRemoteState = (
+  remoteState: unknown,
+): Readonly<Record<string, unknown>> | undefined => {
+  const parsed = remoteStateTasksSchema.safeParse(remoteState);
+  if (!parsed.success) return undefined;
+  const { tasks: _, ...rest } = parsed.data;
+  return Object.keys(rest).length > 0 ? rest : undefined;
+};
+
+/** Resolve job-level state, preferring new_state and falling back to remote_state. */
+export const resolveJobState = (
+  newState: unknown,
+  remoteState: unknown,
+): Readonly<Record<string, unknown>> | undefined =>
+  extractJobState(newState) ?? extractJobStateFromRemoteState(remoteState);
 
 /** Extract task-level state as a plain record from a TaskEntry. */
 export const extractTaskState = (task: TaskEntry): Readonly<Record<string, unknown>> =>
