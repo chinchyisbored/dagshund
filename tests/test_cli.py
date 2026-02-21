@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from dagshund import DagshundError
+from dagshund import DagshundError, __version__
 from dagshund.cli import main, read_plan
 
 
@@ -24,7 +24,7 @@ def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedP
 def test_cli_version_flag() -> None:
     result = _run_dagshund("--version")
     assert result.returncode == 0
-    assert "dagshund 0.1.0" in result.stdout
+    assert f"dagshund {__version__}" in result.stdout
 
 
 def test_cli_text_mode_with_file(fixtures_dir: Path) -> None:
