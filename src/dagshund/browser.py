@@ -32,7 +32,7 @@ def _escape_for_script_tag(content: str) -> str:
     return content.replace("<", "\\u003c")
 
 
-def _inject_plan(template: str, plan_data: Plan) -> str:
+def _inject_plan(template: str, plan: Plan) -> str:
     """Replace the placeholder in template HTML with actual plan JSON."""
     count = template.count(PLACEHOLDER)
     if count == 0:
@@ -41,16 +41,16 @@ def _inject_plan(template: str, plan_data: Plan) -> str:
         )
     if count > 1:
         raise DagshundError(f"expected 1 placeholder in template, found {count}")
-    safe_json = _escape_for_script_tag(json.dumps(plan_data, separators=(",", ":")))
+    safe_json = _escape_for_script_tag(json.dumps(plan, separators=(",", ":")))
     return template.replace(PLACEHOLDER, safe_json, 1)
 
 
 def render_browser(plan_json: str, *, output_path: str) -> None:
     """Render plan as interactive HTML and export to file."""
-    plan_data = parse_plan(plan_json)
+    plan = parse_plan(plan_json)
     template_path = _find_template()
     template = template_path.read_text(encoding="utf-8")
-    html = _inject_plan(template, plan_data)
+    html = _inject_plan(template, plan)
 
     try:
         Path(output_path).write_text(html, encoding="utf-8")

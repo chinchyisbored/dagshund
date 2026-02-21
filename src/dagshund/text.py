@@ -7,7 +7,19 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import groupby
 
-from dagshund import DagshundError, Plan, ResourceChange, ResourceChangeMap, parse_plan
+from dagshund import (
+    DagshundError,
+    FieldChange,
+    Plan,
+    ResourceChange,
+    ResourceChanges,
+    ResourceChangesByType,
+    ResourceKey,
+    ResourceName,
+    ResourceType,
+    is_resource_changes,
+    parse_plan,
+)
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -25,6 +37,10 @@ class _ActionConfig:
     color: str
     symbol: str
     show_field_changes: bool = False
+
+    @property
+    def changed(self) -> bool:
+        return self.display != "unchanged"
 
 
 _ACTIONS: dict[str, _ActionConfig] = {
@@ -67,7 +83,7 @@ def _action_config(action: str) -> _ActionConfig:
     return _ACTIONS.get(action, _DEFAULT_ACTION)
 
 
-def _parse_resource_key(key: str) -> tuple[str, str]:
+def _parse_resource_key(key: ResourceKey) -> tuple[ResourceType, ResourceName]:
     """Extract resource type and name from a key like 'resources.jobs.etl_pipeline'."""
     match key.split("."):
         case [_, resource_type, name, *rest]:
@@ -99,10 +115,10 @@ def _format_value(value: object) -> str:
             return repr(value)
 
 
-def _render_field_change(field_name: str, change: dict[str, object], *, use_color: bool) -> str | None:
+def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
     """Render a single field-level change, or None if unchanged."""
     field_cfg = _action_config(str(change.get("action", "")))
-    if field_cfg.display == "unchanged":
+    if not field_cfg.changed:
         return None
 
     prefix = f"      {field_cfg.symbol} {field_name}"
@@ -119,7 +135,7 @@ def _render_field_change(field_name: str, change: dict[str, object], *, use_colo
 
 
 def _render_resource(
-    key: str,
+    key: ResourceKey,
     entry: ResourceChange,
     *,
     use_color: bool,
@@ -128,7 +144,7 @@ def _render_resource(
     cfg = _action_config(entry.get("action", ""))
     resource_type, resource_name = _parse_resource_key(key)
 
-    label = f"  ({cfg.display})" if cfg.display != "unchanged" else ""
+    label = f"  ({cfg.display})" if cfg.changed else ""
     header = f"  {cfg.symbol} {resource_type}/{resource_name}{label}"
     yield _colorize(header, cfg.color, use_color=use_color)
 
@@ -142,17 +158,15 @@ def _render_resource(
                 yield rendered
 
 
-def _count_by_action(entries: ResourceChangeMap) -> dict[_ActionConfig, int]:
+def _count_by_action(entries: ResourceChanges) -> dict[_ActionConfig, int]:
     """Count resources grouped by action config."""
-    return dict(
-        Counter(_action_config(entry.get("action", "")) for entry in entries.values())
-    )
+    return dict(Counter(_action_config(entry.get("action", "")) for entry in entries.values()))
 
 
-def _print_header(data: Plan, *, use_color: bool) -> None:
+def _print_header(plan: Plan, *, use_color: bool) -> None:
     """Print the plan version header line."""
-    cli_version = data.get("cli_version", "unknown")
-    plan_version = data.get("plan_version", "?")
+    cli_version = plan.get("cli_version", "unknown")
+    plan_version = plan.get("plan_version", "?")
     print(
         _colorize(
             f"dagshund plan (v{plan_version}, cli {cli_version})",
@@ -163,24 +177,21 @@ def _print_header(data: Plan, *, use_color: bool) -> None:
     print()
 
 
-def _resource_type_of(entry: tuple[str, ResourceChange]) -> str:
+def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType:
     """Extract the resource type from a (key, change) pair."""
     return _parse_resource_key(entry[0])[0]
 
 
-def _group_by_resource_type(plan: ResourceChangeMap) -> dict[str, list[tuple[str, ResourceChange]]]:
+def _group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType:
     """Group plan entries by their resource type (jobs, schemas, etc.)."""
-    sorted_entries = sorted(plan.items(), key=_resource_type_of)
-    return {
-        resource_type: list(group)
-        for resource_type, group in groupby(sorted_entries, key=_resource_type_of)
-    }
+    sorted_entries = sorted(resources.items(), key=_resource_type_of)
+    return {resource_type: list(group) for resource_type, group in groupby(sorted_entries, key=_resource_type_of)}
 
 
-def _print_resource_groups(by_type: dict[str, list[tuple[str, ResourceChange]]], *, use_color: bool) -> None:
+def _print_resource_groups(resource_groups: ResourceChangesByType, *, use_color: bool) -> None:
     """Print each resource type group with its entries."""
-    for resource_type in sorted(by_type):
-        entries = by_type[resource_type]
+    for resource_type in sorted(resource_groups):
+        entries = resource_groups[resource_type]
         print(
             _colorize(
                 f"  {resource_type} ({len(entries)})",
@@ -199,40 +210,40 @@ def _format_action_count(cfg: _ActionConfig, count: int, *, use_color: bool) -> 
     return _colorize(f"{cfg.symbol}{count} {cfg.display}", cfg.color, use_color=use_color)
 
 
-def _print_summary(plan: ResourceChangeMap, *, use_color: bool) -> None:
+def _print_summary(resources: ResourceChanges, *, use_color: bool) -> None:
     """Print the action count summary line."""
-    sorted_counts = sorted(_count_by_action(plan).items(), key=lambda item: item[0].display)
+    sorted_counts = sorted(_count_by_action(resources).items(), key=lambda item: item[0].display)
     parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in sorted_counts)
     print(f"  {parts}")
 
 
-def _all_unchanged(plan: ResourceChangeMap) -> bool:
+def _all_unchanged(resources: ResourceChanges) -> bool:
     """Check if every resource in the plan is unchanged (skip or empty action)."""
-    return all(_action_config(entry.get("action", "")).display == "unchanged" for entry in plan.values())
+    return all(not _action_config(entry.get("action", "")).changed for entry in resources.values())
 
 
 def render_text(plan_json: str) -> None:
     """Parse plan JSON and render colored diff summary to terminal."""
-    data = parse_plan(plan_json)
+    plan = parse_plan(plan_json)
 
-    plan = data.get("plan", {})
-    if not isinstance(plan, dict):
+    resources = plan.get("plan", {})
+    if not is_resource_changes(resources):
         raise DagshundError("plan must be an object")
-    if not plan:
+    if not resources:
         raise DagshundError("plan is empty")
 
     use_color = _supports_color()
-    _print_header(data, use_color=use_color)
+    _print_header(plan, use_color=use_color)
 
-    if _all_unchanged(plan):
+    if _all_unchanged(resources):
         print(
             _colorize(
-                f"  No changes ({len(plan)} resources unchanged)",
+                f"  No changes ({len(resources)} resources unchanged)",
                 DIM,
                 use_color=use_color,
             )
         )
         return
 
-    _print_resource_groups(_group_by_resource_type(plan), use_color=use_color)
-    _print_summary(plan, use_color=use_color)
+    _print_resource_groups(_group_by_resource_type(resources), use_color=use_color)
+    _print_summary(resources, use_color=use_color)

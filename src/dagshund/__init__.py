@@ -1,13 +1,34 @@
 """Dagshund -- visualizer for databricks bundle plan output."""
 
 import json
-from typing import Any
+
+from dagshund.types import (
+    FieldChange,
+    Plan,
+    ResourceChange,
+    ResourceChanges,
+    ResourceChangesByType,
+    ResourceKey,
+    ResourceName,
+    ResourceType,
+    is_resource_changes,
+)
+
+__all__ = [
+    "DagshundError",
+    "FieldChange",
+    "Plan",
+    "ResourceChange",
+    "ResourceChanges",
+    "ResourceChangesByType",
+    "ResourceKey",
+    "ResourceName",
+    "ResourceType",
+    "is_resource_changes",
+    "parse_plan",
+]
 
 __version__ = "0.1.0"
-
-type ResourceChange = dict[str, Any]
-type ResourceChangeMap = dict[str, ResourceChange]
-type Plan = dict[str, Any]
 
 
 class DagshundError(Exception):
