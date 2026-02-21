@@ -60,6 +60,14 @@ def test_read_plan_permission_denied_raises(tmp_path: Path) -> None:
         plan_file.chmod(0o644)
 
 
+def test_read_plan_non_utf8_file_raises(tmp_path: Path) -> None:
+    plan_file = tmp_path / "binary.json"
+    plan_file.write_bytes(b'\x80\x81\x82\xff')
+
+    with pytest.raises(DagshundError, match="not valid UTF-8"):
+        read_plan(str(plan_file))
+
+
 def test_read_plan_reads_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin", StringIO('{"plan": {}}'))
     assert read_plan(None) == '{"plan": {}}'

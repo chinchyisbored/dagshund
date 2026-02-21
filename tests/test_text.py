@@ -293,6 +293,31 @@ def test_render_resource_with_color_includes_ansi() -> None:
     assert RESET in lines[0]
 
 
+def test_render_resource_non_dict_changes_skips_field_details() -> None:
+    entry = {"action": "update", "changes": "should_be_object"}
+
+    lines = _render_resource("resources.jobs.etl", entry, use_color=False)
+
+    assert len(lines) == 1
+    assert "(update)" in lines[0]
+
+
+def test_render_resource_non_dict_change_entry_skips_that_field() -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            "good_field": {"action": "update", "old": 1, "new": 2},
+            "bad_field": "not_a_dict",
+        },
+    }
+
+    lines = _render_resource("resources.jobs.etl", entry, use_color=False)
+
+    assert len(lines) == 2
+    assert "good_field" in lines[1]
+    assert "bad_field" not in lines[1]
+
+
 # --- _count_by_action ---
 
 
@@ -407,6 +432,16 @@ def test_all_unchanged_false_with_real_changes() -> None:
 
 
 # --- render_text (integration) ---
+
+
+def test_render_text_non_dict_plan_raises_error() -> None:
+    with pytest.raises(DagshundError, match="plan must be an object"):
+        render_text('{"plan": "not_a_dict"}')
+
+
+def test_render_text_list_plan_raises_error() -> None:
+    with pytest.raises(DagshundError, match="plan must be an object"):
+        render_text('{"plan": [1, 2, 3]}')
 
 
 def test_render_text_empty_plan_raises_error() -> None:

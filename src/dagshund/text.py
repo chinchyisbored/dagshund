@@ -109,8 +109,10 @@ def _render_resource(
 
     # Show field-level changes for updates
     changes = entry.get("changes", {})
-    if changes and action in UPDATE_ACTIONS:
+    if isinstance(changes, dict) and changes and action in UPDATE_ACTIONS:
         for field_name, change in sorted(changes.items()):
+            if not isinstance(change, dict):
+                continue
             change_action = _display_action(change.get("action", ""))
             if change_action == "unchanged":
                 continue
@@ -199,6 +201,8 @@ def render_text(plan_json: str) -> None:
     data = parse_plan(plan_json)
 
     plan = data.get("plan", {})
+    if not isinstance(plan, dict):
+        raise DagshundError("plan must be an object")
     if not plan:
         raise DagshundError("plan is empty")
 

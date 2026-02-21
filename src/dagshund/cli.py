@@ -55,6 +55,8 @@ def read_plan(plan_file: str | None) -> str:
                 return f.read()
         except FileNotFoundError:
             raise DagshundError(f"file not found: {plan_file}") from None
+        except UnicodeDecodeError:
+            raise DagshundError(f"file is not valid UTF-8: {plan_file}") from None
         except OSError as exc:
             raise DagshundError(f"could not read file: {exc}") from exc
 
