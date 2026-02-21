@@ -380,7 +380,7 @@ def test_group_by_resource_type_empty_plan() -> None:
 
 
 def test_print_resource_groups_renders_type_header_and_entries(capsys: pytest.CaptureFixture[str]) -> None:
-    by_type = {"jobs": [("resources.jobs.etl", {"action": "create"})]}
+    by_type = {"jobs": {"resources.jobs.etl": {"action": "create"}}}
 
     _print_resource_groups(by_type, use_color=False)
 

@@ -185,7 +185,7 @@ def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType
 def _group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType:
     """Group plan entries by their resource type (jobs, schemas, etc.)."""
     sorted_entries = sorted(resources.items(), key=_resource_type_of)
-    return {resource_type: list(group) for resource_type, group in groupby(sorted_entries, key=_resource_type_of)}
+    return {resource_type: dict(group) for resource_type, group in groupby(sorted_entries, key=_resource_type_of)}
 
 
 def _print_resource_groups(resource_groups: ResourceChangesByType, *, use_color: bool) -> None:
@@ -199,7 +199,7 @@ def _print_resource_groups(resource_groups: ResourceChangesByType, *, use_color:
                 use_color=use_color,
             )
         )
-        for key, entry in sorted(entries):
+        for key, entry in sorted(entries.items()):
             for line in _render_resource(key, entry, use_color=use_color):
                 print(line)
         print()

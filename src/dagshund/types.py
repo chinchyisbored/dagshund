@@ -8,7 +8,7 @@ type ResourceName = str
 type FieldChange = dict[str, object]
 type ResourceChange = dict[str, Any]
 type ResourceChanges = dict[ResourceKey, ResourceChange]
-type ResourceChangesByType = dict[ResourceType, list[tuple[ResourceKey, ResourceChange]]]
+type ResourceChangesByType = dict[ResourceType, ResourceChanges]
 type Plan = dict[str, Any]
 
 
