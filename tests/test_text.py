@@ -1,5 +1,6 @@
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
@@ -12,8 +13,10 @@ from dagshund.text import (
     UPDATE_ACTIONS,
     YELLOW,
     _action_style,
+    _all_unchanged,
     _colorize,
     _count_by_action,
+    _display_action,
     _format_value,
     _group_by_resource_type,
     _parse_resource_key,
@@ -90,8 +93,7 @@ class ActionStyleCase:
 ACTION_STYLE_CASES: list[ActionStyleCase] = [
     ActionStyleCase("create", "create", GREEN, "+"),
     ActionStyleCase("delete", "delete", RED, "-"),
-    ActionStyleCase("skip", "skip", DIM, " "),
-    ActionStyleCase("empty", "", DIM, " "),
+    ActionStyleCase("unchanged", "unchanged", DIM, " "),
     ActionStyleCase("unknown", "unknown_action", RESET, "?"),
     *[ActionStyleCase(action, action, YELLOW, "~") for action in sorted(UPDATE_ACTIONS)],
 ]
@@ -100,6 +102,21 @@ ACTION_STYLE_CASES: list[ActionStyleCase] = [
 @pytest.mark.parametrize("case", ACTION_STYLE_CASES, ids=lambda c: c.name)
 def test_action_style(case: ActionStyleCase) -> None:
     assert _action_style(case.action) == (case.expected_color, case.expected_symbol)
+
+
+# --- _display_action ---
+
+
+def test_display_action_skip_becomes_unchanged() -> None:
+    assert _display_action("skip") == "unchanged"
+
+
+def test_display_action_empty_becomes_unchanged() -> None:
+    assert _display_action("") == "unchanged"
+
+
+def test_display_action_create_unchanged() -> None:
+    assert _display_action("create") == "create"
 
 
 # --- _parse_resource_key ---
@@ -213,11 +230,20 @@ def test_render_resource_field_change_old_only() -> None:
     assert '"gone"' in lines[1]
 
 
+def test_render_resource_skip_action_omits_label() -> None:
+    lines = _render_resource("resources.jobs.stable", {"action": "skip"}, use_color=False)
+
+    assert "  jobs/stable" in lines[0]
+    assert "(skip)" not in lines[0]
+    assert "(unchanged)" not in lines[0]
+
+
 def test_render_resource_empty_action_omits_label() -> None:
     lines = _render_resource("resources.jobs.stable", {"action": ""}, use_color=False)
 
     assert "  jobs/stable" in lines[0]
     assert "()" not in lines[0]
+    assert "(unchanged)" not in lines[0]
 
 
 def test_render_resource_field_change_null_old_shows_transition() -> None:
@@ -279,6 +305,11 @@ def test_count_by_action_mixed() -> None:
     }
 
     assert _count_by_action(entries) == {"create": 2, "delete": 1, "update": 1}
+
+
+def test_count_by_action_skip_becomes_unchanged() -> None:
+    entries = {"a": {"action": "skip"}, "b": {"action": "skip"}}
+    assert _count_by_action(entries) == {"unchanged": 2}
 
 
 def test_count_by_action_empty_becomes_unchanged() -> None:
@@ -352,6 +383,29 @@ def test_print_summary_shows_action_counts(capsys: pytest.CaptureFixture[str]) -
     assert "-1 delete" in out
 
 
+# --- _all_unchanged ---
+
+
+def test_all_unchanged_all_skip() -> None:
+    plan = {"a": {"action": "skip"}, "b": {"action": "skip"}}
+    assert _all_unchanged(plan) is True
+
+
+def test_all_unchanged_all_empty() -> None:
+    plan = {"a": {"action": ""}, "b": {}}
+    assert _all_unchanged(plan) is True
+
+
+def test_all_unchanged_mixed_skip_and_empty() -> None:
+    plan = {"a": {"action": "skip"}, "b": {"action": ""}}
+    assert _all_unchanged(plan) is True
+
+
+def test_all_unchanged_false_with_real_changes() -> None:
+    plan = {"a": {"action": "skip"}, "b": {"action": "create"}}
+    assert _all_unchanged(plan) is False
+
+
 # --- render_text (integration) ---
 
 
@@ -363,6 +417,22 @@ def test_render_text_empty_plan_raises_error() -> None:
 def test_render_text_missing_plan_key_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
         render_text('{"cli_version": "1.0"}')
+
+
+def test_render_text_all_unchanged_shows_no_changes(
+    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_json = (fixtures_dir / "no-changes-plan.json").read_text()
+
+    render_text(plan_json)
+
+    out = capsys.readouterr().out
+    assert "No changes" in out
+    assert "8 resources unchanged" in out
+    # Should NOT list individual resources
+    assert "alerts" not in out
+    assert "(skip)" not in out
+    assert "(unchanged)" not in out
 
 
 def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFixture[str]) -> None:

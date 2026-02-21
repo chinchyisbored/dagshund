@@ -39,11 +39,12 @@ def _colorize(text: str, color: str, *, use_color: bool) -> str:
     return f"{color}{text}{RESET}"
 
 
+_DISPLAY_ACTIONS: dict[str, str] = {"skip": "unchanged", "": "unchanged"}
+
 _ACTION_STYLES: dict[str, tuple[str, str]] = {
     "create": (GREEN, "+"),
     "delete": (RED, "-"),
-    "skip": (DIM, " "),
-    "": (DIM, " "),
+    "unchanged": (DIM, " "),
     **dict.fromkeys(UPDATE_ACTIONS, (YELLOW, "~")),
 }
 
@@ -53,6 +54,11 @@ _DEFAULT_STYLE: tuple[str, str] = (RESET, "?")
 def _action_style(action: str) -> tuple[str, str]:
     """Return (color, symbol) for an action string."""
     return _ACTION_STYLES.get(action, _DEFAULT_STYLE)
+
+
+def _display_action(action: str) -> str:
+    """Map internal action names to user-facing display names."""
+    return _DISPLAY_ACTIONS.get(action, action)
 
 
 def _parse_resource_key(key: str) -> tuple[str, str]:
@@ -92,12 +98,12 @@ def _render_resource(
 ) -> list[str]:
     """Render a single resource entry as lines of text."""
     lines: list[str] = []
-    action = entry.get("action", "")
+    action = _display_action(entry.get("action", ""))
     resource_type, resource_name = _parse_resource_key(key)
     color, symbol = _action_style(action)
 
     header = f"  {symbol} {resource_type}/{resource_name}"
-    if action:
+    if action != "unchanged":
         header += f"  ({action})"
     lines.append(_colorize(header, color, use_color=use_color))
 
@@ -105,8 +111,8 @@ def _render_resource(
     changes = entry.get("changes", {})
     if changes and action in UPDATE_ACTIONS:
         for field_name, change in sorted(changes.items()):
-            change_action = change.get("action", "")
-            if change_action in ("skip", ""):
+            change_action = _display_action(change.get("action", ""))
+            if change_action == "unchanged":
                 continue
 
             field_color, field_symbol = _action_style(change_action)
@@ -127,8 +133,10 @@ def _render_resource(
 
 
 def _count_by_action(entries: ResourceChangeMap) -> dict[str, int]:
-    """Count resources by action type."""
-    return dict(Counter(entry.get("action") or "unchanged" for entry in entries.values()))
+    """Count resources by action type, using display names."""
+    return dict(
+        Counter(_display_action(entry.get("action") or "unchanged") for entry in entries.values())
+    )
 
 
 def _print_header(data: Plan, *, use_color: bool) -> None:
@@ -181,6 +189,11 @@ def _print_summary(plan: ResourceChangeMap, *, use_color: bool) -> None:
     print(f"  {', '.join(summary_parts)}")
 
 
+def _all_unchanged(plan: ResourceChangeMap) -> bool:
+    """Check if every resource in the plan is unchanged (skip or empty action)."""
+    return all(entry.get("action", "") in ("skip", "") for entry in plan.values())
+
+
 def render_text(plan_json: str) -> None:
     """Parse plan JSON and render colored diff summary to terminal."""
     data = parse_plan(plan_json)
@@ -191,5 +204,16 @@ def render_text(plan_json: str) -> None:
 
     use_color = _supports_color()
     _print_header(data, use_color=use_color)
+
+    if _all_unchanged(plan):
+        print(
+            _colorize(
+                f"  No changes ({len(plan)} resources unchanged)",
+                DIM,
+                use_color=use_color,
+            )
+        )
+        return
+
     _print_resource_groups(_group_by_resource_type(plan), use_color=use_color)
     _print_summary(plan, use_color=use_color)
