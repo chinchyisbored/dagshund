@@ -1,22 +1,22 @@
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 from dagshund import DagshundError
 from dagshund.text import (
+    _ACTIONS,
+    _DEFAULT_ACTION,
     DIM,
     GREEN,
     RED,
     RESET,
-    UPDATE_ACTIONS,
     YELLOW,
-    _action_style,
+    _action_config,
+    _ActionConfig,
     _all_unchanged,
     _colorize,
     _count_by_action,
-    _display_action,
     _format_value,
     _group_by_resource_type,
     _parse_resource_key,
@@ -79,44 +79,34 @@ def test_colorize_returns_plain_when_disabled() -> None:
     assert _colorize("hello", GREEN, use_color=False) == "hello"
 
 
-# --- _action_style ---
+# --- _action_config ---
 
 
-@dataclass(frozen=True)
-class ActionStyleCase:
-    name: str
-    action: str
-    expected_color: str
-    expected_symbol: str
+@pytest.mark.parametrize(
+    ("action", "expected"),
+    [
+        ("create", _ActionConfig("create", GREEN, "+")),
+        ("delete", _ActionConfig("delete", RED, "-")),
+        ("update", _ActionConfig("update", YELLOW, "~", show_field_changes=True)),
+        ("recreate", _ActionConfig("recreate", YELLOW, "~", show_field_changes=True)),
+        ("resize", _ActionConfig("resize", YELLOW, "~", show_field_changes=True)),
+        ("update_id", _ActionConfig("update_id", YELLOW, "~", show_field_changes=True)),
+        ("skip", _ActionConfig("unchanged", DIM, " ")),
+        ("", _ActionConfig("unchanged", DIM, " ")),
+        ("unknown_action", _DEFAULT_ACTION),
+    ],
+    ids=[
+        "create", "delete", "update", "recreate", "resize",
+        "update_id", "skip", "empty", "unknown",
+    ],
+)
+def test_action_config(action: str, expected: _ActionConfig) -> None:
+    assert _action_config(action) == expected
 
 
-ACTION_STYLE_CASES: list[ActionStyleCase] = [
-    ActionStyleCase("create", "create", GREEN, "+"),
-    ActionStyleCase("delete", "delete", RED, "-"),
-    ActionStyleCase("unchanged", "unchanged", DIM, " "),
-    ActionStyleCase("unknown", "unknown_action", RESET, "?"),
-    *[ActionStyleCase(action, action, YELLOW, "~") for action in sorted(UPDATE_ACTIONS)],
-]
-
-
-@pytest.mark.parametrize("case", ACTION_STYLE_CASES, ids=lambda c: c.name)
-def test_action_style(case: ActionStyleCase) -> None:
-    assert _action_style(case.action) == (case.expected_color, case.expected_symbol)
-
-
-# --- _display_action ---
-
-
-def test_display_action_skip_becomes_unchanged() -> None:
-    assert _display_action("skip") == "unchanged"
-
-
-def test_display_action_empty_becomes_unchanged() -> None:
-    assert _display_action("") == "unchanged"
-
-
-def test_display_action_create_unchanged() -> None:
-    assert _display_action("create") == "create"
+def test_actions_table_covers_all_update_actions() -> None:
+    update_configs = [cfg for cfg in _ACTIONS.values() if cfg.show_field_changes]
+    assert len(update_configs) == 4
 
 
 # --- _parse_resource_key ---
@@ -329,17 +319,21 @@ def test_count_by_action_mixed() -> None:
         "d": {"action": "update"},
     }
 
-    assert _count_by_action(entries) == {"create": 2, "delete": 1, "update": 1}
+    assert _count_by_action(entries) == {
+        _action_config("create"): 2,
+        _action_config("delete"): 1,
+        _action_config("update"): 1,
+    }
 
 
 def test_count_by_action_skip_becomes_unchanged() -> None:
     entries = {"a": {"action": "skip"}, "b": {"action": "skip"}}
-    assert _count_by_action(entries) == {"unchanged": 2}
+    assert _count_by_action(entries) == {_action_config("skip"): 2}
 
 
 def test_count_by_action_empty_becomes_unchanged() -> None:
     entries = {"a": {"action": ""}, "b": {}}
-    assert _count_by_action(entries) == {"unchanged": 2}
+    assert _count_by_action(entries) == {_action_config(""): 2}
 
 
 # --- _print_header ---
@@ -406,6 +400,16 @@ def test_print_summary_shows_action_counts(capsys: pytest.CaptureFixture[str]) -
     out = capsys.readouterr().out
     assert "+1 create" in out
     assert "-1 delete" in out
+
+
+def test_print_summary_unchanged_uses_dim_style(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = {"a": {"action": "create"}, "b": {"action": "skip"}}
+
+    _print_summary(plan, use_color=False)
+
+    out = capsys.readouterr().out
+    assert " 1 unchanged" in out
+    assert "?" not in out
 
 
 # --- _all_unchanged ---

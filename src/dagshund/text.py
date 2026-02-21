@@ -3,6 +3,7 @@
 import os
 import sys
 from collections import Counter
+from dataclasses import dataclass
 
 from dagshund import DagshundError, Plan, ResourceChange, ResourceChangeMap, parse_plan
 
@@ -15,7 +16,27 @@ RED = "\033[31m"
 YELLOW = "\033[33m"
 CYAN = "\033[36m"
 
-UPDATE_ACTIONS: frozenset[str] = frozenset({"update", "recreate", "resize", "update_id"})
+
+@dataclass(frozen=True, slots=True)
+class _ActionConfig:
+    display: str
+    color: str
+    symbol: str
+    show_field_changes: bool = False
+
+
+_ACTIONS: dict[str, _ActionConfig] = {
+    "create": _ActionConfig("create", GREEN, "+"),
+    "delete": _ActionConfig("delete", RED, "-"),
+    "update": _ActionConfig("update", YELLOW, "~", show_field_changes=True),
+    "recreate": _ActionConfig("recreate", YELLOW, "~", show_field_changes=True),
+    "resize": _ActionConfig("resize", YELLOW, "~", show_field_changes=True),
+    "update_id": _ActionConfig("update_id", YELLOW, "~", show_field_changes=True),
+    "skip": _ActionConfig("unchanged", DIM, " "),
+    "": _ActionConfig("unchanged", DIM, " "),
+}
+
+_DEFAULT_ACTION = _ActionConfig("unknown", RESET, "?")
 
 
 def _supports_color() -> bool:
@@ -39,26 +60,9 @@ def _colorize(text: str, color: str, *, use_color: bool) -> str:
     return f"{color}{text}{RESET}"
 
 
-_DISPLAY_ACTIONS: dict[str, str] = {"skip": "unchanged", "": "unchanged"}
-
-_ACTION_STYLES: dict[str, tuple[str, str]] = {
-    "create": (GREEN, "+"),
-    "delete": (RED, "-"),
-    "unchanged": (DIM, " "),
-    **dict.fromkeys(UPDATE_ACTIONS, (YELLOW, "~")),
-}
-
-_DEFAULT_STYLE: tuple[str, str] = (RESET, "?")
-
-
-def _action_style(action: str) -> tuple[str, str]:
-    """Return (color, symbol) for an action string."""
-    return _ACTION_STYLES.get(action, _DEFAULT_STYLE)
-
-
-def _display_action(action: str) -> str:
-    """Map internal action names to user-facing display names."""
-    return _DISPLAY_ACTIONS.get(action, action)
+def _action_config(action: str) -> _ActionConfig:
+    """Return the display config for an action string."""
+    return _ACTIONS.get(action, _DEFAULT_ACTION)
 
 
 def _parse_resource_key(key: str) -> tuple[str, str]:
@@ -98,26 +102,25 @@ def _render_resource(
 ) -> list[str]:
     """Render a single resource entry as lines of text."""
     lines: list[str] = []
-    action = _display_action(entry.get("action", ""))
+    cfg = _action_config(entry.get("action", ""))
     resource_type, resource_name = _parse_resource_key(key)
-    color, symbol = _action_style(action)
 
-    header = f"  {symbol} {resource_type}/{resource_name}"
-    if action != "unchanged":
-        header += f"  ({action})"
-    lines.append(_colorize(header, color, use_color=use_color))
+    header = f"  {cfg.symbol} {resource_type}/{resource_name}"
+    if cfg.display != "unchanged":
+        header += f"  ({cfg.display})"
+    lines.append(_colorize(header, cfg.color, use_color=use_color))
 
     # Show field-level changes for updates
     changes = entry.get("changes", {})
-    if isinstance(changes, dict) and changes and action in UPDATE_ACTIONS:
+    if isinstance(changes, dict) and changes and cfg.show_field_changes:
         for field_name, change in sorted(changes.items()):
             if not isinstance(change, dict):
                 continue
-            change_action = _display_action(change.get("action", ""))
-            if change_action == "unchanged":
+            field_cfg = _action_config(change.get("action", ""))
+            if field_cfg.display == "unchanged":
                 continue
 
-            field_color, field_symbol = _action_style(change_action)
+            field_color, field_symbol = field_cfg.color, field_cfg.symbol
             line = f"      {field_symbol} {field_name}"
 
             has_old = "old" in change
@@ -134,10 +137,10 @@ def _render_resource(
     return lines
 
 
-def _count_by_action(entries: ResourceChangeMap) -> dict[str, int]:
-    """Count resources by action type, using display names."""
+def _count_by_action(entries: ResourceChangeMap) -> dict[_ActionConfig, int]:
+    """Count resources grouped by action config."""
     return dict(
-        Counter(_display_action(entry.get("action", "")) for entry in entries.values())
+        Counter(_action_config(entry.get("action", "")) for entry in entries.values())
     )
 
 
@@ -185,15 +188,14 @@ def _print_summary(plan: ResourceChangeMap, *, use_color: bool) -> None:
     """Print the action count summary line."""
     counts = _count_by_action(plan)
     summary_parts = []
-    for action, count in sorted(counts.items()):
-        color, symbol = _action_style(action)
-        summary_parts.append(_colorize(f"{symbol}{count} {action}", color, use_color=use_color))
+    for cfg, count in sorted(counts.items(), key=lambda x: x[0].display):
+        summary_parts.append(_colorize(f"{cfg.symbol}{count} {cfg.display}", cfg.color, use_color=use_color))
     print(f"  {', '.join(summary_parts)}")
 
 
 def _all_unchanged(plan: ResourceChangeMap) -> bool:
     """Check if every resource in the plan is unchanged (skip or empty action)."""
-    return all(entry.get("action", "") in ("skip", "") for entry in plan.values())
+    return all(_action_config(entry.get("action", "")).display == "unchanged" for entry in plan.values())
 
 
 def render_text(plan_json: str) -> None:

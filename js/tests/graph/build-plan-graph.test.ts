@@ -113,7 +113,7 @@ describe("buildPlanGraph", () => {
       const rk = "resources.jobs.etl_pipeline";
 
       const etlEdges = graph.edges.filter(
-        (e) => e.source.startsWith(rk + "::") && e.target.startsWith(rk + "::"),
+        (e) => e.source.startsWith(`${rk}::`) && e.target.startsWith(`${rk}::`),
       );
       expect(etlEdges).toHaveLength(4);
 

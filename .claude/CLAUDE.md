@@ -35,7 +35,7 @@ just typecheck     # tsc + ty
 Practical functional style. Readable, composable, explicit.
 
 - **Immutable by default.** `readonly` types, spread operators, `Object.freeze`. Never mutate. React state is always replaced.
-- **Functions over classes.** No exceptions. Plain functions, closures, modules. Function components with hooks.
+- **Functions over classes.** No exceptions. Plain functions, closures, modules. Function components with hooks. Frozen dataclasses (`@dataclass(frozen=True, slots=True)`) are fine as data carriers.
 - **Small and composable.** Under 20 lines. Pure where possible. `pipe()`/`flow()` for chains. No inheritance.
 - **Type safety.** `unknown` over `any`. Zod at boundaries, trust types internally. No `as` unless commented why.
 - **Explicit errors.** Result/Either patterns. Never silently swallow. Error boundaries at meaningful levels.
