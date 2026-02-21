@@ -81,7 +81,7 @@ def _format_value(value: object) -> str:
         if len(value) > 80:
             return f'"{value[:77]}..."'
         return f'"{value}"'
-    if isinstance(value, bool):
+    if isinstance(value, bool):  # must precede int — bool is a subclass of int
         return "true" if value else "false"
     if isinstance(value, int | float):
         return str(value)
