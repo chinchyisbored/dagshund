@@ -3,7 +3,9 @@
 import os
 import sys
 from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass
+from itertools import groupby
 
 from dagshund import DagshundError, Plan, ResourceChange, ResourceChangeMap, parse_plan
 
@@ -67,31 +69,53 @@ def _action_config(action: str) -> _ActionConfig:
 
 def _parse_resource_key(key: str) -> tuple[str, str]:
     """Extract resource type and name from a key like 'resources.jobs.etl_pipeline'."""
-    parts = key.split(".")
-    if len(parts) >= 3:
-        return parts[1], ".".join(parts[2:])
-    if len(parts) == 2:
-        return parts[0], parts[1]
-    return "", key
+    match key.split("."):
+        case [_, resource_type, name, *rest]:
+            return resource_type, ".".join([name, *rest])
+        case [resource_type, name]:
+            return resource_type, name
+        case _:
+            return "", key
 
 
 def _format_value(value: object) -> str:
     """Format a value for display, truncating long strings."""
-    if value is None:
-        return "null"
-    if isinstance(value, str):
-        if len(value) > 80:
+    match value:
+        case None:
+            return "null"
+        case str() if len(value) > 80:
             return f'"{value[:77]}..."'
-        return f'"{value}"'
-    if isinstance(value, bool):  # must precede int — bool is a subclass of int
-        return "true" if value else "false"
-    if isinstance(value, int | float):
-        return str(value)
-    if isinstance(value, dict):
-        return f"{{{len(value)} fields}}"
-    if isinstance(value, list):
-        return f"[{len(value)} items]"
-    return repr(value)
+        case str():
+            return f'"{value}"'
+        case bool():
+            return "true" if value else "false"
+        case int() | float():
+            return str(value)
+        case dict():
+            return f"{{{len(value)} fields}}"
+        case list():
+            return f"[{len(value)} items]"
+        case _:
+            return repr(value)
+
+
+def _render_field_change(field_name: str, change: dict[str, object], *, use_color: bool) -> str | None:
+    """Render a single field-level change, or None if unchanged."""
+    field_cfg = _action_config(str(change.get("action", "")))
+    if field_cfg.display == "unchanged":
+        return None
+
+    prefix = f"      {field_cfg.symbol} {field_name}"
+    match ("old" in change, "new" in change):
+        case (True, True):
+            suffix = f": {_format_value(change['old'])} -> {_format_value(change['new'])}"
+        case (False, True):
+            suffix = f": {_format_value(change['new'])}"
+        case (True, False):
+            suffix = f": {_format_value(change['old'])}"
+        case _:
+            suffix = ""
+    return _colorize(f"{prefix}{suffix}", field_cfg.color, use_color=use_color)
 
 
 def _render_resource(
@@ -99,42 +123,23 @@ def _render_resource(
     entry: ResourceChange,
     *,
     use_color: bool,
-) -> list[str]:
+) -> Iterator[str]:
     """Render a single resource entry as lines of text."""
-    lines: list[str] = []
     cfg = _action_config(entry.get("action", ""))
     resource_type, resource_name = _parse_resource_key(key)
 
-    header = f"  {cfg.symbol} {resource_type}/{resource_name}"
-    if cfg.display != "unchanged":
-        header += f"  ({cfg.display})"
-    lines.append(_colorize(header, cfg.color, use_color=use_color))
+    label = f"  ({cfg.display})" if cfg.display != "unchanged" else ""
+    header = f"  {cfg.symbol} {resource_type}/{resource_name}{label}"
+    yield _colorize(header, cfg.color, use_color=use_color)
 
-    # Show field-level changes for updates
     changes = entry.get("changes", {})
     if isinstance(changes, dict) and changes and cfg.show_field_changes:
         for field_name, change in sorted(changes.items()):
             if not isinstance(change, dict):
                 continue
-            field_cfg = _action_config(change.get("action", ""))
-            if field_cfg.display == "unchanged":
-                continue
-
-            field_color, field_symbol = field_cfg.color, field_cfg.symbol
-            line = f"      {field_symbol} {field_name}"
-
-            has_old = "old" in change
-            has_new = "new" in change
-            if has_old and has_new:
-                line += f": {_format_value(change['old'])} -> {_format_value(change['new'])}"
-            elif has_new:
-                line += f": {_format_value(change['new'])}"
-            elif has_old:
-                line += f": {_format_value(change['old'])}"
-
-            lines.append(_colorize(line, field_color, use_color=use_color))
-
-    return lines
+            rendered = _render_field_change(field_name, change, use_color=use_color)
+            if rendered is not None:
+                yield rendered
 
 
 def _count_by_action(entries: ResourceChangeMap) -> dict[_ActionConfig, int]:
@@ -158,13 +163,18 @@ def _print_header(data: Plan, *, use_color: bool) -> None:
     print()
 
 
+def _resource_type_of(entry: tuple[str, ResourceChange]) -> str:
+    """Extract the resource type from a (key, change) pair."""
+    return _parse_resource_key(entry[0])[0]
+
+
 def _group_by_resource_type(plan: ResourceChangeMap) -> dict[str, list[tuple[str, ResourceChange]]]:
     """Group plan entries by their resource type (jobs, schemas, etc.)."""
-    by_type: dict[str, list[tuple[str, ResourceChange]]] = {}
-    for key, entry in plan.items():
-        resource_type, _ = _parse_resource_key(key)
-        by_type.setdefault(resource_type, []).append((key, entry))
-    return by_type
+    sorted_entries = sorted(plan.items(), key=_resource_type_of)
+    return {
+        resource_type: list(group)
+        for resource_type, group in groupby(sorted_entries, key=_resource_type_of)
+    }
 
 
 def _print_resource_groups(by_type: dict[str, list[tuple[str, ResourceChange]]], *, use_color: bool) -> None:
@@ -178,19 +188,22 @@ def _print_resource_groups(by_type: dict[str, list[tuple[str, ResourceChange]]],
                 use_color=use_color,
             )
         )
-        for key, entry in sorted(entries, key=lambda x: x[0]):
+        for key, entry in sorted(entries):
             for line in _render_resource(key, entry, use_color=use_color):
                 print(line)
         print()
 
 
+def _format_action_count(cfg: _ActionConfig, count: int, *, use_color: bool) -> str:
+    """Format a single action count like '+3 create' with color."""
+    return _colorize(f"{cfg.symbol}{count} {cfg.display}", cfg.color, use_color=use_color)
+
+
 def _print_summary(plan: ResourceChangeMap, *, use_color: bool) -> None:
     """Print the action count summary line."""
-    counts = _count_by_action(plan)
-    summary_parts = []
-    for cfg, count in sorted(counts.items(), key=lambda x: x[0].display):
-        summary_parts.append(_colorize(f"{cfg.symbol}{count} {cfg.display}", cfg.color, use_color=use_color))
-    print(f"  {', '.join(summary_parts)}")
+    sorted_counts = sorted(_count_by_action(plan).items(), key=lambda item: item[0].display)
+    parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in sorted_counts)
+    print(f"  {parts}")
 
 
 def _all_unchanged(plan: ResourceChangeMap) -> bool:
