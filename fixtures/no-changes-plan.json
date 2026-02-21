@@ -1,0 +1,864 @@
+{
+  "plan_version": 2,
+  "cli_version": "0.288.0",
+  "lineage": "ceaa767d-0fa0-47ac-8680-2bb6ec48866b",
+  "serial": 8,
+  "plan": {
+    "resources.alerts.stale_pipeline_alert": {
+      "action": "skip",
+      "remote_state": {
+        "create_time": "2026-02-21T18:36:59Z",
+        "display_name": "Stale Pipeline Alert",
+        "effective_run_as": {
+          "user_name": "databricks.squiggly592@passfwd.com"
+        },
+        "evaluation": {
+          "comparison_operator": "GREATER_THAN",
+          "source": {
+            "name": "hours_since_last_run"
+          },
+          "threshold": {
+            "value": {
+              "double_value": 24
+            }
+          }
+        },
+        "id": "1564530164888240",
+        "lifecycle_state": "ACTIVE",
+        "owner_user_name": "databricks.squiggly592@passfwd.com",
+        "parent_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/resources",
+        "query_text": "SELECT TIMESTAMPDIFF(HOUR, MAX(end_time), CURRENT_TIMESTAMP()) AS hours_since_last_run FROM system.lakeflow.job_run_timeline WHERE job_name = 'etl_pipeline'",
+        "schedule": {
+          "quartz_cron_schedule": "0 0 * * * ?",
+          "timezone_id": "UTC"
+        },
+        "update_time": "2026-02-21T18:36:59Z",
+        "warehouse_id": "799f096837f0aaaa"
+      },
+      "changes": {
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-02-21T18:36:59Z"
+        },
+        "effective_run_as": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": {
+            "user_name": "databricks.squiggly592@passfwd.com"
+          }
+        },
+        "id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "1564530164888240"
+        },
+        "lifecycle_state": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "ACTIVE"
+        },
+        "owner_user_name": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "databricks.squiggly592@passfwd.com"
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-02-21T18:36:59Z"
+        }
+      }
+    },
+    "resources.experiments.audit_analysis": {
+      "action": "skip",
+      "remote_state": {
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/1564530164888239",
+        "creation_time": 1771699019207,
+        "experiment_id": "1564530164888239",
+        "last_update_time": 1771699019207,
+        "lifecycle_stage": "active",
+        "name": "/Users/databricks.squiggly592@passfwd.com/audit_analysis",
+        "tags": [
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.experiment.sourceName",
+            "value": "/Users/databricks.squiggly592@passfwd.com/audit_analysis"
+          },
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.ownerEmail",
+            "value": "databricks.squiggly592@passfwd.com"
+          },
+          {
+            "key": "mlflow.experimentType",
+            "value": "MLFLOW_EXPERIMENT"
+          }
+        ]
+      },
+      "changes": {
+        "artifact_location": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "dbfs:/databricks/mlflow-tracking/1564530164888239"
+        },
+        "tags": {
+          "action": "skip",
+          "reason": "terraform_compat",
+          "remote": [
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.experiment.sourceName",
+              "value": "/Users/databricks.squiggly592@passfwd.com/audit_analysis"
+            },
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.ownerEmail",
+              "value": "databricks.squiggly592@passfwd.com"
+            },
+            {
+              "key": "mlflow.experimentType",
+              "value": "MLFLOW_EXPERIMENT"
+            }
+          ]
+        }
+      }
+    },
+    "resources.jobs.data_quality_pipeline": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1770495329572,
+        "creator_user_name": "databricks.squiggly592@passfwd.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "environments": [
+          {
+            "environment_key": "default",
+            "spec": {
+              "environment_version": "2"
+            }
+          }
+        ],
+        "format": "MULTI_TASK",
+        "job_id": 949076684616381,
+        "max_concurrent_runs": 1,
+        "name": "data_quality_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "databricks.squiggly592@passfwd.com",
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "check_nulls"
+              },
+              {
+                "task_key": "check_duplicates"
+              },
+              {
+                "task_key": "check_referential_integrity"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/aggregate_results",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "aggregate_results",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "compute_statistics"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/anomaly_detection",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "anomaly_detection",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_schema"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/check_duplicates",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "check_duplicates",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_schema"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/check_nulls",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "check_nulls",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_schema"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/check_referential_integrity",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "check_referential_integrity",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "check_nulls"
+              },
+              {
+                "task_key": "check_duplicates"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "python_wheel_task": {
+              "entry_point": "compute_statistics",
+              "package_name": "quality_metrics",
+              "parameters": [
+                "--output",
+                "/dbfs/quality/stats"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "compute_statistics",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "aggregate_results"
+              },
+              {
+                "task_key": "anomaly_detection"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/generate_report",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "generate_report",
+            "timeout_seconds": 0
+          },
+          {
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/setup_env",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "setup_env",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "setup_env"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "base_parameters": {
+                "sample_size": "10000",
+                "strict_mode": "true"
+              },
+              "notebook_path": "/Workspace/quality/validate_schema",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate_schema",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='aggregate_results'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='aggregate_results'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='aggregate_results'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='aggregate_results'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='anomaly_detection'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='anomaly_detection'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='anomaly_detection'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='anomaly_detection'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='check_duplicates'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='check_duplicates'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='check_duplicates'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='check_duplicates'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='check_nulls'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='check_nulls'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='check_nulls'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='check_nulls'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='check_referential_integrity'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='check_referential_integrity'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='check_referential_integrity'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='check_referential_integrity'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='compute_statistics'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='compute_statistics'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='compute_statistics'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='generate_report'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='generate_report'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='generate_report'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='generate_report'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='setup_env'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='setup_env'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='setup_env'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='setup_env'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='validate_schema'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='validate_schema'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='validate_schema'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='validate_schema'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.jobs.etl_pipeline": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.data_quality_pipeline",
+          "label": "${resources.jobs.data_quality_pipeline.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1770407353832,
+        "creator_user_name": "databricks.squiggly592@passfwd.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "environments": [
+          {
+            "environment_key": "default",
+            "spec": {
+              "environment_version": "2"
+            }
+          }
+        ],
+        "format": "MULTI_TASK",
+        "job_id": 1117023947429700,
+        "max_concurrent_runs": 1,
+        "name": "etl_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "databricks.squiggly592@passfwd.com",
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "load"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/aggregate",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "aggregate",
+            "timeout_seconds": 0
+          },
+          {
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/extract",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "extract",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "transform"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/load",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "load",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "extract"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/transform_v2",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "transform",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "aggregate"
+              }
+            ],
+            "email_notifications": {},
+            "run_if": "ALL_SUCCESS",
+            "run_job_task": {
+              "job_id": 949076684616381
+            },
+            "task_key": "trigger_quality_check",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='aggregate'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='aggregate'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='aggregate'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='aggregate'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='extract'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='extract'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='extract'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='extract'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='load'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='load'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='load'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='load'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='transform'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='transform'].notebook_task.source": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='transform'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='transform'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='trigger_quality_check'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='trigger_quality_check'].run_if": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='trigger_quality_check'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.schemas.analytics": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "comment": "Analytics schema for production data",
+        "created_at": 1770495329473,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.analytics",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "analytics",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "properties": {
+          "environment": "production",
+          "owner": "data-engineering"
+        },
+        "schema_id": "9f69fd10-c061-492f-a0ef-e977573b7906",
+        "updated_at": 1771699019288,
+        "updated_by": "databricks.squiggly592@passfwd.com"
+      }
+    },
+    "resources.schemas.analytics_staging": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "comment": "Staging schema for analytics data",
+        "created_at": 1771699019273,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.analytics_staging",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "analytics_staging",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "properties": {
+          "environment": "staging",
+          "owner": "data-engineering"
+        },
+        "schema_id": "ee219833-fb60-4f6c-bf0d-1c0da7704e29",
+        "updated_at": 1771699019273,
+        "updated_by": "databricks.squiggly592@passfwd.com"
+      }
+    },
+    "resources.volumes.external_imports": {
+      "action": "skip",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "comment": "Import volume for external data feeds",
+        "created_at": 1771699047615,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "encryption_details": {},
+        "full_name": "dagshund.dagshund_no_dabs.external_imports",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "external_imports",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "schema_name": "dagshund_no_dabs",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/9a89410d-26dd-4053-9243-b0a2ee36e748/volumes/38c69d85-ba6f-4ace-91b2-7e5294a9a3de",
+        "updated_at": 1771699047615,
+        "updated_by": "databricks.squiggly592@passfwd.com",
+        "volume_id": "38c69d85-ba6f-4ace-91b2-7e5294a9a3de",
+        "volume_type": "MANAGED"
+      },
+      "changes": {
+        "storage_location": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/9a89410d-26dd-4053-9243-b0a2ee36e748/volumes/38c69d85-ba6f-4ace-91b2-7e5294a9a3de"
+        }
+      }
+    },
+    "resources.volumes.raw_data": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.analytics",
+          "label": "${resources.schemas.analytics.name}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "comment": "Raw data volume for ingestion pipeline",
+        "created_at": 1770495330103,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "encryption_details": {},
+        "full_name": "dagshund.analytics.raw_data",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "raw_data",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "schema_name": "analytics",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/9a89410d-26dd-4053-9243-b0a2ee36e748/volumes/f47b40ff-8995-47c2-95d8-8d8f97cc2571",
+        "updated_at": 1771699019468,
+        "updated_by": "databricks.squiggly592@passfwd.com",
+        "volume_id": "f47b40ff-8995-47c2-95d8-8d8f97cc2571",
+        "volume_type": "MANAGED"
+      },
+      "changes": {
+        "storage_location": {
+          "action": "skip",
+          "reason": "server_side_default",
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/9a89410d-26dd-4053-9243-b0a2ee36e748/volumes/f47b40ff-8995-47c2-95d8-8d8f97cc2571"
+        }
+      }
+    }
+  }
+}
