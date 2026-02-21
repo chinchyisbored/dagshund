@@ -2,7 +2,6 @@ import sys
 from dataclasses import dataclass
 
 import pytest
-from ty_extensions import Unknown
 
 from dagshund import DagshundError
 from dagshund.text import (
@@ -90,7 +89,7 @@ class ActionMappingCase:
     expected_symbol: str
 
 
-ACTION_MAPPING_CASES: list[Unknown | ActionMappingCase] = [
+ACTION_MAPPING_CASES: list[ActionMappingCase] = [
     ActionMappingCase("create", "create", GREEN, "+"),
     ActionMappingCase("delete", "delete", RED, "-"),
     ActionMappingCase("skip", "skip", DIM, " "),
