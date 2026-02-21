@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dagshund"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Visualizer for databricks bundle plan output"
 readme = "README.md"
 license = "MIT"
@@ -34,6 +34,9 @@ dev = [
     "ruff==0.15.2",
     "ty==0.0.18",
 ]
+
+[tool.hatch.version]
+path = "src/dagshund/__init__.py"
 
 [tool.hatch.build]
 artifacts = ["src/dagshund/_assets/template.html"]
