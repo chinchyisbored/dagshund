@@ -8,7 +8,6 @@ from dagshund.browser import (
     _escape_for_script_tag,
     _find_template,
     _inject_plan,
-    _parse_plan,
     render_browser,
 )
 
@@ -32,28 +31,6 @@ def test_find_template_raises_when_missing(tmp_path: Path) -> None:
             _find_template()
     finally:
         browser_mod.__file__ = original
-
-
-# --- _parse_plan ---
-
-
-def test_parse_plan_valid_json_object() -> None:
-    assert _parse_plan('{"plan": {}}') == {"plan": {}}
-
-
-def test_parse_plan_invalid_json_raises() -> None:
-    with pytest.raises(DagshundError, match="invalid JSON"):
-        _parse_plan("not valid json")
-
-
-def test_parse_plan_array_raises() -> None:
-    with pytest.raises(DagshundError, match="must be an object"):
-        _parse_plan("[1, 2, 3]")
-
-
-def test_parse_plan_string_raises() -> None:
-    with pytest.raises(DagshundError, match="must be an object"):
-        _parse_plan('"just a string"')
 
 
 # --- _escape_for_script_tag ---

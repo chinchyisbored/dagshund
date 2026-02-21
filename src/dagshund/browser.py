@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from dagshund import DagshundError
+from dagshund import DagshundError, parse_plan
 
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
 
@@ -14,22 +14,6 @@ def _find_template() -> Path:
     if not template_path.exists():
         raise DagshundError("template.html not found. Run 'just template' in the repo root first.")
     return template_path
-
-
-def _parse_plan(raw: str) -> dict:
-    """Parse and validate plan JSON.
-
-    Keep in sync with _parse_plan() in text.py — both share the same contract.
-    """
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise DagshundError(f"invalid JSON: {exc}") from exc
-
-    if not isinstance(data, dict):
-        raise DagshundError("plan JSON must be an object")
-
-    return data
 
 
 def _escape_for_script_tag(content: str) -> str:
@@ -60,7 +44,7 @@ def _inject_plan(template: str, plan_data: dict) -> str:
 
 def render_browser(plan_json: str, *, output_path: str) -> None:
     """Render plan as interactive HTML and export to file."""
-    plan_data = _parse_plan(plan_json)
+    plan_data = parse_plan(plan_json)
     template_path = _find_template()
     template = template_path.read_text(encoding="utf-8")
     html = _inject_plan(template, plan_data)

@@ -1,11 +1,10 @@
 """Terminal text rendering of plan diffs."""
 
-import json
 import os
 import sys
 from collections import Counter
 
-from dagshund import DagshundError
+from dagshund import parse_plan
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -142,22 +141,6 @@ def _count_by_action(entries: dict[str, dict]) -> dict[str, int]:
     return dict(Counter(entry.get("action") or "unchanged" for entry in entries.values()))
 
 
-def _parse_plan(raw: str) -> dict:
-    """Parse and validate plan JSON.
-
-    Keep in sync with _parse_plan() in browser.py — both share the same contract.
-    """
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise DagshundError(f"invalid JSON: {exc}") from exc
-
-    if not isinstance(data, dict):
-        raise DagshundError("plan JSON must be an object")
-
-    return data
-
-
 def _print_header(data: dict, *, use_color: bool) -> None:
     """Print the plan version header line."""
     cli_version = data.get("cli_version", "unknown")
@@ -211,7 +194,7 @@ def _print_summary(plan: dict, *, use_color: bool) -> None:
 
 def render_text(plan_json: str) -> None:
     """Parse plan JSON and render colored diff summary to terminal."""
-    data = _parse_plan(plan_json)
+    data = parse_plan(plan_json)
 
     plan = data.get("plan", {})
     if not plan:

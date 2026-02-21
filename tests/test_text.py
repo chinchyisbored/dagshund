@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 import pytest
 
-from dagshund import DagshundError
 from dagshund.text import (
     DIM,
     GREEN,
@@ -17,7 +16,6 @@ from dagshund.text import (
     _count_by_action,
     _format_value,
     _group_by_resource_type,
-    _parse_plan,
     _parse_resource_key,
     _print_header,
     _print_resource_groups,
@@ -251,23 +249,6 @@ def test_count_by_action_mixed() -> None:
 def test_count_by_action_empty_becomes_unchanged() -> None:
     entries = {"a": {"action": ""}, "b": {}}
     assert _count_by_action(entries) == {"unchanged": 2}
-
-
-# --- _parse_plan ---
-
-
-def test_parse_plan_valid_json() -> None:
-    assert _parse_plan('{"plan": {}}') == {"plan": {}}
-
-
-def test_parse_plan_invalid_json_raises() -> None:
-    with pytest.raises(DagshundError, match="invalid JSON"):
-        _parse_plan("not json")
-
-
-def test_parse_plan_non_dict_raises() -> None:
-    with pytest.raises(DagshundError, match="must be an object"):
-        _parse_plan("[1]")
 
 
 # --- _print_header ---
