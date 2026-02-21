@@ -11,7 +11,7 @@ Distributed via PyPI (`uvx dagshund`). Shows job task DAGs with diff highlightin
 
 ## Stack
 
-- **Python** (>=3.10) — CLI, text rendering, zero runtime dependencies
+- **Python** (>=3.12) — CLI, text rendering, zero runtime dependencies
 - **TypeScript** (strict) + React 19 + Bun — browser visualization (`js/`)
 - React Flow, ELK (elkjs), Tailwind CSS, Zod
 
@@ -69,4 +69,4 @@ See [VISUALIZATION.md](VISUALIZATION.md) when working on the browser UI.
 - No `index` as React key when items have stable identifiers
 - No skipping error handling — handle it or file a `bd` issue
 - No modifying production code to make it testable — tests adapt to production, not vice versa
-- No `from __future__ import annotations` — targeting 3.10+
+- No `from __future__ import annotations` — targeting 3.12+

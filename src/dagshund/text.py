@@ -4,7 +4,7 @@ import os
 import sys
 from collections import Counter
 
-from dagshund import DagshundError, parse_plan
+from dagshund import DagshundError, Plan, ResourceChange, ResourceChangeMap, parse_plan
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -86,7 +86,7 @@ def _format_value(value: object) -> str:
 
 def _render_resource(
     key: str,
-    entry: dict,
+    entry: ResourceChange,
     *,
     use_color: bool,
 ) -> list[str]:
@@ -126,12 +126,12 @@ def _render_resource(
     return lines
 
 
-def _count_by_action(entries: dict[str, dict]) -> dict[str, int]:
+def _count_by_action(entries: ResourceChangeMap) -> dict[str, int]:
     """Count resources by action type."""
     return dict(Counter(entry.get("action") or "unchanged" for entry in entries.values()))
 
 
-def _print_header(data: dict, *, use_color: bool) -> None:
+def _print_header(data: Plan, *, use_color: bool) -> None:
     """Print the plan version header line."""
     cli_version = data.get("cli_version", "unknown")
     plan_version = data.get("plan_version", "?")
@@ -145,16 +145,16 @@ def _print_header(data: dict, *, use_color: bool) -> None:
     print()
 
 
-def _group_by_resource_type(plan: dict) -> dict[str, list[tuple[str, dict]]]:
+def _group_by_resource_type(plan: ResourceChangeMap) -> dict[str, list[tuple[str, ResourceChange]]]:
     """Group plan entries by their resource type (jobs, schemas, etc.)."""
-    by_type: dict[str, list[tuple[str, dict]]] = {}
+    by_type: dict[str, list[tuple[str, ResourceChange]]] = {}
     for key, entry in plan.items():
         resource_type, _ = _parse_resource_key(key)
         by_type.setdefault(resource_type, []).append((key, entry))
     return by_type
 
 
-def _print_resource_groups(by_type: dict[str, list[tuple[str, dict]]], *, use_color: bool) -> None:
+def _print_resource_groups(by_type: dict[str, list[tuple[str, ResourceChange]]], *, use_color: bool) -> None:
     """Print each resource type group with its entries."""
     for resource_type in sorted(by_type):
         entries = by_type[resource_type]
@@ -171,7 +171,7 @@ def _print_resource_groups(by_type: dict[str, list[tuple[str, dict]]], *, use_co
         print()
 
 
-def _print_summary(plan: dict, *, use_color: bool) -> None:
+def _print_summary(plan: ResourceChangeMap, *, use_color: bool) -> None:
     """Print the action count summary line."""
     counts = _count_by_action(plan)
     summary_parts = []

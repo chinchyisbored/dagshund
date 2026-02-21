@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from dagshund import DagshundError, parse_plan
+from dagshund import DagshundError, Plan, parse_plan
 
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
 
@@ -32,7 +32,7 @@ def _escape_for_script_tag(content: str) -> str:
     return content.replace("<", "\\u003c")
 
 
-def _inject_plan(template: str, plan_data: dict) -> str:
+def _inject_plan(template: str, plan_data: Plan) -> str:
     """Replace the placeholder in template HTML with actual plan JSON."""
     count = template.count(PLACEHOLDER)
     if count == 0:
