@@ -39,28 +39,20 @@ def _colorize(text: str, color: str, *, use_color: bool) -> str:
     return f"{color}{text}{RESET}"
 
 
-def _action_color(action: str) -> str:
-    if action == "create":
-        return GREEN
-    if action == "delete":
-        return RED
-    if action in UPDATE_ACTIONS:
-        return YELLOW
-    if action in ("skip", ""):
-        return DIM
-    return RESET
+_ACTION_STYLES: dict[str, tuple[str, str]] = {
+    "create": (GREEN, "+"),
+    "delete": (RED, "-"),
+    "skip": (DIM, " "),
+    "": (DIM, " "),
+    **dict.fromkeys(UPDATE_ACTIONS, (YELLOW, "~")),
+}
+
+_DEFAULT_STYLE: tuple[str, str] = (RESET, "?")
 
 
-def _action_symbol(action: str) -> str:
-    if action == "create":
-        return "+"
-    if action == "delete":
-        return "-"
-    if action in UPDATE_ACTIONS:
-        return "~"
-    if action in ("skip", ""):
-        return " "
-    return "?"
+def _action_style(action: str) -> tuple[str, str]:
+    """Return (color, symbol) for an action string."""
+    return _ACTION_STYLES.get(action, _DEFAULT_STYLE)
 
 
 def _parse_resource_key(key: str) -> tuple[str, str]:
@@ -102,8 +94,7 @@ def _render_resource(
     lines: list[str] = []
     action = entry.get("action", "")
     resource_type, resource_name = _parse_resource_key(key)
-    color = _action_color(action)
-    symbol = _action_symbol(action)
+    color, symbol = _action_style(action)
 
     header = f"  {symbol} {resource_type}/{resource_name}"
     if action:
@@ -118,8 +109,7 @@ def _render_resource(
             if change_action in ("skip", ""):
                 continue
 
-            field_color = _action_color(change_action)
-            field_symbol = _action_symbol(change_action)
+            field_color, field_symbol = _action_style(change_action)
             line = f"      {field_symbol} {field_name}"
 
             has_old = "old" in change
@@ -186,8 +176,7 @@ def _print_summary(plan: dict, *, use_color: bool) -> None:
     counts = _count_by_action(plan)
     summary_parts = []
     for action, count in sorted(counts.items()):
-        color = _action_color(action)
-        symbol = _action_symbol(action)
+        color, symbol = _action_style(action)
         summary_parts.append(_colorize(f"{symbol}{count} {action}", color, use_color=use_color))
     print(f"  {', '.join(summary_parts)}")
 

@@ -11,8 +11,7 @@ from dagshund.text import (
     RESET,
     UPDATE_ACTIONS,
     YELLOW,
-    _action_color,
-    _action_symbol,
+    _action_style,
     _colorize,
     _count_by_action,
     _format_value,
@@ -77,35 +76,30 @@ def test_colorize_returns_plain_when_disabled() -> None:
     assert _colorize("hello", GREEN, use_color=False) == "hello"
 
 
-# --- _action_color / _action_symbol ---
+# --- _action_style ---
 
 
 @dataclass(frozen=True)
-class ActionMappingCase:
+class ActionStyleCase:
     name: str
     action: str
     expected_color: str
     expected_symbol: str
 
 
-ACTION_MAPPING_CASES: list[ActionMappingCase] = [
-    ActionMappingCase("create", "create", GREEN, "+"),
-    ActionMappingCase("delete", "delete", RED, "-"),
-    ActionMappingCase("skip", "skip", DIM, " "),
-    ActionMappingCase("empty", "", DIM, " "),
-    ActionMappingCase("unknown", "unknown_action", RESET, "?"),
-    *[ActionMappingCase(action, action, YELLOW, "~") for action in sorted(UPDATE_ACTIONS)],
+ACTION_STYLE_CASES: list[ActionStyleCase] = [
+    ActionStyleCase("create", "create", GREEN, "+"),
+    ActionStyleCase("delete", "delete", RED, "-"),
+    ActionStyleCase("skip", "skip", DIM, " "),
+    ActionStyleCase("empty", "", DIM, " "),
+    ActionStyleCase("unknown", "unknown_action", RESET, "?"),
+    *[ActionStyleCase(action, action, YELLOW, "~") for action in sorted(UPDATE_ACTIONS)],
 ]
 
 
-@pytest.mark.parametrize("case", ACTION_MAPPING_CASES, ids=lambda c: c.name)
-def test_action_color(case: ActionMappingCase) -> None:
-    assert _action_color(case.action) == case.expected_color
-
-
-@pytest.mark.parametrize("case", ACTION_MAPPING_CASES, ids=lambda c: c.name)
-def test_action_symbol(case: ActionMappingCase) -> None:
-    assert _action_symbol(case.action) == case.expected_symbol
+@pytest.mark.parametrize("case", ACTION_STYLE_CASES, ids=lambda c: c.name)
+def test_action_style(case: ActionStyleCase) -> None:
+    assert _action_style(case.action) == (case.expected_color, case.expected_symbol)
 
 
 # --- _parse_resource_key ---
