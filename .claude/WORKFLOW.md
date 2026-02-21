@@ -66,7 +66,8 @@ After all work is complete:
 3. Close all finished beads
 4. `bd sync` — exports JSONL, stages it (does NOT commit)
 5. `git commit` — commit the staged JSONL (pre-commit hook re-exports)
-6. `git push`
+6. `git pull --rebase` — catch up with remote before pushing
+7. `git push`
 7. `git status` — must show clean tree, up to date with origin
 8. Hand off — session summary: what got done, what's open, suggested next starting point
 
