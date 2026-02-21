@@ -7,8 +7,8 @@ Distributed via PyPI (`uvx dagshund`). Shows job task DAGs with diff highlightin
 resources, red with reduced opacity for deletions, and neutral for unchanged.
 
 Two output modes:
-- **Browser mode** (default): opens an interactive DAG visualization in the browser
-- **Text mode** (`--text`): prints a colored diff summary to the terminal
+- **Text mode** (default): prints a colored diff summary to the terminal
+- **Browser mode** (`-o FILE`): exports an interactive DAG visualization as a self-contained HTML file
 
 ## Stack
 
@@ -24,19 +24,18 @@ Two output modes:
 ```bash
 # Python (from repo root)
 uv run dagshund --version              # Run the CLI
-uv run dagshund plan.json              # Open plan in browser
-uv run dagshund -t plan.json           # Text mode
-uv run dagshund plan.json -o out.html  # Export to file
+uv run dagshund plan.json              # Text diff summary (default)
+uv run dagshund plan.json -o out.html  # Export interactive HTML
+uv run dagshund plan.json -o out.html -b  # Export and open in browser
 uv run pytest tests/ -v                # Run Python tests
 
 # JS (via just from repo root)
 just install       # bun install in js/
 just dev           # Start dev server with hot reload (http://localhost:3000)
-just build         # Production build to js/dist/
-just test-js       # Run JS tests
-just lint          # Biome lint check
-just typecheck     # TypeScript type-check
-just template      # Build template.html for Python package
+just build         # Build JS template + Python wheel
+just test-js       # Run JS tests (with coverage)
+just lint          # Lint all code (Biome + Ruff)
+just typecheck     # Typecheck all code (tsc + ty)
 
 # Combined
 just test          # Run both JS and Python tests
@@ -108,6 +107,7 @@ js/                      — TypeScript/React source (browser visualization)
     frontend.tsx         — React entry point
     App.tsx              — Root React component
     cli.ts               — JS CLI for static HTML export
+    html-assembler.ts    — Shared HTML assembly (escape helpers, template building)
     parser/              — Plan JSON parsing + Zod validation
     graph/               — DAG graph construction
     components/          — React components (each in its own file)
@@ -115,7 +115,8 @@ js/                      — TypeScript/React source (browser visualization)
     utils/               — Pure utility functions
     hooks/               — Custom React hooks
     styles/              — Tailwind CSS
-  tests/                 — JS test files + fixtures
+  tests/                 — JS test files
+  test-bundle/           — Shared test fixtures (used by both JS and Python tests)
   scripts/               — Build scripts (build-template.ts)
 tests/                   — Python tests
 ```
@@ -136,7 +137,7 @@ Each JS directory should have an `index.ts` barrel export. Keep files small and 
 ### Diff States
 Each node in the DAG has exactly one diff state:
 - `added` — new resource, render with green border/background
-- `removed` — deleted resource, render with red border and 40% opacity
+- `removed` — deleted resource, render with red border
 - `modified` — changed resource, render with amber/yellow indicator
 - `unchanged` — no changes, render in neutral/default style
 
@@ -155,6 +156,12 @@ Raw JSON string
 ```
 
 Each step is a pure function. No side effects until we hit React rendering.
+
+## Testing
+
+See [TESTING.md](TESTING.md) for full testing guidelines (Python + TypeScript).
+
+Quick summary: standalone functions (no test classes), `test_<function>_<scenario>_<expected>` naming, AAA structure, parametrize for many-input functions, monkeypatch over mocks, no redundant docstrings.
 
 ## What NOT To Do
 

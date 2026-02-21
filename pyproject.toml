@@ -19,19 +19,24 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Quality Assurance",
 ]
 
 [project.scripts]
 dagshund = "dagshund.cli:main"
 
+
 [dependency-groups]
 dev = [
-    "prek==0.3.2",
-    "pytest==8.3.5",
-    "ruff==0.15.1",
-    "ty==0.0.17",
+    "prek==0.3.3",
+    "pytest==9.0.2",
+    "pytest-cov==7.0.0",
+    "ruff==0.15.2",
+    "ty==0.0.18",
 ]
+
+[tool.hatch.build]
+artifacts = ["src/dagshund/_assets/template.html"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dagshund"]
@@ -61,10 +66,14 @@ select = [
     "RET", # proper return statements
     "TC",  # type checking
 ]
-ignore = [
-    "E501",  # line too long
-    "B904",  # raise from none/exception
-    "TC006", # runtime cast as string
+
+[tool.coverage.run]
+data_file = ".cache/coverage/.coverage"
+
+[tool.coverage.report]
+omit = [
+    "src/dagshund/__init__.py",
+    "src/dagshund/__main__.py",
 ]
 
 [tool.ty.rules]

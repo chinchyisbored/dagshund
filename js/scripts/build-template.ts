@@ -14,7 +14,7 @@ const main = async (): Promise<void> => {
   const { js, css } = await readDistAssets();
   const template = assembleHtml(css, js, PLACEHOLDER);
 
-  const outputPath = join(import.meta.dir, "..", "src", "dagshund", "_assets", "template.html");
+  const outputPath = join(import.meta.dir, "..", "..", "src", "dagshund", "_assets", "template.html");
   await Bun.write(outputPath, template);
   console.log(`build-template: wrote ${outputPath}`);
 };

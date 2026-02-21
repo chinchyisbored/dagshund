@@ -1,20 +1,15 @@
-"""Tests for dagshund CLI."""
-
 import subprocess
 import sys
+from io import StringIO
 from pathlib import Path
 
 import pytest
 
 from dagshund import DagshundError
-from dagshund.browser import _inject_plan
-from dagshund.cli import read_plan
-from dagshund.text import render_text
-
-FIXTURES_DIR = Path(__file__).parent.parent / "js" / "tests" / "fixtures"
+from dagshund.cli import main, read_plan
 
 
-def run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
+def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "dagshund", *args],
         input=stdin,
@@ -23,99 +18,146 @@ def run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedPr
     )
 
 
-def test_version():
-    result = run_dagshund("--version")
+# --- subprocess smoke tests (exercises __main__.py + process boundary) ---
+
+
+def test_cli_version_flag() -> None:
+    result = _run_dagshund("--version")
     assert result.returncode == 0
     assert "dagshund 0.1.0" in result.stdout
 
 
-def test_default_mode_with_file():
-    fixture = FIXTURES_DIR / "sample-plan.json"
-    result = run_dagshund(str(fixture))
+def test_cli_text_mode_with_file(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "real_fixture.json"))
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
     assert "create" in result.stdout
 
 
-def test_default_mode_with_stdin():
-    fixture = FIXTURES_DIR / "sample-plan.json"
-    result = run_dagshund(stdin=fixture.read_text())
-    assert result.returncode == 0
-    assert "etl_pipeline" in result.stdout
+# --- read_plan ---
 
 
-def test_complex_plan():
-    fixture = FIXTURES_DIR / "complex-plan.json"
-    result = run_dagshund(str(fixture))
-    assert result.returncode == 0
-    assert "create" in result.stdout
-    assert "update" in result.stdout
-    assert "delete" in result.stdout
+def test_read_plan_reads_file(tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text('{"plan": {}}')
+
+    assert read_plan(str(plan_file)) == '{"plan": {}}'
 
 
-def test_summary_counts():
-    fixture = FIXTURES_DIR / "complex-plan.json"
-    result = run_dagshund(str(fixture))
-    assert result.returncode == 0
-    # Should have a summary line with counts
-    assert "+4 create" in result.stdout or "+4" in result.stdout
-
-
-def test_invalid_json():
-    result = run_dagshund(stdin="not json at all")
-    assert result.returncode != 0
-    assert "invalid JSON" in result.stderr
-
-
-def test_no_input_on_tty():
-    # When stdin is a TTY and no file is given, should exit with usage message
-    # We can't easily simulate a TTY, but we can test the file-not-found case
-    result = run_dagshund("/nonexistent/plan.json")
-    assert result.returncode != 0
-
-
-def test_read_plan_raises_on_missing_file():
-    """read_plan raises DagshundError for nonexistent files (no subprocess needed)."""
+def test_read_plan_file_not_found_raises() -> None:
     with pytest.raises(DagshundError, match="file not found"):
         read_plan("/nonexistent/plan.json")
 
 
-def test_render_text_raises_on_invalid_json():
-    """render_text raises DagshundError for bad JSON (no subprocess needed)."""
-    with pytest.raises(DagshundError, match="invalid JSON"):
-        render_text("not json at all")
-
-
-def test_render_text_raises_on_non_object():
-    """render_text raises DagshundError when JSON is not an object."""
-    with pytest.raises(DagshundError, match="must be an object"):
-        render_text("[1, 2, 3]")
-
-
-def test_inject_plan_raises_on_missing_placeholder():
-    """_inject_plan raises DagshundError when placeholder is absent."""
-    with pytest.raises(DagshundError, match="placeholder"):
-        _inject_plan("<html>no placeholder here</html>", {"key": "value"})
-
-
-def test_browser_mode_file_output():
-    """Test browser mode writes valid HTML when -o is specified."""
-    template = Path(__file__).parent.parent / "src" / "dagshund" / "_assets" / "template.html"
-    if not template.exists():
-        pytest.skip("template.html not built; run 'just template' first")  # ty: ignore[invalid-argument-type,too-many-positional-arguments]
-
-    fixture = FIXTURES_DIR / "sample-plan.json"
-    import tempfile
-
-    with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-        output_path = f.name
-
+def test_read_plan_permission_denied_raises(tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text('{"plan": {}}')
+    plan_file.chmod(0o000)
     try:
-        result = run_dagshund(str(fixture), "-o", output_path)
-        assert result.returncode == 0
-        content = Path(output_path).read_text()
-        assert "<!doctype html>" in content
-        assert "dagshund" in content
-        assert "etl_pipeline" in content
+        with pytest.raises(DagshundError, match="could not read file"):
+            read_plan(str(plan_file))
     finally:
-        Path(output_path).unlink(missing_ok=True)
+        plan_file.chmod(0o644)
+
+
+def test_read_plan_reads_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.stdin", StringIO('{"plan": {}}'))
+    assert read_plan(None) == '{"plan": {}}'
+
+
+def test_read_plan_tty_stdin_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    with pytest.raises(DagshundError, match="no input file specified"):
+        read_plan(None)
+
+
+# --- main() ---
+
+
+def test_main_text_mode_with_file(
+    monkeypatch: pytest.MonkeyPatch,
+    fixtures_dir: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "real_fixture.json")])
+
+    main()
+
+    assert "etl_pipeline" in capsys.readouterr().out
+
+
+def test_main_text_mode_from_stdin(
+    monkeypatch: pytest.MonkeyPatch,
+    real_plan_json: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["dagshund"])
+    monkeypatch.setattr("sys.stdin", StringIO(real_plan_json))
+
+    main()
+
+    assert "etl_pipeline" in capsys.readouterr().out
+
+
+def test_main_output_flag_writes_html(
+    require_template: None,
+    monkeypatch: pytest.MonkeyPatch,
+    fixtures_dir: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "out.html"
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "real_fixture.json"), "-o", str(output)])
+
+    main()
+
+    assert output.exists()
+    assert "exported to" in capsys.readouterr().out
+
+
+def test_main_browser_flag_opens_browser(
+    require_template: None,
+    monkeypatch: pytest.MonkeyPatch,
+    fixtures_dir: Path,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out.html"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["dagshund", str(fixtures_dir / "real_fixture.json"), "-o", str(output), "-b"],
+    )
+
+    # webbrowser is imported lazily inside main(), so monkeypatch can't
+    # target it before the import happens — need unittest.mock.patch.
+    from unittest.mock import patch
+
+    with patch("webbrowser.open") as mock_open:
+        main()
+
+    mock_open.assert_called_once()
+    assert mock_open.call_args[0][0].startswith("file://")
+
+
+def test_main_browser_without_output_exits_with_error(
+    monkeypatch: pytest.MonkeyPatch,
+    fixtures_dir: Path,
+) -> None:
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "real_fixture.json"), "-b"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2  # argparse error code
+
+
+def test_main_dagshund_error_prints_to_stderr_and_exits(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["dagshund", "/nonexistent/plan.json"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    assert "dagshund:" in capsys.readouterr().err

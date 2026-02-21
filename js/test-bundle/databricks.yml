@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=bundle.schema.json
 # Databricks Asset Bundle — "after" state for generating plan diffs.
 #
 # This file represents the desired state. After deploying databricks.yml (the "before" state),

@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { getDiffStateStyles } from "../../src/components/diff-state-styles.ts";
+import {
+  getDiffBadge,
+  getDiffStateStyles,
+  getEdgeStyle,
+} from "../../src/components/diff-state-styles.ts";
 import type { DiffState } from "../../src/types/diff-state.ts";
+import type { EdgeDiffState } from "../../src/types/graph-types.ts";
 
 describe("getDiffStateStyles", () => {
   test("added returns themed diff classes with full opacity", () => {
@@ -36,14 +41,67 @@ describe("getDiffStateStyles", () => {
     expect(styles.opacity).toBe("opacity-100");
   });
 
-  test("every DiffState returns all four style properties", () => {
+  test("every DiffState returns all six style properties", () => {
     const states: readonly DiffState[] = ["added", "removed", "modified", "unchanged"];
     for (const state of states) {
       const styles = getDiffStateStyles(state);
       expect(styles).toHaveProperty("border");
+      expect(styles).toHaveProperty("borderStyle");
       expect(styles).toHaveProperty("background");
       expect(styles).toHaveProperty("text");
       expect(styles).toHaveProperty("opacity");
+      expect(styles).toHaveProperty("hoverGlow");
+    }
+  });
+});
+
+describe("getDiffBadge", () => {
+  test("returns + for added", () => {
+    expect(getDiffBadge("added")).toBe("+");
+  });
+
+  test("returns minus sign for removed", () => {
+    expect(getDiffBadge("removed")).toBe("\u2212");
+  });
+
+  test("returns ~ for modified", () => {
+    expect(getDiffBadge("modified")).toBe("~");
+  });
+
+  test("returns undefined for unchanged", () => {
+    expect(getDiffBadge("unchanged")).toBeUndefined();
+  });
+});
+
+describe("getEdgeStyle", () => {
+  test("added edges use added color with no dash", () => {
+    const style = getEdgeStyle("added");
+    expect(style.stroke).toBe("var(--edge-added)");
+    expect(style.opacity).toBe(1);
+    expect(style.strokeDasharray).toBeUndefined();
+  });
+
+  test("removed edges use removed color with dashed stroke", () => {
+    const style = getEdgeStyle("removed");
+    expect(style.stroke).toBe("var(--edge-removed)");
+    expect(style.opacity).toBe(1);
+    expect(style.strokeDasharray).toBe("6 4");
+  });
+
+  test("unchanged edges use unchanged color with no dash", () => {
+    const style = getEdgeStyle("unchanged");
+    expect(style.stroke).toBe("var(--edge-unchanged)");
+    expect(style.opacity).toBe(1);
+    expect(style.strokeDasharray).toBeUndefined();
+  });
+
+  test("every EdgeDiffState returns all three style properties", () => {
+    const states: readonly EdgeDiffState[] = ["added", "removed", "unchanged"];
+    for (const state of states) {
+      const style = getEdgeStyle(state);
+      expect(style).toHaveProperty("stroke");
+      expect(style).toHaveProperty("opacity");
+      expect(style).toHaveProperty("strokeDasharray");
     }
   });
 });

@@ -6,7 +6,8 @@
       "!**/node_modules/**",
       "!**/dist/**",
       "!**/src/styles/**",
-      "!**/src/vendor/**"
+      "!**/src/vendor/**",
+      "!**/src/dagshund/**"
     ]
   },
   "linter": {

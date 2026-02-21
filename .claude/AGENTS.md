@@ -73,41 +73,12 @@ When all 3 passes are clean:
 3. `git add <specific files>` — stage changes (NEVER skip, NEVER combine with commit)
 4. `git commit -m "..."` — the commit IS the deliverable
 5. `bd close <id>` — only AFTER code is committed
-6. `glab issue close <number>` — close the matching GitLab issue (ALWAYS in sync with beads)
-7. Move to next work (or recommend next from `bd ready`)
+6. Move to next work (or recommend next from `bd ready`)
 
-## Branch-per-Epic Workflow
+## GitLab Integration
 
-Work is organized into epics (GitLab milestones). Each epic gets one branch and one MR.
-
-### Starting an epic
-1. `git checkout -b <epic-branch>` — e.g. `review-r2/core-bugs`
-2. Present the epic's issues to the human and wait for go-ahead
-
-### Per issue within the epic
-1. `bd update <id> --status=in_progress`
-2. Implement the fix/feature
-3. Build + test (`just build`, `just test`, `just typecheck`)
-4. Run 3-pass review (see above)
-5. Present to human, get approval
-6. `git add <specific files>`
-7. `git commit -m "fix: ..."` — one commit per issue
-8. `bd close <id>`
-9. `glab issue close <number>`
-10. Next issue in the epic
-
-### Closing the epic
-1. All issues done, all beads + GitLab issues closed
-2. `git push -u origin <epic-branch>`
-3. `glab mr create` — MR targeting `main`, referencing the milestone
-4. Close the epic bead + GitLab milestone
-5. Merge, move to next epic
-
-### Rules
-- One branch per epic, one MR per epic
-- Individual issues are individual commits on that branch
-- Beads and GitLab are ALWAYS kept in sync
-- Epics are worked sequentially (at most one active epic branch at a time)
+GitLab issues are not currently used for task tracking — all tracking goes through `bd`.
+In the future, work may originate from GitLab issues, at which point this section will be expanded.
 
 ## Task Priority Guide
 
@@ -137,7 +108,7 @@ Work is organized into epics (GitLab milestones). Each epic gets one branch and 
    just build         # Verify production build
    ```
 4. **Commit all code** — `git add <files>` then `git commit` (separate commands, never combined)
-5. **Close beads + GitLab** — `bd close <id>` + `glab issue close <number>` for each finished issue
+5. **Close beads** — `bd close <id>` for each finished issue
 6. **Sync and push**:
    ```bash
    bd sync            # exports JSONL and stages it (does NOT commit)

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=bundle.schema.json
 # Databricks Asset Bundle for generating plan JSON fixtures.
 #
 # "Before" state — deploy this first, then swap to databricks-after.yml for the plan diff.
