@@ -338,11 +338,15 @@ export const layoutResourceGraph = async (
     return { nodes: [], edges: [] };
   }
 
+  // Nodes with no incoming edges are roots — constrain them to the first layer
+  const targetNodeIds = new Set(graph.edges.map((e) => e.target));
+
   const elkGraph = {
     id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "RIGHT",
+      "elk.separateConnectedComponents": "false",
       "elk.spacing.nodeNode": "40",
       "elk.layered.spacing.nodeNodeBetweenLayers": "80",
       "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
@@ -352,6 +356,9 @@ export const layoutResourceGraph = async (
       id: node.id,
       width: NODE_WIDTH,
       height: node.nodeKind === "resource-group" ? NODE_HEIGHT_GROUP : NODE_HEIGHT_RESOURCE,
+      ...(targetNodeIds.has(node.id)
+        ? {}
+        : { layoutOptions: { "elk.layered.layering.layerConstraint": "FIRST" } }),
     })),
     edges: graph.edges.map((edge) => ({
       id: edge.id,

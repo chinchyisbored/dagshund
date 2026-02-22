@@ -9,8 +9,11 @@ type ResourceGroupNodeType = Node<Omit<ResourceGroupGraphNode, "id">, "resource-
 
 /** Derive a type badge for virtual group nodes from their ID convention. */
 const extractGroupBadge = (resourceKey: string): string | undefined => {
+  if (resourceKey.startsWith("postgres-project::")) return "project";
+  if (resourceKey.startsWith("external::postgres-branch::")) return "branch";
+  if (resourceKey.startsWith("lakebase-instance::")) return "instance";
   if (resourceKey.startsWith("catalog::")) return "catalog";
-  if (resourceKey.startsWith("external::")) return "schema";
+  if (resourceKey.startsWith("external::")) return "schema"; // catch-all for external:: LAST
   return undefined;
 };
 

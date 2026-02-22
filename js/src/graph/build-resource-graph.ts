@@ -37,6 +37,19 @@ const UC_TYPES: ReadonlySet<string> = new Set([
   "registered_models",
 ]);
 
+/** All Postgres resource types. */
+const POSTGRES_TYPES: ReadonlySet<string> = new Set([
+  "postgres_projects",
+  "postgres_branches",
+  "postgres_endpoints",
+]);
+
+/** All Lakebase resource types (database_catalogs stays in UC). */
+const LAKEBASE_TYPES: ReadonlySet<string> = new Set([
+  "database_instances",
+  "synced_database_tables",
+]);
+
 /** Extract the resource type segment from a plan key like "resources.schemas.analytics". */
 export const extractResourceType = (key: string): string | undefined => key.split(".")[1];
 
@@ -45,6 +58,12 @@ export const isJobEntry = (key: string): boolean => key.startsWith("resources.jo
 
 /** Check whether a resource type belongs under Unity Catalog. */
 export const isUnityCatalogType = (resourceType: string): boolean => UC_TYPES.has(resourceType);
+
+/** Check whether a resource type belongs under the Postgres hierarchy. */
+export const isPostgresType = (resourceType: string): boolean => POSTGRES_TYPES.has(resourceType);
+
+/** Check whether a resource type belongs under the Lakebase hierarchy. */
+export const isLakebaseType = (resourceType: string): boolean => LAKEBASE_TYPES.has(resourceType);
 
 /**
  * Safely extract a named field from a plan entry's state.
@@ -285,24 +304,258 @@ const buildUcGraph = (
   };
 };
 
-/** Build the workspace subgraph: root node + flat resource nodes with edges. */
+/**
+ * Configuration for a generic resource hierarchy (Postgres, Lakebase).
+ * Assumes parent fields contain resource name strings matching the parent's `name` field.
+ */
+type HierarchySpec = {
+  readonly rootId: string;
+  readonly rootLabel: string;
+  readonly containerTypes: ReadonlySet<string>;
+  readonly containerIdPrefix: string;
+  readonly midTierConfig?: {
+    readonly types: ReadonlySet<string>;
+    readonly parentField: string;
+    readonly phantomIdPrefix: string;
+  };
+  readonly leafParentField: string;
+};
+
+const POSTGRES_SPEC: HierarchySpec = {
+  rootId: "postgres-root",
+  rootLabel: "Postgres",
+  containerTypes: new Set(["postgres_projects"]),
+  containerIdPrefix: "postgres-project::",
+  midTierConfig: {
+    types: new Set(["postgres_branches"]),
+    parentField: "parent",
+    phantomIdPrefix: "external::postgres-branch::",
+  },
+  leafParentField: "parent",
+};
+
+const LAKEBASE_SPEC: HierarchySpec = {
+  rootId: "lakebase-root",
+  rootLabel: "Lakebase",
+  containerTypes: new Set(["database_instances"]),
+  containerIdPrefix: "lakebase-instance::",
+  leafParentField: "database_instance_name",
+};
+
+/**
+ * Build a hierarchy subgraph from a spec: root → container groups → optional mid-tier → leaf resources.
+ * Additional container names (e.g. from cross-hierarchy references) create external group nodes.
+ */
+const buildHierarchySubgraph = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  spec: HierarchySpec,
+  additionalContainerNames: ReadonlySet<string> = new Set(),
+): PlanGraph => {
+  if (entries.length === 0 && additionalContainerNames.size === 0) return { nodes: [], edges: [] };
+
+  const root = buildGroupNode(spec.rootId, spec.rootLabel);
+  const midTierConfig = spec.midTierConfig;
+
+  // Container names from actual entries (determines external flag)
+  const entryContainerNames = new Set(
+    entries
+      .filter(([key]) => {
+        const rt = extractResourceType(key);
+        return rt !== undefined && spec.containerTypes.has(rt);
+      })
+      .flatMap(([, entry]) => {
+        const name = extractStateField(entry, "name");
+        return name !== undefined ? [name] : [];
+      }),
+  );
+
+  // All referenced container names: entries + parent references + additional
+  // Local mutation: accumulating names from multiple sources into one set
+  const allContainerNames = new Set([...entryContainerNames, ...additionalContainerNames]);
+  if (midTierConfig !== undefined) {
+    for (const [key, entry] of entries) {
+      const rt = extractResourceType(key);
+      if (rt !== undefined && midTierConfig.types.has(rt)) {
+        const name = extractStateField(entry, midTierConfig.parentField);
+        if (name !== undefined) allContainerNames.add(name);
+      }
+    }
+  } else {
+    for (const [key, entry] of entries) {
+      const rt = extractResourceType(key);
+      if (rt !== undefined && !spec.containerTypes.has(rt)) {
+        const name = extractStateField(entry, spec.leafParentField);
+        if (name !== undefined) allContainerNames.add(name);
+      }
+    }
+  }
+
+  // Container group nodes + root → container edges
+  const containerNodes = [...allContainerNames].map((name) =>
+    buildGroupNode(`${spec.containerIdPrefix}${name}`, name, !entryContainerNames.has(name)),
+  );
+  const containerEdges = filterDefinedEdges(
+    [...allContainerNames].map((name) =>
+      buildEdge(spec.rootId, `${spec.containerIdPrefix}${name}`),
+    ),
+  );
+
+  // Mid-tier lookup: name → plan key (only when mid-tier config exists)
+  const midTierLookup =
+    midTierConfig !== undefined
+      ? new Map(
+          entries
+            .filter(([key]) => {
+              const rt = extractResourceType(key);
+              return rt !== undefined && midTierConfig.types.has(rt);
+            })
+            .flatMap(([key, entry]) => {
+              const name = extractStateField(entry, "name");
+              return name !== undefined ? [[name, key] as const] : [];
+            }),
+        )
+      : undefined;
+
+  // Phantom mid-tier nodes for leaves whose parent isn't in the plan
+  const phantomMidTierMap =
+    midTierConfig !== undefined && midTierLookup !== undefined
+      ? new Map(
+          entries.flatMap(([key, entry]) => {
+            const rt = extractResourceType(key);
+            if (rt === undefined || spec.containerTypes.has(rt) || midTierConfig.types.has(rt))
+              return [];
+            const parentName = extractStateField(entry, spec.leafParentField);
+            if (parentName === undefined || midTierLookup.has(parentName)) return [];
+            const phantomId = `${midTierConfig.phantomIdPrefix}${parentName}`;
+            return [[phantomId, parentName] as const];
+          }),
+        )
+      : new Map<string, string>();
+
+  const phantomNodes = [...phantomMidTierMap].map(([phantomId, name]) =>
+    buildGroupNode(phantomId, name, true),
+  );
+  const phantomEdges = filterDefinedEdges(
+    [...phantomMidTierMap.keys()].map((phantomId) => buildEdge(spec.rootId, phantomId)),
+  );
+
+  // Resource nodes for all entries
+  const resourceNodes = entries.map(([key, entry]) => buildResourceNode(key, entry));
+
+  // Hierarchy edges: connect each entry to its parent in the hierarchy
+  const hierarchyEdges = filterDefinedEdges(
+    entries.map(([key, entry]) => {
+      const rt = extractResourceType(key);
+      if (rt === undefined) return undefined;
+      const edgeDiff = entryEdgeDiffState(entry);
+
+      // Container entries → container group node
+      if (spec.containerTypes.has(rt)) {
+        const name = extractStateField(entry, "name");
+        return buildEdge(
+          name !== undefined ? `${spec.containerIdPrefix}${name}` : spec.rootId,
+          key,
+          edgeDiff,
+        );
+      }
+
+      // Mid-tier entries → container group (via parentField)
+      if (midTierConfig?.types.has(rt)) {
+        const parentName = extractStateField(entry, midTierConfig.parentField);
+        return buildEdge(
+          parentName !== undefined ? `${spec.containerIdPrefix}${parentName}` : spec.rootId,
+          key,
+          edgeDiff,
+        );
+      }
+
+      // Leaf entries
+      const parentName = extractStateField(entry, spec.leafParentField);
+      if (parentName === undefined) return buildEdge(spec.rootId, key, edgeDiff);
+
+      if (midTierLookup !== undefined && midTierConfig !== undefined) {
+        const midTierKey = midTierLookup.get(parentName);
+        return midTierKey !== undefined
+          ? buildEdge(midTierKey, key, edgeDiff)
+          : buildEdge(`${midTierConfig.phantomIdPrefix}${parentName}`, key, edgeDiff);
+      }
+
+      return buildEdge(`${spec.containerIdPrefix}${parentName}`, key, edgeDiff);
+    }),
+  );
+
+  return {
+    nodes: [root, ...containerNodes, ...phantomNodes, ...resourceNodes],
+    edges: [...containerEdges, ...phantomEdges, ...hierarchyEdges],
+  };
+};
+
+/** Build the workspace subgraph: flat resources + Postgres/Lakebase hierarchies. */
 const buildWorkspaceGraph = (
   workspaceEntries: readonly (readonly [string, PlanEntry])[],
+  postgresEntries: readonly (readonly [string, PlanEntry])[],
+  lakebaseEntries: readonly (readonly [string, PlanEntry])[],
+  crossReferencedInstances: ReadonlySet<string>,
 ): PlanGraph => {
-  if (workspaceEntries.length === 0) return { nodes: [], edges: [] };
+  const hasWorkspace = workspaceEntries.length > 0;
+  const hasPostgres = postgresEntries.length > 0;
+  const hasLakebase = lakebaseEntries.length > 0 || crossReferencedInstances.size > 0;
+
+  if (!hasWorkspace && !hasPostgres && !hasLakebase) return { nodes: [], edges: [] };
 
   const root = buildGroupNode("workspace-root", "Workspace");
-  const resourceNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
-  const resourceEdges = filterDefinedEdges(
+
+  // Flat workspace resources
+  const flatNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
+  const flatEdges = filterDefinedEdges(
     workspaceEntries.map(([key, entry]) =>
       buildEdge("workspace-root", key, entryEdgeDiffState(entry)),
     ),
   );
 
+  // Postgres hierarchy
+  const pgGraph = hasPostgres
+    ? buildHierarchySubgraph(postgresEntries, POSTGRES_SPEC)
+    : { nodes: [], edges: [] };
+  const pgRootEdge = hasPostgres
+    ? filterDefinedEdges([buildEdge("workspace-root", "postgres-root")])
+    : [];
+
+  // Lakebase hierarchy
+  const lbGraph = hasLakebase
+    ? buildHierarchySubgraph(lakebaseEntries, LAKEBASE_SPEC, crossReferencedInstances)
+    : { nodes: [], edges: [] };
+  const lbRootEdge = hasLakebase
+    ? filterDefinedEdges([buildEdge("workspace-root", "lakebase-root")])
+    : [];
+
   return {
-    nodes: [root, ...resourceNodes],
-    edges: resourceEdges,
+    nodes: [root, ...flatNodes, ...pgGraph.nodes, ...lbGraph.nodes],
+    edges: [...flatEdges, ...pgRootEdge, ...pgGraph.edges, ...lbRootEdge, ...lbGraph.edges],
   };
+};
+
+/** Collect cross-hierarchy edges from Lakebase instances to UC database_catalogs. */
+const collectLakebaseCrossEdges = (
+  ucEntries: readonly (readonly [string, PlanEntry])[],
+): {
+  readonly edges: readonly GraphEdge[];
+  readonly instanceNames: ReadonlySet<string>;
+} => {
+  const instanceNames = new Set<string>();
+  const edges: GraphEdge[] = [];
+
+  for (const [key, entry] of ucEntries) {
+    const rt = extractResourceType(key);
+    if (rt !== "database_catalogs") continue;
+    const instanceName = extractStateField(entry, "database_instance_name");
+    if (instanceName === undefined) continue;
+    instanceNames.add(instanceName);
+    const edge = buildEdge(`lakebase-instance::${instanceName}`, key);
+    if (edge !== undefined) edges.push(edge);
+  }
+
+  return { edges, instanceNames };
 };
 
 /** Collect explicit depends_on edges, skipping job-to-job edges (deployment ordering, not hierarchy). */
@@ -334,11 +587,17 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
   if (entries.length === 0) return { nodes: [], edges: [] };
 
   const ucEntries: [string, PlanEntry][] = [];
+  const postgresEntries: [string, PlanEntry][] = [];
+  const lakebaseEntries: [string, PlanEntry][] = [];
   const workspaceEntries: [string, PlanEntry][] = [];
   for (const entry of entries) {
     const resourceType = extractResourceType(entry[0]);
     if (resourceType !== undefined && isUnityCatalogType(resourceType)) {
       ucEntries.push(entry);
+    } else if (resourceType !== undefined && isPostgresType(resourceType)) {
+      postgresEntries.push(entry);
+    } else if (resourceType !== undefined && isLakebaseType(resourceType)) {
+      lakebaseEntries.push(entry);
     } else {
       workspaceEntries.push(entry);
     }
@@ -347,11 +606,25 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
   const schemaLookup = buildSchemaLookup(ucEntries);
   const catalogLookup = buildCatalogLookup(ucEntries);
   const ucGraph = buildUcGraph(ucEntries, schemaLookup, catalogLookup);
-  const workspaceGraph = buildWorkspaceGraph(workspaceEntries);
+
+  const { edges: crossEdges, instanceNames: crossReferencedInstances } =
+    collectLakebaseCrossEdges(ucEntries);
+
+  const workspaceGraph = buildWorkspaceGraph(
+    workspaceEntries,
+    postgresEntries,
+    lakebaseEntries,
+    crossReferencedInstances,
+  );
   const dependsOnEdges = collectDependsOnEdges(entries);
 
   return {
     nodes: [...ucGraph.nodes, ...workspaceGraph.nodes],
-    edges: deduplicateEdges([...ucGraph.edges, ...workspaceGraph.edges, ...dependsOnEdges]),
+    edges: deduplicateEdges([
+      ...ucGraph.edges,
+      ...workspaceGraph.edges,
+      ...crossEdges,
+      ...dependsOnEdges,
+    ]),
   };
 };

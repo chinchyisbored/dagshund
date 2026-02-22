@@ -1,0 +1,540 @@
+{
+  "plan_version": 2,
+  "cli_version": "0.290.0",
+  "lineage": "f7a21c3e-9b84-4d1f-ae72-6cc8e4f15d2a",
+  "serial": 12,
+  "plan": {
+    "resources.catalogs.production": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "comment": "Production catalog for all customer-facing data",
+          "name": "production",
+          "properties": {
+            "environment": "production",
+            "managed_by": "databricks-asset-bundles"
+          }
+        }
+      },
+      "remote_state": {
+        "catalog_type": "MANAGED_CATALOG",
+        "comment": "Production catalog",
+        "created_at": 1770495329200,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "full_name": "production",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "production",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "properties": {
+          "managed_by": "databricks-asset-bundles"
+        },
+        "updated_at": 1770495329200,
+        "updated_by": "databricks.squiggly592@passfwd.com"
+      },
+      "changes": {
+        "comment": {
+          "action": "update",
+          "old": "Production catalog",
+          "new": "Production catalog for all customer-facing data",
+          "remote": "Production catalog"
+        },
+        "properties['environment']": {
+          "action": "update",
+          "new": "production"
+        }
+      }
+    },
+
+    "resources.schemas.reporting": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "production",
+          "comment": "Reporting schema for dashboards and BI tools",
+          "name": "reporting",
+          "properties": {
+            "environment": "production",
+            "owner": "analytics-engineering"
+          }
+        }
+      }
+    },
+
+    "resources.database_catalogs.lakebase_analytics": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "lakebase_analytics",
+          "database_instance_name": "analytics_db",
+          "comment": "Lakebase-managed catalog for analytics data"
+        }
+      }
+    },
+
+    "resources.schemas.analytics": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "comment": "Analytics schema for production data",
+          "name": "analytics",
+          "properties": {
+            "environment": "production",
+            "owner": "data-engineering"
+          }
+        }
+      },
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "comment": "Analytics schema",
+        "created_at": 1770495329473,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "full_name": "dagshund.analytics",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "analytics",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "properties": {
+          "owner": "data-engineering"
+        },
+        "schema_id": "9f69fd10-c061-492f-a0ef-e977573b7906",
+        "updated_at": 1770495329473,
+        "updated_by": "databricks.squiggly592@passfwd.com"
+      },
+      "changes": {
+        "comment": {
+          "action": "update",
+          "old": "Analytics schema",
+          "new": "Analytics schema for production data",
+          "remote": "Analytics schema"
+        },
+        "properties['environment']": {
+          "action": "update",
+          "new": "production"
+        }
+      }
+    },
+
+    "resources.schemas.ml_features": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "comment": "Feature store for ML pipelines",
+          "name": "ml_features",
+          "properties": {
+            "environment": "production",
+            "owner": "ml-platform"
+          }
+        }
+      }
+    },
+
+    "resources.volumes.raw_data": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.analytics",
+          "label": "${resources.schemas.analytics.name}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "comment": "Raw data volume for ingestion pipeline",
+          "name": "raw_data",
+          "schema_name": "analytics",
+          "volume_type": "MANAGED"
+        }
+      },
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "comment": "Raw data volume",
+        "created_at": 1770495330103,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "full_name": "dagshund.analytics.raw_data",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "raw_data",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "schema_name": "analytics",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/volumes/f47b40ff-8995-47c2-95d8-8d8f97cc2571",
+        "updated_at": 1770495330103,
+        "updated_by": "databricks.squiggly592@passfwd.com",
+        "volume_id": "f47b40ff-8995-47c2-95d8-8d8f97cc2571",
+        "volume_type": "MANAGED"
+      },
+      "changes": {
+        "comment": {
+          "action": "update",
+          "old": "Raw data volume",
+          "new": "Raw data volume for ingestion pipeline",
+          "remote": "Raw data volume"
+        }
+      }
+    },
+
+    "resources.volumes.partner_feeds": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "comment": "Partner data feed imports",
+          "name": "partner_feeds",
+          "schema_name": "integrations",
+          "volume_type": "EXTERNAL"
+        }
+      }
+    },
+
+    "resources.registered_models.churn_predictor": {
+      "action": "delete",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "comment": "Customer churn prediction model",
+        "created_at": 1770495395934,
+        "created_by": "databricks.squiggly592@passfwd.com",
+        "full_name": "dagshund.analytics.churn_predictor",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "churn_predictor",
+        "owner": "databricks.squiggly592@passfwd.com",
+        "schema_name": "analytics",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/models/22aff09a-5da0-4833-a557-009275305dc4",
+        "updated_at": 1770495395934,
+        "updated_by": "databricks.squiggly592@passfwd.com"
+      }
+    },
+
+
+    "resources.jobs.etl_pipeline": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "etl_pipeline",
+          "queue": { "enabled": true },
+          "tasks": [
+            {
+              "environment_key": "default",
+              "notebook_task": { "notebook_path": "/Workspace/etl/extract" },
+              "task_key": "extract"
+            },
+            {
+              "depends_on": [{ "task_key": "extract" }],
+              "environment_key": "default",
+              "notebook_task": { "notebook_path": "/Workspace/etl/transform_v3" },
+              "task_key": "transform"
+            },
+            {
+              "depends_on": [{ "task_key": "transform" }],
+              "environment_key": "default",
+              "notebook_task": { "notebook_path": "/Workspace/etl/load" },
+              "task_key": "load"
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "created_time": 1770407353832,
+        "creator_user_name": "databricks.squiggly592@passfwd.com",
+        "job_id": 1117023947429700,
+        "run_as_user_name": "databricks.squiggly592@passfwd.com",
+        "settings": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "etl_pipeline",
+          "queue": { "enabled": true },
+          "tasks": [
+            {
+              "environment_key": "default",
+              "notebook_task": { "notebook_path": "/Workspace/etl/extract", "source": "WORKSPACE" },
+              "run_if": "ALL_SUCCESS",
+              "task_key": "extract",
+              "timeout_seconds": 0
+            },
+            {
+              "depends_on": [{ "task_key": "extract" }],
+              "environment_key": "default",
+              "notebook_task": { "notebook_path": "/Workspace/etl/transform_v2", "source": "WORKSPACE" },
+              "run_if": "ALL_SUCCESS",
+              "task_key": "transform",
+              "timeout_seconds": 0
+            },
+            {
+              "depends_on": [{ "task_key": "transform" }],
+              "environment_key": "default",
+              "notebook_task": { "notebook_path": "/Workspace/etl/load", "source": "WORKSPACE" },
+              "run_if": "ALL_SUCCESS",
+              "task_key": "load",
+              "timeout_seconds": 0
+            }
+          ],
+          "timeout_seconds": 0
+        }
+      },
+      "changes": {
+        "tasks[task_key='transform'].notebook_task.notebook_path": {
+          "action": "update",
+          "old": "/Workspace/etl/transform_v2",
+          "new": "/Workspace/etl/transform_v3",
+          "remote": "/Workspace/etl/transform_v2"
+        }
+      }
+    },
+
+    "resources.alerts.data_freshness": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "display_name": "Data Freshness Alert",
+          "evaluation": {
+            "comparison_operator": "GREATER_THAN",
+            "source": { "name": "hours_since_refresh" },
+            "threshold": { "value": { "double_value": 12 } }
+          },
+          "parent_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/resources",
+          "query_text": "SELECT TIMESTAMPDIFF(HOUR, MAX(updated_at), CURRENT_TIMESTAMP()) AS hours_since_refresh FROM dagshund.analytics.data_quality_log",
+          "schedule": {
+            "quartz_cron_schedule": "0 0 */4 * * ?",
+            "timezone_id": "UTC"
+          },
+          "warehouse_id": "799f096837f0aaaa"
+        }
+      }
+    },
+
+    "resources.experiments.ab_test_v2": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "/Users/databricks.squiggly592@passfwd.com/ab_test_v2"
+        }
+      }
+    },
+
+    "resources.external_locations.raw_landing_zone": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "raw_landing_zone",
+          "url": "s3://dagshund-raw-landing/ingest/",
+          "credential_name": "dagshund_aws_credential",
+          "comment": "Landing zone for raw data ingestion from external sources",
+          "read_only": false
+        }
+      }
+    },
+
+
+    "resources.postgres_projects.warehouse_replica": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "warehouse_replica",
+          "comment": "Postgres replica of data warehouse tables"
+        }
+      }
+    },
+
+    "resources.postgres_branches.staging": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "staging",
+          "parent": "warehouse_replica",
+          "comment": "Staging branch for testing schema migrations"
+        }
+      }
+    },
+
+    "resources.postgres_branches.production": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "name": "production",
+          "parent": "warehouse_replica",
+          "comment": "Production branch serving live traffic",
+          "autoscaling_limit_min_cu": 0.25,
+          "autoscaling_limit_max_cu": 2
+        }
+      },
+      "remote_state": {
+        "name": "production",
+        "parent": "warehouse_replica",
+        "comment": "Production branch",
+        "autoscaling_limit_min_cu": 0.25,
+        "autoscaling_limit_max_cu": 1,
+        "created_at": "2026-01-15T10:30:00Z",
+        "id": "br-aged-morning-a1b2c3d4",
+        "current_state": "ready",
+        "host": "ep-cool-darkness-a1b2c3d4.us-east-2.aws.neon.tech"
+      },
+      "changes": {
+        "autoscaling_limit_max_cu": {
+          "action": "update",
+          "old": 1,
+          "new": 2,
+          "remote": 1
+        },
+        "comment": {
+          "action": "update",
+          "old": "Production branch",
+          "new": "Production branch serving live traffic",
+          "remote": "Production branch"
+        }
+      }
+    },
+
+    "resources.postgres_endpoints.staging_read": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "staging_read",
+          "parent": "staging",
+          "type": "read_only",
+          "autoscaling_limit_min_cu": 0.25,
+          "autoscaling_limit_max_cu": 1,
+          "suspend_timeout_seconds": 300
+        }
+      }
+    },
+
+    "resources.postgres_endpoints.production_rw": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "name": "production_rw",
+          "parent": "production",
+          "type": "read_write",
+          "autoscaling_limit_min_cu": 1,
+          "autoscaling_limit_max_cu": 4,
+          "suspend_timeout_seconds": 0
+        }
+      },
+      "remote_state": {
+        "name": "production_rw",
+        "parent": "production",
+        "type": "read_write",
+        "autoscaling_limit_min_cu": 0.5,
+        "autoscaling_limit_max_cu": 2,
+        "suspend_timeout_seconds": 0,
+        "created_at": "2026-01-15T10:31:00Z",
+        "id": "ep-cool-darkness-a1b2c3d4",
+        "current_state": "active",
+        "host": "ep-cool-darkness-a1b2c3d4.us-east-2.aws.neon.tech"
+      },
+      "changes": {
+        "autoscaling_limit_min_cu": {
+          "action": "update",
+          "old": 0.5,
+          "new": 1,
+          "remote": 0.5
+        },
+        "autoscaling_limit_max_cu": {
+          "action": "update",
+          "old": 2,
+          "new": 4,
+          "remote": 2
+        }
+      }
+    },
+
+    "resources.postgres_endpoints.legacy_reader": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "legacy_reader",
+          "parent": "archive",
+          "type": "read_only",
+          "autoscaling_limit_min_cu": 0.25,
+          "autoscaling_limit_max_cu": 0.5,
+          "suspend_timeout_seconds": 600
+        }
+      }
+    },
+
+
+    "resources.database_instances.analytics_db": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "analytics_db",
+          "comment": "Lakebase instance for analytics workloads"
+        }
+      }
+    },
+
+    "resources.synced_database_tables.customer_360": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "customer_360",
+          "database_instance_name": "analytics_db",
+          "source_schema": "public",
+          "source_table": "customers",
+          "comment": "Synced customer profile table"
+        }
+      }
+    },
+
+    "resources.synced_database_tables.product_events": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "name": "product_events",
+          "database_instance_name": "analytics_db",
+          "source_schema": "events",
+          "source_table": "product_interactions",
+          "comment": "Product interaction events from Postgres"
+        }
+      },
+      "remote_state": {
+        "name": "product_events",
+        "database_instance_name": "analytics_db",
+        "source_schema": "events",
+        "source_table": "product_clicks",
+        "comment": "Product click events from Postgres",
+        "created_at": "2026-02-01T08:00:00Z",
+        "status": "ACTIVE"
+      },
+      "changes": {
+        "source_table": {
+          "action": "update",
+          "old": "product_clicks",
+          "new": "product_interactions",
+          "remote": "product_clicks"
+        },
+        "comment": {
+          "action": "update",
+          "old": "Product click events from Postgres",
+          "new": "Product interaction events from Postgres",
+          "remote": "Product click events from Postgres"
+        }
+      }
+    },
+
+    "resources.synced_database_tables.partner_metrics": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "partner_metrics",
+          "database_instance_name": "reporting_db",
+          "source_schema": "partners",
+          "source_table": "metrics_rollup",
+          "comment": "Partner performance metrics from reporting DB"
+        }
+      }
+    }
+  }
+}

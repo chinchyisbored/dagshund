@@ -4,6 +4,8 @@ import {
   extractResourceType,
   extractStateField,
   isJobEntry,
+  isLakebaseType,
+  isPostgresType,
   isUnityCatalogType,
 } from "../../src/graph/build-resource-graph.ts";
 import type { ResourceGraphNode, ResourceGroupGraphNode } from "../../src/types/graph-types.ts";
@@ -705,5 +707,557 @@ describe("buildResourceGraph", () => {
       ) as ResourceGraphNode;
       expect(jobNode.taskChangeSummary).toBeUndefined();
     });
+  });
+});
+
+describe("isPostgresType", () => {
+  test("returns true for postgres types", () => {
+    expect(isPostgresType("postgres_projects")).toBe(true);
+    expect(isPostgresType("postgres_branches")).toBe(true);
+    expect(isPostgresType("postgres_endpoints")).toBe(true);
+  });
+
+  test("returns false for non-postgres types", () => {
+    expect(isPostgresType("jobs")).toBe(false);
+    expect(isPostgresType("database_instances")).toBe(false);
+    expect(isPostgresType("schemas")).toBe(false);
+  });
+});
+
+describe("isLakebaseType", () => {
+  test("returns true for lakebase types", () => {
+    expect(isLakebaseType("database_instances")).toBe(true);
+    expect(isLakebaseType("synced_database_tables")).toBe(true);
+  });
+
+  test("returns false for database_catalogs (stays in UC)", () => {
+    expect(isLakebaseType("database_catalogs")).toBe(false);
+  });
+
+  test("returns false for non-lakebase types", () => {
+    expect(isLakebaseType("jobs")).toBe(false);
+    expect(isLakebaseType("postgres_projects")).toBe(false);
+    expect(isLakebaseType("schemas")).toBe(false);
+  });
+});
+
+describe("postgres hierarchy", () => {
+  test("full chain: workspace-root → postgres-root → project group → branch → endpoint", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_projects.my_project": {
+          action: "create",
+          new_state: { value: { name: "my_project" } },
+        },
+        "resources.postgres_branches.my_branch": {
+          action: "create",
+          new_state: { value: { name: "my_branch", parent: "my_project" } },
+        },
+        "resources.postgres_endpoints.my_endpoint": {
+          action: "create",
+          new_state: { value: { name: "my_endpoint", parent: "my_branch" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("postgres-root");
+    expect(nodeIds).toContain("postgres-project::my_project");
+    expect(nodeIds).toContain("resources.postgres_branches.my_branch");
+    expect(nodeIds).toContain("resources.postgres_endpoints.my_endpoint");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→postgres-root");
+    expect(edgePairs).toContain("postgres-root→postgres-project::my_project");
+    expect(edgePairs).toContain(
+      "postgres-project::my_project→resources.postgres_branches.my_branch",
+    );
+    expect(edgePairs).toContain(
+      "resources.postgres_branches.my_branch→resources.postgres_endpoints.my_endpoint",
+    );
+
+    // Narrow: .external lives on ResourceGroupGraphNode, not the base union
+    const projectGroup = graph.nodes.find((n) => n.id === "postgres-project::my_project");
+    expect((projectGroup as ResourceGroupGraphNode | undefined)?.external).toBe(false);
+  });
+
+  test("phantom branch when branch not in plan hangs off postgres-root", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_endpoints.my_endpoint": {
+          action: "create",
+          new_state: { value: { name: "my_endpoint", parent: "missing_branch" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("external::postgres-branch::missing_branch");
+
+    const phantom = graph.nodes.find((n) => n.id === "external::postgres-branch::missing_branch");
+    expect((phantom as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("postgres-root→external::postgres-branch::missing_branch");
+    expect(edgePairs).toContain(
+      "external::postgres-branch::missing_branch→resources.postgres_endpoints.my_endpoint",
+    );
+  });
+
+  test("project group is external when no project entry exists", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_branches.my_branch": {
+          action: "create",
+          new_state: { value: { name: "my_branch", parent: "ext_project" } },
+        },
+      },
+    });
+
+    const projectGroup = graph.nodes.find((n) => n.id === "postgres-project::ext_project");
+    expect(projectGroup).toBeDefined();
+    expect((projectGroup as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+  });
+
+  test("endpoint with no parent field falls back to postgres-root", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_endpoints.orphan": {
+          action: "create",
+          new_state: { value: { name: "orphan" } },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("postgres-root→resources.postgres_endpoints.orphan");
+  });
+
+  test("standalone project appears under postgres-root", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_projects.solo": {
+          action: "create",
+          new_state: { value: { name: "solo" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("postgres-root");
+    expect(nodeIds).toContain("postgres-project::solo");
+    expect(nodeIds).toContain("resources.postgres_projects.solo");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→postgres-root");
+    expect(edgePairs).toContain("postgres-root→postgres-project::solo");
+    expect(edgePairs).toContain("postgres-project::solo→resources.postgres_projects.solo");
+  });
+
+  test("no postgres-root when no postgres resources", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.my_job": { action: "create" },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).not.toContain("postgres-root");
+  });
+});
+
+describe("lakebase hierarchy", () => {
+  test("full chain: workspace-root → lakebase-root → instance group → synced_table", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_instances.my_instance": {
+          action: "create",
+          new_state: { value: { name: "my_instance" } },
+        },
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: { value: { name: "my_table", database_instance_name: "my_instance" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("lakebase-root");
+    expect(nodeIds).toContain("lakebase-instance::my_instance");
+    expect(nodeIds).toContain("resources.synced_database_tables.my_table");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→lakebase-root");
+    expect(edgePairs).toContain("lakebase-root→lakebase-instance::my_instance");
+    expect(edgePairs).toContain(
+      "lakebase-instance::my_instance→resources.synced_database_tables.my_table",
+    );
+
+    // Narrow: .external lives on ResourceGroupGraphNode, not the base union
+    const instanceGroup = graph.nodes.find((n) => n.id === "lakebase-instance::my_instance");
+    expect((instanceGroup as ResourceGroupGraphNode | undefined)?.external).toBe(false);
+  });
+
+  test("instance group is external when instance not a plan entry", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: { value: { name: "my_table", database_instance_name: "ext_instance" } },
+        },
+      },
+    });
+
+    const instanceGroup = graph.nodes.find((n) => n.id === "lakebase-instance::ext_instance");
+    expect(instanceGroup).toBeDefined();
+    expect((instanceGroup as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+  });
+
+  test("synced_table with no database_instance_name falls back to lakebase-root", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.orphan": {
+          action: "create",
+          new_state: { value: { name: "orphan" } },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("lakebase-root→resources.synced_database_tables.orphan");
+  });
+
+  test("no lakebase-root when no lakebase resources", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.my_job": { action: "create" },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).not.toContain("lakebase-root");
+  });
+});
+
+describe("cross-hierarchy (lakebase → UC)", () => {
+  test("database_catalog with database_instance_name creates cross-edge", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_catalogs.lb_cat": {
+          action: "create",
+          new_state: { value: { name: "lb_cat", database_instance_name: "my_instance" } },
+        },
+        "resources.database_instances.my_instance": {
+          action: "create",
+          new_state: { value: { name: "my_instance" } },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // Cross-edge from lakebase instance to UC catalog
+    expect(edgePairs).toContain(
+      "lakebase-instance::my_instance→resources.database_catalogs.lb_cat",
+    );
+    // Catalog still appears under UC
+    expect(edgePairs).toContain("uc-root→resources.database_catalogs.lb_cat");
+  });
+
+  test("database_catalog without database_instance_name creates no cross-edge", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_catalogs.plain_cat": {
+          action: "create",
+          new_state: { value: { name: "plain_cat" } },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    const crossEdges = edgePairs.filter((p) => p.includes("lakebase-instance::"));
+    expect(crossEdges).toHaveLength(0);
+
+    // No lakebase-root created
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).not.toContain("lakebase-root");
+  });
+
+  test("database_catalog with schema still nests schema under catalog in UC", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_catalogs.lb_cat": {
+          action: "create",
+          new_state: { value: { name: "lb_cat", database_instance_name: "my_instance" } },
+        },
+        "resources.schemas.lb_schema": {
+          action: "create",
+          new_state: { value: { catalog_name: "lb_cat", name: "lb_schema" } },
+        },
+        "resources.database_instances.my_instance": {
+          action: "create",
+          new_state: { value: { name: "my_instance" } },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // UC hierarchy intact
+    expect(edgePairs).toContain("catalog::lb_cat→resources.schemas.lb_schema");
+    // Cross-edge also present
+    expect(edgePairs).toContain(
+      "lakebase-instance::my_instance→resources.database_catalogs.lb_cat",
+    );
+  });
+
+  test("phantom instance from catalog-only reference", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_catalogs.lb_cat": {
+          action: "create",
+          new_state: { value: { name: "lb_cat", database_instance_name: "phantom_instance" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    // Lakebase hierarchy created even though no lakebase entries exist
+    expect(nodeIds).toContain("lakebase-root");
+    expect(nodeIds).toContain("lakebase-instance::phantom_instance");
+
+    // Narrow: .external lives on ResourceGroupGraphNode, not the base union
+    const instanceGroup = graph.nodes.find((n) => n.id === "lakebase-instance::phantom_instance");
+    expect((instanceGroup as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→lakebase-root");
+    expect(edgePairs).toContain("lakebase-root→lakebase-instance::phantom_instance");
+    expect(edgePairs).toContain(
+      "lakebase-instance::phantom_instance→resources.database_catalogs.lb_cat",
+    );
+  });
+});
+
+describe("mixed plan with all 4 sections", () => {
+  test("creates correct structure for UC + workspace + postgres + lakebase", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        // UC
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+        // Workspace (flat)
+        "resources.jobs.etl_pipeline": { action: "create" },
+        // Postgres
+        "resources.postgres_projects.pg_proj": {
+          action: "create",
+          new_state: { value: { name: "pg_proj" } },
+        },
+        "resources.postgres_branches.pg_branch": {
+          action: "create",
+          new_state: { value: { name: "pg_branch", parent: "pg_proj" } },
+        },
+        // Lakebase
+        "resources.database_instances.lb_inst": {
+          action: "create",
+          new_state: { value: { name: "lb_inst" } },
+        },
+        "resources.synced_database_tables.lb_table": {
+          action: "create",
+          new_state: { value: { name: "lb_table", database_instance_name: "lb_inst" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    // All roots present
+    expect(nodeIds).toContain("uc-root");
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("postgres-root");
+    expect(nodeIds).toContain("lakebase-root");
+
+    // Group nodes
+    expect(nodeIds).toContain("catalog::dagshund");
+    expect(nodeIds).toContain("postgres-project::pg_proj");
+    expect(nodeIds).toContain("lakebase-instance::lb_inst");
+
+    // Resource nodes
+    expect(nodeIds).toContain("resources.schemas.analytics");
+    expect(nodeIds).toContain("resources.jobs.etl_pipeline");
+    expect(nodeIds).toContain("resources.postgres_projects.pg_proj");
+    expect(nodeIds).toContain("resources.postgres_branches.pg_branch");
+    expect(nodeIds).toContain("resources.database_instances.lb_inst");
+    expect(nodeIds).toContain("resources.synced_database_tables.lb_table");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // UC edges
+    expect(edgePairs).toContain("uc-root→catalog::dagshund");
+    expect(edgePairs).toContain("catalog::dagshund→resources.schemas.analytics");
+    // Workspace flat
+    expect(edgePairs).toContain("workspace-root→resources.jobs.etl_pipeline");
+    // Postgres hierarchy
+    expect(edgePairs).toContain("workspace-root→postgres-root");
+    expect(edgePairs).toContain("postgres-root→postgres-project::pg_proj");
+    expect(edgePairs).toContain("postgres-project::pg_proj→resources.postgres_branches.pg_branch");
+    // Lakebase hierarchy
+    expect(edgePairs).toContain("workspace-root→lakebase-root");
+    expect(edgePairs).toContain("lakebase-root→lakebase-instance::lb_inst");
+    expect(edgePairs).toContain(
+      "lakebase-instance::lb_inst→resources.synced_database_tables.lb_table",
+    );
+  });
+});
+
+describe("all-hierarchies-plan.json fixture", () => {
+  test("creates all four root sections", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const groupIds = graph.nodes.filter((n) => n.nodeKind === "resource-group").map((n) => n.id);
+
+    expect(groupIds).toContain("uc-root");
+    expect(groupIds).toContain("workspace-root");
+    expect(groupIds).toContain("postgres-root");
+    expect(groupIds).toContain("lakebase-root");
+  });
+
+  test("UC hierarchy includes catalog, schemas, phantom schema, and leaf resources", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    // Deployed catalog with its schema
+    expect(nodeIds).toContain("catalog::production");
+    expect(nodeIds).toContain("resources.catalogs.production");
+    expect(nodeIds).toContain("resources.schemas.reporting");
+    // Phantom catalog group (dagshund has no explicit catalogs entry, inferred from schemas)
+    expect(nodeIds).toContain("catalog::dagshund");
+    // Phantom schema for partner_feeds volume (references schema "integrations" not in plan)
+    expect(nodeIds).toContain("external::dagshund.integrations");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // Deployed catalog hierarchy
+    expect(edgePairs).toContain("uc-root→catalog::production");
+    expect(edgePairs).toContain("uc-root→resources.catalogs.production");
+    expect(edgePairs).toContain("catalog::production→resources.schemas.reporting");
+    // Phantom dagshund catalog hierarchy
+    expect(edgePairs).toContain("uc-root→catalog::dagshund");
+    expect(edgePairs).toContain("catalog::dagshund→resources.schemas.analytics");
+    expect(edgePairs).toContain("catalog::dagshund→resources.schemas.ml_features");
+    // Volume links through real schema
+    expect(edgePairs).toContain("resources.schemas.analytics→resources.volumes.raw_data");
+    // Volume links through phantom schema
+    expect(edgePairs).toContain("catalog::dagshund→external::dagshund.integrations");
+    expect(edgePairs).toContain("external::dagshund.integrations→resources.volumes.partner_feeds");
+    // Deleted model links through real schema
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→resources.registered_models.churn_predictor",
+    );
+
+    // Narrow: .external lives on ResourceGroupGraphNode, not the base union
+    // Deployed catalog is real (has explicit catalogs entry)
+    const prodCatalog = graph.nodes.find((n) => n.id === "catalog::production");
+    expect((prodCatalog as ResourceGroupGraphNode | undefined)?.external).toBe(false);
+    // dagshund catalog group is phantom (no explicit catalogs entry, inferred from schemas)
+    const catalogGroup = graph.nodes.find((n) => n.id === "catalog::dagshund");
+    expect((catalogGroup as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+    const phantomSchema = graph.nodes.find((n) => n.id === "external::dagshund.integrations");
+    expect((phantomSchema as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+  });
+
+  test("postgres hierarchy has 3-tier chain with phantom branch", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("postgres-project::warehouse_replica");
+    expect(nodeIds).toContain("resources.postgres_branches.staging");
+    expect(nodeIds).toContain("resources.postgres_branches.production");
+    expect(nodeIds).toContain("resources.postgres_endpoints.staging_read");
+    expect(nodeIds).toContain("resources.postgres_endpoints.production_rw");
+    // Phantom branch for legacy_reader (parent: "archive" not in plan)
+    expect(nodeIds).toContain("external::postgres-branch::archive");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // Full chains
+    expect(edgePairs).toContain("workspace-root→postgres-root");
+    expect(edgePairs).toContain("postgres-root→postgres-project::warehouse_replica");
+    expect(edgePairs).toContain(
+      "postgres-project::warehouse_replica→resources.postgres_branches.staging",
+    );
+    expect(edgePairs).toContain(
+      "postgres-project::warehouse_replica→resources.postgres_branches.production",
+    );
+    expect(edgePairs).toContain(
+      "resources.postgres_branches.staging→resources.postgres_endpoints.staging_read",
+    );
+    expect(edgePairs).toContain(
+      "resources.postgres_branches.production→resources.postgres_endpoints.production_rw",
+    );
+    // Phantom branch chain
+    expect(edgePairs).toContain("postgres-root→external::postgres-branch::archive");
+    expect(edgePairs).toContain(
+      "external::postgres-branch::archive→resources.postgres_endpoints.legacy_reader",
+    );
+  });
+
+  test("lakebase hierarchy has phantom instance and cross-edge to UC", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    // Real instance
+    expect(nodeIds).toContain("lakebase-instance::analytics_db");
+    // Phantom instance (partner_metrics references "reporting_db" not in plan)
+    expect(nodeIds).toContain("lakebase-instance::reporting_db");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // Real instance chain
+    expect(edgePairs).toContain("workspace-root→lakebase-root");
+    expect(edgePairs).toContain("lakebase-root→lakebase-instance::analytics_db");
+    expect(edgePairs).toContain(
+      "lakebase-instance::analytics_db→resources.synced_database_tables.customer_360",
+    );
+    expect(edgePairs).toContain(
+      "lakebase-instance::analytics_db→resources.synced_database_tables.product_events",
+    );
+    // Phantom instance chain
+    expect(edgePairs).toContain("lakebase-root→lakebase-instance::reporting_db");
+    expect(edgePairs).toContain(
+      "lakebase-instance::reporting_db→resources.synced_database_tables.partner_metrics",
+    );
+    // Cross-hierarchy edge: lakebase instance → UC database_catalog
+    expect(edgePairs).toContain(
+      "lakebase-instance::analytics_db→resources.database_catalogs.lakebase_analytics",
+    );
+
+    // Narrow: .external lives on ResourceGroupGraphNode, not the base union
+    const realInstance = graph.nodes.find((n) => n.id === "lakebase-instance::analytics_db");
+    expect((realInstance as ResourceGroupGraphNode | undefined)?.external).toBe(false);
+    const phantomInstance = graph.nodes.find((n) => n.id === "lakebase-instance::reporting_db");
+    expect((phantomInstance as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+  });
+
+  test("workspace flat resources are under workspace-root", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→resources.jobs.etl_pipeline");
+    expect(edgePairs).toContain("workspace-root→resources.alerts.data_freshness");
+    expect(edgePairs).toContain("workspace-root→resources.experiments.ab_test_v2");
+    expect(edgePairs).toContain("workspace-root→resources.external_locations.raw_landing_zone");
+  });
+
+  test("has correct total resource count", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
+    // 8 UC + 4 workspace + 6 postgres + 4 lakebase = 22
+    expect(resourceNodes).toHaveLength(22);
   });
 });
