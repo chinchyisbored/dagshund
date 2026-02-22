@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -439,30 +440,30 @@ def test_check_all_unchanged_false_with_real_changes() -> None:
 
 def test_render_text_non_dict_plan_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan must be an object"):
-        render_text('{"plan": "not_a_dict"}')
+        render_text({"plan": "not_a_dict"})
 
 
 def test_render_text_list_plan_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan must be an object"):
-        render_text('{"plan": [1, 2, 3]}')
+        render_text({"plan": [1, 2, 3]})
 
 
 def test_render_text_empty_plan_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
-        render_text('{"plan": {}}')
+        render_text({"plan": {}})
 
 
 def test_render_text_missing_plan_key_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
-        render_text('{"cli_version": "1.0"}')
+        render_text({"cli_version": "1.0"})
 
 
 def test_render_text_check_all_unchanged_shows_no_changes(
     fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    plan_json = (fixtures_dir / "no-changes-plan.json").read_text()
+    plan = json.loads((fixtures_dir / "no-changes-plan.json").read_text())
 
-    render_text(plan_json)
+    render_text(plan)
 
     out = capsys.readouterr().out
     assert "No changes" in out
@@ -474,7 +475,7 @@ def test_render_text_check_all_unchanged_shows_no_changes(
 
 
 def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFixture[str]) -> None:
-    render_text(real_plan_json)
+    render_text(json.loads(real_plan_json))
 
     out = capsys.readouterr().out
     assert "etl_pipeline" in out

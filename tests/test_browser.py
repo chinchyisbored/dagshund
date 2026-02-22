@@ -103,7 +103,7 @@ def test_inject_plan_uses_compact_json() -> None:
 def test_render_browser_writes_html_file(require_template: None, tmp_path: Path) -> None:
     output = tmp_path / "output.html"
 
-    render_browser('{"plan": {}}', output_path=str(output))
+    render_browser({"plan": {}}, output_path=str(output))
 
     assert output.exists()
     content = output.read_text()
@@ -115,7 +115,7 @@ def test_render_browser_prints_success_message(
 ) -> None:
     output = tmp_path / "output.html"
 
-    render_browser('{"plan": {}}', output_path=str(output))
+    render_browser({"plan": {}}, output_path=str(output))
 
     assert "exported to" in capsys.readouterr().out
 
@@ -124,4 +124,4 @@ def test_render_browser_write_error_raises(require_template: None, tmp_path: Pat
     bad_path = tmp_path / "nonexistent" / "deep" / "output.html"
 
     with pytest.raises(DagshundError, match="could not write output file"):
-        render_browser('{"plan": {}}', output_path=str(bad_path))
+        render_browser({"plan": {}}, output_path=str(bad_path))

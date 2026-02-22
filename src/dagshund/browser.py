@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from dagshund import DagshundError, Plan, parse_plan
+from dagshund import DagshundError, Plan
 
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
 
@@ -45,9 +45,8 @@ def _inject_plan(template: str, plan: Plan) -> str:
     return template.replace(PLACEHOLDER, safe_json, 1)
 
 
-def render_browser(plan_json: str, *, output_path: str) -> None:
+def render_browser(plan: Plan, *, output_path: str) -> None:
     """Render plan as interactive HTML and export to file."""
-    plan = parse_plan(plan_json)
     template_path = _find_template()
     template = template_path.read_text(encoding="utf-8")
     html = _inject_plan(template, plan)

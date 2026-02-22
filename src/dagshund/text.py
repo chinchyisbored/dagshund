@@ -19,7 +19,6 @@ from dagshund import (
     ResourceType,
     detect_changes,
     is_resource_changes,
-    parse_plan,
 )
 
 # ANSI color codes
@@ -222,10 +221,8 @@ def _check_all_unchanged(resources: ResourceChanges) -> bool:
     return not detect_changes(resources)
 
 
-def render_text(plan_json: str) -> None:
-    """Parse plan JSON and render colored diff summary to terminal."""
-    plan = parse_plan(plan_json)
-
+def render_text(plan: Plan) -> None:
+    """Render colored diff summary to terminal."""
     resources = plan.get("plan", {})
     if not is_resource_changes(resources):
         raise DagshundError("plan must be an object")

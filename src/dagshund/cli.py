@@ -106,11 +106,12 @@ def main() -> None:
 
     try:
         raw = read_plan(args.plan_file)
+        plan = parse_plan(raw)
 
         if args.output:
             from dagshund.browser import render_browser
 
-            render_browser(raw, output_path=args.output)
+            render_browser(plan, output_path=args.output)
 
             if args.browser:
                 import webbrowser
@@ -119,10 +120,9 @@ def main() -> None:
         else:
             from dagshund.text import render_text
 
-            render_text(raw)
+            render_text(plan)
 
         if args.detailed_exitcode:
-            plan = parse_plan(raw)
             resources = plan.get("plan", {})
             if is_resource_changes(resources) and detect_changes(resources):
                 sys.exit(2)
