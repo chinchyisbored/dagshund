@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from dagshund import DagshundError, __version__
-from dagshund.cli import main, read_plan
+from dagshund.cli import _read_plan, main
 
 
 def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -35,19 +35,19 @@ def test_cli_text_mode_with_file(fixtures_dir: Path) -> None:
     assert "create" in result.stdout
 
 
-# --- read_plan ---
+# --- _read_plan ---
 
 
 def test_read_plan_reads_file(tmp_path: Path) -> None:
     plan_file = tmp_path / "plan.json"
     plan_file.write_text('{"plan": {}}')
 
-    assert read_plan(str(plan_file)) == '{"plan": {}}'
+    assert _read_plan(str(plan_file)) == '{"plan": {}}'
 
 
 def test_read_plan_file_not_found_raises() -> None:
     with pytest.raises(DagshundError, match="file not found"):
-        read_plan("/nonexistent/plan.json")
+        _read_plan("/nonexistent/plan.json")
 
 
 def test_read_plan_permission_denied_raises(tmp_path: Path) -> None:
@@ -56,7 +56,7 @@ def test_read_plan_permission_denied_raises(tmp_path: Path) -> None:
     plan_file.chmod(0o000)
     try:
         with pytest.raises(DagshundError, match="could not read file"):
-            read_plan(str(plan_file))
+            _read_plan(str(plan_file))
     finally:
         plan_file.chmod(0o644)
 
@@ -66,18 +66,18 @@ def test_read_plan_non_utf8_file_raises(tmp_path: Path) -> None:
     plan_file.write_bytes(b'\x80\x81\x82\xff')
 
     with pytest.raises(DagshundError, match="not valid UTF-8"):
-        read_plan(str(plan_file))
+        _read_plan(str(plan_file))
 
 
 def test_read_plan_reads_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin", StringIO('{"plan": {}}'))
-    assert read_plan(None) == '{"plan": {}}'
+    assert _read_plan(None) == '{"plan": {}}'
 
 
 def test_read_plan_tty_stdin_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     with pytest.raises(DagshundError, match="no input file specified"):
-        read_plan(None)
+        _read_plan(None)
 
 
 # --- main() ---
@@ -206,8 +206,8 @@ def test_debug_flag_traces_all_functions(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-d")
 
     assert result.returncode == 0
-    assert "→ read_plan" in result.stderr
-    assert "← read_plan" in result.stderr
+    assert "→ _read_plan" in result.stderr
+    assert "← _read_plan" in result.stderr
     assert "→ render_text" in result.stderr
     assert "→ _supports_color" in result.stderr
     assert "→ _colorize" in result.stderr
@@ -223,7 +223,7 @@ def test_debug_env_var_traces_all_functions(fixtures_dir: Path) -> None:
     )
 
     assert result.returncode == 0
-    assert "→ read_plan" in result.stderr
+    assert "→ _read_plan" in result.stderr
     assert "→ _supports_color" in result.stderr
 
 

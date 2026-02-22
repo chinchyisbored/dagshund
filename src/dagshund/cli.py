@@ -18,7 +18,7 @@ examples:
 """
 
 
-def build_parser() -> argparse.ArgumentParser:
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
         usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d]",
@@ -62,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def read_plan(plan_file: str | None) -> str:
+def _read_plan(plan_file: str | None) -> str:
     """Read plan JSON from file or stdin."""
     if plan_file is not None:
         try:
@@ -87,7 +87,7 @@ def read_plan(plan_file: str | None) -> str:
 
 
 def main() -> None:
-    parser = build_parser()
+    parser = _build_parser()
     args = parser.parse_args()
 
     if args.debug or os.environ.get("DAGSHUND_DEBUG"):
@@ -105,7 +105,7 @@ def main() -> None:
         parser.error("--browser requires --output")
 
     try:
-        raw = read_plan(args.plan_file)
+        raw = _read_plan(args.plan_file)
         plan = parse_plan(raw)
 
         if args.output:
