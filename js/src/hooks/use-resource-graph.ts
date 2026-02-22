@@ -19,7 +19,6 @@ export const useResourceGraph = (plan: Plan): GraphLayoutState => {
       (error: unknown) => {
         if (!cancelled) {
           const message = error instanceof Error ? error.message : "Layout failed";
-          console.error("Resource graph layout failed:", error);
           setState({ status: "error", message });
         }
       },

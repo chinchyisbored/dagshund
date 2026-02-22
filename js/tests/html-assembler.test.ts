@@ -11,7 +11,7 @@ describe("escapeForScriptTag", () => {
     expect(escapeForScriptTag("</script>")).toBe("<\\/script>");
   });
 
-  test("escapes closing script tags case-insensitively", () => {
+  test("matches case-insensitively and normalizes to lowercase", () => {
     expect(escapeForScriptTag("</SCRIPT>")).toBe("<\\/script>");
     expect(escapeForScriptTag("</Script>")).toBe("<\\/script>");
   });
@@ -41,7 +41,7 @@ describe("escapeForStyleTag", () => {
     expect(escapeForStyleTag("</style>")).toBe("<\\/style>");
   });
 
-  test("escapes closing style tags case-insensitively", () => {
+  test("matches case-insensitively and normalizes to lowercase", () => {
     expect(escapeForStyleTag("</STYLE>")).toBe("<\\/style>");
     expect(escapeForStyleTag("</Style>")).toBe("<\\/style>");
   });

@@ -24,7 +24,6 @@ export const usePlanGraph = (plan: Plan): GraphLayoutState => {
       (error: unknown) => {
         if (!cancelled) {
           const message = error instanceof Error ? error.message : "Layout failed";
-          console.error("Plan graph layout failed:", error);
           setState({ status: "error", message });
         }
       },

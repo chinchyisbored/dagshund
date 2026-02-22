@@ -15,7 +15,9 @@ type StructuralDiffViewProps = {
   readonly result: StructuralDiffResult;
 };
 
-/** Max characters per rendered line (including prefix). Fits ~300px at monospace ~7.2px/char. */
+/** Max characters per rendered line (including prefix).
+ *  Conservative lower bound — fits the narrowest panel width (~300px at monospace ~7.2px/char).
+ *  Panel is resizable up to ~600px but we wrap to the smallest size to avoid horizontal overflow. */
 const MAX_LINE_CHARS = 60;
 
 const BREAK_CHARS = " /-_.,";
@@ -38,6 +40,7 @@ const wrapLine = (line: string, maxChars: number): readonly string[] => {
     }
 
     let breakAt = -1;
+    // Scan backward through the last 50% of the line looking for a natural break point.
     for (let i = effectiveMax; i > Math.floor(effectiveMax * 0.5); i--) {
       if (BREAK_CHARS.includes(remaining.charAt(i))) {
         breakAt = i + 1;
