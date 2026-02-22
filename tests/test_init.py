@@ -21,6 +21,12 @@ def test_parse_plan_empty_string_raises() -> None:
         parse_plan("")
 
 
+def test_parse_plan_deeply_nested_json_raises() -> None:
+    deeply_nested = '{"a":' * 100000 + '{}' + '}' * 100000
+    with pytest.raises(DagshundError, match="too deeply nested"):
+        parse_plan(deeply_nested)
+
+
 @pytest.mark.parametrize(
     ("raw", "match"),
     [

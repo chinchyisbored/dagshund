@@ -47,6 +47,8 @@ def parse_plan(raw: str) -> Plan:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise DagshundError(f"invalid JSON: {exc}") from exc
+    except RecursionError as exc:
+        raise DagshundError("plan JSON is too deeply nested") from exc
 
     if not isinstance(data, dict):
         raise DagshundError("plan JSON must be an object")

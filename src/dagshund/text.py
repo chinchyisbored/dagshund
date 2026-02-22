@@ -187,8 +187,7 @@ def _group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType
 
 def _print_resource_groups(resource_groups: ResourceChangesByType, *, use_color: bool) -> None:
     """Print each resource type group with its entries."""
-    for resource_type in resource_groups:  # already sorted by _group_by_resource_type
-        entries = resource_groups[resource_type]
+    for resource_type, entries in resource_groups.items():  # already sorted by _group_by_resource_type
         print(
             _colorize(
                 f"  {resource_type} ({len(entries)})",

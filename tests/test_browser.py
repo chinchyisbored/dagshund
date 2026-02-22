@@ -137,6 +137,16 @@ def test_render_browser_overwrites_existing_file(require_template: None, tmp_pat
     assert "old content" not in output.read_text()
 
 
+def test_render_browser_rejects_symlink_output(require_template: None, tmp_path: Path) -> None:
+    target = tmp_path / "real.html"
+    target.write_text("real file")
+    link = tmp_path / "link.html"
+    link.symlink_to(target)
+
+    with pytest.raises(DagshundError, match="symlink"):
+        render_browser({"plan": {}}, output_path=str(link))
+
+
 def test_render_browser_write_error_raises(require_template: None, tmp_path: Path) -> None:
     bad_path = tmp_path / "nonexistent" / "deep" / "output.html"
 

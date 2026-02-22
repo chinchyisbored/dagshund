@@ -7,6 +7,7 @@ from types import FrameType
 
 logger = logging.getLogger("dagshund")
 
+
 def _summarize_value(value: object) -> str:
     """Create a concise summary of a value for debug logging."""
     match value:
@@ -44,6 +45,7 @@ def enable_profile_tracing() -> None:
 
         if event == "call":
             code = frame.f_code
+            # co_varnames stores parameter names first, then locals
             n_params = code.co_argcount + code.co_kwonlyargcount
             param_names = code.co_varnames[:n_params]
             locals_ = frame.f_locals
