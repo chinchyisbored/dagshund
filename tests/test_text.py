@@ -119,8 +119,9 @@ def test_actions_table_covers_all_update_actions() -> None:
         ("resources.jobs.pipeline.extra", ("jobs", "pipeline.extra")),
         ("jobs.etl_pipeline", ("jobs", "etl_pipeline")),
         ("standalone", ("", "standalone")),
+        ("", ("", "")),
     ],
-    ids=["three_parts", "dotted_name", "two_parts", "one_part"],
+    ids=["three_parts", "dotted_name", "two_parts", "one_part", "empty_string"],
 )
 def test_parse_resource_key(key: str, expected: tuple[str, str]) -> None:
     assert _parse_resource_key(key) == expected
@@ -149,10 +150,16 @@ def test_format_value(value: object, expected: str) -> None:
     assert _format_value(value) == expected
 
 
-def test_format_value_truncates_long_string() -> None:
-    result = _format_value("a" * 100)
-    assert result.endswith('..."')
-    assert len(result) < 100
+def test_format_value_boundary_80_chars_not_truncated() -> None:
+    result = _format_value("a" * 80)
+
+    assert result == f'"{"a" * 80}"'
+
+
+def test_format_value_boundary_81_chars_truncated() -> None:
+    result = _format_value("a" * 81)
+
+    assert result == f'"{"a" * 77}..."'
 
 
 def test_format_value_unknown_type_uses_repr() -> None:
@@ -282,6 +289,52 @@ def test_render_resource_with_color_includes_ansi() -> None:
     assert RESET in lines[0]
 
 
+@pytest.mark.parametrize(
+    "action",
+    ["recreate", "resize", "update_id"],
+    ids=["recreate", "resize", "update_id"],
+)
+def test_render_resource_update_action_shows_field_changes(action: str) -> None:
+    entry = {
+        "action": action,
+        "changes": {"threshold": {"action": "update", "old": 10, "new": 20}},
+    }
+
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+
+    assert f"({action})" in lines[0]
+    assert "~ jobs/pipeline" in lines[0]
+    assert len(lines) == 2
+    assert "threshold" in lines[1]
+    assert "10 -> 20" in lines[1]
+
+
+def test_render_resource_field_change_no_old_no_new() -> None:
+    entry = {
+        "action": "update",
+        "changes": {"mystery_field": {"action": "update"}},
+    }
+
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+
+    assert len(lines) == 2
+    assert "mystery_field" in lines[1]
+    assert "->" not in lines[1]
+
+
+def test_render_resource_field_change_missing_action_key() -> None:
+    """Field change dict without an action key falls back to default (unchanged)."""
+    entry = {
+        "action": "update",
+        "changes": {"orphan_field": {"old": 1, "new": 2}},
+    }
+
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+
+    # Default action has changed=False, so field is filtered out
+    assert len(lines) == 1
+
+
 def test_render_resource_non_dict_changes_skips_field_details() -> None:
     entry = {"action": "update", "changes": "should_be_object"}
 
@@ -333,6 +386,10 @@ def test_count_by_action_skip_becomes_unchanged() -> None:
 def test_count_by_action_empty_becomes_unknown() -> None:
     entries = {"a": {"action": ""}, "b": {}}
     assert _count_by_action(entries) == {_DEFAULT_ACTION: 2}
+
+
+def test_count_by_action_empty_input() -> None:
+    assert _count_by_action({}) == {}
 
 
 # --- _print_header ---
@@ -388,6 +445,27 @@ def test_print_resource_groups_renders_type_header_and_entries(capsys: pytest.Ca
     assert "+ jobs/etl" in out
 
 
+def test_print_resource_groups_multiple_types(capsys: pytest.CaptureFixture[str]) -> None:
+    by_type = {
+        "alerts": {"resources.alerts.a": {"action": "delete"}},
+        "jobs": {"resources.jobs.etl": {"action": "create"}},
+    }
+
+    _print_resource_groups(by_type, use_color=False)
+
+    out = capsys.readouterr().out
+    assert "alerts (1)" in out
+    assert "jobs (1)" in out
+    assert "- alerts/a" in out
+    assert "+ jobs/etl" in out
+
+
+def test_print_resource_groups_empty_dict(capsys: pytest.CaptureFixture[str]) -> None:
+    _print_resource_groups({}, use_color=False)
+
+    assert capsys.readouterr().out == ""
+
+
 # --- _print_summary ---
 
 
@@ -409,6 +487,23 @@ def test_print_summary_unchanged_uses_dim_style(capsys: pytest.CaptureFixture[st
     out = capsys.readouterr().out
     assert " 1 unchanged" in out
     assert "?" not in out
+
+
+def test_print_summary_empty_plan(capsys: pytest.CaptureFixture[str]) -> None:
+    _print_summary({}, use_color=False)
+
+    out = capsys.readouterr().out
+    assert out.strip() == ""
+
+
+def test_print_summary_all_same_action(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = {"a": {"action": "create"}, "b": {"action": "create"}}
+
+    _print_summary(plan, use_color=False)
+
+    out = capsys.readouterr().out
+    assert "+2 create" in out
+    assert "," not in out  # only one action type, no comma separator
 
 
 # --- render_text (integration) ---
@@ -460,3 +555,62 @@ def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFix
     assert "delete" in out
     assert "jobs" in out
     assert "alerts" in out
+
+
+def test_render_text_mixed_plan_fixture(
+    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "create" in out
+    assert "delete" in out
+    assert "update" in out
+
+
+def test_render_text_sample_plan_fixture(
+    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan = json.loads((fixtures_dir / "sample-plan.json").read_text())
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "etl_pipeline" in out
+    assert "create" in out
+
+
+def test_render_text_invalid_plan_fixture(
+    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan = json.loads((fixtures_dir / "invalid-plan.json").read_text())
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "some_resource" in out
+
+
+def test_render_text_force_color_includes_ansi(
+    monkeypatch: pytest.MonkeyPatch, real_plan_json: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+
+    render_text(json.loads(real_plan_json))
+
+    out = capsys.readouterr().out
+    assert RESET in out
+
+
+def test_render_text_no_color_excludes_ansi(
+    monkeypatch: pytest.MonkeyPatch, real_plan_json: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("NO_COLOR", "")
+
+    render_text(json.loads(real_plan_json))
+
+    out = capsys.readouterr().out
+    assert RESET not in out

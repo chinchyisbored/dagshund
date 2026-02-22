@@ -16,14 +16,25 @@ def test_parse_plan_invalid_json_raises() -> None:
         parse_plan("not valid json")
 
 
-def test_parse_plan_array_raises() -> None:
-    with pytest.raises(DagshundError, match="must be an object"):
-        parse_plan("[1, 2, 3]")
+def test_parse_plan_empty_string_raises() -> None:
+    with pytest.raises(DagshundError, match="invalid JSON"):
+        parse_plan("")
 
 
-def test_parse_plan_string_raises() -> None:
-    with pytest.raises(DagshundError, match="must be an object"):
-        parse_plan('"just a string"')
+@pytest.mark.parametrize(
+    ("raw", "match"),
+    [
+        ("[1, 2, 3]", "must be an object"),
+        ('"just a string"', "must be an object"),
+        ("42", "must be an object"),
+        ("true", "must be an object"),
+        ("null", "must be an object"),
+    ],
+    ids=["array", "string", "number", "boolean", "null"],
+)
+def test_parse_plan_non_object_raises(raw: str, match: str) -> None:
+    with pytest.raises(DagshundError, match=match):
+        parse_plan(raw)
 
 
 # --- detect_changes ---

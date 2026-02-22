@@ -22,13 +22,13 @@ def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedP
 # --- subprocess smoke tests (exercises __main__.py + process boundary) ---
 
 
-def test_cli_version_flag() -> None:
+def test_main_version_flag_prints_version() -> None:
     result = _run_dagshund("--version")
     assert result.returncode == 0
     assert f"dagshund {__version__}" in result.stdout
 
 
-def test_cli_text_mode_with_file(fixtures_dir: Path) -> None:
+def test_main_text_mode_with_file_prints_output(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
@@ -67,6 +67,11 @@ def test_read_plan_non_utf8_file_raises(tmp_path: Path) -> None:
 
     with pytest.raises(DagshundError, match="not valid UTF-8"):
         _read_plan(str(plan_file))
+
+
+def test_read_plan_directory_raises(tmp_path: Path) -> None:
+    with pytest.raises(DagshundError, match="could not read file"):
+        _read_plan(str(tmp_path))
 
 
 def test_read_plan_reads_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -136,15 +141,17 @@ def test_main_browser_flag_opens_browser(
         ["dagshund", str(fixtures_dir / "complex-plan.json"), "-o", str(output), "-b"],
     )
 
-    # webbrowser is imported lazily inside main(), so monkeypatch can't
-    # target it before the import happens — need unittest.mock.patch.
-    from unittest.mock import patch
+    # Pre-import so monkeypatch can target the cached module object.
+    # When main() does `import webbrowser` lazily, it gets the same (patched) module.
+    import webbrowser
 
-    with patch("webbrowser.open") as mock_open:
-        main()
+    opened_urls: list[str] = []
+    monkeypatch.setattr(webbrowser, "open", lambda url: opened_urls.append(url))
 
-    mock_open.assert_called_once()
-    assert mock_open.call_args[0][0].startswith("file://")
+    main()
+
+    assert len(opened_urls) == 1
+    assert opened_urls[0].startswith("file://")
 
 
 def test_main_browser_without_output_exits_with_error(
@@ -170,6 +177,37 @@ def test_main_dagshund_error_prints_to_stderr_and_exits(
 
     assert exc_info.value.code == 1
     assert "dagshund:" in capsys.readouterr().err
+
+
+def test_main_invalid_json_on_stdin_exits_with_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["dagshund"])
+    monkeypatch.setattr("sys.stdin", StringIO("not valid json"))
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    assert "invalid JSON" in capsys.readouterr().err
+
+
+def test_main_stdin_with_output_flag_writes_html(
+    require_template: None,
+    monkeypatch: pytest.MonkeyPatch,
+    real_plan_json: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "out.html"
+    monkeypatch.setattr("sys.argv", ["dagshund", "-o", str(output)])
+    monkeypatch.setattr("sys.stdin", StringIO(real_plan_json))
+
+    main()
+
+    assert output.exists()
+    assert "exported to" in capsys.readouterr().out
 
 
 # --- --detailed-exitcode ---
@@ -232,3 +270,27 @@ def test_no_debug_flag_no_trace_on_stderr(fixtures_dir: Path) -> None:
 
     assert result.returncode == 0
     assert "→" not in result.stderr
+
+
+# --- subprocess: stdin and --output ---
+
+
+def test_subprocess_stdin_pipe_prints_text(fixtures_dir: Path) -> None:
+    plan_json = (fixtures_dir / "complex-plan.json").read_text()
+
+    result = _run_dagshund(stdin=plan_json)
+
+    assert result.returncode == 0
+    assert "etl_pipeline" in result.stdout
+
+
+def test_subprocess_output_flag_writes_html(
+    require_template: None, fixtures_dir: Path, tmp_path: Path
+) -> None:
+    output = tmp_path / "out.html"
+
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-o", str(output))
+
+    assert result.returncode == 0
+    assert output.exists()
+    assert "exported to" in result.stdout

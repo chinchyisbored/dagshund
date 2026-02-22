@@ -21,37 +21,32 @@ def test_find_template_returns_existing_path(require_template: None) -> None:
     assert result.exists()
 
 
-def test_find_template_raises_when_missing(tmp_path: Path) -> None:
+def test_find_template_raises_when_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     import dagshund.browser as browser_mod
 
-    original = browser_mod.__file__
-    try:
-        browser_mod.__file__ = str(tmp_path / "browser.py")
-        with pytest.raises(DagshundError, match=r"template\.html not found"):
-            _find_template()
-    finally:
-        browser_mod.__file__ = original
+    monkeypatch.setattr(browser_mod, "__file__", str(tmp_path / "browser.py"))
+    with pytest.raises(DagshundError, match=r"template\.html not found"):
+        _find_template()
 
 
 # --- _escape_for_script_tag ---
 
 
-def test_escape_for_script_tag_replaces_angle_bracket() -> None:
-    assert _escape_for_script_tag("<script>") == "\\u003cscript>"
-
-
-def test_escape_for_script_tag_replaces_all_occurrences() -> None:
-    assert _escape_for_script_tag("<a><b>") == "\\u003ca>\\u003cb>"
-
-
-def test_escape_for_script_tag_no_brackets_unchanged() -> None:
-    assert _escape_for_script_tag("hello world") == "hello world"
-
-
-def test_escape_for_script_tag_closing_script() -> None:
-    result = _escape_for_script_tag("</script>")
-    assert "<" not in result
-    assert "\\u003c" in result
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("", ""),
+        ("<script>", "\\u003cscript>"),
+        ("<a><b>", "\\u003ca>\\u003cb>"),
+        ("hello world", "hello world"),
+        ("</script>", "\\u003c/script>"),
+    ],
+    ids=["empty_string", "single_bracket", "multiple_brackets", "no_brackets", "closing_script"],
+)
+def test_escape_for_script_tag(content: str, expected: str) -> None:
+    assert _escape_for_script_tag(content) == expected
 
 
 # --- _inject_plan ---
@@ -93,8 +88,21 @@ def test_inject_plan_uses_compact_json() -> None:
 
     result = _inject_plan(template, {"a": 1, "b": 2})
 
-    assert '" :' not in result
-    assert '", ' not in result
+    injected = result.removeprefix("<div>").removesuffix("</div>")
+    assert '" :' not in injected
+    assert '", ' not in injected
+
+
+def test_inject_plan_placeholder_string_in_plan_data() -> None:
+    """Plan data containing the placeholder string should not break injection."""
+    template = f"before:{PLACEHOLDER}:after"
+
+    result = _inject_plan(template, {"key": PLACEHOLDER})
+
+    assert result.startswith("before:")
+    assert result.endswith(":after")
+    injected = result.removeprefix("before:").removesuffix(":after")
+    assert f'"key":"{PLACEHOLDER}"' in injected
 
 
 # --- render_browser (integration) ---
@@ -118,6 +126,15 @@ def test_render_browser_prints_success_message(
     render_browser({"plan": {}}, output_path=str(output))
 
     assert "exported to" in capsys.readouterr().out
+
+
+def test_render_browser_overwrites_existing_file(require_template: None, tmp_path: Path) -> None:
+    output = tmp_path / "output.html"
+    output.write_text("old content")
+
+    render_browser({"plan": {}}, output_path=str(output))
+
+    assert "old content" not in output.read_text()
 
 
 def test_render_browser_write_error_raises(require_template: None, tmp_path: Path) -> None:
