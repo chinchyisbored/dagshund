@@ -7,9 +7,6 @@ from types import FrameType
 
 logger = logging.getLogger("dagshund")
 
-_call_stack: list[float] = []
-
-
 def _summarize_value(value: object) -> str:
     """Create a concise summary of a value for debug logging."""
     match value:
@@ -31,35 +28,36 @@ def _summarize_value(value: object) -> str:
             return repr(value)
 
 
-def _profile_hook(frame: FrameType, event: str, arg: object) -> None:
-    """Profile callback that traces all dagshund function calls."""
-    module: str | None = frame.f_globals.get("__name__")
-    if module is None or not module.startswith("dagshund") or module == "dagshund.debug":
-        return
-
-    fn_name = frame.f_code.co_name
-    if fn_name.startswith("__") or fn_name.startswith("<"):
-        return
-
-    if event == "call":
-        code = frame.f_code
-        n_params = code.co_argcount + code.co_kwonlyargcount
-        param_names = code.co_varnames[:n_params]
-        locals_ = frame.f_locals
-        arg_summary = ", ".join(
-            f"{name}={_summarize_value(locals_.get(name))}"
-            for name in param_names
-        )
-        logger.debug("→ %s(%s)", fn_name, arg_summary)
-        _call_stack.append(time.perf_counter())
-
-    elif event == "return":
-        elapsed_ms = 0.0
-        if _call_stack:
-            elapsed_ms = (time.perf_counter() - _call_stack.pop()) * 1000
-        logger.debug("← %s → %s (%.1fms)", fn_name, _summarize_value(arg), elapsed_ms)
-
-
 def enable_profile_tracing() -> None:
     """Enable sys.setprofile-based tracing for all dagshund functions."""
-    sys.setprofile(_profile_hook)
+    call_stack: list[float] = []
+
+    def profile_hook(frame: FrameType, event: str, arg: object) -> None:
+        """Profile callback that traces all dagshund function calls."""
+        module: str | None = frame.f_globals.get("__name__")
+        if module is None or not module.startswith("dagshund") or module == "dagshund.debug":
+            return
+
+        fn_name = frame.f_code.co_name
+        if fn_name.startswith("__") or fn_name.startswith("<"):
+            return
+
+        if event == "call":
+            code = frame.f_code
+            n_params = code.co_argcount + code.co_kwonlyargcount
+            param_names = code.co_varnames[:n_params]
+            locals_ = frame.f_locals
+            arg_summary = ", ".join(
+                f"{name}={_summarize_value(locals_.get(name))}"
+                for name in param_names
+            )
+            logger.debug("→ %s(%s)", fn_name, arg_summary)
+            call_stack.append(time.perf_counter())
+
+        elif event == "return":
+            elapsed_ms = 0.0
+            if call_stack:
+                elapsed_ms = (time.perf_counter() - call_stack.pop()) * 1000
+            logger.debug("← %s → %s (%.1fms)", fn_name, _summarize_value(arg), elapsed_ms)
+
+    sys.setprofile(profile_hook)
