@@ -16,6 +16,8 @@
 # Disable daemon for RPC communication (forces direct database access)
 no-daemon: true
 
+dolt:
+  mode: embedded
 # Disable auto-flush of database to JSONL after mutations
 # no-auto-flush: false
 
