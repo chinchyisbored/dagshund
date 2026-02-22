@@ -24,6 +24,7 @@ __all__ = [
     "ResourceKey",
     "ResourceName",
     "ResourceType",
+    "detect_changes",
     "is_resource_changes",
     "parse_plan",
 ]
@@ -33,6 +34,11 @@ __version__ = "0.1.0"
 
 class DagshundError(Exception):
     """Raised for any user-facing error (bad input, missing files, etc.)."""
+
+
+def detect_changes(resources: ResourceChanges) -> bool:
+    """Check whether any resource has a non-skip action (i.e., drift detected)."""
+    return any(entry.get("action") != "skip" for entry in resources.values())
 
 
 def parse_plan(raw: str) -> Plan:

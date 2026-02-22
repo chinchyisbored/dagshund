@@ -2,7 +2,7 @@
 
 import pytest
 
-from dagshund import DagshundError, parse_plan
+from dagshund import DagshundError, detect_changes, parse_plan
 
 # --- parse_plan ---
 
@@ -24,3 +24,26 @@ def test_parse_plan_array_raises() -> None:
 def test_parse_plan_string_raises() -> None:
     with pytest.raises(DagshundError, match="must be an object"):
         parse_plan('"just a string"')
+
+
+# --- detect_changes ---
+
+
+def test_detect_changes_all_skip_returns_false() -> None:
+    assert detect_changes({"a": {"action": "skip"}, "b": {"action": "skip"}}) is False
+
+
+def test_detect_changes_empty_action_returns_true() -> None:
+    assert detect_changes({"a": {"action": ""}}) is True
+
+
+def test_detect_changes_missing_action_returns_true() -> None:
+    assert detect_changes({"a": {}}) is True
+
+
+def test_detect_changes_with_create_returns_true() -> None:
+    assert detect_changes({"a": {"action": "skip"}, "b": {"action": "create"}}) is True
+
+
+def test_detect_changes_empty_dict_returns_false() -> None:
+    assert detect_changes({}) is False

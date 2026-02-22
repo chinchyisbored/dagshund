@@ -92,7 +92,7 @@ def test_colorize_returns_plain_when_disabled() -> None:
         ("resize", _ActionConfig("resize", YELLOW, "~", show_field_changes=True)),
         ("update_id", _ActionConfig("update_id", YELLOW, "~", show_field_changes=True)),
         ("skip", _ActionConfig("unchanged", DIM, " ")),
-        ("", _ActionConfig("unchanged", DIM, " ")),
+        ("", _DEFAULT_ACTION),
         ("unknown_action", _DEFAULT_ACTION),
     ],
     ids=[
@@ -228,12 +228,11 @@ def test_render_resource_skip_action_omits_label() -> None:
     assert "(unchanged)" not in lines[0]
 
 
-def test_render_resource_empty_action_omits_label() -> None:
+def test_render_resource_empty_action_shows_unknown() -> None:
     lines = list(_render_resource("resources.jobs.stable", {"action": ""}, use_color=False))
 
-    assert "  jobs/stable" in lines[0]
-    assert "()" not in lines[0]
-    assert "(unchanged)" not in lines[0]
+    assert "? jobs/stable" in lines[0]
+    assert "(unknown)" in lines[0]
 
 
 def test_render_resource_field_change_null_old_shows_transition() -> None:
@@ -331,9 +330,9 @@ def test_count_by_action_skip_becomes_unchanged() -> None:
     assert _count_by_action(entries) == {_action_config("skip"): 2}
 
 
-def test_count_by_action_empty_becomes_unchanged() -> None:
+def test_count_by_action_empty_becomes_unknown() -> None:
     entries = {"a": {"action": ""}, "b": {}}
-    assert _count_by_action(entries) == {_action_config(""): 2}
+    assert _count_by_action(entries) == {_DEFAULT_ACTION: 2}
 
 
 # --- _print_header ---
@@ -420,14 +419,14 @@ def test_check_all_unchanged_all_skip() -> None:
     assert _check_all_unchanged(plan) is True
 
 
-def test_check_all_unchanged_all_empty() -> None:
-    plan = {"a": {"action": ""}, "b": {}}
-    assert _check_all_unchanged(plan) is True
+def test_check_all_unchanged_empty_action_returns_false() -> None:
+    plan = {"a": {"action": ""}}
+    assert _check_all_unchanged(plan) is False
 
 
-def test_check_all_unchanged_mixed_skip_and_empty() -> None:
-    plan = {"a": {"action": "skip"}, "b": {"action": ""}}
-    assert _check_all_unchanged(plan) is True
+def test_check_all_unchanged_missing_action_returns_false() -> None:
+    plan = {"a": {}}
+    assert _check_all_unchanged(plan) is False
 
 
 def test_check_all_unchanged_false_with_real_changes() -> None:

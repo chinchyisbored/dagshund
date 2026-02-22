@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from dagshund import DagshundError, __version__
+from dagshund import DagshundError, __version__, detect_changes, is_resource_changes, parse_plan
 
 EPILOG = """\
 examples:
@@ -18,7 +18,7 @@ examples:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        usage="dagshund [plan_file] [-o OUTPUT] [-b]",
+        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e]",
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -43,6 +43,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--browser",
         action="store_true",
         help="Open the output file in the default browser (requires -o)",
+    )
+    parser.add_argument(
+        "-e",
+        "--detailed-exitcode",
+        action="store_true",
+        help="Exit 2 if changes detected, 0 if no changes (for CI usage)",
     )
     return parser
 
@@ -94,6 +100,12 @@ def main() -> None:
             from dagshund.text import render_text
 
             render_text(raw)
+
+        if args.detailed_exitcode:
+            plan = parse_plan(raw)
+            resources = plan.get("plan", {})
+            if is_resource_changes(resources) and detect_changes(resources):
+                sys.exit(2)
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)
         sys.exit(1)

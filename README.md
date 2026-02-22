@@ -40,6 +40,33 @@ databricks bundle plan -o json | dagshund
 databricks bundle plan -o json | dagshund -o report.html
 ```
 
+## CI Exit Codes
+
+Use `--detailed-exitcode` (or `-e`) to get machine-readable exit codes for CI pipelines:
+
+```bash
+dagshund plan.json -e
+```
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | Plan parsed, no changes detected |
+| 1 | Error (bad input, missing file, etc.) |
+| 2 | Plan parsed, changes detected |
+
+Works with both text and HTML output modes:
+
+```bash
+# Text mode — check for drift
+dagshund plan.json -e
+if [ $? -eq 2 ]; then echo "Drift detected"; fi
+
+# HTML mode — generate report AND get exit code
+dagshund plan.json -o report.html -e
+```
+
+Without `-e`, dagshund always exits 0 on success (existing behavior).
+
 ## Structural Diff
 
 Clicking a modified node in the DAG opens a detail panel showing per-field structural diffs — not raw JSON dumps, but smart comparisons that surface only the meaningful deltas.

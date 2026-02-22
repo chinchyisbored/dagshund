@@ -17,6 +17,7 @@ from dagshund import (
     ResourceKey,
     ResourceName,
     ResourceType,
+    detect_changes,
     is_resource_changes,
     parse_plan,
 )
@@ -51,7 +52,6 @@ _ACTIONS: dict[str, _ActionConfig] = {
     "resize": _ActionConfig("resize", YELLOW, "~", show_field_changes=True),
     "update_id": _ActionConfig("update_id", YELLOW, "~", show_field_changes=True),
     "skip": _ActionConfig("unchanged", DIM, " "),
-    "": _ActionConfig("unchanged", DIM, " "),
 }
 
 _DEFAULT_ACTION = _ActionConfig("unknown", RESET, "?")
@@ -219,7 +219,7 @@ def _print_summary(resources: ResourceChanges, *, use_color: bool) -> None:
 
 def _check_all_unchanged(resources: ResourceChanges) -> bool:
     """Check if every resource in the plan is unchanged (skip or empty action)."""
-    return all(not _action_config(entry.get("action", "")).changed for entry in resources.values())
+    return not detect_changes(resources)
 
 
 def render_text(plan_json: str) -> None:

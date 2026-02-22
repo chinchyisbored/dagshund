@@ -169,3 +169,30 @@ def test_main_dagshund_error_prints_to_stderr_and_exits(
 
     assert exc_info.value.code == 1
     assert "dagshund:" in capsys.readouterr().err
+
+
+# --- --detailed-exitcode ---
+
+
+def test_detailed_exitcode_no_changes_exits_zero(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "no-changes-plan.json"), "--detailed-exitcode")
+
+    assert result.returncode == 0
+
+
+def test_detailed_exitcode_with_changes_exits_two(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--detailed-exitcode")
+
+    assert result.returncode == 2
+
+
+def test_detailed_exitcode_error_exits_one() -> None:
+    result = _run_dagshund("/nonexistent/plan.json", "--detailed-exitcode")
+
+    assert result.returncode == 1
+
+
+def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
+
+    assert result.returncode == 0
