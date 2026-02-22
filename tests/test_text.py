@@ -92,7 +92,7 @@ def test_colorize_returns_plain_when_disabled() -> None:
         ("recreate", _ActionConfig("recreate", YELLOW, "~", show_field_changes=True)),
         ("resize", _ActionConfig("resize", YELLOW, "~", show_field_changes=True)),
         ("update_id", _ActionConfig("update_id", YELLOW, "~", show_field_changes=True)),
-        ("skip", _ActionConfig("unchanged", DIM, " ")),
+        ("skip", _ActionConfig("unchanged", DIM, " ", changed=False)),
         ("", _DEFAULT_ACTION),
         ("unknown_action", _DEFAULT_ACTION),
     ],
@@ -233,7 +233,7 @@ def test_render_resource_empty_action_shows_unknown() -> None:
     lines = list(_render_resource("resources.jobs.stable", {"action": ""}, use_color=False))
 
     assert "? jobs/stable" in lines[0]
-    assert "(unknown)" in lines[0]
+    assert "(unknown)" not in lines[0]
 
 
 def test_render_resource_field_change_null_old_shows_transition() -> None:

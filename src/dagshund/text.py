@@ -37,10 +37,7 @@ class _ActionConfig:
     color: str
     symbol: str
     show_field_changes: bool = False
-
-    @property
-    def changed(self) -> bool:
-        return self.display != "unchanged"
+    changed: bool = True
 
 
 _ACTIONS: dict[str, _ActionConfig] = {
@@ -50,10 +47,10 @@ _ACTIONS: dict[str, _ActionConfig] = {
     "recreate": _ActionConfig("recreate", YELLOW, "~", show_field_changes=True),
     "resize": _ActionConfig("resize", YELLOW, "~", show_field_changes=True),
     "update_id": _ActionConfig("update_id", YELLOW, "~", show_field_changes=True),
-    "skip": _ActionConfig("unchanged", DIM, " "),
+    "skip": _ActionConfig("unchanged", DIM, " ", changed=False),
 }
 
-_DEFAULT_ACTION = _ActionConfig("unknown", RESET, "?")
+_DEFAULT_ACTION = _ActionConfig("unknown", RESET, "?", changed=False)
 
 
 def _supports_color() -> bool:
