@@ -1,7 +1,7 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { extractResourceType } from "../graph/build-resource-graph.ts";
-import { NODE_WIDTH } from "../graph/index.ts";
+import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useJobNavigation } from "../hooks/use-job-navigation.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
@@ -35,16 +35,10 @@ const extractTypeBadge = (resourceKey: string): string | undefined => {
 };
 
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
-  const {
-    isDimmed,
-    dimOpacity,
-    isHovered,
-    isSelected,
-    opacityClass,
-    styles,
-    hasIncoming,
-    hasOutgoing,
-  } = useNodeDimming(id, data.diffState);
+  const { opacityClass, glowStyle, styles, hasIncoming, hasOutgoing } = useNodeDimming(
+    id,
+    data.diffState,
+  );
   const typeBadge = extractTypeBadge(data.resourceKey);
   const diffBadge = getDiffBadge(data.diffState);
   const navigateToJob = useJobNavigation();
@@ -52,15 +46,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
 
   return (
     <div
-      style={{
-        width: NODE_WIDTH,
-        ...(isSelected
-          ? { boxShadow: `0 0 0 2.5px ${styles.hoverGlow}` }
-          : isHovered
-            ? { boxShadow: `0 0 0 1.5px ${styles.hoverGlow}` }
-            : undefined),
-        ...(isDimmed ? { opacity: dimOpacity } : undefined),
-      }}
+      style={{ width: NODE_WIDTH, ...glowStyle }}
       className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >

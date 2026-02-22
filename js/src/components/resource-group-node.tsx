@@ -1,6 +1,6 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
-import { NODE_WIDTH } from "../graph/index.ts";
+import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { ResourceGroupGraphNode } from "../types/graph-types.ts";
 import { getDiffBadge } from "./diff-state-styles.ts";
@@ -18,8 +18,7 @@ export const ResourceGroupNode = memo(function ResourceGroupNode({
   id,
   data,
 }: NodeProps<ResourceGroupNodeType>) {
-  const { isDimmed, dimOpacity, isHovered, isSelected, styles, hasIncoming, hasOutgoing } =
-    useNodeDimming(id, data.diffState);
+  const { glowStyle, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
 
   const isExternal = data.external;
   const groupBadge = extractGroupBadge(data.resourceKey);
@@ -28,15 +27,7 @@ export const ResourceGroupNode = memo(function ResourceGroupNode({
 
   return (
     <div
-      style={{
-        width: NODE_WIDTH,
-        ...(isSelected
-          ? { boxShadow: `0 0 0 2.5px ${styles.hoverGlow}` }
-          : isHovered
-            ? { boxShadow: `0 0 0 1.5px ${styles.hoverGlow}` }
-            : undefined),
-        ...(isDimmed ? { opacity: dimOpacity } : undefined),
-      }}
+      style={{ width: NODE_WIDTH, ...glowStyle }}
       className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm font-semibold ${styles.border} ${borderStyleOverride} ${styles.background} ${styles.text}`}
       title={data.label}
     >

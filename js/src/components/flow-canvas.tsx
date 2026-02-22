@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HoverContext } from "../hooks/use-hover-context.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
+import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
@@ -68,6 +69,7 @@ export function FlowCanvas({
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
+  // Never reset — safe because FlowCanvas remounts when the plan/tab changes.
   const hasFittedRef = useRef(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -208,47 +210,14 @@ export function FlowCanvas({
     [hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds],
   );
 
-  const styledEdges = useMemo((): readonly Edge[] => {
-    if (connectedIds === null && selectedConnectedIds === null && filterMatchedIds === null)
-      return baseEdges as Edge[];
-    return baseEdges.map((edge) => {
-      const baseStyle = edge.style ?? {};
-      if (connectedIds !== null) {
-        const isDirectlyConnected = edge.source === hoveredNodeId || edge.target === hoveredNodeId;
-        const isBetweenConnected = connectedIds.has(edge.source) && connectedIds.has(edge.target);
-        return isDirectlyConnected
-          ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
-          : isBetweenConnected
-            ? { ...edge, style: baseStyle }
-            : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
-      }
-      if (filterMatchedIds !== null) {
-        const isRelevant = filterMatchedIds.has(edge.source) || filterMatchedIds.has(edge.target);
-        return isRelevant
-          ? { ...edge, style: baseStyle }
-          : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
-      }
-      if (selectedConnectedIds !== null) {
-        const isDirectlyConnected =
-          edge.source === selectedNodeId || edge.target === selectedNodeId;
-        const isBetweenConnected =
-          selectedConnectedIds.has(edge.source) && selectedConnectedIds.has(edge.target);
-        return isDirectlyConnected
-          ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5 } }
-          : isBetweenConnected
-            ? { ...edge, style: baseStyle }
-            : { ...edge, style: { ...baseStyle, opacity: 0.3 } };
-      }
-      return { ...edge, style: baseStyle };
-    });
-  }, [
+  const styledEdges = useStyledEdges(
     baseEdges,
+    hoveredNodeId,
+    selectedNodeId,
     connectedIds,
     selectedConnectedIds,
     filterMatchedIds,
-    hoveredNodeId,
-    selectedNodeId,
-  ]);
+  );
 
   if (layoutState.status === "error") {
     return (

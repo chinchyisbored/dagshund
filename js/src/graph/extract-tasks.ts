@@ -55,7 +55,9 @@ export const extractTaskEntriesFromRemoteState = (remoteState: unknown): readonl
   return parsed.data.tasks ?? [];
 };
 
-/** Extract task entries, preferring new_state and falling back to remote_state for skip resources. */
+/** Extract task entries, preferring new_state and falling back to remote_state for skip resources.
+ *  The remote_state fallback is intentional: Databricks "skip" resources have an empty new_state.tasks
+ *  but retain the prior task list in remote_state. */
 export const resolveTaskEntries = (
   newState: unknown,
   remoteState: unknown,

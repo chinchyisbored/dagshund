@@ -9,7 +9,9 @@ import type {
   TaskGraphNode,
 } from "../types/graph-types.ts";
 
-/** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner). */
+/** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner).
+ *  No crash recovery: if the Worker dies the layout call rejects and the UI shows an error state,
+ *  which is acceptable for a visualization tool (just reload). */
 const getElk = (() => {
   let instance: InstanceType<typeof ELK> | undefined;
   return (): InstanceType<typeof ELK> => {

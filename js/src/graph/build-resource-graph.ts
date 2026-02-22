@@ -333,14 +333,16 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
 
   if (entries.length === 0) return { nodes: [], edges: [] };
 
-  const ucEntries = entries.filter(([key]) => {
-    const resourceType = extractResourceType(key);
-    return resourceType !== undefined && isUnityCatalogType(resourceType);
-  });
-  const workspaceEntries = entries.filter(([key]) => {
-    const resourceType = extractResourceType(key);
-    return resourceType === undefined || !isUnityCatalogType(resourceType);
-  });
+  const ucEntries: [string, PlanEntry][] = [];
+  const workspaceEntries: [string, PlanEntry][] = [];
+  for (const entry of entries) {
+    const resourceType = extractResourceType(entry[0]);
+    if (resourceType !== undefined && isUnityCatalogType(resourceType)) {
+      ucEntries.push(entry);
+    } else {
+      workspaceEntries.push(entry);
+    }
+  }
 
   const schemaLookup = buildSchemaLookup(ucEntries);
   const catalogLookup = buildCatalogLookup(ucEntries);

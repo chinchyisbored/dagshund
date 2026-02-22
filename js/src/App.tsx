@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./styles/output.css";
 
+import { ErrorBoundary } from "./components/error-boundary.tsx";
 import { FlowCanvas } from "./components/flow-canvas.tsx";
 import { JobNode } from "./components/job-node.tsx";
 import { ResourcesView } from "./components/resources-view.tsx";
@@ -96,12 +97,16 @@ function PlanView({ plan }: { readonly plan: Plan }) {
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} counts={tabCounts} />
       <div className="min-h-0 flex-1">
         <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
-          <DagView plan={plan} focusNodeId={focusJobId} onFocusComplete={handleFocusComplete} />
+          <ErrorBoundary>
+            <DagView plan={plan} focusNodeId={focusJobId} onFocusComplete={handleFocusComplete} />
+          </ErrorBoundary>
         </div>
         <div className="h-full" style={activeTab !== "resources" ? { display: "none" } : undefined}>
-          <JobNavigationContext.Provider value={handleNavigateToJob}>
-            <ResourcesView plan={plan} />
-          </JobNavigationContext.Provider>
+          <ErrorBoundary>
+            <JobNavigationContext.Provider value={handleNavigateToJob}>
+              <ResourcesView plan={plan} />
+            </JobNavigationContext.Provider>
+          </ErrorBoundary>
         </div>
       </div>
     </div>
