@@ -51,7 +51,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-d",
         "--debug",
         action="store_true",
-        help="Trace dagshund function calls to stderr (also enabled by DAGSHUND_DEBUG env var)",
+        help="Trace function calls to stderr — may log plan data previews (also enabled by DAGSHUND_DEBUG env var)",
     )
     parser.add_argument(
         "-e",

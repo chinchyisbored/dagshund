@@ -10,10 +10,10 @@ logger = logging.getLogger("dagshund")
 def _summarize_value(value: object) -> str:
     """Create a concise summary of a value for debug logging."""
     match value:
-        case str() if len(value) > 80:
-            return f"str({len(value)} chars)"
         case str():
-            return repr(value)
+            if len(value) <= 20:
+                return f"str({len(value)}) {value!r}"
+            return f"str({len(value)}) {value[:20]!r}..."
         case dict():
             return f"dict({len(value)} keys)"
         case bool():

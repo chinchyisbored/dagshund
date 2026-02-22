@@ -6,17 +6,17 @@ from dagshund.debug import _summarize_value
 
 
 def test_summarize_value_short_string() -> None:
-    assert _summarize_value("hello") == "'hello'"
+    assert _summarize_value("hello") == "str(5) 'hello'"
 
 
 def test_summarize_value_long_string_shows_char_count() -> None:
     result = _summarize_value("a" * 100)
-    assert result == "str(100 chars)"
+    assert result == f"str(100) '{'a' * 20}'..."
 
 
 def test_summarize_value_string_at_boundary() -> None:
-    assert _summarize_value("a" * 80) == f"'{'a' * 80}'"
-    assert _summarize_value("a" * 81) == "str(81 chars)"
+    assert _summarize_value("a" * 20) == f"str(20) '{'a' * 20}'"
+    assert _summarize_value("a" * 21) == f"str(21) '{'a' * 20}'..."
 
 
 def test_summarize_value_dict_shows_key_count() -> None:

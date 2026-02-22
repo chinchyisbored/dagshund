@@ -42,6 +42,9 @@ const server = serve({
   routes: {
     "/api/plan": (request) =>
       isAllowedHost(request) ? Response.json(plan) : createForbiddenResponse(),
+    // Static assets only (HTML/JS/CSS) — no secrets. Host validation on /api/plan
+    // prevents DNS rebinding from accessing plan data. Bun's HTML import syntax
+    // requires direct assignment here; wrapping in a handler loses bundling/HMR.
     "/*": index,
   },
 
