@@ -235,14 +235,17 @@ const buildJobIdMap = (
   return map;
 };
 
-/** Create edges from tasks with run_job_task to the target job. */
+/** Create edges from tasks with run_job_task to the target job.
+ *  Includes deleted tasks so that removed cross-job edges are visible in the graph. */
 const buildRunJobEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
 ): readonly GraphEdge[] => {
   const jobIdMap = buildJobIdMap(entries);
   return entries.flatMap(([resourceKey, entry]) => {
-    const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
-    return tasks.flatMap((task) => {
+    const liveTasks = resolveTaskEntries(entry.new_state, entry.remote_state);
+    const deletedTasks = extractDeletedTaskEntries(entry.changes);
+    const allTasks = [...liveTasks, ...deletedTasks];
+    return allTasks.flatMap((task) => {
       const jobId = task.run_job_task?.job_id;
       if (jobId === undefined) return [];
       const targetResourceKey =

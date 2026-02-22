@@ -223,6 +223,61 @@ describe("buildPlanGraph", () => {
     });
   });
 
+  describe("deleted task with run_job_task", () => {
+    test("creates cross-job edge with 'removed' diffState for deleted run_job_task", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "update" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "extract" }],
+              },
+            },
+            remote_state: {
+              job_id: 100,
+              tasks: [
+                { task_key: "extract" },
+                {
+                  task_key: "trigger_b",
+                  // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax, not a JS template
+                  run_job_task: { job_id: "${resources.jobs.pipeline_b.id}" },
+                },
+              ],
+            },
+            changes: {
+              "tasks[task_key='trigger_b']": {
+                action: "delete" as const,
+                old: {
+                  task_key: "trigger_b",
+                  // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax, not a JS template
+                  run_job_task: { job_id: "${resources.jobs.pipeline_b.id}" },
+                },
+              },
+            },
+          },
+          "resources.jobs.pipeline_b": {
+            action: "skip" as const,
+            remote_state: {
+              job_id: 200,
+              tasks: [{ task_key: "ingest" }],
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+
+      const crossJobEdge = graph.edges.find(
+        (e) =>
+          e.source === "resources.jobs.pipeline_a::trigger_b" &&
+          e.target === "resources.jobs.pipeline_b",
+      );
+      expect(crossJobEdge).toBeDefined();
+      expect(crossJobEdge?.diffState).toBe("removed");
+    });
+  });
+
   describe("complex-plan.json (numeric job_id)", () => {
     test("extracts all tasks from etl_pipeline including run_job_task with numeric job_id", async () => {
       const plan = await loadFixture("complex-plan.json");

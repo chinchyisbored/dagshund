@@ -128,30 +128,40 @@ export function FlowCanvas({
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
 
   /** Fit the viewport exactly once after the layout produces nodes.
+   *  Skipped when focusNodeId is set — the focus effect handles viewport positioning instead.
    *  requestAnimationFrame defers until React Flow has measured node dimensions. */
   useEffect(() => {
     if (rfInstanceRef.current && baseNodes.length > 0 && !hasFittedRef.current) {
       hasFittedRef.current = true;
+      if (focusNodeId != null) return;
       requestAnimationFrame(() => {
         rfInstanceRef.current?.fitView({ maxZoom: 1, padding: 0.15 });
       });
     }
-  }, [baseNodes]);
+  }, [baseNodes, focusNodeId]);
 
-  /** Pan to a specific node when focusNodeId is set (cross-tab navigation). */
+  /** Pan to a specific node when focusNodeId is set (cross-tab navigation).
+   *  Waits for layout to be ready so the node exists in React Flow's internal store.
+   *  Uses setTimeout rather than rAF because the tab container transitions from
+   *  display:none to visible on navigation — React Flow's ResizeObserver needs
+   *  time to recalculate before setCenter can position correctly. */
   useEffect(() => {
     if (focusNodeId === null || focusNodeId === undefined) return;
-    const instance = rfInstanceRef.current;
-    if (instance === null) return;
-    const internal = instance.getInternalNode(focusNodeId);
-    if (internal === undefined) return;
-    const zoom = instance.getZoom();
-    const { x, y } = internal.internals.positionAbsolute;
-    const width = internal.measured.width ?? 200;
-    const height = internal.measured.height ?? 50;
-    instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom });
-    onFocusComplete?.();
-  }, [focusNodeId, onFocusComplete]);
+    if (layoutState.status !== "ready") return;
+    const timerId = setTimeout(() => {
+      const instance = rfInstanceRef.current;
+      if (instance === null) return;
+      const internal = instance.getInternalNode(focusNodeId);
+      if (internal === undefined) return;
+      const zoom = instance.getZoom();
+      const { x, y } = internal.internals.positionAbsolute;
+      const width = internal.measured.width ?? 200;
+      const height = internal.measured.height ?? 50;
+      instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom });
+      onFocusComplete?.();
+    }, 50);
+    return () => clearTimeout(timerId);
+  }, [focusNodeId, onFocusComplete, layoutState.status]);
 
   const diffStateCounts = useMemo((): Readonly<Record<FilterableDiffState, number>> => {
     const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };
