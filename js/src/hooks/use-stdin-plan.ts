@@ -14,6 +14,7 @@ export const useStdinPlan = (): StdinPlanState => {
   const [state, setState] = useState<StdinPlanState>(INITIAL_STATE);
 
   useEffect(() => {
+    // Window augmentation: the build step injects plan data as a global for self-contained HTML exports.
     const embedded = (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__;
     if (embedded !== undefined) {
       const result = parsePlanJson(embedded);

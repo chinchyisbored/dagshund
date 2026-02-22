@@ -104,7 +104,11 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
             </div>
           )}
 
-          {hasTaskSummary && <TaskChangesSummary summary={data.taskChangeSummary} />}
+          {/* Inline narrowing: TypeScript can't track hasTaskSummary back to the discriminated union. */}
+          {(data.nodeKind === "job" || data.nodeKind === "resource") &&
+            data.taskChangeSummary !== undefined && (
+              <TaskChangesSummary summary={data.taskChangeSummary} />
+            )}
 
           {data.nodeKind === "resource" && data.taskChangeSummary !== undefined && (
             <ViewInJobsTabButton resourceKey={data.resourceKey} />

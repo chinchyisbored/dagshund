@@ -9,8 +9,7 @@ import type { JobGraphNode, PlanGraph, TaskGraphNode } from "../../src/types/gra
  */
 
 // Dynamic import to avoid module-level ELK Worker instantiation in tests.
-// biome-ignore lint/suspicious/noExplicitAny: dynamic import workaround for ELK Worker
-let mod: any;
+let mod: Awaited<typeof import("../../src/graph/layout-graph.ts")>;
 
 const loadModule = async () => {
   if (!mod) {
@@ -71,14 +70,10 @@ describe("groupNodesByJob", () => {
     const groups = groupNodesByJob(SINGLE_JOB_GRAPH.nodes);
 
     expect(groups).toHaveLength(1);
-    expect(groups[0].job.id).toBe("resources.jobs.etl");
-    expect(groups[0].tasks).toHaveLength(2);
-    expect(groups[0].tasks.map((t: TaskGraphNode) => t.id)).toContain(
-      "resources.jobs.etl::extract",
-    );
-    expect(groups[0].tasks.map((t: TaskGraphNode) => t.id)).toContain(
-      "resources.jobs.etl::transform",
-    );
+    expect(groups[0]?.job.id).toBe("resources.jobs.etl");
+    expect(groups[0]?.tasks).toHaveLength(2);
+    expect(groups[0]?.tasks.map((t) => t.id)).toContain("resources.jobs.etl::extract");
+    expect(groups[0]?.tasks.map((t) => t.id)).toContain("resources.jobs.etl::transform");
   });
 
   test("returns empty array for empty nodes", async () => {
@@ -138,7 +133,8 @@ describe("topologicalSortTasks", () => {
     ];
 
     const sorted = topologicalSortTasks(tasks, edges);
-    const sortedKeys = sorted.map((t: TaskGraphNode) => t.taskKey);
+    // topologicalSortTasks returns readonly GraphNode[]; narrow to TaskGraphNode to access taskKey.
+    const sortedKeys = sorted.map((t) => (t as TaskGraphNode).taskKey);
 
     const setupIdx = sortedKeys.indexOf("setup_env");
     const runIdx = sortedKeys.indexOf("run_tests");
@@ -156,7 +152,7 @@ describe("topologicalSortTasks", () => {
     const taskC: TaskGraphNode = { ...TASK_EXTRACT, id: "j::c", taskKey: "c" };
 
     const sorted = topologicalSortTasks([taskA, taskB, taskC], []);
-    const sortedKeys = sorted.map((t: TaskGraphNode) => t.taskKey);
+    const sortedKeys = sorted.map((t) => (t as TaskGraphNode).taskKey);
     expect(sortedKeys).toEqual(["a", "b", "c"]);
   });
 
@@ -170,7 +166,7 @@ describe("topologicalSortTasks", () => {
     const edges = [{ source: "other::x", target: "j::a" }];
 
     const sorted = topologicalSortTasks([taskA, taskB], edges);
-    const sortedKeys = sorted.map((t: TaskGraphNode) => t.taskKey);
+    const sortedKeys = sorted.map((t) => (t as TaskGraphNode).taskKey);
     expect(sortedKeys).toEqual(["a", "b"]);
   });
 });
@@ -186,10 +182,9 @@ describe("buildElkCompoundGraph", () => {
     expect(elkGraph.id).toBe("root");
     expect(elkGraph.children).toHaveLength(1);
 
-    const jobElk = elkGraph.children[0];
-    expect(jobElk.id).toBe("resources.jobs.etl");
-    expect(jobElk.children).toHaveLength(2);
-    expect(jobElk.children.map((c: { id: string }) => c.id)).toContain(
+    expect(elkGraph.children[0]?.id).toBe("resources.jobs.etl");
+    expect(elkGraph.children[0]?.children).toHaveLength(2);
+    expect(elkGraph.children[0]?.children.map((c) => c.id)).toContain(
       "resources.jobs.etl::extract",
     );
   });
@@ -201,10 +196,9 @@ describe("buildElkCompoundGraph", () => {
       SINGLE_JOB_GRAPH.edges,
     );
 
-    const jobElk = elkGraph.children[0];
-    expect(jobElk.edges).toHaveLength(1);
-    expect(jobElk.edges[0].sources).toContain("resources.jobs.etl::extract");
-    expect(jobElk.edges[0].targets).toContain("resources.jobs.etl::transform");
+    expect(elkGraph.children[0]?.edges).toHaveLength(1);
+    expect(elkGraph.children[0]?.edges[0]?.sources).toContain("resources.jobs.etl::extract");
+    expect(elkGraph.children[0]?.edges[0]?.targets).toContain("resources.jobs.etl::transform");
 
     // Root should have no edges (all edges are intra-job)
     expect(elkGraph.edges).toHaveLength(0);
@@ -217,7 +211,7 @@ describe("buildElkCompoundGraph", () => {
       SINGLE_JOB_GRAPH.edges,
     );
 
-    expect(elkGraph.children[0].layoutOptions["elk.direction"]).toBe("RIGHT");
+    expect(elkGraph.children[0]?.layoutOptions["elk.direction"]).toBe("RIGHT");
   });
 
   test("returns empty children for empty graph", async () => {
@@ -275,8 +269,8 @@ describe("assembleFlowNodes", () => {
 
     const nodes = assembleFlowNodes(groups, positions, dimensions);
 
-    const jobIndex = nodes.findIndex((n: { type: string }) => n.type === "job");
-    const firstTaskIndex = nodes.findIndex((n: { type: string }) => n.type === "task");
+    const jobIndex = nodes.findIndex((n) => n.type === "job");
+    const firstTaskIndex = nodes.findIndex((n) => n.type === "task");
     expect(jobIndex).toBe(0);
     expect(firstTaskIndex).toBeGreaterThan(jobIndex);
   });
@@ -293,7 +287,7 @@ describe("assembleFlowNodes", () => {
     const dimensions = new Map([["resources.jobs.etl", { width: 500, height: 200 }]]);
 
     const nodes = assembleFlowNodes(groups, positions, dimensions);
-    const taskNodes = nodes.filter((n: { type: string }) => n.type === "task");
+    const taskNodes = nodes.filter((n) => n.type === "task");
 
     for (const task of taskNodes) {
       expect(task.parentId).toBe("resources.jobs.etl");
@@ -313,8 +307,9 @@ describe("assembleFlowNodes", () => {
     const dimensions = new Map([["resources.jobs.etl", { width: 500, height: 200 }]]);
 
     const nodes = assembleFlowNodes(groups, positions, dimensions);
-    const jobNode = nodes.find((n: { type: string }) => n.type === "job");
+    const jobNode = nodes.find((n) => n.type === "job");
 
+    // React Flow's Node.style is CSSProperties; bracket access requires Record cast.
     const style = jobNode?.style as Record<string, unknown>;
     expect(style["width"]).toBe(500);
     expect(style["height"]).toBe(200);
@@ -327,8 +322,8 @@ describe("toFlowEdges", () => {
     const edges = toFlowEdges(SINGLE_JOB_GRAPH.edges);
 
     expect(edges).toHaveLength(1);
-    expect(edges[0].source).toBe("resources.jobs.etl::extract");
-    expect(edges[0].target).toBe("resources.jobs.etl::transform");
+    expect(edges[0]?.source).toBe("resources.jobs.etl::extract");
+    expect(edges[0]?.target).toBe("resources.jobs.etl::transform");
   });
 
   test("preserves edge labels", async () => {
@@ -336,7 +331,7 @@ describe("toFlowEdges", () => {
     const edges = toFlowEdges([
       { id: "e1", source: "a", target: "b", label: "depends_on", diffState: "unchanged" },
     ]);
-    expect(edges[0].label).toBe("depends_on");
+    expect(edges[0]?.label).toBe("depends_on");
   });
 
   test("applies edge style from diffState", async () => {
@@ -347,17 +342,17 @@ describe("toFlowEdges", () => {
       { id: "e3", source: "e", target: "f", label: undefined, diffState: "unchanged" },
     ]);
 
-    expect(edges[0].style).toEqual({
+    expect(edges[0]?.style).toEqual({
       stroke: "var(--edge-added)",
       opacity: 1,
       strokeDasharray: undefined,
     });
-    expect(edges[1].style).toEqual({
+    expect(edges[1]?.style).toEqual({
       stroke: "var(--edge-removed)",
       opacity: 1,
       strokeDasharray: "6 4",
     });
-    expect(edges[2].style).toEqual({
+    expect(edges[2]?.style).toEqual({
       stroke: "var(--edge-unchanged)",
       opacity: 1,
       strokeDasharray: undefined,

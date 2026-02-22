@@ -186,6 +186,7 @@ describe("buildResourceGraph", () => {
     const phantom = graph.nodes.find((n) => n.id === "external::dagshund.missing");
     expect(phantom).toBeDefined();
     expect(phantom?.nodeKind).toBe("resource-group");
+    // Narrow the GraphNode union: find() returns the base union; .external lives on ResourceGroupGraphNode.
     expect((phantom as ResourceGroupGraphNode | undefined)?.external).toBe(true);
     expect(phantom?.label).toBe("missing");
 
@@ -541,6 +542,7 @@ describe("buildResourceGraph", () => {
         },
       });
 
+      // Narrow the GraphNode union: .taskChangeSummary lives on ResourceGraphNode, not on the base union.
       const jobNode = graph.nodes.find(
         (n) => n.id === "resources.jobs.my_job",
       ) as ResourceGraphNode;

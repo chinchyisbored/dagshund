@@ -124,6 +124,8 @@ export function FlowCanvas({
   }, []);
 
   const layout = layoutState.status === "ready" ? layoutState.layout : null;
+  // Layout produces readonly arrays; React Flow's component props and internal helpers
+  // require mutable Node[]/Edge[]. The `as` casts below shed the readonly modifier.
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
 
@@ -167,6 +169,7 @@ export function FlowCanvas({
     const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };
     for (const node of baseNodes) {
       const state = getNodeData(node).diffState;
+      // Safe: the `in` guard ensures state is a FilterableDiffState key.
       if (state in counts) counts[state as FilterableDiffState]++;
     }
     return counts;
