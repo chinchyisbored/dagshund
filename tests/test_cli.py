@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from io import StringIO
@@ -196,3 +197,38 @@ def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> Non
     result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
 
     assert result.returncode == 0
+
+
+# --- --debug ---
+
+
+def test_debug_flag_traces_all_functions(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-d")
+
+    assert result.returncode == 0
+    assert "→ read_plan" in result.stderr
+    assert "← read_plan" in result.stderr
+    assert "→ render_text" in result.stderr
+    assert "→ _supports_color" in result.stderr
+    assert "→ _colorize" in result.stderr
+    assert "→ _render_resource" in result.stderr
+
+
+def test_debug_env_var_traces_all_functions(fixtures_dir: Path) -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "dagshund", str(fixtures_dir / "complex-plan.json")],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "DAGSHUND_DEBUG": "1"},
+    )
+
+    assert result.returncode == 0
+    assert "→ read_plan" in result.stderr
+    assert "→ _supports_color" in result.stderr
+
+
+def test_no_debug_flag_no_trace_on_stderr(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
+
+    assert result.returncode == 0
+    assert "→" not in result.stderr

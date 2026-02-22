@@ -63,7 +63,7 @@ test-py:
 
 # Lint Python with ruff
 lint-py:
-    uv run ruff check {{py_src}} {{py_tests}}
+    uv run ruff check --fix {{py_src}} {{py_tests}}
 
 # Format Python with ruff
 format-py:

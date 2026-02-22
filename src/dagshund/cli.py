@@ -1,6 +1,8 @@
 """CLI entry point for dagshund."""
 
 import argparse
+import logging
+import os
 import sys
 from pathlib import Path
 
@@ -18,7 +20,7 @@ examples:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e]",
+        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d]",
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -43,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--browser",
         action="store_true",
         help="Open the output file in the default browser (requires -o)",
+    )
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Trace dagshund function calls to stderr (also enabled by DAGSHUND_DEBUG env var)",
     )
     parser.add_argument(
         "-e",
@@ -80,6 +88,17 @@ def read_plan(plan_file: str | None) -> str:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.debug or os.environ.get("DAGSHUND_DEBUG"):
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="dagshund: %(message)s",
+            stream=sys.stderr,
+        )
+
+        from dagshund.debug import enable_profile_tracing
+
+        enable_profile_tracing()
 
     if args.browser and not args.output:
         parser.error("--browser requires --output")
