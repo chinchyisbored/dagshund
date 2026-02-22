@@ -181,12 +181,13 @@ def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType
 def _group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType:
     """Group plan entries by their resource type (jobs, schemas, etc.)."""
     sorted_entries = sorted(resources.items(), key=_resource_type_of)
-    return {resource_type: dict(group) for resource_type, group in groupby(sorted_entries, key=_resource_type_of)}
+    grouped = groupby(sorted_entries, key=_resource_type_of)
+    return {resource_type: dict(group) for resource_type, group in grouped}
 
 
 def _print_resource_groups(resource_groups: ResourceChangesByType, *, use_color: bool) -> None:
     """Print each resource type group with its entries."""
-    for resource_type in sorted(resource_groups):
+    for resource_type in resource_groups:  # already sorted by _group_by_resource_type
         entries = resource_groups[resource_type]
         print(
             _colorize(
@@ -213,11 +214,6 @@ def _print_summary(resources: ResourceChanges, *, use_color: bool) -> None:
     print(f"  {parts}")
 
 
-def _check_all_unchanged(resources: ResourceChanges) -> bool:
-    """Check if every resource in the plan is unchanged (skip or empty action)."""
-    return not detect_changes(resources)
-
-
 def render_text(plan: Plan) -> None:
     """Render colored diff summary to terminal."""
     resources = plan.get("plan", {})
@@ -229,7 +225,7 @@ def render_text(plan: Plan) -> None:
     use_color = _supports_color()
     _print_header(plan, use_color=use_color)
 
-    if _check_all_unchanged(resources):
+    if not detect_changes(resources):
         print(
             _colorize(
                 f"  No changes ({len(resources)} resources unchanged)",

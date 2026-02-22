@@ -15,7 +15,6 @@ from dagshund.text import (
     YELLOW,
     _action_config,
     _ActionConfig,
-    _check_all_unchanged,
     _colorize,
     _count_by_action,
     _format_value,
@@ -412,29 +411,6 @@ def test_print_summary_unchanged_uses_dim_style(capsys: pytest.CaptureFixture[st
     assert "?" not in out
 
 
-# --- _check_all_unchanged ---
-
-
-def test_check_all_unchanged_all_skip() -> None:
-    plan = {"a": {"action": "skip"}, "b": {"action": "skip"}}
-    assert _check_all_unchanged(plan) is True
-
-
-def test_check_all_unchanged_empty_action_returns_false() -> None:
-    plan = {"a": {"action": ""}}
-    assert _check_all_unchanged(plan) is False
-
-
-def test_check_all_unchanged_missing_action_returns_false() -> None:
-    plan = {"a": {}}
-    assert _check_all_unchanged(plan) is False
-
-
-def test_check_all_unchanged_false_with_real_changes() -> None:
-    plan = {"a": {"action": "skip"}, "b": {"action": "create"}}
-    assert _check_all_unchanged(plan) is False
-
-
 # --- render_text (integration) ---
 
 
@@ -458,7 +434,7 @@ def test_render_text_missing_plan_key_raises_error() -> None:
         render_text({"cli_version": "1.0"})
 
 
-def test_render_text_check_all_unchanged_shows_no_changes(
+def test_render_text_all_unchanged_shows_no_changes(
     fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     plan = json.loads((fixtures_dir / "no-changes-plan.json").read_text())
