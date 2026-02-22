@@ -73,7 +73,7 @@ When code is working, follow this exact order. No skipping steps.
 
 **The git commit IS the deliverable.** Uncommitted work = unfinished work.
 
-## Review Process (3 Parallel Passes)
+## Review Process
 
 Run before presenting completed work. This is a **read-and-reason** exercise — do NOT write or run scripts to check code.
 
@@ -90,15 +90,15 @@ git diff HEAD --name-only
 
 Combine and deduplicate into a single file list.
 
-### Step 2: Spawn 3 review subagents in parallel
+### Step 2: Spawn a single review subagent
 
-Use `model: "opus"` and `subagent_type: "Explore"`. Each subagent receives:
+Use `model: "opus"` and `subagent_type: "Explore"`. The subagent receives:
 - The file list from Step 1
-- Its specific review criteria (below)
-- Instruction to read the changed files, reason about them, and report findings as plain text
+- All three review criteria below
+- Instruction to read the changed files once, then evaluate against all criteria
 - Instruction to check closed beads (`bd list --status=closed`) for won't-fix decisions — do not flag things already decided
 
-Each subagent reads the code and returns a list of findings. No fixes, no scripts, just observations.
+One agent reads the files once and runs all 3 passes over the same context. No fixes, no scripts, just observations.
 
 **Pass 1 — Functional Correctness:**
 - Does the code do what the issue described?
@@ -116,7 +116,7 @@ Each subagent reads the code and returns a list of findings. No fixes, no script
 
 ### Step 3: Present findings to human
 
-Collect all 3 reports. Present a unified summary to the human, organized by pass. For each finding, suggest one of:
+Present findings organized by pass. For each finding, suggest one of:
 - **Fix** — should be addressed now
 - **Bead** — file as an issue for later
 - **Skip** — already a won't-fix or not worth changing
