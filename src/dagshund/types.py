@@ -14,4 +14,4 @@ type Plan = dict[str, Any]
 
 def is_resource_changes(value: object) -> TypeGuard[ResourceChanges]:
     """Runtime check that narrows Any to ResourceChanges for the type checker."""
-    return isinstance(value, dict)
+    return isinstance(value, dict) and all(isinstance(v, dict) for v in value.values())
