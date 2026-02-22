@@ -45,14 +45,31 @@ def _inject_plan(template: str, plan: Plan) -> str:
     return template.replace(PLACEHOLDER, safe_json, 1)
 
 
+def _validate_output_path(raw: str) -> Path:
+    """Resolve and validate the output path before writing.
+
+    Guards against writing through symlinks (which could silently overwrite
+    an unrelated file) and normalizes ``..`` traversal segments.
+    """
+    path = Path(raw)
+    if path.is_symlink():
+        target = path.resolve()
+        raise DagshundError(
+            f"output path is a symlink → {target}\n"
+            f"  use --output {target} to write there directly"
+        )
+    return path.resolve()
+
+
 def render_browser(plan: Plan, *, output_path: str) -> None:
     """Render plan as interactive HTML and export to file."""
+    resolved = _validate_output_path(output_path)
     template_path = _find_template()
     template = template_path.read_text(encoding="utf-8")
     html = _inject_plan(template, plan)
 
     try:
-        Path(output_path).write_text(html, encoding="utf-8")
+        resolved.write_text(html, encoding="utf-8")
     except OSError as exc:
         raise DagshundError(f"could not write output file: {exc}") from exc
 
