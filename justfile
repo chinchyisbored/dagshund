@@ -13,7 +13,7 @@ install:
     bun install --cwd {{js_dir}}
     uv run prek install
 
-# Start JS dev server in background
+# Start JS dev server in background, provided planfile has to be relative to justfile location
 dev plan_file="fixtures/complex-plan.json":
     #!/usr/bin/env bash
     cat "{{plan_file}}" | bun run --cwd {{js_dir}} dev &>/dev/null &
@@ -41,25 +41,25 @@ build:
     bun run --cwd {{js_dir}} build:template
     uv build
 
-# Run JS tests
-test-js:
-    bun test --cwd {{js_dir}} --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir {{root / ".cache/coverage-js"}}
+# Run JS tests (optional filter: test file or name pattern)
+test-js filter="":
+    bun test --cwd {{js_dir}} {{ if filter == "" { "--coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir " + root / ".cache/coverage-js" } else { "-t " + quote(filter) } }}
 
-# Lint JS with biome
+# Lint JS with biome (applies safe fixes)
 lint-js:
-    bun run --cwd {{js_dir}} lint
+    bun run --cwd {{js_dir}} biome check --fix src/ tests/
 
 # Format JS with biome
 format-js:
-    bun run --cwd {{js_dir}} format
+    bun run --cwd {{js_dir}} biome format --write src/ tests/
 
 # Typecheck JS with tsc
 typecheck-js:
-    bun run --cwd {{js_dir}} typecheck
+    bun run --cwd {{js_dir}} tsc --noEmit
 
-# Run Python tests
-test-py:
-    uv run pytest --cov=dagshund --cov-report=term-missing
+# Run Python tests (optional filter: -k expression or file::test path)
+test-py filter="":
+    uv run pytest {{ if filter == "" { "--cov=dagshund --cov-report=term-missing" } else { "-xvs -k " + quote(filter) } }}
 
 # Lint Python with ruff
 lint-py:

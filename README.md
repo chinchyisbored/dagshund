@@ -128,7 +128,7 @@ Start the dev server with a plan piped via stdin (defaults to `fixtures/complex-
 
 ```bash
 just dev                          # uses default fixture
-just dev path/to/your/plan.json   # use a specific plan
+just dev path/to/your/plan.json   # use a specific plan, relative to justfile location
 just dev-down                     # stop the server
 ```
 

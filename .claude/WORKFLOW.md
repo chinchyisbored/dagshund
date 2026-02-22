@@ -20,6 +20,43 @@ Run `bd onboard` at the start of a new engagement with the project.
 - Create subtasks with dependencies if work grows
 - Keep the human informed — mention what you're filing, don't silently create issues
 
+## Dev Commands
+
+**Always use `just` commands.** Never call `pytest`, `ruff`, `biome`, or `tsc` directly.
+Never manually edit code to fix lint/format issues — let the tools do it.
+
+### Testing
+```bash
+just test              # All tests (JS + Python)
+just test-py           # All Python tests with coverage
+just test-py "filter"  # Single Python test (-k expression or file::test)
+just test-js           # All JS tests with coverage
+just test-js "filter"  # Single JS test (name pattern)
+```
+
+### Fixing lint & format issues
+```bash
+just lint              # Lint all (applies safe fixes automatically)
+just lint-py           # Ruff check --fix
+just lint-js           # Biome check --fix
+just format            # Format all
+just format-py         # Ruff format
+just format-js         # Biome format
+```
+
+### Typechecking
+```bash
+just typecheck         # All typecheckers
+just typecheck-py      # ty
+just typecheck-js      # tsc
+```
+
+### Full quality gate
+```bash
+just check             # lint + typecheck + test (run before completing work)
+just build             # JS template + Python wheel
+```
+
 ## Completing Work
 
 When code is working, follow this exact order. No skipping steps.
@@ -27,8 +64,8 @@ When code is working, follow this exact order. No skipping steps.
 1. `just check` — lint + typecheck + all tests
 2. `just build` — verify production build
 3. **Browser verification** — `just dev` and check in the browser (`just dev-down` to stop). `just build` and `just dev` use different Bun code paths; a passing build doesn't guarantee a working app.
-4. **3-pass review** (see below) — fix issues until all passes are clean
-5. **Present to human** — what was built, decisions made, issues filed. Get approval.
+4. **3-pass review** (see below) — present findings to human for decision
+5. Fix what human approves, file beads for the rest
 6. `git add <specific files>` — stage changes (NEVER combine with commit)
 7. `source .venv/bin/activate && git commit -m "..."`
 8. `bd close <id>` — only AFTER code is committed
@@ -36,26 +73,55 @@ When code is working, follow this exact order. No skipping steps.
 
 **The git commit IS the deliverable.** Uncommitted work = unfinished work.
 
-## Review Process (3 Passes)
+## Review Process (3 Parallel Passes)
 
-Run before presenting completed work. Use `model: "opus"` for review subagents.
-Check beads (especially closed issues) for won't-fix decisions before acting on review findings.
+Run before presenting completed work. This is a **read-and-reason** exercise — do NOT write or run scripts to check code.
 
-### Pass 1: Functional Correctness
+### Step 1: Determine scope
+
+Find all files changed on this branch plus any uncommitted work:
+
+```bash
+# Changed files on branch (not yet pushed)
+git diff origin/main...HEAD --name-only
+# Uncommitted changes (staged + unstaged)
+git diff HEAD --name-only
+```
+
+Combine and deduplicate into a single file list.
+
+### Step 2: Spawn 3 review subagents in parallel
+
+Use `model: "opus"` and `subagent_type: "Explore"`. Each subagent receives:
+- The file list from Step 1
+- Its specific review criteria (below)
+- Instruction to read the changed files, reason about them, and report findings as plain text
+- Instruction to check closed beads (`bd list --status=closed`) for won't-fix decisions — do not flag things already decided
+
+Each subagent reads the code and returns a list of findings. No fixes, no scripts, just observations.
+
+**Pass 1 — Functional Correctness:**
 - Does the code do what the issue described?
 - Edge cases handled? Data flow end-to-end? Errors explicit?
 - Would this break existing functionality?
 
-### Pass 2: Code Philosophy Alignment
-Review against CLAUDE.md: immutability, no classes, small composable functions, no `any`, no global state, descriptive names, explicit code.
+**Pass 2 — Code Philosophy Alignment:**
+- Review against CLAUDE.md rules: immutability, no classes, small composable functions, no `any`, no global state, descriptive names, explicit code
 
-### Pass 3: Quality & Polish
-- TODO comments → should be `bd` issues?
+**Pass 3 — Quality & Polish:**
+- TODO comments that should be `bd` issues?
 - Dead code, unused imports, stray `console.log`?
 - Error boundaries at meaningful levels? Zod at right boundaries?
 - Understandable without explanation?
 
-Fix issues per pass before moving to the next. Re-run each pass until clean.
+### Step 3: Present findings to human
+
+Collect all 3 reports. Present a unified summary to the human, organized by pass. For each finding, suggest one of:
+- **Fix** — should be addressed now
+- **Bead** — file as an issue for later
+- **Skip** — already a won't-fix or not worth changing
+
+**Wait for the human to decide.** Do not fix anything until the human approves.
 
 ## Session Close
 
@@ -68,8 +134,8 @@ After all work is complete:
 5. `git commit` — commit the staged JSONL (pre-commit hook re-exports)
 6. `git pull --rebase` — catch up with remote before pushing
 7. `git push`
-7. `git status` — must show clean tree, up to date with origin
-8. Hand off — session summary: what got done, what's open, suggested next starting point
+8. `git status` — must show clean tree, up to date with origin
+9. Hand off — session summary: what got done, what's open, suggested next starting point
 
 ## Beads & Git Rules
 

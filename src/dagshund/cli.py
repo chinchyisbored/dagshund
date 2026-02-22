@@ -14,6 +14,7 @@ examples:
   dagshund plan.json -o output.html           export interactive HTML
   dagshund plan.json -o output.html -b        export and open in browser
   databricks bundle plan -o json | dagshund   pipe from Databricks CLI
+  cat planfile.json | dagshund                pipe from existing planfile
 """
 
 

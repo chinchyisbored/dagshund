@@ -16,6 +16,9 @@
       "recommended": true,
       "complexity": {
         "useLiteralKeys": "off"
+      },
+      "style": {
+        "noParameterAssign": "error"
       }
     }
   },

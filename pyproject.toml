@@ -65,6 +65,8 @@ select = [
     "ICN", # import conventions
     "SIM", # simplifications
     "RET", # proper return statements
+    "TCH", # type-checking imports
+    "ANN", # type annotations
     "TC",  # type checking
 ]
 
