@@ -323,7 +323,7 @@ type HierarchySpec = {
 
 const POSTGRES_SPEC: HierarchySpec = {
   rootId: "postgres-root",
-  rootLabel: "Postgres",
+  rootLabel: "Lakebase Autoscaling",
   containerTypes: new Set(["postgres_projects"]),
   containerIdPrefix: "postgres-project::",
   midTierConfig: {
@@ -336,7 +336,7 @@ const POSTGRES_SPEC: HierarchySpec = {
 
 const LAKEBASE_SPEC: HierarchySpec = {
   rootId: "lakebase-root",
-  rootLabel: "Lakebase",
+  rootLabel: "Lakebase Provisioned",
   containerTypes: new Set(["database_instances"]),
   containerIdPrefix: "lakebase-instance::",
   leafParentField: "database_instance_name",

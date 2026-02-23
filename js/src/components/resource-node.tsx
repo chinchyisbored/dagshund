@@ -15,8 +15,8 @@ const TYPE_BADGES: Readonly<Record<string, string>> = {
   volumes: "volume",
   registered_models: "model",
   catalogs: "catalog",
-  database_catalogs: "db catalog",
-  database_instances: "db instance",
+  database_catalogs: "database catalog",
+  database_instances: "database instance",
   dashboards: "dashboard",
   genie_spaces: "genie",
   apps: "app",
@@ -27,13 +27,13 @@ const TYPE_BADGES: Readonly<Record<string, string>> = {
   pipelines: "pipeline",
   clusters: "cluster",
   model_serving_endpoints: "serving",
-  postgres_branches: "pg branch",
-  postgres_endpoints: "pg endpoint",
-  postgres_projects: "pg project",
+  postgres_branches: "postgres branch",
+  postgres_endpoints: "postgres endpoint",
+  postgres_projects: "postgres project",
   quality_monitors: "monitor",
   sql_warehouses: "warehouse",
   secret_scopes: "secret",
-  synced_database_tables: "sync table",
+  synced_database_tables: "synced database table",
 };
 
 /** Extract the resource type badge from a resource key like "resources.schemas.analytics". */
