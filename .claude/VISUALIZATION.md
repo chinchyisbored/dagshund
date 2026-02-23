@@ -28,6 +28,20 @@ Raw JSON string
 
 Each step is a pure function. No side effects until React rendering.
 
+## Resource Graph Structure
+
+The resource graph groups plan entries into four sections:
+
+- **UC** (`uc-root`) — Unity Catalog hierarchy: catalogs → schemas → volumes/models
+- **Workspace** (`workspace-root`) — everything else, containing:
+  - **Postgres** (`postgres-root`) — projects → branches → endpoints
+  - **Lakebase** (`lakebase-root`) — database instances → synced tables
+  - **Other Resources** (`other-resources-root`) — flat workspace resources (jobs, alerts, experiments, pipelines, etc.)
+
+The "Other Resources" group only appears when Postgres or Lakebase hierarchies are present — it separates flat resources from the nested hierarchies so ELK produces cleaner layouts. When no hierarchies exist, flat resources connect directly to `workspace-root`.
+
+Group nodes that represent inferred/external entities (not in the plan) render with dashed borders.
+
 ## File Structure
 
 ```

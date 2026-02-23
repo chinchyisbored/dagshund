@@ -67,6 +67,19 @@ dagshund plan.json -o report.html -e
 
 Without `-e`, dagshund always exits 0 on success (existing behavior).
 
+## Resource Graph
+
+The HTML report organizes resources into visual groups:
+
+- **Unity Catalog** — catalogs, schemas, volumes, and registered models in their catalog/schema hierarchy
+- **Postgres** — projects, branches, and endpoints
+- **Lakebase** — database instances and synced tables
+- **Other Resources** — everything else (jobs, alerts, experiments, pipelines, etc.)
+
+When your plan includes Postgres or Lakebase resources alongside jobs and other flat resources, dagshund wraps the flat resources in an "Other Resources" group to keep the layout clean. If your plan has no Postgres or Lakebase resources, flat resources appear directly under the workspace root without the extra grouping.
+
+Dashed borders indicate inferred resources — things referenced by your plan but not directly managed by it (e.g. a schema that a volume belongs to, but isn't itself in the bundle).
+
 ## Structural Diff
 
 Clicking a modified node in the DAG opens a detail panel showing per-field structural diffs — not raw JSON dumps, but smart comparisons that surface only the meaningful deltas.

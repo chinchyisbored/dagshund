@@ -1092,12 +1092,16 @@ describe("mixed plan with all 4 sections", () => {
     expect(nodeIds).toContain("resources.database_instances.lb_inst");
     expect(nodeIds).toContain("resources.synced_database_tables.lb_table");
 
+    // "Other Resources" group wraps flat resources when hierarchies exist
+    expect(nodeIds).toContain("other-resources-root");
+
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     // UC edges
     expect(edgePairs).toContain("uc-root→catalog::dagshund");
     expect(edgePairs).toContain("catalog::dagshund→resources.schemas.analytics");
-    // Workspace flat
-    expect(edgePairs).toContain("workspace-root→resources.jobs.etl_pipeline");
+    // Workspace flat (via other-resources-root)
+    expect(edgePairs).toContain("workspace-root→other-resources-root");
+    expect(edgePairs).toContain("other-resources-root→resources.jobs.etl_pipeline");
     // Postgres hierarchy
     expect(edgePairs).toContain("workspace-root→postgres-root");
     expect(edgePairs).toContain("postgres-root→postgres-project::pg_proj");
@@ -1120,6 +1124,7 @@ describe("all-hierarchies-plan.json fixture", () => {
 
     expect(groupIds).toContain("uc-root");
     expect(groupIds).toContain("workspace-root");
+    expect(groupIds).toContain("other-resources-root");
     expect(groupIds).toContain("postgres-root");
     expect(groupIds).toContain("lakebase-root");
   });
@@ -1241,15 +1246,18 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect((phantomInstance as ResourceGroupGraphNode | undefined)?.external).toBe(true);
   });
 
-  test("workspace flat resources are under workspace-root", async () => {
+  test("workspace flat resources are wrapped in other-resources-root", async () => {
     const plan = await loadFixture("all-hierarchies-plan.json");
     const graph = buildResourceGraph(plan);
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("workspace-root→resources.jobs.etl_pipeline");
-    expect(edgePairs).toContain("workspace-root→resources.alerts.data_freshness");
-    expect(edgePairs).toContain("workspace-root→resources.experiments.ab_test_v2");
-    expect(edgePairs).toContain("workspace-root→resources.external_locations.raw_landing_zone");
+    expect(edgePairs).toContain("workspace-root→other-resources-root");
+    expect(edgePairs).toContain("other-resources-root→resources.jobs.etl_pipeline");
+    expect(edgePairs).toContain("other-resources-root→resources.alerts.data_freshness");
+    expect(edgePairs).toContain("other-resources-root→resources.experiments.ab_test_v2");
+    expect(edgePairs).toContain(
+      "other-resources-root→resources.external_locations.raw_landing_zone",
+    );
   });
 
   test("has correct total resource count", async () => {
@@ -1259,5 +1267,83 @@ describe("all-hierarchies-plan.json fixture", () => {
     const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
     // 8 UC + 4 workspace + 6 postgres + 4 lakebase = 22
     expect(resourceNodes).toHaveLength(22);
+  });
+});
+
+describe("other-resources-root grouping", () => {
+  test("no other-resources-root when only flat workspace resources (no hierarchies)", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.job_a": { action: "create" },
+        "resources.alerts.alert_a": { action: "create" },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).not.toContain("other-resources-root");
+    // Flat resources connect directly to workspace-root
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→resources.jobs.job_a");
+    expect(edgePairs).toContain("workspace-root→resources.alerts.alert_a");
+  });
+
+  test("no other-resources-root when only hierarchies and no flat resources", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_projects.pg_proj": {
+          action: "create",
+          new_state: { value: { name: "pg_proj" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).not.toContain("other-resources-root");
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("postgres-root");
+  });
+
+  test("other-resources-root wraps flat resources when postgres hierarchy exists", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.my_job": { action: "create" },
+        "resources.postgres_projects.pg_proj": {
+          action: "create",
+          new_state: { value: { name: "pg_proj" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("other-resources-root");
+
+    const otherRoot = graph.nodes.find((n) => n.id === "other-resources-root");
+    expect(otherRoot?.nodeKind).toBe("resource-group");
+    expect(otherRoot?.label).toBe("Other Resources");
+    expect((otherRoot as ResourceGroupGraphNode | undefined)?.external).toBe(false);
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→other-resources-root");
+    expect(edgePairs).toContain("other-resources-root→resources.jobs.my_job");
+    expect(edgePairs).not.toContain("workspace-root→resources.jobs.my_job");
+  });
+
+  test("other-resources-root wraps flat resources when lakebase hierarchy exists", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.my_job": { action: "create" },
+        "resources.database_instances.lb_inst": {
+          action: "create",
+          new_state: { value: { name: "lb_inst" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("other-resources-root");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→other-resources-root");
+    expect(edgePairs).toContain("other-resources-root→resources.jobs.my_job");
   });
 });

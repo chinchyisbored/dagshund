@@ -505,14 +505,6 @@ const buildWorkspaceGraph = (
 
   const root = buildGroupNode("workspace-root", "Workspace");
 
-  // Flat workspace resources
-  const flatNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
-  const flatEdges = filterDefinedEdges(
-    workspaceEntries.map(([key, entry]) =>
-      buildEdge("workspace-root", key, entryEdgeDiffState(entry)),
-    ),
-  );
-
   // Postgres hierarchy
   const pgGraph = hasPostgres
     ? buildHierarchySubgraph(postgresEntries, POSTGRES_SPEC)
@@ -529,9 +521,32 @@ const buildWorkspaceGraph = (
     ? filterDefinedEdges([buildEdge("workspace-root", "lakebase-root")])
     : [];
 
+  // Flat workspace resources — wrap in "Other Resources" group when hierarchies exist
+  const hasHierarchies = hasPostgres || hasLakebase;
+  const wrapFlat = hasWorkspace && hasHierarchies;
+  const flatParentId = wrapFlat ? "other-resources-root" : "workspace-root";
+
+  const flatNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
+  const flatEdges = filterDefinedEdges(
+    workspaceEntries.map(([key, entry]) => buildEdge(flatParentId, key, entryEdgeDiffState(entry))),
+  );
+  const otherResourcesNodes = wrapFlat
+    ? [buildGroupNode("other-resources-root", "Other Resources")]
+    : [];
+  const otherResourcesEdge = wrapFlat
+    ? filterDefinedEdges([buildEdge("workspace-root", "other-resources-root")])
+    : [];
+
   return {
-    nodes: [root, ...flatNodes, ...pgGraph.nodes, ...lbGraph.nodes],
-    edges: [...flatEdges, ...pgRootEdge, ...pgGraph.edges, ...lbRootEdge, ...lbGraph.edges],
+    nodes: [root, ...otherResourcesNodes, ...flatNodes, ...pgGraph.nodes, ...lbGraph.nodes],
+    edges: [
+      ...otherResourcesEdge,
+      ...flatEdges,
+      ...pgRootEdge,
+      ...pgGraph.edges,
+      ...lbRootEdge,
+      ...lbGraph.edges,
+    ],
   };
 };
 
