@@ -70,5 +70,12 @@ const EDGE_STYLES: Readonly<Record<EdgeDiffState, EdgeStyle>> = {
   unchanged: { stroke: "var(--edge-unchanged)", opacity: 1, strokeDasharray: undefined },
 };
 
-/** Get inline CSS style for an edge based on its diff state. Uses CSS variables directly so the browser resolves them reactively on theme change. */
-export const getEdgeStyle = (state: EdgeDiffState): EdgeStyle => EDGE_STYLES[state];
+const SYNC_EDGE_STYLE: EdgeStyle = {
+  stroke: "var(--edge-sync)",
+  opacity: 0.85,
+  strokeDasharray: "6 4",
+};
+
+/** Get inline CSS style for an edge based on its diff state and optional kind. Uses CSS variables directly so the browser resolves them reactively on theme change. */
+export const getEdgeStyle = (state: EdgeDiffState, edgeKind?: "sync"): EdgeStyle =>
+  edgeKind === "sync" ? SYNC_EDGE_STYLE : EDGE_STYLES[state];

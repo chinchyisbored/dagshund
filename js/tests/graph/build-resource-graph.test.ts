@@ -7,6 +7,7 @@ import {
   isLakebaseType,
   isPostgresType,
   isUnityCatalogType,
+  parseThreePartName,
 } from "../../src/graph/build-resource-graph.ts";
 import type { ResourceGraphNode, ResourceGroupGraphNode } from "../../src/types/graph-types.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
@@ -1345,5 +1346,266 @@ describe("other-resources-root grouping", () => {
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("workspace-root→other-resources-root");
     expect(edgePairs).toContain("other-resources-root→resources.jobs.my_job");
+  });
+});
+
+describe("parseThreePartName", () => {
+  test("parses valid three-part name", () => {
+    expect(parseThreePartName("catalog.schema.table")).toEqual({
+      catalog: "catalog",
+      schema: "schema",
+      table: "table",
+    });
+  });
+
+  test("returns undefined for two-part name", () => {
+    expect(parseThreePartName("catalog.schema")).toBeUndefined();
+  });
+
+  test("returns undefined for simple name", () => {
+    expect(parseThreePartName("simple")).toBeUndefined();
+  });
+
+  test("returns undefined for four-part name", () => {
+    expect(parseThreePartName("a.b.c.d")).toBeUndefined();
+  });
+});
+
+describe("sync table lateral edges", () => {
+  test("three-part name creates phantom table and sync edge", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+        "resources.database_instances.my_inst": {
+          action: "create",
+          new_state: { value: { name: "my_inst" } },
+        },
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "dagshund.analytics.my_table",
+              database_instance_name: "my_inst",
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("sync-target::dagshund.analytics.my_table");
+
+    const phantomTable = graph.nodes.find(
+      (n) => n.id === "sync-target::dagshund.analytics.my_table",
+    );
+    expect(phantomTable?.nodeKind).toBe("resource-group");
+    expect((phantomTable as ResourceGroupGraphNode | undefined)?.external).toBe(true);
+    expect(phantomTable?.label).toBe("my_table");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // Hierarchy: real schema → phantom table
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→sync-target::dagshund.analytics.my_table",
+    );
+    // Sync: phantom UC table → synced_database_table (data flows UC → Lakebase)
+    expect(edgePairs).toContain(
+      "sync-target::dagshund.analytics.my_table→resources.synced_database_tables.my_table",
+    );
+
+    // Verify edgeKind
+    const syncEdge = graph.edges.find(
+      (e) =>
+        e.source === "sync-target::dagshund.analytics.my_table" &&
+        e.target === "resources.synced_database_tables.my_table",
+    );
+    expect(syncEdge?.edgeKind).toBe("sync");
+
+    // Hierarchy edges have no edgeKind
+    const hierarchyEdge = graph.edges.find(
+      (e) =>
+        e.source === "resources.schemas.analytics" &&
+        e.target === "sync-target::dagshund.analytics.my_table",
+    );
+    expect(hierarchyEdge?.edgeKind).toBeUndefined();
+  });
+
+  test("phantom schema created when referenced schema not in plan", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.catalogs.prod": {
+          action: "create",
+          new_state: { value: { name: "prod" } },
+        },
+        "resources.database_instances.my_inst": {
+          action: "create",
+          new_state: { value: { name: "my_inst" } },
+        },
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "prod.missing_schema.my_table",
+              database_instance_name: "my_inst",
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    // Phantom schema
+    expect(nodeIds).toContain("external::prod.missing_schema");
+    // Phantom table
+    expect(nodeIds).toContain("sync-target::prod.missing_schema.my_table");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("catalog::prod→external::prod.missing_schema");
+    expect(edgePairs).toContain(
+      "external::prod.missing_schema→sync-target::prod.missing_schema.my_table",
+    );
+    expect(edgePairs).toContain(
+      "sync-target::prod.missing_schema.my_table→resources.synced_database_tables.my_table",
+    );
+  });
+
+  test("simple name creates no sync edge", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_instances.my_inst": {
+          action: "create",
+          new_state: { value: { name: "my_inst" } },
+        },
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: {
+            value: { name: "simple_name", database_instance_name: "my_inst" },
+          },
+        },
+      },
+    });
+
+    const syncEdges = graph.edges.filter((e) => e.edgeKind === "sync");
+    expect(syncEdges).toHaveLength(0);
+
+    const phantomTables = graph.nodes.filter((n) => n.id.startsWith("sync-target::"));
+    expect(phantomTables).toHaveLength(0);
+  });
+
+  test("deduplicates phantom table when multiple synced tables reference same UC table", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+        "resources.database_instances.inst_a": {
+          action: "create",
+          new_state: { value: { name: "inst_a" } },
+        },
+        "resources.database_instances.inst_b": {
+          action: "create",
+          new_state: { value: { name: "inst_b" } },
+        },
+        "resources.synced_database_tables.table_a": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "dagshund.analytics.shared_table",
+              database_instance_name: "inst_a",
+            },
+          },
+        },
+        "resources.synced_database_tables.table_b": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "dagshund.analytics.shared_table",
+              database_instance_name: "inst_b",
+            },
+          },
+        },
+      },
+    });
+
+    // Only one phantom table node
+    const phantomTables = graph.nodes.filter(
+      (n) => n.id === "sync-target::dagshund.analytics.shared_table",
+    );
+    expect(phantomTables).toHaveLength(1);
+
+    // Two sync edges
+    const syncEdges = graph.edges.filter((e) => e.edgeKind === "sync");
+    expect(syncEdges).toHaveLength(2);
+  });
+
+  test("bootstraps UC root when sync references catalog not in UC entries", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_instances.my_inst": {
+          action: "create",
+          new_state: { value: { name: "my_inst" } },
+        },
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "new_catalog.new_schema.my_table",
+              database_instance_name: "my_inst",
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("uc-root");
+    expect(nodeIds).toContain("catalog::new_catalog");
+    expect(nodeIds).toContain("external::new_catalog.new_schema");
+    expect(nodeIds).toContain("sync-target::new_catalog.new_schema.my_table");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("uc-root→catalog::new_catalog");
+  });
+});
+
+describe("all-hierarchies sync edges", () => {
+  test("synced_database_tables create phantom UC table nodes with sync edges", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    // Phantom table nodes in UC
+    expect(nodeIds).toContain("sync-target::dagshund.analytics.customer_360");
+    expect(nodeIds).toContain("sync-target::dagshund.analytics.product_events");
+    expect(nodeIds).toContain("sync-target::production.warehouse.partner_metrics");
+    // Phantom schema for warehouse (not in plan)
+    expect(nodeIds).toContain("external::production.warehouse");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    // Hierarchy: schema → phantom table (dagshund.analytics exists as real schema)
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→sync-target::dagshund.analytics.customer_360",
+    );
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→sync-target::dagshund.analytics.product_events",
+    );
+    // Hierarchy: phantom schema → phantom table
+    expect(edgePairs).toContain(
+      "external::production.warehouse→sync-target::production.warehouse.partner_metrics",
+    );
+    // Phantom schema under real catalog
+    expect(edgePairs).toContain("catalog::production→external::production.warehouse");
+
+    // 3 sync edges total (phantom UC table → synced_database_table)
+    const syncEdges = graph.edges.filter((e) => e.edgeKind === "sync");
+    expect(syncEdges).toHaveLength(3);
+    expect(syncEdges.map((e) => e.source).sort()).toEqual([
+      "sync-target::dagshund.analytics.customer_360",
+      "sync-target::dagshund.analytics.product_events",
+      "sync-target::production.warehouse.partner_metrics",
+    ]);
   });
 });

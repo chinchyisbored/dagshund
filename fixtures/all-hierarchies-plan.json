@@ -479,7 +479,7 @@
       "action": "create",
       "new_state": {
         "value": {
-          "name": "customer_360",
+          "name": "dagshund.analytics.customer_360",
           "database_instance_name": "analytics_db",
           "source_schema": "public",
           "source_table": "customers",
@@ -492,7 +492,7 @@
       "action": "update",
       "new_state": {
         "value": {
-          "name": "product_events",
+          "name": "dagshund.analytics.product_events",
           "database_instance_name": "analytics_db",
           "source_schema": "events",
           "source_table": "product_interactions",
@@ -528,7 +528,7 @@
       "action": "create",
       "new_state": {
         "value": {
-          "name": "partner_metrics",
+          "name": "production.warehouse.partner_metrics",
           "database_instance_name": "reporting_db",
           "source_schema": "partners",
           "source_table": "metrics_rollup",

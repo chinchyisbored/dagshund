@@ -573,6 +573,97 @@ const collectLakebaseCrossEdges = (
   return { edges, instanceNames };
 };
 
+/** Parse a three-part UC name ("catalog.schema.table") into components.
+ *  Returns undefined if the name doesn't have exactly three dot-separated parts. */
+export const parseThreePartName = (
+  name: string,
+): { readonly catalog: string; readonly schema: string; readonly table: string } | undefined => {
+  const parts = name.split(".");
+  // length === 3 guarantees these indices exist; TS cannot narrow array access from length checks
+  return parts.length === 3
+    ? { catalog: parts[0] as string, schema: parts[1] as string, table: parts[2] as string }
+    : undefined;
+};
+
+/** Collect lateral sync edges from synced_database_tables to phantom UC table nodes.
+ *  Creates phantom table and schema nodes as needed for the UC hierarchy. */
+const collectSyncTableEdges = (
+  lakebaseEntries: readonly (readonly [string, PlanEntry])[],
+  schemaLookup: ReadonlyMap<string, string>,
+  existingUcNodeIds: ReadonlySet<string>,
+): {
+  readonly syncEdges: readonly GraphEdge[];
+  readonly phantomNodes: readonly ResourceGroupGraphNode[];
+  readonly phantomEdges: readonly GraphEdge[];
+  readonly referencedCatalogs: ReadonlySet<string>;
+} => {
+  const phantomTableMap = new Map<
+    string,
+    { readonly node: ResourceGroupGraphNode; readonly parentEdge: GraphEdge | undefined }
+  >();
+  const phantomSchemaMap = new Map<
+    string,
+    { readonly node: ResourceGroupGraphNode; readonly parentEdge: GraphEdge | undefined }
+  >();
+  const syncEdges: GraphEdge[] = [];
+  const referencedCatalogs = new Set<string>();
+
+  for (const [key, entry] of lakebaseEntries) {
+    if (extractResourceType(key) !== "synced_database_tables") continue;
+
+    const name = extractStateField(entry, "name");
+    if (name === undefined) continue;
+
+    const parsed = parseThreePartName(name);
+    if (parsed === undefined) continue;
+
+    referencedCatalogs.add(parsed.catalog);
+
+    const tableId = `sync-target::${parsed.catalog}.${parsed.schema}.${parsed.table}`;
+    const schemaQualified = `${parsed.catalog}.${parsed.schema}`;
+    const realSchemaKey = schemaLookup.get(schemaQualified);
+    const phantomSchemaId = `external::${schemaQualified}`;
+    const schemaParentId = realSchemaKey ?? phantomSchemaId;
+
+    // Phantom schema if no real schema and not already in the UC graph
+    if (
+      realSchemaKey === undefined &&
+      !existingUcNodeIds.has(phantomSchemaId) &&
+      !phantomSchemaMap.has(schemaQualified)
+    ) {
+      phantomSchemaMap.set(schemaQualified, {
+        node: buildGroupNode(phantomSchemaId, parsed.schema, true),
+        parentEdge: buildEdge(`catalog::${parsed.catalog}`, phantomSchemaId),
+      });
+    }
+
+    // Phantom table — uses resource-group nodeKind for external/dashed visual treatment despite being a leaf
+    if (!phantomTableMap.has(tableId)) {
+      phantomTableMap.set(tableId, {
+        node: buildGroupNode(tableId, parsed.table, true),
+        parentEdge: buildEdge(schemaParentId, tableId),
+      });
+    }
+
+    // Sync edge from phantom UC table to synced_database_table (data flows UC → Lakebase)
+    const syncEdge = buildEdge(tableId, key, entryEdgeDiffState(entry));
+    if (syncEdge !== undefined) syncEdges.push({ ...syncEdge, edgeKind: "sync" });
+  }
+
+  return {
+    syncEdges,
+    phantomNodes: [
+      ...[...phantomSchemaMap.values()].map(({ node }) => node),
+      ...[...phantomTableMap.values()].map(({ node }) => node),
+    ],
+    phantomEdges: filterDefinedEdges([
+      ...[...phantomSchemaMap.values()].map(({ parentEdge }) => parentEdge),
+      ...[...phantomTableMap.values()].map(({ parentEdge }) => parentEdge),
+    ]),
+    referencedCatalogs,
+  };
+};
+
 /** Collect explicit depends_on edges, skipping job-to-job edges (deployment ordering, not hierarchy). */
 const collectDependsOnEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
@@ -625,6 +716,32 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
   const { edges: crossEdges, instanceNames: crossReferencedInstances } =
     collectLakebaseCrossEdges(ucEntries);
 
+  // Sync edges: synced_database_table → phantom UC table
+  const existingUcNodeIds = new Set(ucGraph.nodes.map((n) => n.id));
+  const {
+    syncEdges,
+    phantomNodes: syncPhantomNodes,
+    phantomEdges: syncPhantomEdges,
+    referencedCatalogs: syncReferencedCatalogs,
+  } = collectSyncTableEdges(lakebaseEntries, schemaLookup, existingUcNodeIds);
+
+  // If sync edges reference catalogs not in the UC graph, create group nodes
+  const existingCatalogs = new Set(
+    ucGraph.nodes.filter((n) => n.id.startsWith("catalog::")).map((n) => n.id.slice(9)),
+  );
+  const missingCatalogs = [...syncReferencedCatalogs].filter((c) => !existingCatalogs.has(c));
+  const extraCatalogNodes = missingCatalogs.map((name) =>
+    buildGroupNode(`catalog::${name}`, name, !catalogLookup.has(name)),
+  );
+  const extraCatalogEdges = filterDefinedEdges(
+    missingCatalogs.map((name) => buildEdge("uc-root", `catalog::${name}`)),
+  );
+
+  // If we need sync phantom nodes but no UC root exists, bootstrap it
+  const needsUcRoot =
+    ucGraph.nodes.length === 0 && (syncPhantomNodes.length > 0 || extraCatalogNodes.length > 0);
+  const ucRootForSync = needsUcRoot ? [buildGroupNode("uc-root", "Unity Catalog")] : [];
+
   const workspaceGraph = buildWorkspaceGraph(
     workspaceEntries,
     postgresEntries,
@@ -634,11 +751,20 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
   const dependsOnEdges = collectDependsOnEdges(entries);
 
   return {
-    nodes: [...ucGraph.nodes, ...workspaceGraph.nodes],
+    nodes: [
+      ...ucGraph.nodes,
+      ...ucRootForSync,
+      ...extraCatalogNodes,
+      ...syncPhantomNodes,
+      ...workspaceGraph.nodes,
+    ],
     edges: deduplicateEdges([
       ...ucGraph.edges,
+      ...extraCatalogEdges,
+      ...syncPhantomEdges,
       ...workspaceGraph.edges,
       ...crossEdges,
+      ...syncEdges,
       ...dependsOnEdges,
     ]),
   };
