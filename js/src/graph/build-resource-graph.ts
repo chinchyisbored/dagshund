@@ -9,7 +9,7 @@ import {
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
-import { extractResourceName } from "../utils/resource-key.ts";
+import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import { resolveJobState, resolveTaskEntries } from "./extract-tasks.ts";
@@ -63,8 +63,8 @@ const LAKEBASE_TYPES: ReadonlySet<string> = new Set([
 // Shared helpers (unchanged)
 // ---------------------------------------------------------------------------
 
-/** Extract the resource type segment from a plan key like "resources.schemas.analytics". */
-export const extractResourceType = (key: string): string | undefined => key.split(".")[1];
+// Re-export so existing consumers (resource-node.tsx, tests) don't break.
+export { extractResourceType } from "../utils/resource-key.ts";
 
 /** Check whether a plan key represents a job entry. */
 export const isJobEntry = (key: string): boolean => key.startsWith("resources.jobs.");

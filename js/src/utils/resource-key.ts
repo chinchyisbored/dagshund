@@ -5,7 +5,7 @@ export const extractResourceName = (resourceKey: string): string => {
 };
 
 /** Extract the resource type segment from a resource key (second dot-segment). */
-const extractResourceType = (key: string): string | undefined => key.split(".")[1];
+export const extractResourceType = (key: string): string | undefined => key.split(".")[1];
 
 /** Map resource type segment to a short display badge. */
 const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {

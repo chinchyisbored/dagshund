@@ -1,11 +1,10 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
-import { extractResourceType } from "../graph/build-resource-graph.ts";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useJobNavigation } from "../hooks/use-job-navigation.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
-import { extractTypeBadge } from "../utils/resource-key.ts";
+import { extractResourceType, extractTypeBadge } from "../utils/resource-key.ts";
 import { getDiffBadge } from "./diff-state-styles.ts";
 
 type ResourceNodeType = Node<DagNodeData, "resource">;
