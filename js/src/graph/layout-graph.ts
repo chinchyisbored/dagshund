@@ -356,7 +356,10 @@ export const layoutResourceGraph = async (
     children: graph.nodes.map((node) => ({
       id: node.id,
       width: NODE_WIDTH,
-      height: node.nodeKind === "resource-group" ? NODE_HEIGHT_GROUP : NODE_HEIGHT_RESOURCE,
+      height:
+        node.nodeKind === "root" || node.nodeKind === "phantom"
+          ? NODE_HEIGHT_GROUP
+          : NODE_HEIGHT_RESOURCE,
       ...(targetNodeIds.has(node.id)
         ? {}
         : { layoutOptions: { "elk.layered.layering.layerConstraint": "FIRST" } }),

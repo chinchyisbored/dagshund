@@ -33,7 +33,8 @@ export function ObjectStateCard({
         <DiffStateBadge diffState={variant} />
       </div>
       <p className="px-3 pb-2 text-xs italic text-ink-muted">
-        This {nodeKind} {OBJECT_CARD_SUBTITLE[variant]}
+        This {nodeKind === "root" || nodeKind === "phantom" ? "resource" : nodeKind}{" "}
+        {OBJECT_CARD_SUBTITLE[variant]}
       </p>
       <div className="flex flex-col gap-1.5 border-t border-outline-subtle p-3">
         {sortedKeys.map((key) => (

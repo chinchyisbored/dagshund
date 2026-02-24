@@ -8,7 +8,7 @@ export type TaskChangeSummaryEntry = {
 
 export type TaskChangeSummary = readonly TaskChangeSummaryEntry[];
 
-export type NodeKind = "job" | "task" | "resource" | "resource-group";
+export type NodeKind = "job" | "task" | "resource" | "root" | "phantom";
 
 /** Fields shared across all node kinds (composed via intersection, not inheritance). */
 type BaseGraphNode = {
@@ -36,12 +36,20 @@ export type ResourceGraphNode = BaseGraphNode & {
   readonly taskChangeSummary: TaskChangeSummary | undefined;
 };
 
-export type ResourceGroupGraphNode = BaseGraphNode & {
-  readonly nodeKind: "resource-group";
-  readonly external: boolean;
+export type RootGraphNode = BaseGraphNode & {
+  readonly nodeKind: "root";
 };
 
-export type GraphNode = JobGraphNode | TaskGraphNode | ResourceGraphNode | ResourceGroupGraphNode;
+export type PhantomGraphNode = BaseGraphNode & {
+  readonly nodeKind: "phantom";
+};
+
+export type GraphNode =
+  | JobGraphNode
+  | TaskGraphNode
+  | ResourceGraphNode
+  | RootGraphNode
+  | PhantomGraphNode;
 
 export type EdgeDiffState = "added" | "removed" | "unchanged";
 

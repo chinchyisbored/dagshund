@@ -2,9 +2,10 @@ import { z } from "zod/v4";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import {
   type GraphEdge,
+  type PhantomGraphNode,
   type PlanGraph,
   type ResourceGraphNode,
-  type ResourceGroupGraphNode,
+  type RootGraphNode,
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
@@ -12,6 +13,10 @@ import { extractResourceName } from "../utils/resource-key.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import { resolveJobState, resolveTaskEntries } from "./extract-tasks.ts";
+
+// ---------------------------------------------------------------------------
+// Zod schemas (parse boundary only)
+// ---------------------------------------------------------------------------
 
 /** Schema for new_state: { value: { ...fields } }. */
 const newStateSchema = z
@@ -22,6 +27,10 @@ const newStateSchema = z
 
 /** Schema for remote_state: { ...fields }. */
 const remoteStateSchema = z.record(z.string(), z.unknown()).readonly();
+
+// ---------------------------------------------------------------------------
+// Type classification sets
+// ---------------------------------------------------------------------------
 
 /** Catalog-tier types — direct children of uc-root. */
 const CATALOG_TIER_TYPES: ReadonlySet<string> = new Set(["catalogs", "database_catalogs"]);
@@ -49,6 +58,10 @@ const LAKEBASE_TYPES: ReadonlySet<string> = new Set([
   "database_instances",
   "synced_database_tables",
 ]);
+
+// ---------------------------------------------------------------------------
+// Shared helpers (unchanged)
+// ---------------------------------------------------------------------------
 
 /** Extract the resource type segment from a plan key like "resources.schemas.analytics". */
 export const extractResourceType = (key: string): string | undefined => key.split(".")[1];
@@ -100,6 +113,10 @@ const extractResourceState = (entry: PlanEntry): Readonly<Record<string, unknown
   return undefined;
 };
 
+// ---------------------------------------------------------------------------
+// Node builders
+// ---------------------------------------------------------------------------
+
 /** Build a GraphNode for a real plan resource entry. */
 const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => {
   if (isJobEntry(key)) {
@@ -127,17 +144,47 @@ const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => 
   };
 };
 
-/** Build a virtual container node (UC root, catalog, workspace root). */
-const buildGroupNode = (id: string, label: string, external = false): ResourceGroupGraphNode => ({
+/** Build a resource node with a hierarchy ID (for container-tier resources like catalogs, projects). */
+const buildContainerResourceNode = (
+  hierarchyId: string,
+  key: string,
+  entry: PlanEntry,
+): ResourceGraphNode => ({
+  id: hierarchyId,
+  label: extractResourceName(key),
+  nodeKind: "resource",
+  diffState: mapActionToDiffState(entry.action),
+  resourceKey: key,
+  changes: entry.changes,
+  resourceState: extractResourceState(entry),
+  taskChangeSummary: undefined,
+});
+
+/** Build a structural root node (UC root, workspace root, etc). */
+const buildRootNode = (id: string, label: string): RootGraphNode => ({
   id,
   label,
-  nodeKind: "resource-group",
+  nodeKind: "root",
   diffState: "unchanged",
   resourceKey: id,
   changes: undefined,
   resourceState: undefined,
-  external,
 });
+
+/** Build a phantom node for an inferred ancestor not in the plan. */
+const buildPhantomNode = (id: string, label: string): PhantomGraphNode => ({
+  id,
+  label,
+  nodeKind: "phantom",
+  diffState: "unchanged",
+  resourceKey: id,
+  changes: undefined,
+  resourceState: undefined,
+});
+
+// ---------------------------------------------------------------------------
+// Edge helpers (unchanged)
+// ---------------------------------------------------------------------------
 
 /** Map an entry's action to an edge diff state. */
 const entryEdgeDiffState = (entry: PlanEntry) =>
@@ -162,6 +209,10 @@ const buildEdge = (
 /** Filter defined edges from buildEdge results. */
 const filterDefinedEdges = (edges: readonly (GraphEdge | undefined)[]): readonly GraphEdge[] =>
   edges.filter((e): e is GraphEdge => e !== undefined);
+
+// ---------------------------------------------------------------------------
+// Schema / catalog lookups (kept for cross-hierarchy sync resolution)
+// ---------------------------------------------------------------------------
 
 /** Build a lookup from "catalog.schema" → schema plan key for linking volumes/models to schemas. */
 const buildSchemaLookup = (
@@ -198,297 +249,330 @@ const buildCatalogLookup = (
       }),
   );
 
-/** Build phantom schema nodes for UC resources whose schema is not in the plan. */
-const buildPhantomSchemaNodes = (
-  ucEntries: readonly (readonly [string, PlanEntry])[],
-  schemaLookup: ReadonlyMap<string, string>,
-): ReadonlyMap<
-  string,
-  { readonly node: ResourceGroupGraphNode; readonly parentEdge: GraphEdge | undefined }
-> => {
-  const phantomEntries = ucEntries.flatMap(([key, entry]) => {
-    const resourceType = extractResourceType(key);
-    if (
-      resourceType !== undefined &&
-      (CATALOG_TIER_TYPES.has(resourceType) || SCHEMA_TIER_TYPES.has(resourceType))
-    )
-      return [];
-
-    const schemaName = extractStateField(entry, "schema_name");
-    const catalog = extractStateField(entry, "catalog_name");
-    if (schemaName === undefined || catalog === undefined) return [];
-    if (schemaLookup.has(`${catalog}.${schemaName}`)) return [];
-
-    const phantomId = `external::${catalog}.${schemaName}`;
-    const catalogId = `catalog::${catalog}`;
-    return [
-      [
-        phantomId,
-        {
-          node: buildGroupNode(phantomId, schemaName, true),
-          parentEdge: buildEdge(catalogId, phantomId),
-        },
-      ] as const,
-    ];
-  });
-
-  return new Map(phantomEntries);
-};
-
-/** Build the UC hierarchy subgraph: root, catalogs, schemas, phantom schemas, and resource nodes. */
-const buildUcGraph = (
-  ucEntries: readonly (readonly [string, PlanEntry])[],
-  schemaLookup: ReadonlyMap<string, string>,
-  catalogLookup: ReadonlySet<string>,
-): PlanGraph => {
-  if (ucEntries.length === 0) return { nodes: [], edges: [] };
-
-  const ucRoot = buildGroupNode("uc-root", "Unity Catalog");
-
-  // Unique catalog names → catalog group nodes + edges from UC root
-  const catalogNames = [
-    ...new Set(
-      ucEntries.flatMap(([, entry]) => {
-        const catalog = extractStateField(entry, "catalog_name");
-        return catalog !== undefined ? [catalog] : [];
-      }),
-    ),
-  ];
-  const catalogNodes = catalogNames.map((name) =>
-    buildGroupNode(`catalog::${name}`, name, !catalogLookup.has(name)),
-  );
-  const catalogEdges = filterDefinedEdges(
-    catalogNames.map((name) => buildEdge("uc-root", `catalog::${name}`)),
-  );
-
-  // Phantom schema nodes (deduplicated by Map key)
-  const phantomMap = buildPhantomSchemaNodes(ucEntries, schemaLookup);
-  const phantomNodes = [...phantomMap.values()].map(({ node }) => node);
-  const phantomEdges = filterDefinedEdges(
-    [...phantomMap.values()].map(({ parentEdge }) => parentEdge),
-  );
-
-  // Resource nodes + hierarchy edges
-  const resourceNodes = ucEntries.map(([key, entry]) => buildResourceNode(key, entry));
-  const hierarchyEdges = filterDefinedEdges(
-    ucEntries.map(([key, entry]) => {
-      const resourceType = extractResourceType(key);
-      const catalog = extractStateField(entry, "catalog_name");
-      const catalogId = catalog !== undefined ? `catalog::${catalog}` : "uc-root";
-      const edgeDiff = entryEdgeDiffState(entry);
-
-      if (
-        resourceType !== undefined &&
-        (SCHEMA_TIER_TYPES.has(resourceType) || CATALOG_TIER_TYPES.has(resourceType))
-      ) {
-        return buildEdge(catalogId, key, edgeDiff);
-      }
-
-      const schemaName = extractStateField(entry, "schema_name");
-      const schemaKey =
-        schemaName !== undefined && catalog !== undefined
-          ? schemaLookup.get(`${catalog}.${schemaName}`)
-          : undefined;
-
-      if (schemaKey !== undefined) return buildEdge(schemaKey, key, edgeDiff);
-      if (schemaName !== undefined && catalog !== undefined) {
-        return buildEdge(`external::${catalog}.${schemaName}`, key, edgeDiff);
-      }
-      return buildEdge(catalogId, key, edgeDiff);
-    }),
-  );
-
-  return {
-    nodes: [ucRoot, ...catalogNodes, ...phantomNodes, ...resourceNodes],
-    edges: [...catalogEdges, ...phantomEdges, ...hierarchyEdges],
-  };
-};
+// ---------------------------------------------------------------------------
+// Chain spec types
+// ---------------------------------------------------------------------------
 
 /**
- * Configuration for a generic resource hierarchy (Postgres, Lakebase).
- * Assumes parent fields contain resource name strings matching the parent's `name` field.
+ * Return type for resolveParentRef:
+ * - string: identity at the tier immediately above (tier - 1)
+ * - object: identity at a specific tier (for skipping tiers, e.g. volume → catalog when schema is missing)
  */
-type HierarchySpec = {
+type ParentRef = string | { readonly identity: string; readonly tierIndex: number };
+
+/** A single tier in a hierarchy chain (e.g. catalog, schema, project, branch). */
+type TierSpec = {
+  /** Human-readable name — used for badges and labels. */
+  readonly name: string;
+  /** Plan resource types that sit at this tier. */
+  readonly resourceTypes: ReadonlySet<string>;
+  /** Extract this node's identity (the key children use to reference it). */
+  readonly resolveIdentity: (entry: PlanEntry, key: string) => string | undefined;
+  /** Extract the parent's identity at the tier above. Returns string for tier-1, object for a specific tier. */
+  readonly resolveParentRef: (entry: PlanEntry, key: string) => ParentRef | undefined;
+  /** Derive a phantom's parent identity from its own identity (for upward chain propagation). */
+  readonly deriveParentRef?: (identity: string) => string | undefined;
+  /** Build the node ID for this tier (used by both real container nodes and phantoms). */
+  readonly buildHierarchyId: (identity: string) => string;
+  /** When true, real plan entries at this tier use buildHierarchyId as their node ID (containers). */
+  readonly useHierarchyId?: boolean;
+};
+
+/** A complete hierarchy definition: root + ordered tiers from root-adjacent to leaf. */
+type ChainSpec = {
   readonly rootId: string;
   readonly rootLabel: string;
-  readonly containerTypes: ReadonlySet<string>;
-  readonly containerIdPrefix: string;
-  readonly midTierConfig?: {
-    readonly types: ReadonlySet<string>;
-    readonly parentField: string;
-    readonly phantomIdPrefix: string;
-  };
-  readonly leafParentField: string;
+  /** Tiers ordered from root-adjacent (index 0) to leaf (last index). */
+  readonly tiers: readonly TierSpec[];
 };
 
-const POSTGRES_SPEC: HierarchySpec = {
+// ---------------------------------------------------------------------------
+// Chain spec definitions
+// ---------------------------------------------------------------------------
+
+const UC_CHAIN: ChainSpec = {
+  rootId: "uc-root",
+  rootLabel: "Unity Catalog",
+  tiers: [
+    {
+      name: "catalog",
+      resourceTypes: CATALOG_TIER_TYPES,
+      resolveIdentity: (entry) => extractStateField(entry, "name"),
+      resolveParentRef: () => undefined, // root-adjacent
+      buildHierarchyId: (name) => `catalog::${name}`,
+      useHierarchyId: true,
+    },
+    {
+      name: "schema",
+      resourceTypes: SCHEMA_TIER_TYPES,
+      resolveIdentity: (entry) => {
+        const catalog = extractStateField(entry, "catalog_name");
+        const name = extractStateField(entry, "name");
+        return catalog !== undefined && name !== undefined ? `${catalog}.${name}` : undefined;
+      },
+      resolveParentRef: (entry) => extractStateField(entry, "catalog_name"),
+      deriveParentRef: (identity) => identity.split(".")[0],
+      buildHierarchyId: (identity) => `external::${identity}`,
+    },
+    {
+      name: "leaf",
+      resourceTypes: new Set(["volumes", "registered_models"]),
+      resolveIdentity: () => undefined, // leaves are never parents
+      resolveParentRef: (entry) => {
+        const catalog = extractStateField(entry, "catalog_name");
+        const schema = extractStateField(entry, "schema_name");
+        if (schema !== undefined && catalog !== undefined) return `${catalog}.${schema}`;
+        if (catalog !== undefined) return { identity: catalog, tierIndex: 0 };
+        return undefined;
+      },
+      deriveParentRef: undefined,
+      buildHierarchyId: () => "", // unused — leaves don't create phantom children
+    },
+  ],
+};
+
+const POSTGRES_CHAIN: ChainSpec = {
   rootId: "postgres-root",
   rootLabel: "Lakebase Autoscaling",
-  containerTypes: new Set(["postgres_projects"]),
-  containerIdPrefix: "postgres-project::",
-  midTierConfig: {
-    types: new Set(["postgres_branches"]),
-    parentField: "parent",
-    phantomIdPrefix: "external::postgres-branch::",
-  },
-  leafParentField: "parent",
+  tiers: [
+    {
+      name: "project",
+      resourceTypes: new Set(["postgres_projects"]),
+      resolveIdentity: (entry) => extractStateField(entry, "name"),
+      resolveParentRef: () => undefined, // root-adjacent
+      buildHierarchyId: (name) => `postgres-project::${name}`,
+      useHierarchyId: true,
+    },
+    {
+      name: "branch",
+      resourceTypes: new Set(["postgres_branches"]),
+      resolveIdentity: (entry) => extractStateField(entry, "name"),
+      resolveParentRef: (entry) => extractStateField(entry, "parent"),
+      deriveParentRef: undefined, // phantom branches don't know their project
+      buildHierarchyId: (name) => `external::postgres-branch::${name}`,
+    },
+    {
+      name: "endpoint",
+      resourceTypes: new Set(["postgres_endpoints"]),
+      resolveIdentity: () => undefined,
+      resolveParentRef: (entry) => extractStateField(entry, "parent"),
+      deriveParentRef: undefined,
+      buildHierarchyId: () => "",
+    },
+  ],
 };
 
-const LAKEBASE_SPEC: HierarchySpec = {
+const LAKEBASE_CHAIN: ChainSpec = {
   rootId: "lakebase-root",
   rootLabel: "Lakebase Provisioned",
-  containerTypes: new Set(["database_instances"]),
-  containerIdPrefix: "lakebase-instance::",
-  leafParentField: "database_instance_name",
+  tiers: [
+    {
+      name: "instance",
+      resourceTypes: new Set(["database_instances"]),
+      resolveIdentity: (entry) => extractStateField(entry, "name"),
+      resolveParentRef: () => undefined, // root-adjacent
+      buildHierarchyId: (name) => `lakebase-instance::${name}`,
+      useHierarchyId: true,
+    },
+    {
+      name: "synced table",
+      resourceTypes: new Set(["synced_database_tables"]),
+      resolveIdentity: () => undefined,
+      resolveParentRef: (entry) => extractStateField(entry, "database_instance_name"),
+      deriveParentRef: undefined,
+      buildHierarchyId: () => "",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Generic chain traversal
+// ---------------------------------------------------------------------------
+
+/** Index of real plan entries per tier: identity → nodeId. */
+type TierIndex = ReadonlyMap<string, string>;
+
+/** Build per-tier indexes mapping identity → node ID for real plan entries. */
+const buildTierIndexes = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  tiers: readonly TierSpec[],
+): readonly TierIndex[] =>
+  tiers.map((tier) => {
+    const pairs: [string, string][] = [];
+    for (const [key, entry] of entries) {
+      const rt = extractResourceType(key);
+      if (rt === undefined || !tier.resourceTypes.has(rt)) continue;
+      const identity = tier.resolveIdentity(entry, key);
+      if (identity === undefined) continue;
+      const nodeId = tier.useHierarchyId === true ? tier.buildHierarchyId(identity) : key;
+      pairs.push([identity, nodeId]);
+    }
+    return new Map(pairs);
+  });
+
+/**
+ * Resolve a parent reference, creating phantom ancestors as needed.
+ * Returns the node ID of the resolved parent (real node, phantom, or root).
+ *
+ * Walks up from `parentTierIndex` toward root, creating phantom nodes at each
+ * tier where the referenced ancestor doesn't exist.
+ */
+const resolveParentChain = (
+  identity: string,
+  tierIndex: number,
+  spec: ChainSpec,
+  tierIndexes: readonly TierIndex[],
+  phantomAccumulator: Map<string, PhantomGraphNode>,
+  phantomEdgeAccumulator: (GraphEdge | undefined)[],
+): string => {
+  if (tierIndex < 0) return spec.rootId;
+
+  // bounds check above guarantees these exist
+  const tier = spec.tiers[tierIndex] as TierSpec;
+  const index = tierIndexes[tierIndex] as TierIndex;
+
+  // Real node exists at this tier → use it
+  const existingNodeId = index.get(identity);
+  if (existingNodeId !== undefined) return existingNodeId;
+
+  // Create phantom — use last segment of identity as label (e.g. "missing" from "dagshund.missing")
+  const phantomId = tier.buildHierarchyId(identity);
+  if (!phantomAccumulator.has(phantomId)) {
+    const segments = identity.split(".");
+    const phantomLabel = segments[segments.length - 1] as string;
+    phantomAccumulator.set(phantomId, buildPhantomNode(phantomId, phantomLabel));
+  }
+
+  // Top tier or can't derive parent → attach phantom to root
+  const parentRef = tierIndex > 0 ? tier.deriveParentRef?.(identity) : undefined;
+  if (parentRef === undefined) {
+    phantomEdgeAccumulator.push(buildEdge(spec.rootId, phantomId));
+    return phantomId;
+  }
+
+  // Recurse up to resolve (or create) the phantom's parent
+  const grandparentNodeId = resolveParentChain(
+    parentRef,
+    tierIndex - 1,
+    spec,
+    tierIndexes,
+    phantomAccumulator,
+    phantomEdgeAccumulator,
+  );
+  phantomEdgeAccumulator.push(buildEdge(grandparentNodeId, phantomId));
+  return phantomId;
 };
 
 /**
- * Build a hierarchy subgraph from a spec: root → container groups → optional mid-tier → leaf resources.
- * Additional container names (e.g. from cross-hierarchy references) create external group nodes.
+ * Build a hierarchy subgraph from a chain spec.
+ * Creates root + resource nodes + phantom ancestors + all hierarchy edges.
+ *
+ * Additional identities at specific tiers ensure those nodes exist (as phantoms if no plan entry).
+ * Used for cross-hierarchy references (e.g. Lakebase instances referenced by UC database_catalogs).
  */
-const buildHierarchySubgraph = (
+const buildChainGraph = (
   entries: readonly (readonly [string, PlanEntry])[],
-  spec: HierarchySpec,
-  additionalContainerNames: ReadonlySet<string> = new Set(),
+  spec: ChainSpec,
+  additionalIdentities?: ReadonlyMap<number, ReadonlySet<string>>,
 ): PlanGraph => {
-  if (entries.length === 0 && additionalContainerNames.size === 0) return { nodes: [], edges: [] };
+  const hasAdditional =
+    additionalIdentities !== undefined &&
+    [...additionalIdentities.values()].some((s) => s.size > 0);
 
-  const root = buildGroupNode(spec.rootId, spec.rootLabel);
-  const midTierConfig = spec.midTierConfig;
+  if (entries.length === 0 && !hasAdditional) return { nodes: [], edges: [] };
 
-  // Container names from actual entries (determines external flag)
-  const entryContainerNames = new Set(
-    entries
-      .filter(([key]) => {
-        const rt = extractResourceType(key);
-        return rt !== undefined && spec.containerTypes.has(rt);
-      })
-      .flatMap(([, entry]) => {
-        const name = extractStateField(entry, "name");
-        return name !== undefined ? [name] : [];
-      }),
-  );
+  const root = buildRootNode(spec.rootId, spec.rootLabel);
+  const tierIndexes = buildTierIndexes(entries, spec.tiers);
 
-  // All referenced container names: entries + parent references + additional
-  // Local mutation: accumulating names from multiple sources into one set
-  const allContainerNames = new Set([...entryContainerNames, ...additionalContainerNames]);
-  if (midTierConfig !== undefined) {
-    for (const [key, entry] of entries) {
-      const rt = extractResourceType(key);
-      if (rt !== undefined && midTierConfig.types.has(rt)) {
-        const name = extractStateField(entry, midTierConfig.parentField);
-        if (name !== undefined) allContainerNames.add(name);
+  // Accumulators (local mutation within this pure function)
+  const resourceNodes: ResourceGraphNode[] = [];
+  const phantomNodes = new Map<string, PhantomGraphNode>();
+  const phantomEdges: (GraphEdge | undefined)[] = [];
+  const hierarchyEdges: (GraphEdge | undefined)[] = [];
+
+  // Build resource nodes and resolve parent edges
+  for (const [key, entry] of entries) {
+    const rt = extractResourceType(key);
+    if (rt === undefined) continue;
+
+    // Find which tier this entry belongs to
+    const tierIndex = spec.tiers.findIndex((t) => t.resourceTypes.has(rt));
+    if (tierIndex === -1) continue;
+    const tier = spec.tiers[tierIndex] as TierSpec;
+
+    // Build resource node (container tiers use hierarchy ID)
+    if (tier.useHierarchyId === true) {
+      const identity = tier.resolveIdentity(entry, key);
+      if (identity !== undefined) {
+        resourceNodes.push(buildContainerResourceNode(tier.buildHierarchyId(identity), key, entry));
+      } else {
+        resourceNodes.push(buildResourceNode(key, entry));
       }
+    } else {
+      resourceNodes.push(buildResourceNode(key, entry));
     }
-  } else {
-    for (const [key, entry] of entries) {
-      const rt = extractResourceType(key);
-      if (rt !== undefined && !spec.containerTypes.has(rt)) {
-        const name = extractStateField(entry, spec.leafParentField);
-        if (name !== undefined) allContainerNames.add(name);
+
+    // Resolve parent edge
+    const nodeId =
+      tier.useHierarchyId === true
+        ? (() => {
+            const identity = tier.resolveIdentity(entry, key);
+            return identity !== undefined ? tier.buildHierarchyId(identity) : key;
+          })()
+        : key;
+
+    const edgeDiff = entryEdgeDiffState(entry);
+    const rawParentRef = tier.resolveParentRef(entry, key);
+
+    if (rawParentRef === undefined) {
+      // Root-adjacent or no parent — attach to root
+      hierarchyEdges.push(buildEdge(spec.rootId, nodeId, edgeDiff));
+    } else {
+      const parentIdentity =
+        typeof rawParentRef === "string" ? rawParentRef : rawParentRef.identity;
+      const parentTier = typeof rawParentRef === "string" ? tierIndex - 1 : rawParentRef.tierIndex;
+      if (parentTier >= 0) {
+        const parentNodeId = resolveParentChain(
+          parentIdentity,
+          parentTier,
+          spec,
+          tierIndexes,
+          phantomNodes,
+          phantomEdges,
+        );
+        hierarchyEdges.push(buildEdge(parentNodeId, nodeId, edgeDiff));
+      } else {
+        hierarchyEdges.push(buildEdge(spec.rootId, nodeId, edgeDiff));
       }
     }
   }
 
-  // Container group nodes + root → container edges
-  const containerNodes = [...allContainerNames].map((name) =>
-    buildGroupNode(`${spec.containerIdPrefix}${name}`, name, !entryContainerNames.has(name)),
-  );
-  const containerEdges = filterDefinedEdges(
-    [...allContainerNames].map((name) =>
-      buildEdge(spec.rootId, `${spec.containerIdPrefix}${name}`),
-    ),
-  );
+  // Additional identities: ensure nodes exist at specific tiers (phantom if no real entry)
+  if (additionalIdentities !== undefined) {
+    for (const [tierIndex, identities] of additionalIdentities) {
+      const tier = spec.tiers[tierIndex];
+      if (tier === undefined) continue;
+      const index = tierIndexes[tierIndex] as TierIndex;
 
-  // Mid-tier lookup: name → plan key (only when mid-tier config exists)
-  const midTierLookup =
-    midTierConfig !== undefined
-      ? new Map(
-          entries
-            .filter(([key]) => {
-              const rt = extractResourceType(key);
-              return rt !== undefined && midTierConfig.types.has(rt);
-            })
-            .flatMap(([key, entry]) => {
-              const name = extractStateField(entry, "name");
-              return name !== undefined ? [[name, key] as const] : [];
-            }),
-        )
-      : undefined;
-
-  // Phantom mid-tier nodes for leaves whose parent isn't in the plan
-  const phantomMidTierMap =
-    midTierConfig !== undefined && midTierLookup !== undefined
-      ? new Map(
-          entries.flatMap(([key, entry]) => {
-            const rt = extractResourceType(key);
-            if (rt === undefined || spec.containerTypes.has(rt) || midTierConfig.types.has(rt))
-              return [];
-            const parentName = extractStateField(entry, spec.leafParentField);
-            if (parentName === undefined || midTierLookup.has(parentName)) return [];
-            const phantomId = `${midTierConfig.phantomIdPrefix}${parentName}`;
-            return [[phantomId, parentName] as const];
-          }),
-        )
-      : new Map<string, string>();
-
-  const phantomNodes = [...phantomMidTierMap].map(([phantomId, name]) =>
-    buildGroupNode(phantomId, name, true),
-  );
-  const phantomEdges = filterDefinedEdges(
-    [...phantomMidTierMap.keys()].map((phantomId) => buildEdge(spec.rootId, phantomId)),
-  );
-
-  // Resource nodes for all entries
-  const resourceNodes = entries.map(([key, entry]) => buildResourceNode(key, entry));
-
-  // Hierarchy edges: connect each entry to its parent in the hierarchy
-  const hierarchyEdges = filterDefinedEdges(
-    entries.map(([key, entry]) => {
-      const rt = extractResourceType(key);
-      if (rt === undefined) return undefined;
-      const edgeDiff = entryEdgeDiffState(entry);
-
-      // Container entries → container group node
-      if (spec.containerTypes.has(rt)) {
-        const name = extractStateField(entry, "name");
-        return buildEdge(
-          name !== undefined ? `${spec.containerIdPrefix}${name}` : spec.rootId,
-          key,
-          edgeDiff,
-        );
+      for (const identity of identities) {
+        if (index.has(identity)) continue; // real entry exists
+        const phantomId = tier.buildHierarchyId(identity);
+        if (phantomNodes.has(phantomId)) continue; // already created
+        phantomNodes.set(phantomId, buildPhantomNode(phantomId, identity));
+        phantomEdges.push(buildEdge(spec.rootId, phantomId));
       }
-
-      // Mid-tier entries → container group (via parentField)
-      if (midTierConfig?.types.has(rt)) {
-        const parentName = extractStateField(entry, midTierConfig.parentField);
-        return buildEdge(
-          parentName !== undefined ? `${spec.containerIdPrefix}${parentName}` : spec.rootId,
-          key,
-          edgeDiff,
-        );
-      }
-
-      // Leaf entries
-      const parentName = extractStateField(entry, spec.leafParentField);
-      if (parentName === undefined) return buildEdge(spec.rootId, key, edgeDiff);
-
-      if (midTierLookup !== undefined && midTierConfig !== undefined) {
-        const midTierKey = midTierLookup.get(parentName);
-        return midTierKey !== undefined
-          ? buildEdge(midTierKey, key, edgeDiff)
-          : buildEdge(`${midTierConfig.phantomIdPrefix}${parentName}`, key, edgeDiff);
-      }
-
-      return buildEdge(`${spec.containerIdPrefix}${parentName}`, key, edgeDiff);
-    }),
-  );
+    }
+  }
 
   return {
-    nodes: [root, ...containerNodes, ...phantomNodes, ...resourceNodes],
-    edges: [...containerEdges, ...phantomEdges, ...hierarchyEdges],
+    nodes: [root, ...resourceNodes, ...[...phantomNodes.values()]],
+    edges: [...filterDefinedEdges(hierarchyEdges), ...filterDefinedEdges(phantomEdges)],
   };
 };
+
+// ---------------------------------------------------------------------------
+// Workspace graph
+// ---------------------------------------------------------------------------
 
 /** Build the workspace subgraph: flat resources + Postgres/Lakebase hierarchies. */
 const buildWorkspaceGraph = (
@@ -503,19 +587,21 @@ const buildWorkspaceGraph = (
 
   if (!hasWorkspace && !hasPostgres && !hasLakebase) return { nodes: [], edges: [] };
 
-  const root = buildGroupNode("workspace-root", "Workspace");
+  const root = buildRootNode("workspace-root", "Workspace");
 
   // Postgres hierarchy
   const pgGraph = hasPostgres
-    ? buildHierarchySubgraph(postgresEntries, POSTGRES_SPEC)
+    ? buildChainGraph(postgresEntries, POSTGRES_CHAIN)
     : { nodes: [], edges: [] };
   const pgRootEdge = hasPostgres
     ? filterDefinedEdges([buildEdge("workspace-root", "postgres-root")])
     : [];
 
-  // Lakebase hierarchy
+  // Lakebase hierarchy (additional instance identities from cross-references)
+  const lbAdditional =
+    crossReferencedInstances.size > 0 ? new Map([[0, crossReferencedInstances]]) : undefined;
   const lbGraph = hasLakebase
-    ? buildHierarchySubgraph(lakebaseEntries, LAKEBASE_SPEC, crossReferencedInstances)
+    ? buildChainGraph(lakebaseEntries, LAKEBASE_CHAIN, lbAdditional)
     : { nodes: [], edges: [] };
   const lbRootEdge = hasLakebase
     ? filterDefinedEdges([buildEdge("workspace-root", "lakebase-root")])
@@ -531,7 +617,7 @@ const buildWorkspaceGraph = (
     workspaceEntries.map(([key, entry]) => buildEdge(flatParentId, key, entryEdgeDiffState(entry))),
   );
   const otherResourcesNodes = wrapFlat
-    ? [buildGroupNode("other-resources-root", "Other Resources")]
+    ? [buildRootNode("other-resources-root", "Other Resources")]
     : [];
   const otherResourcesEdge = wrapFlat
     ? filterDefinedEdges([buildEdge("workspace-root", "other-resources-root")])
@@ -550,6 +636,10 @@ const buildWorkspaceGraph = (
   };
 };
 
+// ---------------------------------------------------------------------------
+// Cross-hierarchy edges
+// ---------------------------------------------------------------------------
+
 /** Collect cross-hierarchy edges from Lakebase instances to UC database_catalogs. */
 const collectLakebaseCrossEdges = (
   ucEntries: readonly (readonly [string, PlanEntry])[],
@@ -566,12 +656,18 @@ const collectLakebaseCrossEdges = (
     const instanceName = extractStateField(entry, "database_instance_name");
     if (instanceName === undefined) continue;
     instanceNames.add(instanceName);
-    const edge = buildEdge(`lakebase-instance::${instanceName}`, key);
+    const catalogName = extractStateField(entry, "name");
+    if (catalogName === undefined) continue;
+    const edge = buildEdge(`lakebase-instance::${instanceName}`, `catalog::${catalogName}`);
     if (edge !== undefined) edges.push(edge);
   }
 
   return { edges, instanceNames };
 };
+
+// ---------------------------------------------------------------------------
+// Sync table edges
+// ---------------------------------------------------------------------------
 
 /** Parse a three-part UC name ("catalog.schema.table") into components.
  *  Returns undefined if the name doesn't have exactly three dot-separated parts. */
@@ -593,17 +689,17 @@ const collectSyncTableEdges = (
   existingUcNodeIds: ReadonlySet<string>,
 ): {
   readonly syncEdges: readonly GraphEdge[];
-  readonly phantomNodes: readonly ResourceGroupGraphNode[];
+  readonly phantomNodes: readonly PhantomGraphNode[];
   readonly phantomEdges: readonly GraphEdge[];
   readonly referencedCatalogs: ReadonlySet<string>;
 } => {
   const phantomTableMap = new Map<
     string,
-    { readonly node: ResourceGroupGraphNode; readonly parentEdge: GraphEdge | undefined }
+    { readonly node: PhantomGraphNode; readonly parentEdge: GraphEdge | undefined }
   >();
   const phantomSchemaMap = new Map<
     string,
-    { readonly node: ResourceGroupGraphNode; readonly parentEdge: GraphEdge | undefined }
+    { readonly node: PhantomGraphNode; readonly parentEdge: GraphEdge | undefined }
   >();
   const syncEdges: GraphEdge[] = [];
   const referencedCatalogs = new Set<string>();
@@ -632,15 +728,15 @@ const collectSyncTableEdges = (
       !phantomSchemaMap.has(schemaQualified)
     ) {
       phantomSchemaMap.set(schemaQualified, {
-        node: buildGroupNode(phantomSchemaId, parsed.schema, true),
+        node: buildPhantomNode(phantomSchemaId, parsed.schema),
         parentEdge: buildEdge(`catalog::${parsed.catalog}`, phantomSchemaId),
       });
     }
 
-    // Phantom table — uses resource-group nodeKind for external/dashed visual treatment despite being a leaf
+    // Phantom table node for the UC sync target
     if (!phantomTableMap.has(tableId)) {
       phantomTableMap.set(tableId, {
-        node: buildGroupNode(tableId, parsed.table, true),
+        node: buildPhantomNode(tableId, parsed.table),
         parentEdge: buildEdge(schemaParentId, tableId),
       });
     }
@@ -664,6 +760,10 @@ const collectSyncTableEdges = (
   };
 };
 
+// ---------------------------------------------------------------------------
+// Depends-on edges + deduplication
+// ---------------------------------------------------------------------------
+
 /** Collect explicit depends_on edges, skipping job-to-job edges (deployment ordering, not hierarchy). */
 const collectDependsOnEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
@@ -685,6 +785,10 @@ const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => 
     return true;
   });
 };
+
+// ---------------------------------------------------------------------------
+// Main orchestrator
+// ---------------------------------------------------------------------------
 
 /** Build the complete resource graph for all plan entries. */
 export const buildResourceGraph = (plan: Plan): PlanGraph => {
@@ -711,7 +815,7 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
 
   const schemaLookup = buildSchemaLookup(ucEntries);
   const catalogLookup = buildCatalogLookup(ucEntries);
-  const ucGraph = buildUcGraph(ucEntries, schemaLookup, catalogLookup);
+  const ucGraph = buildChainGraph(ucEntries, UC_CHAIN);
 
   const { edges: crossEdges, instanceNames: crossReferencedInstances } =
     collectLakebaseCrossEdges(ucEntries);
@@ -725,13 +829,15 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
     referencedCatalogs: syncReferencedCatalogs,
   } = collectSyncTableEdges(lakebaseEntries, schemaLookup, existingUcNodeIds);
 
-  // If sync edges reference catalogs not in the UC graph, create group nodes
+  // If sync edges reference catalogs not in the UC graph, create phantom catalog nodes
   const existingCatalogs = new Set(
     ucGraph.nodes.filter((n) => n.id.startsWith("catalog::")).map((n) => n.id.slice(9)),
   );
   const missingCatalogs = [...syncReferencedCatalogs].filter((c) => !existingCatalogs.has(c));
   const extraCatalogNodes = missingCatalogs.map((name) =>
-    buildGroupNode(`catalog::${name}`, name, !catalogLookup.has(name)),
+    catalogLookup.has(name)
+      ? buildRootNode(`catalog::${name}`, name) // real catalog entry exists but no UC entries created it
+      : buildPhantomNode(`catalog::${name}`, name),
   );
   const extraCatalogEdges = filterDefinedEdges(
     missingCatalogs.map((name) => buildEdge("uc-root", `catalog::${name}`)),
@@ -740,7 +846,7 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
   // If we need sync phantom nodes but no UC root exists, bootstrap it
   const needsUcRoot =
     ucGraph.nodes.length === 0 && (syncPhantomNodes.length > 0 || extraCatalogNodes.length > 0);
-  const ucRootForSync = needsUcRoot ? [buildGroupNode("uc-root", "Unity Catalog")] : [];
+  const ucRootForSync = needsUcRoot ? [buildRootNode("uc-root", "Unity Catalog")] : [];
 
   const workspaceGraph = buildWorkspaceGraph(
     workspaceEntries,

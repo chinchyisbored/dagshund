@@ -98,7 +98,7 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          {data.nodeKind === "resource-group" && data.external && (
+          {data.nodeKind === "phantom" && (
             <div className="mb-3 rounded border border-dashed border-outline/60 bg-surface-inset/40 px-3 py-2 text-xs text-ink-muted">
               Untracked by this bundle
             </div>
