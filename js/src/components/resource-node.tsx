@@ -5,42 +5,10 @@ import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useJobNavigation } from "../hooks/use-job-navigation.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
+import { extractTypeBadge } from "../utils/resource-key.ts";
 import { getDiffBadge } from "./diff-state-styles.ts";
 
 type ResourceNodeType = Node<DagNodeData, "resource">;
-
-/** Map resource type segment to a short display badge. */
-const TYPE_BADGES: Readonly<Record<string, string>> = {
-  schemas: "schema",
-  volumes: "volume",
-  registered_models: "model",
-  catalogs: "catalog",
-  database_catalogs: "database catalog",
-  database_instances: "database instance",
-  dashboards: "dashboard",
-  genie_spaces: "genie",
-  apps: "app",
-  experiments: "experiment",
-  external_locations: "ext location",
-  jobs: "job",
-  models: "mlflow",
-  pipelines: "pipeline",
-  clusters: "cluster",
-  model_serving_endpoints: "serving",
-  postgres_branches: "postgres branch",
-  postgres_endpoints: "postgres endpoint",
-  postgres_projects: "postgres project",
-  quality_monitors: "monitor",
-  sql_warehouses: "warehouse",
-  secret_scopes: "secret",
-  synced_database_tables: "synced database table",
-};
-
-/** Extract the resource type badge from a resource key like "resources.schemas.analytics". */
-const extractTypeBadge = (resourceKey: string): string | undefined => {
-  const typeSegment = extractResourceType(resourceKey);
-  return typeSegment !== undefined ? (TYPE_BADGES[typeSegment] ?? typeSegment) : undefined;
-};
 
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
   const { opacityClass, glowStyle, styles, hasIncoming, hasOutgoing } = useNodeDimming(

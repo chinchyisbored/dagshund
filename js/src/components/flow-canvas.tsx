@@ -16,6 +16,7 @@ import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import type { PhantomContext } from "../types/phantom-context.ts";
+import { extractTypeBadge } from "../utils/resource-key.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 
@@ -72,7 +73,11 @@ const resolvePhantomContext = (
     .filter((n) => childIds.has(n.id))
     .map((n) => {
       const data = getNodeData(n);
-      return { label: data.label, resourceKey: data.resourceKey };
+      return {
+        label: data.label,
+        resourceKey: data.resourceKey,
+        resourceType: extractTypeBadge(data.resourceKey),
+      };
     });
 
   const kind = resourceKey.startsWith("sync-target::") ? "sync-target" : "hierarchy";

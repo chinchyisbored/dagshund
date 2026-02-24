@@ -109,13 +109,18 @@ export function DetailPanel({ data, onClose, width, phantomContext }: DetailPane
                     {phantomContext.kind === "sync-target" ? "Sync target of:" : "Inferred from:"}
                   </p>
                   <ul className="mt-1 space-y-0.5">
-                    {phantomContext.sources.map(({ label, resourceKey }) => (
+                    {phantomContext.sources.map(({ label, resourceKey, resourceType }) => (
                       <li
                         key={resourceKey}
                         className="truncate pl-2 font-mono text-[11px]"
                         title={resourceKey}
                       >
                         {label}
+                        {resourceType !== undefined && (
+                          <span className="ml-1.5 font-sans text-ink-muted/60">
+                            ({resourceType})
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>
