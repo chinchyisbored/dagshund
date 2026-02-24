@@ -352,12 +352,18 @@ const POSTGRES_CHAIN: ChainSpec = {
     {
       name: "branch",
       resourceTypes: new Set(["postgres_branches"]),
-      resolveIdentity: (entry) => extractStateField(entry, "branch_id"),
+      resolveIdentity: (entry) => {
+        const branchId = extractStateField(entry, "branch_id");
+        if (branchId === undefined) return undefined;
+        const parent = extractStateField(entry, "parent");
+        const projectId = parent !== undefined ? extractLastPathSegment(parent) : undefined;
+        return projectId !== undefined ? `${projectId}/${branchId}` : undefined;
+      },
       resolveParentRef: (entry) => {
         const parent = extractStateField(entry, "parent");
         return parent !== undefined ? extractLastPathSegment(parent) : undefined;
       },
-      deriveParentRef: undefined, // phantom branches don't know their project
+      deriveParentRef: (identity) => identity.split("/")[0],
       buildHierarchyId: (name) => `external::postgres-branch::${name}`,
     },
     {
@@ -366,7 +372,13 @@ const POSTGRES_CHAIN: ChainSpec = {
       resolveIdentity: () => undefined,
       resolveParentRef: (entry) => {
         const parent = extractStateField(entry, "parent");
-        return parent !== undefined ? extractLastPathSegment(parent) : undefined;
+        if (parent === undefined) return undefined;
+        const segments = parent.split("/");
+        // "projects/{project}/branches/{branch}" → "{project}/{branch}"
+        if (segments.length >= 4 && segments[0] === "projects" && segments[2] === "branches") {
+          return `${segments[1]}/${segments[3]}`;
+        }
+        return undefined;
       },
       deriveParentRef: undefined,
       buildHierarchyId: () => "",
@@ -450,7 +462,7 @@ const resolveParentChain = (
   // Create phantom — use last segment of identity as label (e.g. "missing" from "dagshund.missing")
   const phantomId = tier.buildHierarchyId(identity);
   if (!phantomAccumulator.has(phantomId)) {
-    const segments = identity.split(".");
+    const segments = identity.split(/[./]/);
     const phantomLabel = segments[segments.length - 1] as string;
     phantomAccumulator.set(phantomId, buildPhantomNode(phantomId, phantomLabel));
   }

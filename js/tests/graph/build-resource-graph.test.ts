@@ -785,7 +785,7 @@ describe("postgres hierarchy", () => {
     expect(projectNode?.nodeKind).toBe("resource");
   });
 
-  test("phantom branch when branch not in plan hangs off postgres-root", () => {
+  test("phantom branch when branch not in plan hangs off phantom project", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.postgres_endpoints.my_endpoint": {
@@ -802,15 +802,19 @@ describe("postgres hierarchy", () => {
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("external::postgres-branch::missing-branch");
+    expect(nodeIds).toContain("external::postgres-branch::some-project/missing-branch");
 
-    const phantom = graph.nodes.find((n) => n.id === "external::postgres-branch::missing-branch");
+    const phantom = graph.nodes.find(
+      (n) => n.id === "external::postgres-branch::some-project/missing-branch",
+    );
     expect(phantom?.nodeKind).toBe("phantom");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("postgres-root→external::postgres-branch::missing-branch");
     expect(edgePairs).toContain(
-      "external::postgres-branch::missing-branch→resources.postgres_endpoints.my_endpoint",
+      "postgres-project::some-project→external::postgres-branch::some-project/missing-branch",
+    );
+    expect(edgePairs).toContain(
+      "external::postgres-branch::some-project/missing-branch→resources.postgres_endpoints.my_endpoint",
     );
   });
 
@@ -1179,7 +1183,7 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(nodeIds).toContain("resources.postgres_endpoints.staging_read");
     expect(nodeIds).toContain("resources.postgres_endpoints.production_rw");
     // Phantom branch for legacy_reader (parent: "archive" not in plan)
-    expect(nodeIds).toContain("external::postgres-branch::archive");
+    expect(nodeIds).toContain("external::postgres-branch::warehouse-replica/archive");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     // Full chains
@@ -1197,10 +1201,12 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(edgePairs).toContain(
       "resources.postgres_branches.production→resources.postgres_endpoints.production_rw",
     );
-    // Phantom branch chain
-    expect(edgePairs).toContain("postgres-root→external::postgres-branch::archive");
+    // Phantom branch chain — phantom branch now cascades up to project
     expect(edgePairs).toContain(
-      "external::postgres-branch::archive→resources.postgres_endpoints.legacy_reader",
+      "postgres-project::warehouse-replica→external::postgres-branch::warehouse-replica/archive",
+    );
+    expect(edgePairs).toContain(
+      "external::postgres-branch::warehouse-replica/archive→resources.postgres_endpoints.legacy_reader",
     );
   });
 
