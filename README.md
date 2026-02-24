@@ -78,7 +78,11 @@ The HTML report organizes resources into visual groups:
 
 When your plan includes Postgres or Lakebase resources alongside jobs and other flat resources, dagshund wraps the flat resources in an "Other Resources" group to keep the layout clean. If your plan has no Postgres or Lakebase resources, flat resources appear directly under the workspace root without the extra grouping.
 
-Dashed borders indicate inferred resources — things referenced by your plan but not directly managed by it (e.g. a schema that a volume belongs to, but isn't itself in the bundle).
+### Phantom Nodes
+
+Some resources in the graph won't exist in your bundle plan. When dagshund encounters a reference to a resource that isn't directly managed — like an endpoint pointing to a branch that isn't in your plan, or a volume belonging to a schema you didn't define — it creates a **phantom node** to fill in the gap. These appear with dashed borders and represent dagshund's best guess at the surrounding hierarchy, interpolated from resource paths in the plan.
+
+This gives you a complete picture of how your resources relate to each other, even when parts of the tree live outside your bundle. Phantom nodes are inferred, not authoritative — they reflect what the plan references, not what actually exists in your workspace.
 
 ## Structural Diff
 
