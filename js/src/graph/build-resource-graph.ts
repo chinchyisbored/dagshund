@@ -463,6 +463,52 @@ const resolveParentChain = (
   return phantomId;
 };
 
+/** Build a resource node for a plan entry and determine its effective ID in the hierarchy. */
+const resolveEntryNode = (
+  key: string,
+  entry: PlanEntry,
+  tier: TierSpec,
+): { readonly node: ResourceGraphNode; readonly nodeId: string } => {
+  if (tier.useHierarchyId === true) {
+    const identity = tier.resolveIdentity(entry, key);
+    if (identity !== undefined) {
+      const hierarchyId = tier.buildHierarchyId(identity);
+      return { node: buildContainerResourceNode(hierarchyId, key, entry), nodeId: hierarchyId };
+    }
+  }
+  return { node: buildResourceNode(key, entry), nodeId: key };
+};
+
+/** Resolve the parent node ID for a resource entry within its hierarchy chain.
+ *  Creates phantom ancestor nodes as needed via resolveParentChain. */
+const resolveEntryParent = (
+  key: string,
+  entry: PlanEntry,
+  tier: TierSpec,
+  tierIndex: number,
+  spec: ChainSpec,
+  tierIndexes: readonly TierIndex[],
+  phantomAccumulator: Map<string, PhantomGraphNode>,
+  phantomEdgeAccumulator: (GraphEdge | undefined)[],
+): string => {
+  const rawParentRef = tier.resolveParentRef(entry, key);
+  if (rawParentRef === undefined) return spec.rootId;
+
+  const parentIdentity = typeof rawParentRef === "string" ? rawParentRef : rawParentRef.identity;
+  const parentTier = typeof rawParentRef === "string" ? tierIndex - 1 : rawParentRef.tierIndex;
+
+  return parentTier >= 0
+    ? resolveParentChain(
+        parentIdentity,
+        parentTier,
+        spec,
+        tierIndexes,
+        phantomAccumulator,
+        phantomEdgeAccumulator,
+      )
+    : spec.rootId;
+};
+
 /**
  * Build a hierarchy subgraph from a chain spec.
  * Creates root + resource nodes + phantom ancestors + all hierarchy edges.
@@ -495,56 +541,24 @@ const buildChainGraph = (
     const rt = extractResourceType(key);
     if (rt === undefined) continue;
 
-    // Find which tier this entry belongs to
     const tierIndex = spec.tiers.findIndex((t) => t.resourceTypes.has(rt));
     if (tierIndex === -1) continue;
     const tier = spec.tiers[tierIndex] as TierSpec;
 
-    // Build resource node (container tiers use hierarchy ID)
-    if (tier.useHierarchyId === true) {
-      const identity = tier.resolveIdentity(entry, key);
-      if (identity !== undefined) {
-        resourceNodes.push(buildContainerResourceNode(tier.buildHierarchyId(identity), key, entry));
-      } else {
-        resourceNodes.push(buildResourceNode(key, entry));
-      }
-    } else {
-      resourceNodes.push(buildResourceNode(key, entry));
-    }
+    const { node, nodeId } = resolveEntryNode(key, entry, tier);
+    resourceNodes.push(node);
 
-    // Resolve parent edge
-    const nodeId =
-      tier.useHierarchyId === true
-        ? (() => {
-            const identity = tier.resolveIdentity(entry, key);
-            return identity !== undefined ? tier.buildHierarchyId(identity) : key;
-          })()
-        : key;
-
-    const edgeDiff = entryEdgeDiffState(entry);
-    const rawParentRef = tier.resolveParentRef(entry, key);
-
-    if (rawParentRef === undefined) {
-      // Root-adjacent or no parent — attach to root
-      hierarchyEdges.push(buildEdge(spec.rootId, nodeId, edgeDiff));
-    } else {
-      const parentIdentity =
-        typeof rawParentRef === "string" ? rawParentRef : rawParentRef.identity;
-      const parentTier = typeof rawParentRef === "string" ? tierIndex - 1 : rawParentRef.tierIndex;
-      if (parentTier >= 0) {
-        const parentNodeId = resolveParentChain(
-          parentIdentity,
-          parentTier,
-          spec,
-          tierIndexes,
-          phantomNodes,
-          phantomEdges,
-        );
-        hierarchyEdges.push(buildEdge(parentNodeId, nodeId, edgeDiff));
-      } else {
-        hierarchyEdges.push(buildEdge(spec.rootId, nodeId, edgeDiff));
-      }
-    }
+    const parentNodeId = resolveEntryParent(
+      key,
+      entry,
+      tier,
+      tierIndex,
+      spec,
+      tierIndexes,
+      phantomNodes,
+      phantomEdges,
+    );
+    hierarchyEdges.push(buildEdge(parentNodeId, nodeId, entryEdgeDiffState(entry)));
   }
 
   // Additional identities: ensure nodes exist at specific tiers (phantom if no real entry)
