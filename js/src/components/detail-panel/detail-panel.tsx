@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useJobNavigation } from "../../hooks/use-job-navigation.ts";
 import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
+import type { PhantomContext } from "../../types/phantom-context.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
 import type { ValueFormat } from "../../utils/format-value.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
@@ -16,6 +17,7 @@ type DetailPanelProps = {
   readonly data: DagNodeData;
   readonly onClose: () => void;
   readonly width: number;
+  readonly phantomContext?: PhantomContext;
 };
 
 const NOISE_ACTIONS: ReadonlySet<string> = new Set(["skip", ""]);
@@ -42,7 +44,7 @@ function ViewInJobsTabButton({ resourceKey }: { readonly resourceKey: string }) 
   );
 }
 
-export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
+export function DetailPanel({ data, onClose, width, phantomContext }: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
 
@@ -100,7 +102,25 @@ export function DetailPanel({ data, onClose, width }: DetailPanelProps) {
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {data.nodeKind === "phantom" && (
             <div className="mb-3 rounded border border-dashed border-outline/60 bg-surface-inset/40 px-3 py-2 text-xs text-ink-muted">
-              Untracked by this bundle
+              <p>Untracked by this bundle</p>
+              {phantomContext !== undefined && phantomContext.sources.length > 0 && (
+                <div className="mt-2">
+                  <p className="font-medium text-ink-secondary">
+                    {phantomContext.kind === "sync-target" ? "Sync target of:" : "Inferred from:"}
+                  </p>
+                  <ul className="mt-1 space-y-0.5">
+                    {phantomContext.sources.map(({ label, resourceKey }) => (
+                      <li
+                        key={resourceKey}
+                        className="truncate pl-2 font-mono text-[11px]"
+                        title={resourceKey}
+                      >
+                        {label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 

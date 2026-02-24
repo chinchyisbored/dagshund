@@ -15,6 +15,7 @@ import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
+import type { PhantomContext } from "../types/phantom-context.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 
@@ -55,6 +56,28 @@ const buildConnectedNodeIds = (
 /** React Flow types node.data as Record<string, unknown>; our nodes carry DagNodeData.
  *  The cast is unavoidable because React Flow's generic param doesn't propagate to event handlers. */
 const getNodeData = (node: Node): DagNodeData => node.data as DagNodeData;
+
+/** Derive inference context for a phantom node from its outgoing edges.
+ *  Every outgoing edge points to a child/referenced node that caused the phantom to exist. */
+const resolvePhantomContext = (
+  nodeId: string,
+  resourceKey: string,
+  nodes: readonly Node[],
+  edges: readonly Edge[],
+): PhantomContext | undefined => {
+  const childIds = new Set(edges.filter((e) => e.source === nodeId).map((e) => e.target));
+  if (childIds.size === 0) return undefined;
+
+  const sources = nodes
+    .filter((n) => childIds.has(n.id))
+    .map((n) => {
+      const data = getNodeData(n);
+      return { label: data.label, resourceKey: data.resourceKey };
+    });
+
+  const kind = resourceKey.startsWith("sync-target::") ? "sync-target" : "hierarchy";
+  return { kind, sources };
+};
 
 export function FlowCanvas({
   layoutState,
@@ -205,6 +228,17 @@ export function FlowCanvas({
     return matched;
   }, [baseNodes, filterDiffState]);
 
+  const phantomContext = useMemo(() => {
+    if (selectedNode === null || selectedNode.nodeKind !== "phantom" || selectedNodeId === null)
+      return undefined;
+    return resolvePhantomContext(
+      selectedNodeId,
+      selectedNode.resourceKey,
+      baseNodes as Node[],
+      baseEdges,
+    );
+  }, [selectedNode, selectedNodeId, baseNodes, baseEdges]);
+
   const hoverState = useMemo(
     () => ({ hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds }),
     [hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds],
@@ -313,6 +347,7 @@ export function FlowCanvas({
             data={selectedNode}
             onClose={handleClosePanel}
             width={panelWidth}
+            phantomContext={phantomContext}
           />
         </>
       )}
