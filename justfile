@@ -16,6 +16,7 @@ install:
 # Start JS dev server in background, provided planfile has to be relative to justfile location
 dev plan_file="fixtures/complex-plan.json":
     #!/usr/bin/env bash
+    bun run --cwd {{js_dir}} build:css
     cat "{{plan_file}}" | bun run --cwd {{js_dir}} dev &>/dev/null &
     disown
     echo "Dev server starting on http://localhost:3000 — stop with: just dev-down"
