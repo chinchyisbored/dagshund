@@ -331,14 +331,20 @@ const UC_CHAIN: ChainSpec = {
   ],
 };
 
+/** Extract the last segment from a Databricks resource path (e.g., "projects/foo/branches/bar" → "bar"). */
+const extractLastPathSegment = (resourcePath: string): string | undefined => {
+  const segment = resourcePath.split("/").at(-1);
+  return segment !== undefined && segment.length > 0 ? segment : undefined;
+};
+
 const POSTGRES_CHAIN: ChainSpec = {
   rootId: "postgres-root",
-  rootLabel: "Lakebase Autoscaling",
+  rootLabel: "Lakebase",
   tiers: [
     {
       name: "project",
       resourceTypes: new Set(["postgres_projects"]),
-      resolveIdentity: (entry) => extractStateField(entry, "name"),
+      resolveIdentity: (entry) => extractStateField(entry, "project_id"),
       resolveParentRef: () => undefined, // root-adjacent
       buildHierarchyId: (name) => `postgres-project::${name}`,
       useHierarchyId: true,
@@ -346,8 +352,11 @@ const POSTGRES_CHAIN: ChainSpec = {
     {
       name: "branch",
       resourceTypes: new Set(["postgres_branches"]),
-      resolveIdentity: (entry) => extractStateField(entry, "name"),
-      resolveParentRef: (entry) => extractStateField(entry, "parent"),
+      resolveIdentity: (entry) => extractStateField(entry, "branch_id"),
+      resolveParentRef: (entry) => {
+        const parent = extractStateField(entry, "parent");
+        return parent !== undefined ? extractLastPathSegment(parent) : undefined;
+      },
       deriveParentRef: undefined, // phantom branches don't know their project
       buildHierarchyId: (name) => `external::postgres-branch::${name}`,
     },
@@ -355,7 +364,10 @@ const POSTGRES_CHAIN: ChainSpec = {
       name: "endpoint",
       resourceTypes: new Set(["postgres_endpoints"]),
       resolveIdentity: () => undefined,
-      resolveParentRef: (entry) => extractStateField(entry, "parent"),
+      resolveParentRef: (entry) => {
+        const parent = extractStateField(entry, "parent");
+        return parent !== undefined ? extractLastPathSegment(parent) : undefined;
+      },
       deriveParentRef: undefined,
       buildHierarchyId: () => "",
     },

@@ -745,15 +745,21 @@ describe("postgres hierarchy", () => {
       plan: {
         "resources.postgres_projects.my_project": {
           action: "create",
-          new_state: { value: { name: "my_project" } },
+          new_state: { value: { project_id: "my-project", display_name: "My Project" } },
         },
         "resources.postgres_branches.my_branch": {
           action: "create",
-          new_state: { value: { name: "my_branch", parent: "my_project" } },
+          new_state: { value: { branch_id: "my-branch", parent: "projects/my-project" } },
         },
         "resources.postgres_endpoints.my_endpoint": {
           action: "create",
-          new_state: { value: { name: "my_endpoint", parent: "my_branch" } },
+          new_state: {
+            value: {
+              endpoint_id: "my-endpoint",
+              parent: "projects/my-project/branches/my-branch",
+              endpoint_type: "ENDPOINT_TYPE_READ_WRITE",
+            },
+          },
         },
       },
     });
@@ -761,21 +767,21 @@ describe("postgres hierarchy", () => {
     const nodeIds = graph.nodes.map((n) => n.id);
     expect(nodeIds).toContain("workspace-root");
     expect(nodeIds).toContain("postgres-root");
-    expect(nodeIds).toContain("postgres-project::my_project");
+    expect(nodeIds).toContain("postgres-project::my-project");
     expect(nodeIds).toContain("resources.postgres_branches.my_branch");
     expect(nodeIds).toContain("resources.postgres_endpoints.my_endpoint");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("workspace-root→postgres-root");
-    expect(edgePairs).toContain("postgres-root→postgres-project::my_project");
+    expect(edgePairs).toContain("postgres-root→postgres-project::my-project");
     expect(edgePairs).toContain(
-      "postgres-project::my_project→resources.postgres_branches.my_branch",
+      "postgres-project::my-project→resources.postgres_branches.my_branch",
     );
     expect(edgePairs).toContain(
       "resources.postgres_branches.my_branch→resources.postgres_endpoints.my_endpoint",
     );
 
-    const projectNode = graph.nodes.find((n) => n.id === "postgres-project::my_project");
+    const projectNode = graph.nodes.find((n) => n.id === "postgres-project::my-project");
     expect(projectNode?.nodeKind).toBe("resource");
   });
 
@@ -784,21 +790,27 @@ describe("postgres hierarchy", () => {
       plan: {
         "resources.postgres_endpoints.my_endpoint": {
           action: "create",
-          new_state: { value: { name: "my_endpoint", parent: "missing_branch" } },
+          new_state: {
+            value: {
+              endpoint_id: "my-endpoint",
+              parent: "projects/some-project/branches/missing-branch",
+              endpoint_type: "ENDPOINT_TYPE_READ_ONLY",
+            },
+          },
         },
       },
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("external::postgres-branch::missing_branch");
+    expect(nodeIds).toContain("external::postgres-branch::missing-branch");
 
-    const phantom = graph.nodes.find((n) => n.id === "external::postgres-branch::missing_branch");
+    const phantom = graph.nodes.find((n) => n.id === "external::postgres-branch::missing-branch");
     expect(phantom?.nodeKind).toBe("phantom");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("postgres-root→external::postgres-branch::missing_branch");
+    expect(edgePairs).toContain("postgres-root→external::postgres-branch::missing-branch");
     expect(edgePairs).toContain(
-      "external::postgres-branch::missing_branch→resources.postgres_endpoints.my_endpoint",
+      "external::postgres-branch::missing-branch→resources.postgres_endpoints.my_endpoint",
     );
   });
 
@@ -807,12 +819,12 @@ describe("postgres hierarchy", () => {
       plan: {
         "resources.postgres_branches.my_branch": {
           action: "create",
-          new_state: { value: { name: "my_branch", parent: "ext_project" } },
+          new_state: { value: { branch_id: "my-branch", parent: "projects/ext-project" } },
         },
       },
     });
 
-    const projectNode = graph.nodes.find((n) => n.id === "postgres-project::ext_project");
+    const projectNode = graph.nodes.find((n) => n.id === "postgres-project::ext-project");
     expect(projectNode).toBeDefined();
     expect(projectNode?.nodeKind).toBe("phantom");
   });
@@ -822,7 +834,7 @@ describe("postgres hierarchy", () => {
       plan: {
         "resources.postgres_endpoints.orphan": {
           action: "create",
-          new_state: { value: { name: "orphan" } },
+          new_state: { value: { endpoint_id: "orphan" } },
         },
       },
     });
@@ -836,7 +848,7 @@ describe("postgres hierarchy", () => {
       plan: {
         "resources.postgres_projects.solo": {
           action: "create",
-          new_state: { value: { name: "solo" } },
+          new_state: { value: { project_id: "solo" } },
         },
       },
     });
@@ -1042,11 +1054,11 @@ describe("mixed plan with all 4 sections", () => {
         // Postgres
         "resources.postgres_projects.pg_proj": {
           action: "create",
-          new_state: { value: { name: "pg_proj" } },
+          new_state: { value: { project_id: "pg-proj" } },
         },
         "resources.postgres_branches.pg_branch": {
           action: "create",
-          new_state: { value: { name: "pg_branch", parent: "pg_proj" } },
+          new_state: { value: { branch_id: "pg-branch", parent: "projects/pg-proj" } },
         },
         // Lakebase
         "resources.database_instances.lb_inst": {
@@ -1069,7 +1081,7 @@ describe("mixed plan with all 4 sections", () => {
 
     // Container resource nodes (use hierarchy IDs)
     expect(nodeIds).toContain("catalog::dagshund");
-    expect(nodeIds).toContain("postgres-project::pg_proj");
+    expect(nodeIds).toContain("postgres-project::pg-proj");
     expect(nodeIds).toContain("lakebase-instance::lb_inst");
 
     // Leaf resource nodes
@@ -1090,8 +1102,8 @@ describe("mixed plan with all 4 sections", () => {
     expect(edgePairs).toContain("other-resources-root→resources.jobs.etl_pipeline");
     // Postgres hierarchy
     expect(edgePairs).toContain("workspace-root→postgres-root");
-    expect(edgePairs).toContain("postgres-root→postgres-project::pg_proj");
-    expect(edgePairs).toContain("postgres-project::pg_proj→resources.postgres_branches.pg_branch");
+    expect(edgePairs).toContain("postgres-root→postgres-project::pg-proj");
+    expect(edgePairs).toContain("postgres-project::pg-proj→resources.postgres_branches.pg_branch");
     // Lakebase hierarchy
     expect(edgePairs).toContain("workspace-root→lakebase-root");
     expect(edgePairs).toContain("lakebase-root→lakebase-instance::lb_inst");
@@ -1161,7 +1173,7 @@ describe("all-hierarchies-plan.json fixture", () => {
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("postgres-project::warehouse_replica");
+    expect(nodeIds).toContain("postgres-project::warehouse-replica");
     expect(nodeIds).toContain("resources.postgres_branches.staging");
     expect(nodeIds).toContain("resources.postgres_branches.production");
     expect(nodeIds).toContain("resources.postgres_endpoints.staging_read");
@@ -1172,12 +1184,12 @@ describe("all-hierarchies-plan.json fixture", () => {
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     // Full chains
     expect(edgePairs).toContain("workspace-root→postgres-root");
-    expect(edgePairs).toContain("postgres-root→postgres-project::warehouse_replica");
+    expect(edgePairs).toContain("postgres-root→postgres-project::warehouse-replica");
     expect(edgePairs).toContain(
-      "postgres-project::warehouse_replica→resources.postgres_branches.staging",
+      "postgres-project::warehouse-replica→resources.postgres_branches.staging",
     );
     expect(edgePairs).toContain(
-      "postgres-project::warehouse_replica→resources.postgres_branches.production",
+      "postgres-project::warehouse-replica→resources.postgres_branches.production",
     );
     expect(edgePairs).toContain(
       "resources.postgres_branches.staging→resources.postgres_endpoints.staging_read",
@@ -1272,7 +1284,7 @@ describe("other-resources-root grouping", () => {
       plan: {
         "resources.postgres_projects.pg_proj": {
           action: "create",
-          new_state: { value: { name: "pg_proj" } },
+          new_state: { value: { project_id: "pg-proj" } },
         },
       },
     });
@@ -1289,7 +1301,7 @@ describe("other-resources-root grouping", () => {
         "resources.jobs.my_job": { action: "create" },
         "resources.postgres_projects.pg_proj": {
           action: "create",
-          new_state: { value: { name: "pg_proj" } },
+          new_state: { value: { project_id: "pg-proj" } },
         },
       },
     });
