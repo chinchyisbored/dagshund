@@ -2,21 +2,24 @@
 
 ## Task Tracking
 
-All tracking uses `bd` (Beads). Do NOT use markdown files for plans, TODOs, or task lists.
-Run `bd onboard` at the start of a new engagement with the project.
+All tracking uses `br` (beads_rust). Do NOT use markdown files for plans, TODOs, or task lists.
+
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
+Run `br onboard` at the start of a new engagement with the project.
 
 ## Session Start
 
-1. `bd ready --json` — see what's unblocked
-2. `bd list --status in_progress --json` — see anything mid-flight
+1. `br ready --json` — see what's unblocked
+2. `br list --status in_progress --json` — see anything mid-flight
 3. Present summary: what's ready, what's in progress, what you recommend
 4. **Wait for the human to choose.** Do not auto-pick.
 
 ## During Work
 
-- Discover a bug or task → file it: `bd create "description" -t bug -p <priority>`
-- Link to current task: `bd dep add <new-id> <current-id> --type discovered-from`
-- Mark when starting: `bd update <id> --status in_progress`
+- Discover a bug or task → file it: `br create "description" -t bug -p <priority>`
+- Link to current task: `br dep add <new-id> <current-id> --type discovered-from`
+- Mark when starting: `br update <id> --status in_progress`
 - Create subtasks with dependencies if work grows
 - Keep the human informed — mention what you're filing, don't silently create issues
 
@@ -68,7 +71,7 @@ When code is working, follow this exact order. No skipping steps.
 5. Fix what human approves, file beads for the rest
 6. `git add <specific files>` — stage changes (NEVER combine with commit)
 7. `source .venv/bin/activate && git commit -m "..."`
-8. `bd close <id>` — only AFTER code is committed
+8. `br close <id>` — only AFTER code is committed
 9. `git push`
 
 **The git commit IS the deliverable.** Uncommitted work = unfinished work.
@@ -96,7 +99,7 @@ Use `model: "opus"` and `subagent_type: "Explore"`. The subagent receives:
 - The file list from Step 1
 - All three review criteria below
 - Instruction to read the changed files once, then evaluate against all criteria
-- Instruction to check closed beads (`bd list --status=closed`) for won't-fix decisions — do not flag things already decided
+- Instruction to check closed beads (`br list --status=closed`) for won't-fix decisions — do not flag things already decided
 
 One agent reads the files once and runs all 3 passes over the same context. No fixes, no scripts, just observations.
 
@@ -109,7 +112,7 @@ One agent reads the files once and runs all 3 passes over the same context. No f
 - Review against CLAUDE.md rules: immutability, no classes, small composable functions, no `any`, no global state, descriptive names, explicit code
 
 **Pass 3 — Quality & Polish:**
-- TODO comments that should be `bd` issues?
+- TODO comments that should be `br` issues?
 - Dead code, unused imports, stray `console.log`?
 - Error boundaries at meaningful levels? Zod at right boundaries?
 - Understandable without explanation?
@@ -130,24 +133,26 @@ After all work is complete:
 1. File issues for any loose threads discussed but not implemented
 2. Commit all code (see Completing Work above)
 3. Close all finished beads
-4. `bd sync` — exports JSONL, stages it (does NOT commit)
-5. `git commit` — commit the staged JSONL (pre-commit hook re-exports)
-6. `git pull --rebase` — catch up with remote before pushing
-7. `git push`
-8. `git status` — must show clean tree, up to date with origin
-9. Hand off — session summary: what got done, what's open, suggested next starting point
+4. Sync and commit beads:
+   ```bash
+   br sync --flush-only
+   git add .beads/
+   git commit -m "sync beads"
+   ```
+5. `git pull --rebase` — catch up with remote before pushing
+6. `git push`
+7. `git status` — must show clean tree, up to date with origin
+8. Hand off — session summary: what got done, what's open, suggested next starting point
 
 ## Beads & Git Rules
 
-- `bd sync` stages JSONL but does NOT commit. Always: `bd sync` → `git commit` → `git push`
-- NEVER run `bd sync` before committing source code — it modifies git index, unstages your files
-- NEVER manually `git add .beads/issues.jsonl` — pre-commit hook handles it
+- `br sync --flush-only` exports JSONL but does NOT commit or stage. Always: `br sync --flush-only` → `git add .beads/` → `git commit` → `git push`
+- NEVER run `br sync --flush-only` before committing source code — commit source first, then sync beads
 - NEVER combine `git add` and `git commit` — stage first, verify with `git status`, then commit
 - NEVER run `git reset HEAD` or `git checkout --` on working files
 - NEVER run `bun run lint:fix` without reviewing scope — use `just lint` (check-only)
-- Beads-only commits (no source changes): `git commit --allow-empty`
+- Beads-only commits (no source changes): `br sync --flush-only && git add .beads/ && git commit -m "sync beads"`
 - Activate venv before committing: `source .venv/bin/activate && git commit ...`
-- Beads daemon is disabled — pre-commit hook handles JSONL export
 
 ## Priority
 

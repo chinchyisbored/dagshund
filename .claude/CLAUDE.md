@@ -26,7 +26,7 @@ Practical functional style. Readable, composable, explicit.
 - No new dependencies without discussion
 - No clever one-liners that sacrifice readability
 - No modifying production code to make it testable — tests adapt to production, not vice versa
-- No skipping error handling — handle it or file a `bd` issue
+- No skipping error handling — handle it or file a `br` issue
 
 ## Language Guidelines
 
