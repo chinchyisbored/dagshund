@@ -63,8 +63,6 @@ export type GraphEdge = {
   readonly target: string;
   readonly label: string | undefined;
   readonly diffState: EdgeDiffState;
-  /** Present only on sync edges (synced_database_table → UC phantom table). Absent = hierarchy. */
-  readonly edgeKind?: "sync";
 };
 
 export type PlanGraph = {

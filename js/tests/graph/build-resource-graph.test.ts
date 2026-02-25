@@ -4,7 +4,6 @@ import {
   extractResourceType,
   extractStateField,
   isJobEntry,
-  isLakebaseType,
   isPostgresType,
   isUnityCatalogType,
   parseThreePartName,
@@ -47,6 +46,7 @@ describe("isUnityCatalogType", () => {
     expect(isUnityCatalogType("registered_models")).toBe(true);
     expect(isUnityCatalogType("catalogs")).toBe(true);
     expect(isUnityCatalogType("database_catalogs")).toBe(true);
+    expect(isUnityCatalogType("synced_database_tables")).toBe(true);
   });
 
   test("returns false for non-UC types", () => {
@@ -722,23 +722,6 @@ describe("isPostgresType", () => {
   });
 });
 
-describe("isLakebaseType", () => {
-  test("returns true for lakebase types", () => {
-    expect(isLakebaseType("database_instances")).toBe(true);
-    expect(isLakebaseType("synced_database_tables")).toBe(true);
-  });
-
-  test("returns false for database_catalogs (stays in UC)", () => {
-    expect(isLakebaseType("database_catalogs")).toBe(false);
-  });
-
-  test("returns false for non-lakebase types", () => {
-    expect(isLakebaseType("jobs")).toBe(false);
-    expect(isLakebaseType("postgres_projects")).toBe(false);
-    expect(isLakebaseType("schemas")).toBe(false);
-  });
-});
-
 describe("postgres hierarchy", () => {
   test("full chain: workspace-root → postgres-root → project group → branch → endpoint", () => {
     const graph = buildResourceGraph({
@@ -880,54 +863,62 @@ describe("postgres hierarchy", () => {
   });
 });
 
-describe("lakebase hierarchy", () => {
-  test("full chain: workspace-root → lakebase-root → instance group → synced_table", () => {
+describe("synced_database_tables in UC", () => {
+  test("three-part name places synced table under catalog → schema in UC", () => {
     const graph = buildResourceGraph({
       plan: {
-        "resources.database_instances.my_instance": {
-          action: "create",
-          new_state: { value: { name: "my_instance" } },
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
         },
         "resources.synced_database_tables.my_table": {
           action: "create",
-          new_state: { value: { name: "my_table", database_instance_name: "my_instance" } },
+          new_state: {
+            value: { name: "dagshund.analytics.my_table" },
+          },
         },
       },
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("workspace-root");
-    expect(nodeIds).toContain("lakebase-root");
-    expect(nodeIds).toContain("lakebase-instance::my_instance");
+    expect(nodeIds).toContain("uc-root");
     expect(nodeIds).toContain("resources.synced_database_tables.my_table");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("workspace-root→lakebase-root");
-    expect(edgePairs).toContain("lakebase-root→lakebase-instance::my_instance");
+    // Synced table under real schema
     expect(edgePairs).toContain(
-      "lakebase-instance::my_instance→resources.synced_database_tables.my_table",
+      "resources.schemas.analytics→resources.synced_database_tables.my_table",
     );
-
-    const instanceNode = graph.nodes.find((n) => n.id === "lakebase-instance::my_instance");
-    expect(instanceNode?.nodeKind).toBe("resource");
   });
 
-  test("instance is phantom when instance not a plan entry", () => {
+  test("phantom schema created when schema not in plan", () => {
     const graph = buildResourceGraph({
       plan: {
+        "resources.catalogs.prod": {
+          action: "create",
+          new_state: { value: { name: "prod" } },
+        },
         "resources.synced_database_tables.my_table": {
           action: "create",
-          new_state: { value: { name: "my_table", database_instance_name: "ext_instance" } },
+          new_state: {
+            value: { name: "prod.missing_schema.my_table" },
+          },
         },
       },
     });
 
-    const instanceNode = graph.nodes.find((n) => n.id === "lakebase-instance::ext_instance");
-    expect(instanceNode).toBeDefined();
-    expect(instanceNode?.nodeKind).toBe("phantom");
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("external::prod.missing_schema");
+    expect(nodeIds).toContain("resources.synced_database_tables.my_table");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("catalog::prod→external::prod.missing_schema");
+    expect(edgePairs).toContain(
+      "external::prod.missing_schema→resources.synced_database_tables.my_table",
+    );
   });
 
-  test("synced_table with no database_instance_name falls back to lakebase-root", () => {
+  test("simple name (no three-part) falls to uc-root", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.synced_database_tables.orphan": {
@@ -938,23 +929,94 @@ describe("lakebase hierarchy", () => {
     });
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("lakebase-root→resources.synced_database_tables.orphan");
+    expect(edgePairs).toContain("uc-root→resources.synced_database_tables.orphan");
   });
 
-  test("no lakebase-root when no lakebase resources", () => {
+  test("bootstraps UC root when only synced table exists", () => {
     const graph = buildResourceGraph({
       plan: {
-        "resources.jobs.my_job": { action: "create" },
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: {
+            value: { name: "new_catalog.new_schema.my_table" },
+          },
+        },
       },
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).not.toContain("lakebase-root");
+    expect(nodeIds).toContain("uc-root");
+    expect(nodeIds).toContain("catalog::new_catalog");
+    expect(nodeIds).toContain("external::new_catalog.new_schema");
+    expect(nodeIds).toContain("resources.synced_database_tables.my_table");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("uc-root→catalog::new_catalog");
+    expect(edgePairs).toContain("catalog::new_catalog→external::new_catalog.new_schema");
+    expect(edgePairs).toContain(
+      "external::new_catalog.new_schema→resources.synced_database_tables.my_table",
+    );
+  });
+
+  test("multiple synced tables under same schema each get their own node", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+        "resources.synced_database_tables.table_a": {
+          action: "create",
+          new_state: {
+            value: { name: "dagshund.analytics.table_a" },
+          },
+        },
+        "resources.synced_database_tables.table_b": {
+          action: "create",
+          new_state: {
+            value: { name: "dagshund.analytics.table_b" },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("resources.synced_database_tables.table_a");
+    expect(nodeIds).toContain("resources.synced_database_tables.table_b");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→resources.synced_database_tables.table_a",
+    );
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→resources.synced_database_tables.table_b",
+    );
   });
 });
 
-describe("cross-hierarchy (lakebase → UC)", () => {
-  test("database_catalog with database_instance_name creates cross-edge", () => {
+describe("database_instances as flat workspace resources", () => {
+  test("database_instance appears under workspace-root", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_instances.my_instance": {
+          action: "create",
+          new_state: { value: { name: "my_instance", capacity: "CU_2" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("resources.database_instances.my_instance");
+    expect(nodeIds).not.toContain("lakebase-root");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("workspace-root→resources.database_instances.my_instance");
+  });
+});
+
+describe("database_catalogs in UC", () => {
+  test("database_catalog stays in UC regardless of database_instance_name", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.database_catalogs.lb_cat": {
@@ -963,19 +1025,22 @@ describe("cross-hierarchy (lakebase → UC)", () => {
         },
         "resources.database_instances.my_instance": {
           action: "create",
-          new_state: { value: { name: "my_instance" } },
+          new_state: { value: { name: "my_instance", capacity: "CU_2" } },
         },
       },
     });
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Cross-edge from lakebase instance to UC catalog (uses hierarchy ID)
-    expect(edgePairs).toContain("lakebase-instance::my_instance→catalog::lb_cat");
-    // Catalog still appears under UC
+    // Catalog in UC
     expect(edgePairs).toContain("uc-root→catalog::lb_cat");
+    // Instance is flat workspace resource (no cross-edge)
+    expect(edgePairs).toContain("workspace-root→resources.database_instances.my_instance");
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).not.toContain("lakebase-root");
   });
 
-  test("database_catalog without database_instance_name creates no cross-edge", () => {
+  test("database_catalog without database_instance_name stays in UC", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.database_catalogs.plain_cat": {
@@ -986,15 +1051,13 @@ describe("cross-hierarchy (lakebase → UC)", () => {
     });
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    const crossEdges = edgePairs.filter((p) => p.includes("lakebase-instance::"));
-    expect(crossEdges).toHaveLength(0);
+    expect(edgePairs).toContain("uc-root→catalog::plain_cat");
 
-    // No lakebase-root created
     const nodeIds = graph.nodes.map((n) => n.id);
     expect(nodeIds).not.toContain("lakebase-root");
   });
 
-  test("database_catalog with schema still nests schema under catalog in UC", () => {
+  test("database_catalog with schema nests schema under catalog", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.database_catalogs.lb_cat": {
@@ -1005,56 +1068,34 @@ describe("cross-hierarchy (lakebase → UC)", () => {
           action: "create",
           new_state: { value: { catalog_name: "lb_cat", name: "lb_schema" } },
         },
-        "resources.database_instances.my_instance": {
-          action: "create",
-          new_state: { value: { name: "my_instance" } },
-        },
       },
     });
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // UC hierarchy intact
+    expect(edgePairs).toContain("uc-root→catalog::lb_cat");
     expect(edgePairs).toContain("catalog::lb_cat→resources.schemas.lb_schema");
-    // Cross-edge also present (uses hierarchy ID)
-    expect(edgePairs).toContain("lakebase-instance::my_instance→catalog::lb_cat");
-  });
-
-  test("phantom instance from catalog-only reference", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.database_catalogs.lb_cat": {
-          action: "create",
-          new_state: { value: { name: "lb_cat", database_instance_name: "phantom_instance" } },
-        },
-      },
-    });
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    // Lakebase hierarchy created even though no lakebase entries exist
-    expect(nodeIds).toContain("lakebase-root");
-    expect(nodeIds).toContain("lakebase-instance::phantom_instance");
-
-    const instanceNode = graph.nodes.find((n) => n.id === "lakebase-instance::phantom_instance");
-    expect(instanceNode?.nodeKind).toBe("phantom");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("workspace-root→lakebase-root");
-    expect(edgePairs).toContain("lakebase-root→lakebase-instance::phantom_instance");
-    expect(edgePairs).toContain("lakebase-instance::phantom_instance→catalog::lb_cat");
   });
 });
 
-describe("mixed plan with all 4 sections", () => {
-  test("creates correct structure for UC + workspace + postgres + lakebase", () => {
+describe("mixed plan with UC + workspace + postgres", () => {
+  test("creates correct structure with synced tables in UC and instances in workspace", () => {
     const graph = buildResourceGraph({
       plan: {
-        // UC
+        // UC (including synced table)
         "resources.schemas.analytics": {
           action: "update",
           new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
         },
-        // Workspace (flat)
+        "resources.synced_database_tables.lb_table": {
+          action: "create",
+          new_state: { value: { name: "dagshund.analytics.lb_table" } },
+        },
+        // Workspace (flat — jobs + database_instances)
         "resources.jobs.etl_pipeline": { action: "create" },
+        "resources.database_instances.lb_inst": {
+          action: "create",
+          new_state: { value: { name: "lb_inst", capacity: "CU_1" } },
+        },
         // Postgres
         "resources.postgres_projects.pg_proj": {
           action: "create",
@@ -1064,61 +1105,50 @@ describe("mixed plan with all 4 sections", () => {
           action: "create",
           new_state: { value: { branch_id: "pg-branch", parent: "projects/pg-proj" } },
         },
-        // Lakebase
-        "resources.database_instances.lb_inst": {
-          action: "create",
-          new_state: { value: { name: "lb_inst" } },
-        },
-        "resources.synced_database_tables.lb_table": {
-          action: "create",
-          new_state: { value: { name: "lb_table", database_instance_name: "lb_inst" } },
-        },
       },
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    // All roots present
+    // Roots
     expect(nodeIds).toContain("uc-root");
     expect(nodeIds).toContain("workspace-root");
     expect(nodeIds).toContain("postgres-root");
-    expect(nodeIds).toContain("lakebase-root");
+    expect(nodeIds).not.toContain("lakebase-root");
 
-    // Container resource nodes (use hierarchy IDs)
+    // Container resource nodes
     expect(nodeIds).toContain("catalog::dagshund");
     expect(nodeIds).toContain("postgres-project::pg-proj");
-    expect(nodeIds).toContain("lakebase-instance::lb_inst");
 
-    // Leaf resource nodes
+    // Leaf/flat resource nodes
     expect(nodeIds).toContain("resources.schemas.analytics");
-    expect(nodeIds).toContain("resources.jobs.etl_pipeline");
-    expect(nodeIds).toContain("resources.postgres_branches.pg_branch");
     expect(nodeIds).toContain("resources.synced_database_tables.lb_table");
+    expect(nodeIds).toContain("resources.jobs.etl_pipeline");
+    expect(nodeIds).toContain("resources.database_instances.lb_inst");
+    expect(nodeIds).toContain("resources.postgres_branches.pg_branch");
 
-    // "Other Resources" group wraps flat resources when hierarchies exist
+    // "Other Resources" wraps flat resources when postgres hierarchy exists
     expect(nodeIds).toContain("other-resources-root");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // UC edges
+    // UC: synced table under schema
     expect(edgePairs).toContain("uc-root→catalog::dagshund");
     expect(edgePairs).toContain("catalog::dagshund→resources.schemas.analytics");
-    // Workspace flat (via other-resources-root)
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→resources.synced_database_tables.lb_table",
+    );
+    // Workspace: flat resources via other-resources-root
     expect(edgePairs).toContain("workspace-root→other-resources-root");
     expect(edgePairs).toContain("other-resources-root→resources.jobs.etl_pipeline");
+    expect(edgePairs).toContain("other-resources-root→resources.database_instances.lb_inst");
     // Postgres hierarchy
     expect(edgePairs).toContain("workspace-root→postgres-root");
     expect(edgePairs).toContain("postgres-root→postgres-project::pg-proj");
     expect(edgePairs).toContain("postgres-project::pg-proj→resources.postgres_branches.pg_branch");
-    // Lakebase hierarchy
-    expect(edgePairs).toContain("workspace-root→lakebase-root");
-    expect(edgePairs).toContain("lakebase-root→lakebase-instance::lb_inst");
-    expect(edgePairs).toContain(
-      "lakebase-instance::lb_inst→resources.synced_database_tables.lb_table",
-    );
   });
 });
 
 describe("all-hierarchies-plan.json fixture", () => {
-  test("creates all four root sections", async () => {
+  test("creates UC, workspace, and postgres root sections (no lakebase-root)", async () => {
     const plan = await loadFixture("all-hierarchies-plan.json");
     const graph = buildResourceGraph(plan);
 
@@ -1128,48 +1158,71 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(rootIds).toContain("workspace-root");
     expect(rootIds).toContain("other-resources-root");
     expect(rootIds).toContain("postgres-root");
-    expect(rootIds).toContain("lakebase-root");
+    expect(rootIds).not.toContain("lakebase-root");
   });
 
-  test("UC hierarchy includes catalog, schemas, phantom schema, and leaf resources", async () => {
+  test("UC hierarchy includes catalogs, schemas, leaf resources, and synced tables", async () => {
     const plan = await loadFixture("all-hierarchies-plan.json");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    // Deployed catalog with its schema (container tier uses hierarchy ID)
+    // Deployed catalogs
     expect(nodeIds).toContain("catalog::production");
+    expect(nodeIds).toContain("catalog::lakebase_analytics");
     expect(nodeIds).toContain("resources.schemas.reporting");
-    // Phantom catalog group (dagshund has no explicit catalogs entry, inferred from schemas)
+    // Phantom catalog (dagshund inferred from schemas)
     expect(nodeIds).toContain("catalog::dagshund");
-    // Phantom schema for partner_feeds volume (references schema "integrations" not in plan)
+    // Phantom schema for partner_feeds volume
     expect(nodeIds).toContain("external::dagshund.integrations");
+    // Phantom schema for synced tables under lakebase_analytics
+    expect(nodeIds).toContain("external::lakebase_analytics.analytics_data");
+    // Phantom schema for partner_metrics under production
+    expect(nodeIds).toContain("external::production.warehouse");
+
+    // Synced tables are UC leaf nodes
+    expect(nodeIds).toContain("resources.synced_database_tables.customer_360");
+    expect(nodeIds).toContain("resources.synced_database_tables.product_events");
+    expect(nodeIds).toContain("resources.synced_database_tables.partner_metrics");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Deployed catalog hierarchy (single node with hierarchy ID)
+    // Deployed catalog hierarchy
     expect(edgePairs).toContain("uc-root→catalog::production");
     expect(edgePairs).toContain("catalog::production→resources.schemas.reporting");
-    // Phantom dagshund catalog hierarchy
+    // Phantom dagshund catalog
     expect(edgePairs).toContain("uc-root→catalog::dagshund");
     expect(edgePairs).toContain("catalog::dagshund→resources.schemas.analytics");
     expect(edgePairs).toContain("catalog::dagshund→resources.schemas.ml_features");
-    // Volume links through real schema
+    // Volume links
     expect(edgePairs).toContain("resources.schemas.analytics→resources.volumes.raw_data");
-    // Volume links through phantom schema
     expect(edgePairs).toContain("catalog::dagshund→external::dagshund.integrations");
     expect(edgePairs).toContain("external::dagshund.integrations→resources.volumes.partner_feeds");
-    // Deleted model links through real schema
+    // Deleted model
     expect(edgePairs).toContain(
       "resources.schemas.analytics→resources.registered_models.churn_predictor",
     );
+    // Synced tables under lakebase_analytics catalog → phantom analytics_data schema
+    expect(edgePairs).toContain(
+      "catalog::lakebase_analytics→external::lakebase_analytics.analytics_data",
+    );
+    expect(edgePairs).toContain(
+      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
+    );
+    expect(edgePairs).toContain(
+      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
+    );
+    // partner_metrics under production catalog → phantom warehouse schema
+    expect(edgePairs).toContain("catalog::production→external::production.warehouse");
+    expect(edgePairs).toContain(
+      "external::production.warehouse→resources.synced_database_tables.partner_metrics",
+    );
 
-    // Deployed catalog is a resource node (has explicit catalogs entry)
+    // Node kinds
     const prodCatalog = graph.nodes.find((n) => n.id === "catalog::production");
     expect(prodCatalog?.nodeKind).toBe("resource");
-    // dagshund catalog is phantom (no explicit catalogs entry, inferred from schemas)
-    const catalogGroup = graph.nodes.find((n) => n.id === "catalog::dagshund");
-    expect(catalogGroup?.nodeKind).toBe("phantom");
-    const phantomSchema = graph.nodes.find((n) => n.id === "external::dagshund.integrations");
-    expect(phantomSchema?.nodeKind).toBe("phantom");
+    const lbCatalog = graph.nodes.find((n) => n.id === "catalog::lakebase_analytics");
+    expect(lbCatalog?.nodeKind).toBe("resource");
+    const dagshundCatalog = graph.nodes.find((n) => n.id === "catalog::dagshund");
+    expect(dagshundCatalog?.nodeKind).toBe("phantom");
   });
 
   test("postgres hierarchy has 3-tier chain with phantom branch", async () => {
@@ -1182,11 +1235,9 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(nodeIds).toContain("resources.postgres_branches.production");
     expect(nodeIds).toContain("resources.postgres_endpoints.staging_read");
     expect(nodeIds).toContain("resources.postgres_endpoints.production_rw");
-    // Phantom branch for legacy_reader (parent: "archive" not in plan)
     expect(nodeIds).toContain("external::postgres-branch::warehouse-replica/archive");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Full chains
     expect(edgePairs).toContain("workspace-root→postgres-root");
     expect(edgePairs).toContain("postgres-root→postgres-project::warehouse-replica");
     expect(edgePairs).toContain(
@@ -1201,7 +1252,6 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(edgePairs).toContain(
       "resources.postgres_branches.production→resources.postgres_endpoints.production_rw",
     );
-    // Phantom branch chain — phantom branch now cascades up to project
     expect(edgePairs).toContain(
       "postgres-project::warehouse-replica→external::postgres-branch::warehouse-replica/archive",
     );
@@ -1210,38 +1260,17 @@ describe("all-hierarchies-plan.json fixture", () => {
     );
   });
 
-  test("lakebase hierarchy has phantom instance and cross-edge to UC", async () => {
+  test("database_instance is a flat workspace resource", async () => {
     const plan = await loadFixture("all-hierarchies-plan.json");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    // Real instance
-    expect(nodeIds).toContain("lakebase-instance::analytics_db");
-    // Phantom instance (partner_metrics references "reporting_db" not in plan)
-    expect(nodeIds).toContain("lakebase-instance::reporting_db");
+    expect(nodeIds).toContain("resources.database_instances.analytics_db");
 
+    // Under other-resources-root (postgres hierarchy triggers wrapper)
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Real instance chain
-    expect(edgePairs).toContain("workspace-root→lakebase-root");
-    expect(edgePairs).toContain("lakebase-root→lakebase-instance::analytics_db");
-    expect(edgePairs).toContain(
-      "lakebase-instance::analytics_db→resources.synced_database_tables.customer_360",
-    );
-    expect(edgePairs).toContain(
-      "lakebase-instance::analytics_db→resources.synced_database_tables.product_events",
-    );
-    // Phantom instance chain
-    expect(edgePairs).toContain("lakebase-root→lakebase-instance::reporting_db");
-    expect(edgePairs).toContain(
-      "lakebase-instance::reporting_db→resources.synced_database_tables.partner_metrics",
-    );
-    // Cross-hierarchy edge: lakebase instance → UC database_catalog (uses hierarchy ID)
-    expect(edgePairs).toContain("lakebase-instance::analytics_db→catalog::lakebase_analytics");
-
-    const realInstance = graph.nodes.find((n) => n.id === "lakebase-instance::analytics_db");
-    expect(realInstance?.nodeKind).toBe("resource");
-    const phantomInstance = graph.nodes.find((n) => n.id === "lakebase-instance::reporting_db");
-    expect(phantomInstance?.nodeKind).toBe("phantom");
+    expect(edgePairs).toContain("workspace-root→other-resources-root");
+    expect(edgePairs).toContain("other-resources-root→resources.database_instances.analytics_db");
   });
 
   test("workspace flat resources are wrapped in other-resources-root", async () => {
@@ -1263,7 +1292,7 @@ describe("all-hierarchies-plan.json fixture", () => {
     const graph = buildResourceGraph(plan);
 
     const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
-    // 8 UC + 4 workspace + 6 postgres + 4 lakebase = 22
+    // 11 UC (8 original + 3 synced tables) + 5 workspace (4 original + 1 database_instance) + 6 postgres = 22
     expect(resourceNodes).toHaveLength(22);
   });
 });
@@ -1325,23 +1354,24 @@ describe("other-resources-root grouping", () => {
     expect(edgePairs).not.toContain("workspace-root→resources.jobs.my_job");
   });
 
-  test("other-resources-root wraps flat resources when lakebase hierarchy exists", () => {
+  test("database_instances are flat — no other-resources-root without a hierarchy", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.jobs.my_job": { action: "create" },
         "resources.database_instances.lb_inst": {
           action: "create",
-          new_state: { value: { name: "lb_inst" } },
+          new_state: { value: { name: "lb_inst", capacity: "CU_1" } },
         },
       },
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("other-resources-root");
+    // Both are flat workspace resources — no hierarchy, no wrapper
+    expect(nodeIds).not.toContain("other-resources-root");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("workspace-root→other-resources-root");
-    expect(edgePairs).toContain("other-resources-root→resources.jobs.my_job");
+    expect(edgePairs).toContain("workspace-root→resources.jobs.my_job");
+    expect(edgePairs).toContain("workspace-root→resources.database_instances.lb_inst");
   });
 });
 
@@ -1367,240 +1397,38 @@ describe("parseThreePartName", () => {
   });
 });
 
-describe("sync table lateral edges", () => {
-  test("three-part name creates phantom table and sync edge", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.schemas.analytics": {
-          action: "update",
-          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
-        },
-        "resources.database_instances.my_inst": {
-          action: "create",
-          new_state: { value: { name: "my_inst" } },
-        },
-        "resources.synced_database_tables.my_table": {
-          action: "create",
-          new_state: {
-            value: {
-              name: "dagshund.analytics.my_table",
-              database_instance_name: "my_inst",
-            },
-          },
-        },
-      },
-    });
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("sync-target::dagshund.analytics.my_table");
-
-    const phantomTable = graph.nodes.find(
-      (n) => n.id === "sync-target::dagshund.analytics.my_table",
-    );
-    expect(phantomTable?.nodeKind).toBe("phantom");
-    expect(phantomTable?.label).toBe("my_table");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Hierarchy: real schema → phantom table
-    expect(edgePairs).toContain(
-      "resources.schemas.analytics→sync-target::dagshund.analytics.my_table",
-    );
-    // Sync: phantom UC table → synced_database_table (data flows UC → Lakebase)
-    expect(edgePairs).toContain(
-      "sync-target::dagshund.analytics.my_table→resources.synced_database_tables.my_table",
-    );
-
-    // Verify edgeKind
-    const syncEdge = graph.edges.find(
-      (e) =>
-        e.source === "sync-target::dagshund.analytics.my_table" &&
-        e.target === "resources.synced_database_tables.my_table",
-    );
-    expect(syncEdge?.edgeKind).toBe("sync");
-
-    // Hierarchy edges have no edgeKind
-    const hierarchyEdge = graph.edges.find(
-      (e) =>
-        e.source === "resources.schemas.analytics" &&
-        e.target === "sync-target::dagshund.analytics.my_table",
-    );
-    expect(hierarchyEdge?.edgeKind).toBeUndefined();
-  });
-
-  test("phantom schema created when referenced schema not in plan", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.catalogs.prod": {
-          action: "create",
-          new_state: { value: { name: "prod" } },
-        },
-        "resources.database_instances.my_inst": {
-          action: "create",
-          new_state: { value: { name: "my_inst" } },
-        },
-        "resources.synced_database_tables.my_table": {
-          action: "create",
-          new_state: {
-            value: {
-              name: "prod.missing_schema.my_table",
-              database_instance_name: "my_inst",
-            },
-          },
-        },
-      },
-    });
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    // Phantom schema
-    expect(nodeIds).toContain("external::prod.missing_schema");
-    // Phantom table
-    expect(nodeIds).toContain("sync-target::prod.missing_schema.my_table");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("catalog::prod→external::prod.missing_schema");
-    expect(edgePairs).toContain(
-      "external::prod.missing_schema→sync-target::prod.missing_schema.my_table",
-    );
-    expect(edgePairs).toContain(
-      "sync-target::prod.missing_schema.my_table→resources.synced_database_tables.my_table",
-    );
-  });
-
-  test("simple name creates no sync edge", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.database_instances.my_inst": {
-          action: "create",
-          new_state: { value: { name: "my_inst" } },
-        },
-        "resources.synced_database_tables.my_table": {
-          action: "create",
-          new_state: {
-            value: { name: "simple_name", database_instance_name: "my_inst" },
-          },
-        },
-      },
-    });
-
-    const syncEdges = graph.edges.filter((e) => e.edgeKind === "sync");
-    expect(syncEdges).toHaveLength(0);
-
-    const phantomTables = graph.nodes.filter((n) => n.id.startsWith("sync-target::"));
-    expect(phantomTables).toHaveLength(0);
-  });
-
-  test("deduplicates phantom table when multiple synced tables reference same UC table", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.schemas.analytics": {
-          action: "update",
-          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
-        },
-        "resources.database_instances.inst_a": {
-          action: "create",
-          new_state: { value: { name: "inst_a" } },
-        },
-        "resources.database_instances.inst_b": {
-          action: "create",
-          new_state: { value: { name: "inst_b" } },
-        },
-        "resources.synced_database_tables.table_a": {
-          action: "create",
-          new_state: {
-            value: {
-              name: "dagshund.analytics.shared_table",
-              database_instance_name: "inst_a",
-            },
-          },
-        },
-        "resources.synced_database_tables.table_b": {
-          action: "create",
-          new_state: {
-            value: {
-              name: "dagshund.analytics.shared_table",
-              database_instance_name: "inst_b",
-            },
-          },
-        },
-      },
-    });
-
-    // Only one phantom table node
-    const phantomTables = graph.nodes.filter(
-      (n) => n.id === "sync-target::dagshund.analytics.shared_table",
-    );
-    expect(phantomTables).toHaveLength(1);
-
-    // Two sync edges
-    const syncEdges = graph.edges.filter((e) => e.edgeKind === "sync");
-    expect(syncEdges).toHaveLength(2);
-  });
-
-  test("bootstraps UC root when sync references catalog not in UC entries", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.database_instances.my_inst": {
-          action: "create",
-          new_state: { value: { name: "my_inst" } },
-        },
-        "resources.synced_database_tables.my_table": {
-          action: "create",
-          new_state: {
-            value: {
-              name: "new_catalog.new_schema.my_table",
-              database_instance_name: "my_inst",
-            },
-          },
-        },
-      },
-    });
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("uc-root");
-    expect(nodeIds).toContain("catalog::new_catalog");
-    expect(nodeIds).toContain("external::new_catalog.new_schema");
-    expect(nodeIds).toContain("sync-target::new_catalog.new_schema.my_table");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("uc-root→catalog::new_catalog");
-  });
-});
-
-describe("all-hierarchies sync edges", () => {
-  test("synced_database_tables create phantom UC table nodes with sync edges", async () => {
+describe("all-hierarchies synced tables in UC", () => {
+  test("synced_database_tables placed under correct catalogs and schemas", async () => {
     const plan = await loadFixture("all-hierarchies-plan.json");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    // Phantom table nodes in UC
-    expect(nodeIds).toContain("sync-target::dagshund.analytics.customer_360");
-    expect(nodeIds).toContain("sync-target::dagshund.analytics.product_events");
-    expect(nodeIds).toContain("sync-target::production.warehouse.partner_metrics");
-    // Phantom schema for warehouse (not in plan)
+    // Synced tables are UC leaf nodes
+    expect(nodeIds).toContain("resources.synced_database_tables.customer_360");
+    expect(nodeIds).toContain("resources.synced_database_tables.product_events");
+    expect(nodeIds).toContain("resources.synced_database_tables.partner_metrics");
+    // Phantom schemas for synced table parent resolution
+    expect(nodeIds).toContain("external::lakebase_analytics.analytics_data");
     expect(nodeIds).toContain("external::production.warehouse");
+    // No sync-target:: phantom nodes
+    const syncTargets = nodeIds.filter((id) => id.startsWith("sync-target::"));
+    expect(syncTargets).toHaveLength(0);
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Hierarchy: schema → phantom table (dagshund.analytics exists as real schema)
+    // Synced tables under lakebase_analytics catalog → phantom analytics_data schema
     expect(edgePairs).toContain(
-      "resources.schemas.analytics→sync-target::dagshund.analytics.customer_360",
+      "catalog::lakebase_analytics→external::lakebase_analytics.analytics_data",
     );
     expect(edgePairs).toContain(
-      "resources.schemas.analytics→sync-target::dagshund.analytics.product_events",
+      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
     );
-    // Hierarchy: phantom schema → phantom table
     expect(edgePairs).toContain(
-      "external::production.warehouse→sync-target::production.warehouse.partner_metrics",
+      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
     );
-    // Phantom schema under real catalog
+    // partner_metrics under production catalog → phantom warehouse schema
     expect(edgePairs).toContain("catalog::production→external::production.warehouse");
-
-    // 3 sync edges total (phantom UC table → synced_database_table)
-    const syncEdges = graph.edges.filter((e) => e.edgeKind === "sync");
-    expect(syncEdges).toHaveLength(3);
-    expect(syncEdges.map((e) => e.source).sort()).toEqual([
-      "sync-target::dagshund.analytics.customer_360",
-      "sync-target::dagshund.analytics.product_events",
-      "sync-target::production.warehouse.partner_metrics",
-    ]);
+    expect(edgePairs).toContain(
+      "external::production.warehouse→resources.synced_database_tables.partner_metrics",
+    );
   });
 });

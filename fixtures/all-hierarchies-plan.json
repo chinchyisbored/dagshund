@@ -66,7 +66,8 @@
         "value": {
           "name": "lakebase_analytics",
           "database_instance_name": "analytics_db",
-          "comment": "Lakebase-managed catalog for analytics data"
+          "database_name": "analytics_data",
+          "create_database_if_not_exists": true
         }
       }
     },
@@ -455,7 +456,9 @@
       "new_state": {
         "value": {
           "name": "analytics_db",
-          "comment": "Lakebase instance for analytics workloads"
+          "capacity": "CU_2",
+          "node_count": 1,
+          "enable_pg_native_login": true
         }
       }
     },
@@ -464,11 +467,14 @@
       "action": "create",
       "new_state": {
         "value": {
-          "name": "dagshund.analytics.customer_360",
+          "name": "lakebase_analytics.analytics_data.customer_360",
           "database_instance_name": "analytics_db",
-          "source_schema": "public",
-          "source_table": "customers",
-          "comment": "Synced customer profile table"
+          "logical_database_name": "analytics_data",
+          "spec": {
+            "source_table_full_name": "dagshund.analytics.customer_profiles",
+            "scheduling_policy": "CONTINUOUS",
+            "primary_key_columns": ["customer_id"]
+          }
         }
       }
     },
@@ -477,34 +483,32 @@
       "action": "update",
       "new_state": {
         "value": {
-          "name": "dagshund.analytics.product_events",
+          "name": "lakebase_analytics.analytics_data.product_events",
           "database_instance_name": "analytics_db",
-          "source_schema": "events",
-          "source_table": "product_interactions",
-          "comment": "Product interaction events from Postgres"
+          "logical_database_name": "analytics_data",
+          "spec": {
+            "source_table_full_name": "dagshund.analytics.product_interactions",
+            "scheduling_policy": "SNAPSHOT",
+            "primary_key_columns": ["event_id"]
+          }
         }
       },
       "remote_state": {
-        "name": "product_events",
+        "name": "lakebase_analytics.analytics_data.product_events",
         "database_instance_name": "analytics_db",
-        "source_schema": "events",
-        "source_table": "product_clicks",
-        "comment": "Product click events from Postgres",
-        "created_at": "2026-02-01T08:00:00Z",
-        "status": "ACTIVE"
+        "logical_database_name": "analytics_data",
+        "spec": {
+          "source_table_full_name": "dagshund.analytics.product_clicks",
+          "scheduling_policy": "SNAPSHOT",
+          "primary_key_columns": ["event_id"]
+        }
       },
       "changes": {
-        "source_table": {
+        "spec.source_table_full_name": {
           "action": "update",
-          "old": "product_clicks",
-          "new": "product_interactions",
-          "remote": "product_clicks"
-        },
-        "comment": {
-          "action": "update",
-          "old": "Product click events from Postgres",
-          "new": "Product interaction events from Postgres",
-          "remote": "Product click events from Postgres"
+          "old": "dagshund.analytics.product_clicks",
+          "new": "dagshund.analytics.product_interactions",
+          "remote": "dagshund.analytics.product_clicks"
         }
       }
     },
@@ -515,9 +519,17 @@
         "value": {
           "name": "production.warehouse.partner_metrics",
           "database_instance_name": "reporting_db",
-          "source_schema": "partners",
-          "source_table": "metrics_rollup",
-          "comment": "Partner performance metrics from reporting DB"
+          "logical_database_name": "warehouse",
+          "spec": {
+            "source_table_full_name": "dagshund.integrations.partner_rollup",
+            "scheduling_policy": "SNAPSHOT",
+            "primary_key_columns": ["partner_id", "metric_date"],
+            "create_database_objects_if_missing": true,
+            "new_pipeline_spec": {
+              "storage_catalog": "dagshund",
+              "storage_schema": "analytics"
+            }
+          }
         }
       }
     }

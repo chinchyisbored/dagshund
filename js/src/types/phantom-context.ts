@@ -5,6 +5,5 @@ export type PhantomContextEntry = {
 };
 
 export type PhantomContext = {
-  readonly kind: "hierarchy" | "sync-target";
   readonly sources: readonly PhantomContextEntry[];
 };

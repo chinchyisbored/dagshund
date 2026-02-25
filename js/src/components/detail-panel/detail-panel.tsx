@@ -105,9 +105,7 @@ export function DetailPanel({ data, onClose, width, phantomContext }: DetailPane
               <p>Untracked by this bundle</p>
               {phantomContext !== undefined && phantomContext.sources.length > 0 && (
                 <div className="mt-2">
-                  <p className="font-medium text-ink-secondary">
-                    {phantomContext.kind === "sync-target" ? "Sync target of:" : "Inferred from:"}
-                  </p>
+                  <p className="font-medium text-ink-secondary">Inferred from:</p>
                   <ul className="mt-1 space-y-0.5">
                     {phantomContext.sources.map(({ label, resourceKey, resourceType }) => (
                       <li

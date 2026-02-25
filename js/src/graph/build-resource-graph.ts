@@ -44,6 +44,7 @@ const UC_TYPES: ReadonlySet<string> = new Set([
   ...SCHEMA_TIER_TYPES,
   "volumes",
   "registered_models",
+  "synced_database_tables",
 ]);
 
 /** All Postgres resource types. */
@@ -51,12 +52,6 @@ const POSTGRES_TYPES: ReadonlySet<string> = new Set([
   "postgres_projects",
   "postgres_branches",
   "postgres_endpoints",
-]);
-
-/** All Lakebase resource types (database_catalogs stays in UC). */
-const LAKEBASE_TYPES: ReadonlySet<string> = new Set([
-  "database_instances",
-  "synced_database_tables",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -74,9 +69,6 @@ export const isUnityCatalogType = (resourceType: string): boolean => UC_TYPES.ha
 
 /** Check whether a resource type belongs under the Postgres hierarchy. */
 export const isPostgresType = (resourceType: string): boolean => POSTGRES_TYPES.has(resourceType);
-
-/** Check whether a resource type belongs under the Lakebase hierarchy. */
-export const isLakebaseType = (resourceType: string): boolean => LAKEBASE_TYPES.has(resourceType);
 
 /**
  * Safely extract a named field from a plan entry's state.
@@ -211,45 +203,6 @@ const filterDefinedEdges = (edges: readonly (GraphEdge | undefined)[]): readonly
   edges.filter((e): e is GraphEdge => e !== undefined);
 
 // ---------------------------------------------------------------------------
-// Schema / catalog lookups (kept for cross-hierarchy sync resolution)
-// ---------------------------------------------------------------------------
-
-/** Build a lookup from "catalog.schema" → schema plan key for linking volumes/models to schemas. */
-const buildSchemaLookup = (
-  ucEntries: readonly (readonly [string, PlanEntry])[],
-): ReadonlyMap<string, string> =>
-  new Map(
-    ucEntries
-      .filter(([key]) => {
-        const rt = extractResourceType(key);
-        return rt !== undefined && SCHEMA_TIER_TYPES.has(rt);
-      })
-      .flatMap(([key, entry]) => {
-        const name = extractStateField(entry, "name");
-        const catalog = extractStateField(entry, "catalog_name");
-        return name !== undefined && catalog !== undefined
-          ? [[`${catalog}.${name}`, key] as const]
-          : [];
-      }),
-  );
-
-/** Build a set of catalog names that are actual plan entries (not just referenced). */
-const buildCatalogLookup = (
-  ucEntries: readonly (readonly [string, PlanEntry])[],
-): ReadonlySet<string> =>
-  new Set(
-    ucEntries
-      .filter(([key]) => {
-        const rt = extractResourceType(key);
-        return rt !== undefined && CATALOG_TIER_TYPES.has(rt);
-      })
-      .flatMap(([, entry]) => {
-        const name = extractStateField(entry, "name");
-        return name !== undefined ? [name] : [];
-      }),
-  );
-
-// ---------------------------------------------------------------------------
 // Chain spec types
 // ---------------------------------------------------------------------------
 
@@ -316,13 +269,19 @@ const UC_CHAIN: ChainSpec = {
     },
     {
       name: "leaf",
-      resourceTypes: new Set(["volumes", "registered_models"]),
+      resourceTypes: new Set(["volumes", "registered_models", "synced_database_tables"]),
       resolveIdentity: () => undefined, // leaves are never parents
       resolveParentRef: (entry) => {
         const catalog = extractStateField(entry, "catalog_name");
         const schema = extractStateField(entry, "schema_name");
         if (schema !== undefined && catalog !== undefined) return `${catalog}.${schema}`;
         if (catalog !== undefined) return { identity: catalog, tierIndex: 0 };
+        // Fall back to three-part name parsing (synced_database_tables)
+        const name = extractStateField(entry, "name");
+        if (name !== undefined) {
+          const parsed = parseThreePartName(name);
+          if (parsed !== undefined) return `${parsed.catalog}.${parsed.schema}`;
+        }
         return undefined;
       },
       deriveParentRef: undefined,
@@ -380,29 +339,6 @@ const POSTGRES_CHAIN: ChainSpec = {
         }
         return undefined;
       },
-      deriveParentRef: undefined,
-      buildHierarchyId: () => "",
-    },
-  ],
-};
-
-const LAKEBASE_CHAIN: ChainSpec = {
-  rootId: "lakebase-root",
-  rootLabel: "Lakebase Provisioned",
-  tiers: [
-    {
-      name: "instance",
-      resourceTypes: new Set(["database_instances"]),
-      resolveIdentity: (entry) => extractStateField(entry, "name"),
-      resolveParentRef: () => undefined, // root-adjacent
-      buildHierarchyId: (name) => `lakebase-instance::${name}`,
-      useHierarchyId: true,
-    },
-    {
-      name: "synced table",
-      resourceTypes: new Set(["synced_database_tables"]),
-      resolveIdentity: () => undefined,
-      resolveParentRef: (entry) => extractStateField(entry, "database_instance_name"),
       deriveParentRef: undefined,
       buildHierarchyId: () => "",
     },
@@ -536,20 +472,12 @@ const resolveEntryParent = (
 /**
  * Build a hierarchy subgraph from a chain spec.
  * Creates root + resource nodes + phantom ancestors + all hierarchy edges.
- *
- * Additional identities at specific tiers ensure those nodes exist (as phantoms if no plan entry).
- * Used for cross-hierarchy references (e.g. Lakebase instances referenced by UC database_catalogs).
  */
 const buildChainGraph = (
   entries: readonly (readonly [string, PlanEntry])[],
   spec: ChainSpec,
-  additionalIdentities?: ReadonlyMap<number, ReadonlySet<string>>,
 ): PlanGraph => {
-  const hasAdditional =
-    additionalIdentities !== undefined &&
-    [...additionalIdentities.values()].some((s) => s.size > 0);
-
-  if (entries.length === 0 && !hasAdditional) return { nodes: [], edges: [] };
+  if (entries.length === 0) return { nodes: [], edges: [] };
 
   const root = buildRootNode(spec.rootId, spec.rootLabel);
   const tierIndexes = buildTierIndexes(entries, spec.tiers);
@@ -585,23 +513,6 @@ const buildChainGraph = (
     hierarchyEdges.push(buildEdge(parentNodeId, nodeId, entryEdgeDiffState(entry)));
   }
 
-  // Additional identities: ensure nodes exist at specific tiers (phantom if no real entry)
-  if (additionalIdentities !== undefined) {
-    for (const [tierIndex, identities] of additionalIdentities) {
-      const tier = spec.tiers[tierIndex];
-      if (tier === undefined) continue;
-      const index = tierIndexes[tierIndex] as TierIndex;
-
-      for (const identity of identities) {
-        if (index.has(identity)) continue; // real entry exists
-        const phantomId = tier.buildHierarchyId(identity);
-        if (phantomNodes.has(phantomId)) continue; // already created
-        phantomNodes.set(phantomId, buildPhantomNode(phantomId, identity));
-        phantomEdges.push(buildEdge(spec.rootId, phantomId));
-      }
-    }
-  }
-
   return {
     nodes: [root, ...resourceNodes, ...[...phantomNodes.values()]],
     edges: [...filterDefinedEdges(hierarchyEdges), ...filterDefinedEdges(phantomEdges)],
@@ -612,18 +523,15 @@ const buildChainGraph = (
 // Workspace graph
 // ---------------------------------------------------------------------------
 
-/** Build the workspace subgraph: flat resources + Postgres/Lakebase hierarchies. */
+/** Build the workspace subgraph: flat resources + Postgres hierarchy. */
 const buildWorkspaceGraph = (
   workspaceEntries: readonly (readonly [string, PlanEntry])[],
   postgresEntries: readonly (readonly [string, PlanEntry])[],
-  lakebaseEntries: readonly (readonly [string, PlanEntry])[],
-  crossReferencedInstances: ReadonlySet<string>,
 ): PlanGraph => {
   const hasWorkspace = workspaceEntries.length > 0;
   const hasPostgres = postgresEntries.length > 0;
-  const hasLakebase = lakebaseEntries.length > 0 || crossReferencedInstances.size > 0;
 
-  if (!hasWorkspace && !hasPostgres && !hasLakebase) return { nodes: [], edges: [] };
+  if (!hasWorkspace && !hasPostgres) return { nodes: [], edges: [] };
 
   const root = buildRootNode("workspace-root", "Workspace");
 
@@ -635,19 +543,8 @@ const buildWorkspaceGraph = (
     ? filterDefinedEdges([buildEdge("workspace-root", "postgres-root")])
     : [];
 
-  // Lakebase hierarchy (additional instance identities from cross-references)
-  const lbAdditional =
-    crossReferencedInstances.size > 0 ? new Map([[0, crossReferencedInstances]]) : undefined;
-  const lbGraph = hasLakebase
-    ? buildChainGraph(lakebaseEntries, LAKEBASE_CHAIN, lbAdditional)
-    : { nodes: [], edges: [] };
-  const lbRootEdge = hasLakebase
-    ? filterDefinedEdges([buildEdge("workspace-root", "lakebase-root")])
-    : [];
-
   // Flat workspace resources — wrap in "Other Resources" group when hierarchies exist
-  const hasHierarchies = hasPostgres || hasLakebase;
-  const wrapFlat = hasWorkspace && hasHierarchies;
+  const wrapFlat = hasWorkspace && hasPostgres;
   const flatParentId = wrapFlat ? "other-resources-root" : "workspace-root";
 
   const flatNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
@@ -662,50 +559,10 @@ const buildWorkspaceGraph = (
     : [];
 
   return {
-    nodes: [root, ...otherResourcesNodes, ...flatNodes, ...pgGraph.nodes, ...lbGraph.nodes],
-    edges: [
-      ...otherResourcesEdge,
-      ...flatEdges,
-      ...pgRootEdge,
-      ...pgGraph.edges,
-      ...lbRootEdge,
-      ...lbGraph.edges,
-    ],
+    nodes: [root, ...otherResourcesNodes, ...flatNodes, ...pgGraph.nodes],
+    edges: [...otherResourcesEdge, ...flatEdges, ...pgRootEdge, ...pgGraph.edges],
   };
 };
-
-// ---------------------------------------------------------------------------
-// Cross-hierarchy edges
-// ---------------------------------------------------------------------------
-
-/** Collect cross-hierarchy edges from Lakebase instances to UC database_catalogs. */
-const collectLakebaseCrossEdges = (
-  ucEntries: readonly (readonly [string, PlanEntry])[],
-): {
-  readonly edges: readonly GraphEdge[];
-  readonly instanceNames: ReadonlySet<string>;
-} => {
-  const instanceNames = new Set<string>();
-  const edges: GraphEdge[] = [];
-
-  for (const [key, entry] of ucEntries) {
-    const rt = extractResourceType(key);
-    if (rt !== "database_catalogs") continue;
-    const instanceName = extractStateField(entry, "database_instance_name");
-    if (instanceName === undefined) continue;
-    instanceNames.add(instanceName);
-    const catalogName = extractStateField(entry, "name");
-    if (catalogName === undefined) continue;
-    const edge = buildEdge(`lakebase-instance::${instanceName}`, `catalog::${catalogName}`);
-    if (edge !== undefined) edges.push(edge);
-  }
-
-  return { edges, instanceNames };
-};
-
-// ---------------------------------------------------------------------------
-// Sync table edges
-// ---------------------------------------------------------------------------
 
 /** Parse a three-part UC name ("catalog.schema.table") into components.
  *  Returns undefined if the name doesn't have exactly three dot-separated parts. */
@@ -717,85 +574,6 @@ export const parseThreePartName = (
   return parts.length === 3
     ? { catalog: parts[0] as string, schema: parts[1] as string, table: parts[2] as string }
     : undefined;
-};
-
-/** Collect lateral sync edges from synced_database_tables to phantom UC table nodes.
- *  Creates phantom table and schema nodes as needed for the UC hierarchy. */
-const collectSyncTableEdges = (
-  lakebaseEntries: readonly (readonly [string, PlanEntry])[],
-  schemaLookup: ReadonlyMap<string, string>,
-  existingUcNodeIds: ReadonlySet<string>,
-): {
-  readonly syncEdges: readonly GraphEdge[];
-  readonly phantomNodes: readonly PhantomGraphNode[];
-  readonly phantomEdges: readonly GraphEdge[];
-  readonly referencedCatalogs: ReadonlySet<string>;
-} => {
-  const phantomTableMap = new Map<
-    string,
-    { readonly node: PhantomGraphNode; readonly parentEdge: GraphEdge | undefined }
-  >();
-  const phantomSchemaMap = new Map<
-    string,
-    { readonly node: PhantomGraphNode; readonly parentEdge: GraphEdge | undefined }
-  >();
-  const syncEdges: GraphEdge[] = [];
-  const referencedCatalogs = new Set<string>();
-
-  for (const [key, entry] of lakebaseEntries) {
-    if (extractResourceType(key) !== "synced_database_tables") continue;
-
-    const name = extractStateField(entry, "name");
-    if (name === undefined) continue;
-
-    const parsed = parseThreePartName(name);
-    if (parsed === undefined) continue;
-
-    referencedCatalogs.add(parsed.catalog);
-
-    const tableId = `sync-target::${parsed.catalog}.${parsed.schema}.${parsed.table}`;
-    const schemaQualified = `${parsed.catalog}.${parsed.schema}`;
-    const realSchemaKey = schemaLookup.get(schemaQualified);
-    const phantomSchemaId = `external::${schemaQualified}`;
-    const schemaParentId = realSchemaKey ?? phantomSchemaId;
-
-    // Phantom schema if no real schema and not already in the UC graph
-    if (
-      realSchemaKey === undefined &&
-      !existingUcNodeIds.has(phantomSchemaId) &&
-      !phantomSchemaMap.has(schemaQualified)
-    ) {
-      phantomSchemaMap.set(schemaQualified, {
-        node: buildPhantomNode(phantomSchemaId, parsed.schema),
-        parentEdge: buildEdge(`catalog::${parsed.catalog}`, phantomSchemaId),
-      });
-    }
-
-    // Phantom table node for the UC sync target
-    if (!phantomTableMap.has(tableId)) {
-      phantomTableMap.set(tableId, {
-        node: buildPhantomNode(tableId, parsed.table),
-        parentEdge: buildEdge(schemaParentId, tableId),
-      });
-    }
-
-    // Sync edge from phantom UC table to synced_database_table (data flows UC → Lakebase)
-    const syncEdge = buildEdge(tableId, key, entryEdgeDiffState(entry));
-    if (syncEdge !== undefined) syncEdges.push({ ...syncEdge, edgeKind: "sync" });
-  }
-
-  return {
-    syncEdges,
-    phantomNodes: [
-      ...[...phantomSchemaMap.values()].map(({ node }) => node),
-      ...[...phantomTableMap.values()].map(({ node }) => node),
-    ],
-    phantomEdges: filterDefinedEdges([
-      ...[...phantomSchemaMap.values()].map(({ parentEdge }) => parentEdge),
-      ...[...phantomTableMap.values()].map(({ parentEdge }) => parentEdge),
-    ]),
-    referencedCatalogs,
-  };
 };
 
 // ---------------------------------------------------------------------------
@@ -836,7 +614,6 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
 
   const ucEntries: [string, PlanEntry][] = [];
   const postgresEntries: [string, PlanEntry][] = [];
-  const lakebaseEntries: [string, PlanEntry][] = [];
   const workspaceEntries: [string, PlanEntry][] = [];
   for (const entry of entries) {
     const resourceType = extractResourceType(entry[0]);
@@ -844,72 +621,17 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
       ucEntries.push(entry);
     } else if (resourceType !== undefined && isPostgresType(resourceType)) {
       postgresEntries.push(entry);
-    } else if (resourceType !== undefined && isLakebaseType(resourceType)) {
-      lakebaseEntries.push(entry);
     } else {
       workspaceEntries.push(entry);
     }
   }
 
-  const schemaLookup = buildSchemaLookup(ucEntries);
-  const catalogLookup = buildCatalogLookup(ucEntries);
   const ucGraph = buildChainGraph(ucEntries, UC_CHAIN);
-
-  const { edges: crossEdges, instanceNames: crossReferencedInstances } =
-    collectLakebaseCrossEdges(ucEntries);
-
-  // Sync edges: synced_database_table → phantom UC table
-  const existingUcNodeIds = new Set(ucGraph.nodes.map((n) => n.id));
-  const {
-    syncEdges,
-    phantomNodes: syncPhantomNodes,
-    phantomEdges: syncPhantomEdges,
-    referencedCatalogs: syncReferencedCatalogs,
-  } = collectSyncTableEdges(lakebaseEntries, schemaLookup, existingUcNodeIds);
-
-  // If sync edges reference catalogs not in the UC graph, create phantom catalog nodes
-  const existingCatalogs = new Set(
-    ucGraph.nodes.filter((n) => n.id.startsWith("catalog::")).map((n) => n.id.slice(9)),
-  );
-  const missingCatalogs = [...syncReferencedCatalogs].filter((c) => !existingCatalogs.has(c));
-  const extraCatalogNodes = missingCatalogs.map((name) =>
-    catalogLookup.has(name)
-      ? buildRootNode(`catalog::${name}`, name) // real catalog entry exists but no UC entries created it
-      : buildPhantomNode(`catalog::${name}`, name),
-  );
-  const extraCatalogEdges = filterDefinedEdges(
-    missingCatalogs.map((name) => buildEdge("uc-root", `catalog::${name}`)),
-  );
-
-  // If we need sync phantom nodes but no UC root exists, bootstrap it
-  const needsUcRoot =
-    ucGraph.nodes.length === 0 && (syncPhantomNodes.length > 0 || extraCatalogNodes.length > 0);
-  const ucRootForSync = needsUcRoot ? [buildRootNode("uc-root", "Unity Catalog")] : [];
-
-  const workspaceGraph = buildWorkspaceGraph(
-    workspaceEntries,
-    postgresEntries,
-    lakebaseEntries,
-    crossReferencedInstances,
-  );
+  const workspaceGraph = buildWorkspaceGraph(workspaceEntries, postgresEntries);
   const dependsOnEdges = collectDependsOnEdges(entries);
 
   return {
-    nodes: [
-      ...ucGraph.nodes,
-      ...ucRootForSync,
-      ...extraCatalogNodes,
-      ...syncPhantomNodes,
-      ...workspaceGraph.nodes,
-    ],
-    edges: deduplicateEdges([
-      ...ucGraph.edges,
-      ...extraCatalogEdges,
-      ...syncPhantomEdges,
-      ...workspaceGraph.edges,
-      ...crossEdges,
-      ...syncEdges,
-      ...dependsOnEdges,
-    ]),
+    nodes: [...ucGraph.nodes, ...workspaceGraph.nodes],
+    edges: deduplicateEdges([...ucGraph.edges, ...workspaceGraph.edges, ...dependsOnEdges]),
   };
 };

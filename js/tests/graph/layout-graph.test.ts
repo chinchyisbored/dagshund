@@ -358,26 +358,6 @@ describe("toFlowEdges", () => {
       strokeDasharray: undefined,
     });
   });
-
-  test("applies sync edge style for edgeKind sync", async () => {
-    const { toFlowEdges } = await loadModule();
-    const edges = toFlowEdges([
-      {
-        id: "e1",
-        source: "a",
-        target: "b",
-        label: undefined,
-        diffState: "unchanged",
-        edgeKind: "sync",
-      },
-    ]);
-
-    expect(edges[0]?.style).toEqual({
-      stroke: "var(--edge-sync)",
-      opacity: 0.85,
-      strokeDasharray: "6 4",
-    });
-  });
 });
 
 describe("toReactFlowElements", () => {

@@ -62,7 +62,6 @@ const getNodeData = (node: Node): DagNodeData => node.data as DagNodeData;
  *  Every outgoing edge points to a child/referenced node that caused the phantom to exist. */
 const resolvePhantomContext = (
   nodeId: string,
-  resourceKey: string,
   nodes: readonly Node[],
   edges: readonly Edge[],
 ): PhantomContext | undefined => {
@@ -80,8 +79,7 @@ const resolvePhantomContext = (
       };
     });
 
-  const kind = resourceKey.startsWith("sync-target::") ? "sync-target" : "hierarchy";
-  return { kind, sources };
+  return { sources };
 };
 
 export function FlowCanvas({
@@ -242,12 +240,7 @@ export function FlowCanvas({
   const phantomContext = useMemo(() => {
     if (selectedNode === null || selectedNode.nodeKind !== "phantom" || selectedNodeId === null)
       return undefined;
-    return resolvePhantomContext(
-      selectedNodeId,
-      selectedNode.resourceKey,
-      baseNodes as Node[],
-      baseEdges,
-    );
+    return resolvePhantomContext(selectedNodeId, baseNodes as Node[], baseEdges);
   }, [selectedNode, selectedNodeId, baseNodes, baseEdges]);
 
   const hoverState = useMemo(

@@ -11,9 +11,7 @@ type HierarchyNodeType = Node<Omit<RootGraphNode | PhantomGraphNode, "id">, "roo
 const extractPhantomBadge = (resourceKey: string): string | undefined => {
   if (resourceKey.startsWith("postgres-project::")) return "project";
   if (resourceKey.startsWith("external::postgres-branch::")) return "branch";
-  if (resourceKey.startsWith("lakebase-instance::")) return "instance";
   if (resourceKey.startsWith("catalog::")) return "catalog";
-  if (resourceKey.startsWith("sync-target::")) return "table";
   if (resourceKey.startsWith("external::")) return "schema"; // catch-all for external:: LAST
   return undefined;
 };

@@ -284,7 +284,7 @@ export const assembleFlowNodes = (
 /** Convert graph edges to React Flow edges with diff-state-derived colors. */
 export const toFlowEdges = (edges: PlanGraph["edges"]): readonly Edge[] =>
   edges.map((edge) => {
-    const style = getEdgeStyle(edge.diffState, edge.edgeKind);
+    const style = getEdgeStyle(edge.diffState);
     return {
       id: edge.id,
       source: edge.source,
@@ -338,9 +338,7 @@ export const layoutResourceGraph = async (
     return { nodes: [], edges: [] };
   }
 
-  // Root detection uses only hierarchy edges — sync edges shouldn't prevent first-layer constraint
-  const hierarchyEdges = graph.edges.filter((e) => e.edgeKind !== "sync");
-  const targetNodeIds = new Set(hierarchyEdges.map((e) => e.target));
+  const targetNodeIds = new Set(graph.edges.map((e) => e.target));
 
   const elkGraph = {
     id: "root",
@@ -368,10 +366,7 @@ export const layoutResourceGraph = async (
       id: edge.id,
       sources: [edge.source],
       targets: [edge.target],
-      // Hierarchy edges dominate layer assignment; sync edges gently pull related nodes closer
-      ...(edge.edgeKind === "sync"
-        ? { layoutOptions: { "elk.layered.priority.shortness": "1" } }
-        : { layoutOptions: { "elk.layered.priority.shortness": "10" } }),
+      layoutOptions: { "elk.layered.priority.shortness": "10" },
     })),
   };
 
