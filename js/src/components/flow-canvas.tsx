@@ -102,20 +102,26 @@ export function FlowCanvas({
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
-    setSelectedNode(getNodeData(node));
-    setSelectedNodeId(node.id);
-
     const instance = rfInstanceRef.current;
-    if (instance === null) return;
+    if (instance !== null) {
+      const internal = instance.getInternalNode(node.id);
+      if (internal !== undefined) {
+        const currentZoom = instance.getZoom();
+        const { x, y } = internal.internals.positionAbsolute;
+        const width = internal.measured.width ?? 200;
+        const height = internal.measured.height ?? 50;
+        instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom: currentZoom });
+      }
+    }
 
-    const internal = instance.getInternalNode(node.id);
-    if (internal === undefined) return;
-
-    const currentZoom = instance.getZoom();
-    const { x, y } = internal.internals.positionAbsolute;
-    const width = internal.measured.width ?? 200;
-    const height = internal.measured.height ?? 50;
-    instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom: currentZoom });
+    const data = getNodeData(node);
+    if (data.nodeKind === "root") {
+      setSelectedNode(null);
+      setSelectedNodeId(null);
+      return;
+    }
+    setSelectedNode(data);
+    setSelectedNodeId(node.id);
   }, []);
 
   const handleClosePanel = useCallback(() => {
