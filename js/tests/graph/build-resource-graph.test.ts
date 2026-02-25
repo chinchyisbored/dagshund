@@ -1179,6 +1179,11 @@ describe("all-hierarchies-plan.json fixture", () => {
     // Phantom schema for partner_metrics under production
     expect(nodeIds).toContain("external::production.warehouse");
 
+    // Phantom source table nodes from spec.source_table_full_name
+    expect(nodeIds).toContain("source-table::dagshund.analytics.customer_profiles");
+    expect(nodeIds).toContain("source-table::dagshund.analytics.product_interactions");
+    expect(nodeIds).toContain("source-table::dagshund.integrations.partner_rollup");
+
     // Synced tables are UC leaf nodes
     expect(nodeIds).toContain("resources.synced_database_tables.customer_360");
     expect(nodeIds).toContain("resources.synced_database_tables.product_events");
@@ -1214,6 +1219,17 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(edgePairs).toContain("catalog::production→external::production.warehouse");
     expect(edgePairs).toContain(
       "external::production.warehouse→resources.synced_database_tables.partner_metrics",
+    );
+
+    // Source table phantoms under existing schemas
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→source-table::dagshund.analytics.customer_profiles",
+    );
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→source-table::dagshund.analytics.product_interactions",
+    );
+    expect(edgePairs).toContain(
+      "external::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
     );
 
     // Node kinds
@@ -1414,6 +1430,11 @@ describe("all-hierarchies synced tables in UC", () => {
     const syncTargets = nodeIds.filter((id) => id.startsWith("sync-target::"));
     expect(syncTargets).toHaveLength(0);
 
+    // Phantom source table nodes from spec.source_table_full_name
+    expect(nodeIds).toContain("source-table::dagshund.analytics.customer_profiles");
+    expect(nodeIds).toContain("source-table::dagshund.analytics.product_interactions");
+    expect(nodeIds).toContain("source-table::dagshund.integrations.partner_rollup");
+
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     // Synced tables under lakebase_analytics catalog → phantom analytics_data schema
     expect(edgePairs).toContain(
@@ -1430,5 +1451,189 @@ describe("all-hierarchies synced tables in UC", () => {
     expect(edgePairs).toContain(
       "external::production.warehouse→resources.synced_database_tables.partner_metrics",
     );
+    // Source table phantoms under existing real/phantom schemas
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→source-table::dagshund.analytics.customer_profiles",
+    );
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→source-table::dagshund.analytics.product_interactions",
+    );
+    expect(edgePairs).toContain(
+      "external::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
+    );
+  });
+});
+
+describe("source table phantom nodes", () => {
+  test("source in existing real schema creates phantom leaf under real schema node", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "dagshund.analytics.my_table",
+              spec: { source_table_full_name: "dagshund.analytics.source_data" },
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("source-table::dagshund.analytics.source_data");
+
+    const phantom = graph.nodes.find(
+      (n) => n.id === "source-table::dagshund.analytics.source_data",
+    );
+    expect(phantom?.nodeKind).toBe("phantom");
+    expect(phantom?.label).toBe("source_data");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain(
+      "resources.schemas.analytics→source-table::dagshund.analytics.source_data",
+    );
+  });
+
+  test("source in non-existent schema creates phantom leaf + phantom schema + phantom catalog", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.my_table": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "prod.warehouse.my_table",
+              spec: { source_table_full_name: "ext_catalog.ext_schema.ext_table" },
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("source-table::ext_catalog.ext_schema.ext_table");
+    expect(nodeIds).toContain("external::ext_catalog.ext_schema");
+    expect(nodeIds).toContain("catalog::ext_catalog");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("uc-root→catalog::ext_catalog");
+    expect(edgePairs).toContain("catalog::ext_catalog→external::ext_catalog.ext_schema");
+    expect(edgePairs).toContain(
+      "external::ext_catalog.ext_schema→source-table::ext_catalog.ext_schema.ext_table",
+    );
+  });
+
+  test("two synced tables sharing source schema create one phantom schema and two leaves", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.table_a": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "prod.data.table_a",
+              spec: { source_table_full_name: "src.shared.alpha" },
+            },
+          },
+        },
+        "resources.synced_database_tables.table_b": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "prod.data.table_b",
+              spec: { source_table_full_name: "src.shared.beta" },
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("source-table::src.shared.alpha");
+    expect(nodeIds).toContain("source-table::src.shared.beta");
+    // Only one phantom schema for src.shared
+    const schemaPhantoms = nodeIds.filter((id) => id === "external::src.shared");
+    expect(schemaPhantoms).toHaveLength(1);
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("external::src.shared→source-table::src.shared.alpha");
+    expect(edgePairs).toContain("external::src.shared→source-table::src.shared.beta");
+  });
+
+  test("source matching real bundle synced table name creates no duplicate phantom", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.existing": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "cat.sch.existing_table",
+              spec: { source_table_full_name: "cat.sch.existing_table" },
+            },
+          },
+        },
+      },
+    });
+
+    const sourceTableNodes = graph.nodes.filter((n) => n.id.startsWith("source-table::"));
+    expect(sourceTableNodes).toHaveLength(0);
+  });
+
+  test("missing spec.source_table_full_name creates no phantom", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.no_spec": {
+          action: "create",
+          new_state: {
+            value: { name: "cat.sch.no_spec" },
+          },
+        },
+      },
+    });
+
+    const sourceTableNodes = graph.nodes.filter((n) => n.id.startsWith("source-table::"));
+    expect(sourceTableNodes).toHaveLength(0);
+  });
+
+  test("non-three-part source_table_full_name creates no phantom", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.bad_ref": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "cat.sch.bad_ref",
+              spec: { source_table_full_name: "just_a_name" },
+            },
+          },
+        },
+      },
+    });
+
+    const sourceTableNodes = graph.nodes.filter((n) => n.id.startsWith("source-table::"));
+    expect(sourceTableNodes).toHaveLength(0);
+  });
+
+  test("deleted entry with remote_state.spec creates phantom from source ref", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.deleted_table": {
+          action: "delete",
+          remote_state: {
+            name: "cat.sch.deleted_table",
+            spec: { source_table_full_name: "origin.data.source_tbl" },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("source-table::origin.data.source_tbl");
+
+    const phantom = graph.nodes.find((n) => n.id === "source-table::origin.data.source_tbl");
+    expect(phantom?.nodeKind).toBe("phantom");
   });
 });

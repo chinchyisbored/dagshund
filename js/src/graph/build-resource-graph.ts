@@ -105,6 +105,17 @@ const extractResourceState = (entry: PlanEntry): Readonly<Record<string, unknown
   return undefined;
 };
 
+/** Extract spec.source_table_full_name from a synced table entry's state. */
+const extractSourceTableFullName = (entry: PlanEntry): string | undefined => {
+  const state = extractResourceState(entry);
+  if (state === undefined) return undefined;
+  const spec = state["spec"];
+  if (typeof spec !== "object" || spec === null) return undefined;
+  // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
+  const name = (spec as Readonly<Record<string, unknown>>)["source_table_full_name"];
+  return typeof name === "string" ? name : undefined;
+};
+
 // ---------------------------------------------------------------------------
 // Node builders
 // ---------------------------------------------------------------------------
@@ -229,6 +240,9 @@ type TierSpec = {
   readonly buildHierarchyId: (identity: string) => string;
   /** When true, real plan entries at this tier use buildHierarchyId as their node ID (containers). */
   readonly useHierarchyId?: boolean;
+  /** Extract lateral references from entries at this tier.
+   *  Each returned identity becomes a phantom leaf if not already in the graph. */
+  readonly resolveLateralRefs?: (entry: PlanEntry) => readonly string[];
 };
 
 /** A complete hierarchy definition: root + ordered tiers from root-adjacent to leaf. */
@@ -284,8 +298,16 @@ const UC_CHAIN: ChainSpec = {
         }
         return undefined;
       },
-      deriveParentRef: undefined,
-      buildHierarchyId: () => "", // unused — leaves don't create phantom children
+      deriveParentRef: (identity) => {
+        const parsed = parseThreePartName(identity);
+        return parsed !== undefined ? `${parsed.catalog}.${parsed.schema}` : undefined;
+      },
+      buildHierarchyId: (identity) => `source-table::${identity}`,
+      resolveLateralRefs: (entry) => {
+        const name = extractSourceTableFullName(entry);
+        if (name === undefined) return [];
+        return parseThreePartName(name) !== undefined ? [name] : [];
+      },
     },
   ],
 };
@@ -511,6 +533,39 @@ const buildChainGraph = (
       phantomEdges,
     );
     hierarchyEdges.push(buildEdge(parentNodeId, nodeId, entryEdgeDiffState(entry)));
+  }
+
+  // Lateral refs: create phantom leaf nodes for referenced identities not already in the graph
+  const leafTierIndex = spec.tiers.length - 1;
+  const leafTier = spec.tiers[leafTierIndex];
+  if (leafTier !== undefined && leafTier.resolveLateralRefs !== undefined) {
+    // Build dedup set from real leaf-tier entry names (resolveIdentity returns undefined for leaves,
+    // so tierIndexes won't contain them — collect three-part names directly)
+    const realLeafNames = new Set<string>();
+    for (const [key, entry] of entries) {
+      const rt = extractResourceType(key);
+      if (rt === undefined || !leafTier.resourceTypes.has(rt)) continue;
+      const name = extractStateField(entry, "name");
+      if (name !== undefined) realLeafNames.add(name);
+    }
+
+    const resolveLateral = leafTier.resolveLateralRefs;
+    for (const [, entry] of entries) {
+      for (const ref of resolveLateral(entry)) {
+        if (realLeafNames.has(ref)) continue;
+        const phantomId = resolveParentChain(
+          ref,
+          leafTierIndex,
+          spec,
+          tierIndexes,
+          phantomNodes,
+          phantomEdges,
+        );
+        // Edge from phantom's parent is created by resolveParentChain;
+        // phantomId itself is the leaf phantom — no further edges needed
+        void phantomId;
+      }
+    }
   }
 
   return {
