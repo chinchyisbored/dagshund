@@ -17,7 +17,7 @@ Run `br onboard` at the start of a new engagement with the project.
 
 ## During Work
 
-- Discover a bug or task → file it: `br create "description" -t bug -p <priority>`
+- Discover a bug or task → file it: `br create "short title" -t bug -p <priority>`, then `br update <id> --description "..."` for details. Titles are short labels — context, examples, and rationale go in the description.
 - Link to current task: `br dep add <new-id> <current-id> --type discovered-from`
 - Mark when starting: `br update <id> --status in_progress`
 - Create subtasks with dependencies if work grows
