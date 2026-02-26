@@ -197,7 +197,7 @@ describe("edge properties", () => {
     expect(edges[0]?.label).toBeUndefined();
   });
 
-  test("edge ID follows source→target pattern", () => {
+  test("edge ID uses lateral:: prefix to avoid collisions with hierarchy edges", () => {
     const entries: [string, PlanEntry][] = [
       [
         "resources.synced_database_tables.t1",
@@ -209,12 +209,57 @@ describe("edge properties", () => {
     const edges = extractLateralEdges(makeContext(entries));
 
     expect(edges[0]?.id).toBe(
-      "resources.synced_database_tables.t1→resources.database_instances.db1",
+      "lateral::resources.synced_database_tables.t1→resources.database_instances.db1",
     );
   });
 
   test("empty entries produce no lateral edges", () => {
     const edges = extractLateralEdges(makeContext([]));
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Source node guard consistency
+// ---------------------------------------------------------------------------
+
+describe("source node guard", () => {
+  test("database instance edge skipped when source not in nodeIds", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.orphan",
+        makeEntry({ database_instance_name: "db1", name: "c.s.orphan" }),
+      ],
+      ["resources.database_instances.db1", makeEntry({ name: "db1" })],
+    ];
+    // Source key not in nodeIdByResourceKey → falls back to raw key, which won't be in nodeIds
+    const nodeIdByResourceKey = new Map([
+      ["resources.database_instances.db1", "resources.database_instances.db1"],
+    ]);
+    const nodeIds = new Set(nodeIdByResourceKey.values());
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(0);
+  });
+
+  test("serving endpoint edge skipped when source not in nodeIds", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.model_serving_endpoints.orphan",
+        makeEntry({
+          config: { served_entities: [{ entity_name: "model1" }] },
+        }),
+      ],
+      ["resources.registered_models.model1", makeEntry({ name: "model1" })],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.registered_models.model1", "resources.registered_models.model1"],
+    ]);
+    const nodeIds = new Set(nodeIdByResourceKey.values());
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
 
     expect(edges).toHaveLength(0);
   });
@@ -295,6 +340,38 @@ describe("extractPipelineTargetEdges", () => {
     const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
 
     expect(edges).toHaveLength(0);
+  });
+
+  test("deduplicates when direct target and ingestion_definition reference same schema", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.pipelines.ingest",
+        makeEntry({
+          catalog: "production",
+          target: "reporting",
+          ingestion_definition: {
+            objects: [{ schema: { source_catalog: "production", source_schema: "reporting" } }],
+          },
+        }),
+      ],
+    ];
+    const nodeIds = new Set([
+      "resources.pipelines.ingest",
+      "catalog::production",
+      "external::production.reporting",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    // catalog + schema = 2 edges, NOT 3 (schema deduped)
+    expect(edges).toHaveLength(2);
+    expect(edges.map((e) => e.target).toSorted()).toEqual([
+      "catalog::production",
+      "external::production.reporting",
+    ]);
   });
 
   test("pipeline links to schema via ingestion_definition.objects", () => {

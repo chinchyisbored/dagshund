@@ -19,7 +19,7 @@ type LateralEdgeContext = {
 
 /** Build an edge with diffState "unchanged" (lateral edges are structural, not diff-related). */
 const buildLateralEdge = (source: string, target: string): GraphEdge => ({
-  id: `${source}→${target}`,
+  id: `lateral::${source}→${target}`,
   source,
   target,
   label: undefined,
@@ -55,6 +55,7 @@ const extractDatabaseInstanceEdges = (context: LateralEdgeContext): readonly Gra
     const targetNodeId = context.nodeIdByResourceKey.get(targetKey);
     if (targetNodeId === undefined) continue;
     const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
+    if (!context.nodeIds.has(sourceNodeId)) continue;
     edges.push(buildLateralEdge(sourceNodeId, targetNodeId));
   }
   return edges;
@@ -92,6 +93,7 @@ const extractServingEndpointModelEdges = (context: LateralEdgeContext): readonly
     const servedEntities = (config as Readonly<Record<string, unknown>>)["served_entities"];
     if (!Array.isArray(servedEntities)) continue;
     const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
+    if (!context.nodeIds.has(sourceNodeId)) continue;
     for (const entity of servedEntities) {
       if (typeof entity !== "object" || entity === null) continue;
       const entityName = (entity as Readonly<Record<string, unknown>>)["entity_name"];
@@ -108,6 +110,15 @@ const extractServingEndpointModelEdges = (context: LateralEdgeContext): readonly
 /** pipeline → catalog/schema (hierarchy-ID resolution). */
 const extractPipelineTargetEdges = (context: LateralEdgeContext): readonly GraphEdge[] => {
   const edges: GraphEdge[] = [];
+  const seen = new Set<string>();
+
+  const pushUnique = (source: string, target: string): void => {
+    const pair = `${source}→${target}`;
+    if (seen.has(pair)) return;
+    seen.add(pair);
+    edges.push(buildLateralEdge(source, target));
+  };
+
   for (const [key, entry] of context.entries) {
     if (extractResourceType(key) !== "pipelines") continue;
     const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
@@ -119,12 +130,12 @@ const extractPipelineTargetEdges = (context: LateralEdgeContext): readonly Graph
     if (catalogName !== undefined) {
       const catalogId = `catalog::${catalogName}`;
       if (context.nodeIds.has(catalogId)) {
-        edges.push(buildLateralEdge(sourceNodeId, catalogId));
+        pushUnique(sourceNodeId, catalogId);
       }
       if (targetSchemaName !== undefined) {
         const schemaId = `external::${catalogName}.${targetSchemaName}`;
         if (context.nodeIds.has(schemaId)) {
-          edges.push(buildLateralEdge(sourceNodeId, schemaId));
+          pushUnique(sourceNodeId, schemaId);
         }
       }
     }
@@ -147,7 +158,7 @@ const extractPipelineTargetEdges = (context: LateralEdgeContext): readonly Graph
         if (typeof sCatalog === "string" && typeof sSchema === "string") {
           const schemaId = `external::${sCatalog}.${sSchema}`;
           if (context.nodeIds.has(schemaId)) {
-            edges.push(buildLateralEdge(sourceNodeId, schemaId));
+            pushUnique(sourceNodeId, schemaId);
           }
         }
       }
