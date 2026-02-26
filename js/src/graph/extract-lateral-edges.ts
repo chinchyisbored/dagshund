@@ -107,61 +107,70 @@ const extractServingEndpointModelEdges = (context: LateralEdgeContext): readonly
   return edges;
 };
 
-/** pipeline → catalog/schema (hierarchy-ID resolution). */
+/** Collect catalog/schema target IDs from a pipeline's direct catalog and target fields. */
+const collectPipelineCatalogTargets = (
+  entry: PlanEntry,
+  nodeIds: ReadonlySet<string>,
+): readonly string[] => {
+  const targets: string[] = [];
+  const catalogName = extractStateField(entry, "catalog");
+  if (catalogName === undefined) return targets;
+  const catalogId = `catalog::${catalogName}`;
+  if (nodeIds.has(catalogId)) targets.push(catalogId);
+  const targetSchemaName = extractStateField(entry, "target");
+  if (targetSchemaName !== undefined) {
+    const schemaId = `external::${catalogName}.${targetSchemaName}`;
+    if (nodeIds.has(schemaId)) targets.push(schemaId);
+  }
+  return targets;
+};
+
+/** Collect schema target IDs from a pipeline's ingestion_definition.objects. */
+const collectPipelineIngestionTargets = (
+  entry: PlanEntry,
+  nodeIds: ReadonlySet<string>,
+): readonly string[] => {
+  const state = extractResourceState(entry);
+  if (state === undefined) return [];
+  const ingestion = state["ingestion_definition"];
+  if (typeof ingestion !== "object" || ingestion === null) return [];
+  // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
+  const objects = (ingestion as Readonly<Record<string, unknown>>)["objects"];
+  if (!Array.isArray(objects)) return [];
+  const targets: string[] = [];
+  for (const obj of objects) {
+    if (typeof obj !== "object" || obj === null) continue;
+    const objRecord = obj as Readonly<Record<string, unknown>>;
+    const schemaDef = objRecord["schema"];
+    if (typeof schemaDef !== "object" || schemaDef === null) continue;
+    // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
+    const sCatalog = (schemaDef as Readonly<Record<string, unknown>>)["source_catalog"];
+    const sSchema = (schemaDef as Readonly<Record<string, unknown>>)["source_schema"];
+    if (typeof sCatalog === "string" && typeof sSchema === "string") {
+      const schemaId = `external::${sCatalog}.${sSchema}`;
+      if (nodeIds.has(schemaId)) targets.push(schemaId);
+    }
+  }
+  return targets;
+};
+
+/** pipeline → catalog/schema (hierarchy-ID resolution, deduped). */
 const extractPipelineTargetEdges = (context: LateralEdgeContext): readonly GraphEdge[] => {
   const edges: GraphEdge[] = [];
   const seen = new Set<string>();
-
-  const pushUnique = (source: string, target: string): void => {
-    const pair = `${source}→${target}`;
-    if (seen.has(pair)) return;
-    seen.add(pair);
-    edges.push(buildLateralEdge(source, target));
-  };
-
   for (const [key, entry] of context.entries) {
     if (extractResourceType(key) !== "pipelines") continue;
     const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
     if (!context.nodeIds.has(sourceNodeId)) continue;
-
-    // Direct catalog/target field
-    const catalogName = extractStateField(entry, "catalog");
-    const targetSchemaName = extractStateField(entry, "target");
-    if (catalogName !== undefined) {
-      const catalogId = `catalog::${catalogName}`;
-      if (context.nodeIds.has(catalogId)) {
-        pushUnique(sourceNodeId, catalogId);
-      }
-      if (targetSchemaName !== undefined) {
-        const schemaId = `external::${catalogName}.${targetSchemaName}`;
-        if (context.nodeIds.has(schemaId)) {
-          pushUnique(sourceNodeId, schemaId);
-        }
-      }
-    }
-
-    // ingestion_definition.objects[].schema / table references
-    const state = extractResourceState(entry);
-    if (state === undefined) continue;
-    const ingestion = state["ingestion_definition"];
-    if (typeof ingestion !== "object" || ingestion === null) continue;
-    // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
-    const objects = (ingestion as Readonly<Record<string, unknown>>)["objects"];
-    if (!Array.isArray(objects)) continue;
-    for (const obj of objects) {
-      if (typeof obj !== "object" || obj === null) continue;
-      const objRecord = obj as Readonly<Record<string, unknown>>;
-      const schemaDef = objRecord["schema"];
-      if (typeof schemaDef === "object" && schemaDef !== null) {
-        const sCatalog = (schemaDef as Readonly<Record<string, unknown>>)["source_catalog"];
-        const sSchema = (schemaDef as Readonly<Record<string, unknown>>)["source_schema"];
-        if (typeof sCatalog === "string" && typeof sSchema === "string") {
-          const schemaId = `external::${sCatalog}.${sSchema}`;
-          if (context.nodeIds.has(schemaId)) {
-            pushUnique(sourceNodeId, schemaId);
-          }
-        }
-      }
+    const targets = [
+      ...collectPipelineCatalogTargets(entry, context.nodeIds),
+      ...collectPipelineIngestionTargets(entry, context.nodeIds),
+    ];
+    for (const target of targets) {
+      const pair = `${sourceNodeId}→${target}`;
+      if (seen.has(pair)) continue;
+      seen.add(pair);
+      edges.push(buildLateralEdge(sourceNodeId, target));
     }
   }
   return edges;
