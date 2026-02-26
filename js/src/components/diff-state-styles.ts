@@ -72,3 +72,10 @@ const EDGE_STYLES: Readonly<Record<EdgeDiffState, EdgeStyle>> = {
 
 /** Get inline CSS style for an edge based on its diff state. Uses CSS variables directly so the browser resolves them reactively on theme change. */
 export const getEdgeStyle = (state: EdgeDiffState): EdgeStyle => EDGE_STYLES[state];
+
+/** Style for lateral (cross-reference) edges — distinct from hierarchy edges. */
+export const LATERAL_EDGE_STYLE: EdgeStyle = {
+  stroke: "var(--edge-lateral)",
+  opacity: 0.6,
+  strokeDasharray: "4 3",
+};

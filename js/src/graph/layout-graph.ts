@@ -1,13 +1,15 @@
 import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
-import { getEdgeStyle } from "../components/diff-state-styles.ts";
+import { getEdgeStyle, LATERAL_EDGE_STYLE } from "../components/diff-state-styles.ts";
 import type {
   DagNodeData,
+  GraphEdge,
   GraphNode,
   JobGraphNode,
   PlanGraph,
   TaskGraphNode,
 } from "../types/graph-types.ts";
+import type { LayoutResult } from "../types/layout-result.ts";
 
 /** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner).
  *  No crash recovery: if the Worker dies the layout call rejects and the UI shows an error state,
@@ -330,10 +332,26 @@ const toFlatFlowNode = (
   ariaLabel: buildAriaLabel(node),
 });
 
+/** Convert lateral GraphEdges to React Flow edges with the lateral visual style.
+ *  Uses smoothstep routing to avoid bezier curves clipping through intermediate nodes. */
+export const toLateralFlowEdges = (edges: readonly GraphEdge[]): readonly Edge[] =>
+  edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    type: "smoothstep",
+    zIndex: 1,
+    style: {
+      stroke: LATERAL_EDGE_STYLE.stroke,
+      opacity: LATERAL_EDGE_STYLE.opacity,
+      strokeDasharray: LATERAL_EDGE_STYLE.strokeDasharray,
+    },
+  }));
+
 /** Flat ELK layout for resource graphs (left-to-right, no compound hierarchy). */
 export const layoutResourceGraph = async (
-  graph: PlanGraph,
-): Promise<{ readonly nodes: readonly Node[]; readonly edges: readonly Edge[] }> => {
+  graph: PlanGraph & { readonly lateralEdges?: readonly GraphEdge[] },
+): Promise<LayoutResult> => {
   if (graph.nodes.length === 0) {
     return { nodes: [], edges: [] };
   }
@@ -382,8 +400,14 @@ export const layoutResourceGraph = async (
     }
   }
 
+  const lateralEdges =
+    graph.lateralEdges !== undefined && graph.lateralEdges.length > 0
+      ? toLateralFlowEdges(graph.lateralEdges)
+      : undefined;
+
   return {
     nodes: flowNodes,
     edges: toFlowEdges(graph.edges),
+    ...(lateralEdges !== undefined ? { lateralEdges } : {}),
   };
 };

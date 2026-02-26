@@ -1,0 +1,359 @@
+import { describe, expect, test } from "bun:test";
+import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
+import { extractLateralEdges } from "../../src/graph/extract-lateral-edges.ts";
+import type { PlanEntry } from "../../src/types/plan-schema.ts";
+import { loadFixture } from "../helpers/load-fixture.ts";
+
+// ---------------------------------------------------------------------------
+// Helpers for building inline plan entries
+// ---------------------------------------------------------------------------
+
+const makeEntry = (state: Record<string, unknown>, action = "create"): PlanEntry =>
+  ({
+    action,
+    new_state: { value: state },
+  }) as PlanEntry;
+
+const makeContext = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  nodeOverrides?: ReadonlyMap<string, string>,
+) => {
+  const nodeIdByResourceKey = new Map<string, string>(entries.map(([key]) => [key, key]));
+  if (nodeOverrides !== undefined) {
+    for (const [k, v] of nodeOverrides) nodeIdByResourceKey.set(k, v);
+  }
+  const nodeIds = new Set<string>(nodeIdByResourceKey.values());
+  return { entries, nodeIdByResourceKey, nodeIds };
+};
+
+// ---------------------------------------------------------------------------
+// database_instance_name (synced_database_table → database_instance)
+// ---------------------------------------------------------------------------
+
+describe("extractDatabaseInstanceEdges", () => {
+  test("synced table links to database instance when both exist", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.customer_360",
+        makeEntry({ database_instance_name: "analytics_db", name: "cat.schema.customer_360" }),
+      ],
+      ["resources.database_instances.analytics_db", makeEntry({ name: "analytics_db" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.synced_database_tables.customer_360",
+      target: "resources.database_instances.analytics_db",
+      diffState: "unchanged",
+    });
+  });
+
+  test("database_catalog links to database instance when both exist", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.database_catalogs.lb_analytics",
+        makeEntry({ database_instance_name: "analytics_db", name: "lb_analytics" }),
+      ],
+      ["resources.database_instances.analytics_db", makeEntry({ name: "analytics_db" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.database_catalogs.lb_analytics",
+      target: "resources.database_instances.analytics_db",
+    });
+  });
+
+  test("no edge when target database instance is missing", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.customer_360",
+        makeEntry({ database_instance_name: "missing_db", name: "cat.schema.customer_360" }),
+      ],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+
+  test("multiple edges from different sources to same instance", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.t1",
+        makeEntry({ database_instance_name: "db1", name: "c.s.t1" }),
+      ],
+      [
+        "resources.synced_database_tables.t2",
+        makeEntry({ database_instance_name: "db1", name: "c.s.t2" }),
+      ],
+      ["resources.database_instances.db1", makeEntry({ name: "db1" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// warehouse_id (alert → sql_warehouse via API ID)
+// ---------------------------------------------------------------------------
+
+describe("extractWarehouseEdges", () => {
+  test("alert links to warehouse via API ID", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.alerts.data_freshness", makeEntry({ warehouse_id: "abc123" })],
+      ["resources.sql_warehouses.analytics_wh", makeEntry({ id: "abc123", name: "analytics_wh" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.alerts.data_freshness",
+      target: "resources.sql_warehouses.analytics_wh",
+      diffState: "unchanged",
+    });
+  });
+
+  test("no edge when no warehouse in plan", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.alerts.data_freshness", makeEntry({ warehouse_id: "abc123" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// model_serving_endpoint → registered_model
+// ---------------------------------------------------------------------------
+
+describe("extractServingEndpointModelEdges", () => {
+  test("endpoint links to registered model via served_entities", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.model_serving_endpoints.predictor",
+        makeEntry({
+          config: {
+            served_entities: [{ entity_name: "churn_model" }],
+          },
+        }),
+      ],
+      ["resources.registered_models.churn_model", makeEntry({ name: "churn_model" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.model_serving_endpoints.predictor",
+      target: "resources.registered_models.churn_model",
+    });
+  });
+
+  test("no edge when model not in plan", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.model_serving_endpoints.predictor",
+        makeEntry({
+          config: {
+            served_entities: [{ entity_name: "missing_model" }],
+          },
+        }),
+      ],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Edge properties
+// ---------------------------------------------------------------------------
+
+describe("edge properties", () => {
+  test("lateral edges have unchanged diffState and no label", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.t1",
+        makeEntry({ database_instance_name: "db1", name: "c.s.t1" }),
+      ],
+      ["resources.database_instances.db1", makeEntry({ name: "db1" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges[0]?.diffState).toBe("unchanged");
+    expect(edges[0]?.label).toBeUndefined();
+  });
+
+  test("edge ID follows source→target pattern", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.t1",
+        makeEntry({ database_instance_name: "db1", name: "c.s.t1" }),
+      ],
+      ["resources.database_instances.db1", makeEntry({ name: "db1" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges[0]?.id).toBe(
+      "resources.synced_database_tables.t1→resources.database_instances.db1",
+    );
+  });
+
+  test("empty entries produce no lateral edges", () => {
+    const edges = extractLateralEdges(makeContext([]));
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Container node ID remapping
+// ---------------------------------------------------------------------------
+
+describe("container node ID remapping", () => {
+  test("uses hierarchy ID from nodeIdByResourceKey when source is a container", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.database_catalogs.lb", makeEntry({ database_instance_name: "db1", name: "lb" })],
+      ["resources.database_instances.db1", makeEntry({ name: "db1" })],
+    ];
+    const overrides = new Map([["resources.database_catalogs.lb", "catalog::lb"]]);
+
+    const edges = extractLateralEdges(makeContext(entries, overrides));
+
+    expect(edges[0]?.source).toBe("catalog::lb");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pipeline → catalog/schema (hierarchy-ID resolution)
+// ---------------------------------------------------------------------------
+
+describe("extractPipelineTargetEdges", () => {
+  test("pipeline links to catalog via direct catalog field", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.pipelines.ingest", makeEntry({ catalog: "production" })],
+    ];
+    const nodeIds = new Set(["resources.pipelines.ingest", "catalog::production"]);
+    const nodeIdByResourceKey = new Map([
+      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.pipelines.ingest",
+      target: "catalog::production",
+    });
+  });
+
+  test("pipeline links to both catalog and schema when target field present", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.pipelines.ingest", makeEntry({ catalog: "production", target: "reporting" })],
+    ];
+    const nodeIds = new Set([
+      "resources.pipelines.ingest",
+      "catalog::production",
+      "external::production.reporting",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(2);
+    expect(edges.map((e) => e.target).toSorted()).toEqual([
+      "catalog::production",
+      "external::production.reporting",
+    ]);
+  });
+
+  test("no edge when catalog node missing from graph", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.pipelines.ingest", makeEntry({ catalog: "missing" })],
+    ];
+    const nodeIds = new Set(["resources.pipelines.ingest"]);
+    const nodeIdByResourceKey = new Map([
+      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(0);
+  });
+
+  test("pipeline links to schema via ingestion_definition.objects", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.pipelines.ingest",
+        makeEntry({
+          ingestion_definition: {
+            objects: [{ schema: { source_catalog: "dagshund", source_schema: "analytics" } }],
+          },
+        }),
+      ],
+    ];
+    const nodeIds = new Set(["resources.pipelines.ingest", "external::dagshund.analytics"]);
+    const nodeIdByResourceKey = new Map([
+      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.pipelines.ingest",
+      target: "external::dagshund.analytics",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Integration: all-hierarchies-plan.json
+// ---------------------------------------------------------------------------
+
+describe("all-hierarchies-plan integration", () => {
+  test("extracts database instance edges from fixture", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const dbInstanceEdges = graph.lateralEdges.filter(
+      (e) =>
+        e.target === "resources.database_instances.analytics_db" ||
+        e.target.includes("database_instances"),
+    );
+
+    // customer_360 → analytics_db, product_events → analytics_db, lakebase_analytics → analytics_db
+    expect(dbInstanceEdges).toHaveLength(3);
+
+    const sourceIds = dbInstanceEdges.map((e) => e.source).toSorted();
+    expect(sourceIds).toContain("resources.synced_database_tables.customer_360");
+    expect(sourceIds).toContain("resources.synced_database_tables.product_events");
+  });
+
+  test("partner_metrics → reporting_db produces no edge (reporting_db not in plan)", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const reportingEdges = graph.lateralEdges.filter(
+      (e) => e.source === "resources.synced_database_tables.partner_metrics",
+    );
+
+    expect(reportingEdges).toHaveLength(0);
+  });
+});

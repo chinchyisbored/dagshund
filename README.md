@@ -84,6 +84,14 @@ Some resources in the graph won't exist in your bundle plan. When dagshund encou
 
 This gives you a complete picture of how your resources relate to each other, even when parts of the tree live outside your bundle. Phantom nodes are inferred, not authoritative — they reflect what the plan references, not what actually exists in your workspace.
 
+### Resource Links
+
+Many resources reference each other across hierarchies — synced tables point to database instances, alerts reference SQL warehouses, serving endpoints bind to registered models, pipelines write to catalogs and schemas. These cross-references are hidden in the default hierarchy view.
+
+Toggle **Links** in the toolbar to overlay these lateral edges on the graph. They appear as dashed blue lines connecting the source resource to its target, without disturbing the hierarchy layout. The toggle only appears when cross-references exist in your plan.
+
+<!-- TODO: screenshot of resource links overlay -->
+
 ## Structural Diff
 
 Clicking a modified node in the DAG opens a detail panel showing per-field structural diffs — not raw JSON dumps, but smart comparisons that surface only the meaningful deltas.

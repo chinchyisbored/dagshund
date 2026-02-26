@@ -360,6 +360,39 @@ describe("toFlowEdges", () => {
   });
 });
 
+describe("toLateralFlowEdges", () => {
+  test("applies lateral edge style to graph edges", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const edges = toLateralFlowEdges([
+      { id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" },
+    ]);
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.style).toEqual({
+      stroke: "var(--edge-lateral)",
+      opacity: 0.6,
+      strokeDasharray: "4 3",
+    });
+  });
+
+  test("uses smoothstep edge type with elevated zIndex", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const edges = toLateralFlowEdges([
+      { id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" },
+    ]);
+
+    expect(edges[0]?.type).toBe("smoothstep");
+    expect(edges[0]?.zIndex).toBe(1);
+  });
+
+  test("returns empty array for empty input", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const edges = toLateralFlowEdges([]);
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
 describe("toReactFlowElements", () => {
   test("returns empty nodes and edges for empty graph", async () => {
     const { toReactFlowElements } = await loadModule();

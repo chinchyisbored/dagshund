@@ -12,6 +12,7 @@ import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
+import { extractLateralEdges } from "./extract-lateral-edges.ts";
 import { resolveJobState, resolveTaskEntries } from "./extract-tasks.ts";
 
 // ---------------------------------------------------------------------------
@@ -91,7 +92,9 @@ export const extractStateField = (entry: PlanEntry, field: string): string | und
 };
 
 /** Extract the flat state object from a plan entry (new_state.value or remote_state). */
-const extractResourceState = (entry: PlanEntry): Readonly<Record<string, unknown>> | undefined => {
+export const extractResourceState = (
+  entry: PlanEntry,
+): Readonly<Record<string, unknown>> | undefined => {
   const parsedNew = newStateSchema.safeParse(entry.new_state);
   if (parsedNew.success && parsedNew.data.value !== undefined) {
     return parsedNew.data.value;
@@ -662,10 +665,12 @@ const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => 
 // ---------------------------------------------------------------------------
 
 /** Build the complete resource graph for all plan entries. */
-export const buildResourceGraph = (plan: Plan): PlanGraph => {
+export const buildResourceGraph = (
+  plan: Plan,
+): PlanGraph & { readonly lateralEdges: readonly GraphEdge[] } => {
   const entries = Object.entries(plan.plan ?? {});
 
-  if (entries.length === 0) return { nodes: [], edges: [] };
+  if (entries.length === 0) return { nodes: [], edges: [], lateralEdges: [] };
 
   const ucEntries: [string, PlanEntry][] = [];
   const postgresEntries: [string, PlanEntry][] = [];
@@ -685,8 +690,17 @@ export const buildResourceGraph = (plan: Plan): PlanGraph => {
   const workspaceGraph = buildWorkspaceGraph(workspaceEntries, postgresEntries);
   const dependsOnEdges = collectDependsOnEdges(entries);
 
+  const allNodes = [...ucGraph.nodes, ...workspaceGraph.nodes];
+
+  // Build lookup maps for lateral edge extraction
+  const nodeIdByResourceKey = new Map<string, string>(allNodes.map((n) => [n.resourceKey, n.id]));
+  const nodeIds = new Set<string>(allNodes.map((n) => n.id));
+
+  const lateralEdges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
   return {
-    nodes: [...ucGraph.nodes, ...workspaceGraph.nodes],
+    nodes: allNodes,
     edges: deduplicateEdges([...ucGraph.edges, ...workspaceGraph.edges, ...dependsOnEdges]),
+    lateralEdges,
   };
 };

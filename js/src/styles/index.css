@@ -31,6 +31,7 @@
   --edge-removed: #f52a65;
   --edge-unchanged: #a8aecb;
   --edge-default: #a8aecb;
+  --edge-lateral: #2e7de9;
   --canvas-dot: #b4b5b9;
   --minimap-bg: #d0d5e3;
   --handle: #848cb5;
@@ -80,6 +81,7 @@
   --edge-removed: #f7768e;
   --edge-unchanged: #3b4261;
   --edge-default: #545c7e;
+  --edge-lateral: #7aa2f7;
   --canvas-dot: #292e42;
   --minimap-bg: #1b1e2d;
   --handle: #545c7e;
@@ -129,6 +131,7 @@
   --edge-removed: #ff3333;
   --edge-unchanged: #666666;
   --edge-default: #999999;
+  --edge-lateral: #66ccff;
   --canvas-dot: #444444;
   --minimap-bg: #111111;
   --handle: #ffffff;

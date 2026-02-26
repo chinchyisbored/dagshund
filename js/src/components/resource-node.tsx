@@ -25,7 +25,12 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
       className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
-      {hasIncoming && <Handle type="target" position={Position.Left} className="!bg-handle" />}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!bg-handle"
+        style={hasIncoming ? undefined : { visibility: "hidden" }}
+      />
       <span className="truncate">
         {diffBadge !== undefined && (
           <span className="mr-1 font-semibold" aria-hidden="true">
@@ -52,7 +57,12 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
           {typeBadge}
         </span>
       ) : null}
-      {hasOutgoing && <Handle type="source" position={Position.Right} className="!bg-handle" />}
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!bg-handle"
+        style={hasOutgoing ? undefined : { visibility: "hidden" }}
+      />
     </div>
   );
 });

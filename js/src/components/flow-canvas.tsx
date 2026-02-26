@@ -19,6 +19,7 @@ import type { PhantomContext } from "../types/phantom-context.ts";
 import { extractTypeBadge } from "../utils/resource-key.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
+import { LateralEdgeToggle } from "./lateral-edge-toggle.tsx";
 
 type FlowCanvasProps = {
   readonly layoutState: GraphLayoutState;
@@ -93,6 +94,7 @@ export function FlowCanvas({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
+  const [showLateralEdges, setShowLateralEdges] = useState(false);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   // Never reset — safe because FlowCanvas remounts when the plan/tab changes.
@@ -162,6 +164,12 @@ export function FlowCanvas({
   // require mutable Node[]/Edge[]. The `as` casts below shed the readonly modifier.
   const baseNodes = layout?.nodes ?? EMPTY_NODES;
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
+  const lateralEdges = layout?.lateralEdges ?? EMPTY_EDGES;
+
+  const visibleEdges = useMemo(
+    () => (showLateralEdges ? [...baseEdges, ...lateralEdges] : baseEdges),
+    [baseEdges, lateralEdges, showLateralEdges],
+  );
 
   /** Fit the viewport exactly once after the layout produces nodes.
    *  Skipped when focusNodeId is set — the focus effect handles viewport positioning instead.
@@ -212,17 +220,17 @@ export function FlowCanvas({
   const connectedIds = useMemo(
     () =>
       hoveredNodeId !== null
-        ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, hoveredNodeId)
+        ? buildConnectedNodeIds(baseNodes as Node[], visibleEdges as Edge[], hoveredNodeId)
         : null,
-    [baseNodes, baseEdges, hoveredNodeId],
+    [baseNodes, visibleEdges, hoveredNodeId],
   );
 
   const selectedConnectedIds = useMemo(
     () =>
       selectedNodeId !== null
-        ? buildConnectedNodeIds(baseNodes as Node[], baseEdges, selectedNodeId)
+        ? buildConnectedNodeIds(baseNodes as Node[], visibleEdges as Edge[], selectedNodeId)
         : null,
-    [baseNodes, baseEdges, selectedNodeId],
+    [baseNodes, visibleEdges, selectedNodeId],
   );
 
   const filterMatchedIds = useMemo((): ReadonlySet<string> | null => {
@@ -240,8 +248,8 @@ export function FlowCanvas({
   const phantomContext = useMemo(() => {
     if (selectedNode === null || selectedNode.nodeKind !== "phantom" || selectedNodeId === null)
       return undefined;
-    return resolvePhantomContext(selectedNodeId, baseNodes as Node[], baseEdges);
-  }, [selectedNode, selectedNodeId, baseNodes, baseEdges]);
+    return resolvePhantomContext(selectedNodeId, baseNodes as Node[], visibleEdges as Edge[]);
+  }, [selectedNode, selectedNodeId, baseNodes, visibleEdges]);
 
   const hoverState = useMemo(
     () => ({ hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds }),
@@ -249,7 +257,7 @@ export function FlowCanvas({
   );
 
   const styledEdges = useStyledEdges(
-    baseEdges,
+    visibleEdges,
     hoveredNodeId,
     selectedNodeId,
     connectedIds,
@@ -295,12 +303,19 @@ export function FlowCanvas({
           onPaneClick={handleClosePanel}
           onInit={handleInit}
         >
-          <Panel position="top-left" className="z-10">
+          <Panel position="top-left" className="z-10 flex flex-col gap-1.5">
             <DiffFilterToolbar
               activeFilter={filterDiffState}
               onFilterChange={setFilterDiffState}
               diffStateCounts={diffStateCounts}
             />
+            {lateralEdges.length > 0 && (
+              <LateralEdgeToggle
+                active={showLateralEdges}
+                onToggle={() => setShowLateralEdges((prev) => !prev)}
+                count={lateralEdges.length}
+              />
+            )}
           </Panel>
           <Panel position="bottom-right" className="z-10">
             <button

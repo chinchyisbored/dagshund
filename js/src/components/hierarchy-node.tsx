@@ -34,7 +34,12 @@ export const HierarchyNode = memo(function HierarchyNode({
       className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm font-semibold ${styles.border} ${borderStyle} ${styles.background} ${styles.text}`}
       title={data.label}
     >
-      {hasIncoming && <Handle type="target" position={Position.Left} className="!bg-handle" />}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!bg-handle"
+        style={hasIncoming ? undefined : { visibility: "hidden" }}
+      />
       <span className="truncate">
         {diffBadge !== undefined && (
           <span className="mr-1" aria-hidden="true">
@@ -48,7 +53,12 @@ export const HierarchyNode = memo(function HierarchyNode({
           {badge}
         </span>
       )}
-      {hasOutgoing && <Handle type="source" position={Position.Right} className="!bg-handle" />}
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!bg-handle"
+        style={hasOutgoing ? undefined : { visibility: "hidden" }}
+      />
     </div>
   );
 });
