@@ -348,8 +348,6 @@ const chooseLateralHandles = (
   sourceHeight: number,
   targetHeight: number,
 ): { readonly sourceHandle: string; readonly targetHandle: string } => {
-  const halfW = NODE_WIDTH / 2;
-
   const anchors = [
     { src: LATERAL_TOP_OUT, tgt: LATERAL_TOP, sy: 0, ty: 0 },
     { src: LATERAL_TOP_OUT, tgt: LATERAL_BOTTOM, sy: 0, ty: targetHeight },
@@ -360,7 +358,7 @@ const chooseLateralHandles = (
   let best: (typeof anchors)[number] = anchors[0];
   let bestDist = Number.POSITIVE_INFINITY;
   for (const a of anchors) {
-    const dx = sourcePos.x + halfW - (targetPos.x + halfW);
+    const dx = sourcePos.x - targetPos.x;
     const dy = sourcePos.y + a.sy - (targetPos.y + a.ty);
     const dist = dx * dx + dy * dy;
     if (dist < bestDist) {
