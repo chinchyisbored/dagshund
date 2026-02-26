@@ -5,15 +5,19 @@ import { useJobNavigation } from "../hooks/use-job-navigation.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { extractResourceType, extractTypeBadge } from "../utils/resource-key.ts";
-import { getDiffBadge } from "./diff-state-styles.ts";
+import {
+  getDiffBadge,
+  LATERAL_HANDLE_HIDDEN_STYLE,
+  LATERAL_HANDLE_STYLE,
+} from "./diff-state-styles.ts";
 
 type ResourceNodeType = Node<DagNodeData, "resource">;
 
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
-  const { opacityClass, glowStyle, styles, hasIncoming, hasOutgoing } = useNodeDimming(
-    id,
-    data.diffState,
-  );
+  const { opacityClass, glowStyle, styles, hasIncoming, hasOutgoing, lateralHandles } =
+    useNodeDimming(id, data.diffState);
+  const lateralStyleFor = (handleId: string) =>
+    lateralHandles?.has(handleId) ? LATERAL_HANDLE_STYLE : LATERAL_HANDLE_HIDDEN_STYLE;
   const typeBadge = extractTypeBadge(data.resourceKey);
   const diffBadge = getDiffBadge(data.diffState);
   const navigateToJob = useJobNavigation();
@@ -62,6 +66,30 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
         position={Position.Right}
         className="!bg-handle"
         style={hasOutgoing ? undefined : { visibility: "hidden" }}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="lateral-top"
+        style={lateralStyleFor("lateral-top")}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="lateral-top-out"
+        style={lateralStyleFor("lateral-top-out")}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="lateral-bottom"
+        style={lateralStyleFor("lateral-bottom")}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="lateral-bottom-out"
+        style={lateralStyleFor("lateral-bottom-out")}
       />
     </div>
   );

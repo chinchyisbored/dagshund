@@ -6,6 +6,7 @@ type HoverState = {
   readonly connectedIds: ReadonlySet<string> | null;
   readonly selectedConnectedIds: ReadonlySet<string> | null;
   readonly filterMatchedIds: ReadonlySet<string> | null;
+  readonly lateralHandlesByNode: ReadonlyMap<string, ReadonlySet<string>> | null;
 };
 
 export const HoverContext = createContext<HoverState>({
@@ -14,6 +15,7 @@ export const HoverContext = createContext<HoverState>({
   connectedIds: null,
   selectedConnectedIds: null,
   filterMatchedIds: null,
+  lateralHandlesByNode: null,
 });
 
 /** Read the current hover-dimming state from the nearest HoverContext provider. */

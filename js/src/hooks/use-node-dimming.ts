@@ -34,12 +34,19 @@ export type NodeDimmingResult = {
   readonly styles: DiffStateStyles;
   readonly hasIncoming: boolean;
   readonly hasOutgoing: boolean;
+  readonly lateralHandles: ReadonlySet<string> | undefined;
 };
 
 /** Shared dimming, filtering, and connection logic for all node components. */
 export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingResult => {
-  const { hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds } =
-    useHoverState();
+  const {
+    hoveredNodeId,
+    selectedNodeId,
+    connectedIds,
+    selectedConnectedIds,
+    filterMatchedIds,
+    lateralHandlesByNode,
+  } = useHoverState();
   const incomingConnections = useNodeConnections(TARGET_HANDLE);
   const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
   const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);
@@ -66,7 +73,8 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
     opacityClass,
     glowStyle,
     styles,
-    hasIncoming: incomingConnections.length > 0,
-    hasOutgoing: outgoingConnections.length > 0,
+    hasIncoming: incomingConnections.some((c) => !c.targetHandle?.startsWith("lateral-")),
+    hasOutgoing: outgoingConnections.some((c) => !c.sourceHandle?.startsWith("lateral-")),
+    lateralHandles: lateralHandlesByNode?.get(id),
   };
 };

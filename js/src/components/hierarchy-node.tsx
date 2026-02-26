@@ -3,7 +3,11 @@ import { memo } from "react";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { PhantomGraphNode, RootGraphNode } from "../types/graph-types.ts";
-import { getDiffBadge } from "./diff-state-styles.ts";
+import {
+  getDiffBadge,
+  LATERAL_HANDLE_HIDDEN_STYLE,
+  LATERAL_HANDLE_STYLE,
+} from "./diff-state-styles.ts";
 
 type HierarchyNodeType = Node<Omit<RootGraphNode | PhantomGraphNode, "id">, "root" | "phantom">;
 
@@ -21,7 +25,12 @@ export const HierarchyNode = memo(function HierarchyNode({
   id,
   data,
 }: NodeProps<HierarchyNodeType>) {
-  const { glowStyle, styles, hasIncoming, hasOutgoing } = useNodeDimming(id, data.diffState);
+  const { glowStyle, styles, hasIncoming, hasOutgoing, lateralHandles } = useNodeDimming(
+    id,
+    data.diffState,
+  );
+  const lateralStyleFor = (handleId: string) =>
+    lateralHandles?.has(handleId) ? LATERAL_HANDLE_STYLE : LATERAL_HANDLE_HIDDEN_STYLE;
 
   const isPhantom = data.nodeKind === "phantom";
   const badge = isPhantom ? extractPhantomBadge(data.resourceKey) : undefined;
@@ -58,6 +67,30 @@ export const HierarchyNode = memo(function HierarchyNode({
         position={Position.Right}
         className="!bg-handle"
         style={hasOutgoing ? undefined : { visibility: "hidden" }}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="lateral-top"
+        style={lateralStyleFor("lateral-top")}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="lateral-top-out"
+        style={lateralStyleFor("lateral-top-out")}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="lateral-bottom"
+        style={lateralStyleFor("lateral-bottom")}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="lateral-bottom-out"
+        style={lateralStyleFor("lateral-bottom-out")}
       />
     </div>
   );

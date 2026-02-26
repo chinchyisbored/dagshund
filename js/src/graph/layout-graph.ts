@@ -332,21 +332,76 @@ const toFlatFlowNode = (
   ariaLabel: buildAriaLabel(node),
 });
 
+type Position2D = { readonly x: number; readonly y: number };
+
+/** Pick the top/bottom lateral handle pair that produces the shortest straight-line connection. */
+const chooseLateralHandles = (
+  sourcePos: Position2D,
+  targetPos: Position2D,
+  sourceHeight: number,
+  targetHeight: number,
+): { readonly sourceHandle: string; readonly targetHandle: string } => {
+  const halfW = NODE_WIDTH / 2;
+
+  const anchors = [
+    { src: "lateral-top-out", tgt: "lateral-top", sy: 0, ty: 0 },
+    { src: "lateral-top-out", tgt: "lateral-bottom", sy: 0, ty: targetHeight },
+    { src: "lateral-bottom-out", tgt: "lateral-top", sy: sourceHeight, ty: 0 },
+    { src: "lateral-bottom-out", tgt: "lateral-bottom", sy: sourceHeight, ty: targetHeight },
+  ] as const;
+
+  let best: (typeof anchors)[number] = anchors[0];
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const a of anchors) {
+    const dx = sourcePos.x + halfW - (targetPos.x + halfW);
+    const dy = sourcePos.y + a.sy - (targetPos.y + a.ty);
+    const dist = dx * dx + dy * dy;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = a;
+    }
+  }
+  return { sourceHandle: best.src, targetHandle: best.tgt };
+};
+
+type NodeLayout = { readonly position: Position2D; readonly height: number };
+
 /** Convert lateral GraphEdges to React Flow edges with the lateral visual style.
- *  Uses smoothstep routing to avoid bezier curves clipping through intermediate nodes. */
-export const toLateralFlowEdges = (edges: readonly GraphEdge[]): readonly Edge[] =>
-  edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    type: "smoothstep",
-    zIndex: 1,
-    style: {
-      stroke: LATERAL_EDGE_STYLE.stroke,
-      opacity: LATERAL_EDGE_STYLE.opacity,
-      strokeDasharray: LATERAL_EDGE_STYLE.strokeDasharray,
-    },
-  }));
+ *  Routes each edge through the handle pair that produces the shortest straight line. */
+export const toLateralFlowEdges = (
+  edges: readonly GraphEdge[],
+  nodeLayouts: ReadonlyMap<string, NodeLayout>,
+): readonly Edge[] =>
+  edges.flatMap((edge) => {
+    const srcLayout = nodeLayouts.get(edge.source);
+    const tgtLayout = nodeLayouts.get(edge.target);
+    if (srcLayout === undefined || tgtLayout === undefined) return [];
+
+    const handles = chooseLateralHandles(
+      srcLayout.position,
+      tgtLayout.position,
+      srcLayout.height,
+      tgtLayout.height,
+    );
+
+    return [
+      {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: handles.sourceHandle,
+        targetHandle: handles.targetHandle,
+        type: "straight",
+        zIndex: 10,
+        style: {
+          stroke: LATERAL_EDGE_STYLE.stroke,
+          opacity: LATERAL_EDGE_STYLE.opacity,
+          strokeDasharray: LATERAL_EDGE_STYLE.strokeDasharray,
+          strokeWidth: 2.5,
+        },
+      },
+    ];
+  });
 
 /** Flat ELK layout for resource graphs (left-to-right, no compound hierarchy). */
 export const layoutResourceGraph = async (
@@ -392,17 +447,24 @@ export const layoutResourceGraph = async (
 
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
   const flowNodes: Node[] = [];
+  const nodeLayouts = new Map<string, NodeLayout>();
 
   for (const child of elkResult.children ?? []) {
     const graphNode = nodeById.get(child.id);
     if (graphNode !== undefined) {
-      flowNodes.push(toFlatFlowNode(graphNode, { x: child.x ?? 0, y: child.y ?? 0 }));
+      const pos = { x: child.x ?? 0, y: child.y ?? 0 };
+      const height =
+        graphNode.nodeKind === "root" || graphNode.nodeKind === "phantom"
+          ? NODE_HEIGHT_GROUP
+          : NODE_HEIGHT_RESOURCE;
+      flowNodes.push(toFlatFlowNode(graphNode, pos));
+      nodeLayouts.set(child.id, { position: pos, height });
     }
   }
 
   const lateralEdges =
     graph.lateralEdges !== undefined && graph.lateralEdges.length > 0
-      ? toLateralFlowEdges(graph.lateralEdges)
+      ? toLateralFlowEdges(graph.lateralEdges, nodeLayouts)
       : undefined;
 
   return {

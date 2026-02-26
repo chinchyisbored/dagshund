@@ -361,33 +361,68 @@ describe("toFlowEdges", () => {
 });
 
 describe("toLateralFlowEdges", () => {
+  const nodeLayouts = new Map([
+    ["a", { position: { x: 0, y: 0 }, height: 50 }],
+    ["b", { position: { x: 300, y: 0 }, height: 50 }],
+  ]);
+
   test("applies lateral edge style to graph edges", async () => {
     const { toLateralFlowEdges } = await loadModule();
-    const edges = toLateralFlowEdges([
-      { id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" },
-    ]);
+    const edges = toLateralFlowEdges(
+      [{ id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" }],
+      nodeLayouts,
+    );
 
     expect(edges).toHaveLength(1);
     expect(edges[0]?.style).toEqual({
       stroke: "var(--edge-lateral)",
-      opacity: 0.6,
-      strokeDasharray: "4 3",
+      opacity: 0.7,
+      strokeDasharray: undefined,
+      strokeWidth: 2.5,
     });
   });
 
-  test("uses smoothstep edge type with elevated zIndex", async () => {
+  test("uses straight edge type with shortest-path lateral handles", async () => {
     const { toLateralFlowEdges } = await loadModule();
-    const edges = toLateralFlowEdges([
-      { id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" },
-    ]);
+    const edges = toLateralFlowEdges(
+      [{ id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" }],
+      nodeLayouts,
+    );
 
-    expect(edges[0]?.type).toBe("smoothstep");
-    expect(edges[0]?.zIndex).toBe(1);
+    expect(edges[0]?.type).toBe("straight");
+    expect(edges[0]?.sourceHandle).toMatch(/^lateral-/);
+    expect(edges[0]?.targetHandle).toMatch(/^lateral-/);
+    expect(edges[0]?.zIndex).toBe(10);
+  });
+
+  test("chooses vertical handles when nodes are vertically separated", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const verticalLayouts = new Map([
+      ["a", { position: { x: 0, y: 0 }, height: 50 }],
+      ["b", { position: { x: 0, y: 200 }, height: 50 }],
+    ]);
+    const edges = toLateralFlowEdges(
+      [{ id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" }],
+      verticalLayouts,
+    );
+
+    expect(edges[0]?.sourceHandle).toBe("lateral-bottom-out");
+    expect(edges[0]?.targetHandle).toBe("lateral-top");
+  });
+
+  test("skips edges when node positions are missing", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const edges = toLateralFlowEdges(
+      [{ id: "a→c", source: "a", target: "c", label: undefined, diffState: "unchanged" }],
+      nodeLayouts,
+    );
+
+    expect(edges).toHaveLength(0);
   });
 
   test("returns empty array for empty input", async () => {
     const { toLateralFlowEdges } = await loadModule();
-    const edges = toLateralFlowEdges([]);
+    const edges = toLateralFlowEdges([], nodeLayouts);
 
     expect(edges).toHaveLength(0);
   });

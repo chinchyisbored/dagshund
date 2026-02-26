@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { DiffState } from "../types/diff-state.ts";
 import type { EdgeDiffState } from "../types/graph-types.ts";
 
@@ -76,6 +77,24 @@ export const getEdgeStyle = (state: EdgeDiffState): EdgeStyle => EDGE_STYLES[sta
 /** Style for lateral (cross-reference) edges — distinct from hierarchy edges. */
 export const LATERAL_EDGE_STYLE: EdgeStyle = {
   stroke: "var(--edge-lateral)",
-  opacity: 0.6,
-  strokeDasharray: "4 3",
+  opacity: 0.7,
+  strokeDasharray: undefined,
+};
+
+/** Inline style for visible lateral handle dots. */
+export const LATERAL_HANDLE_STYLE: CSSProperties = {
+  width: 6,
+  height: 6,
+  background: "var(--edge-lateral)",
+  border: "none",
+};
+
+/** Inline style for invisible lateral handles (routing anchors only). */
+export const LATERAL_HANDLE_HIDDEN_STYLE: CSSProperties = {
+  width: 0,
+  height: 0,
+  minWidth: 0,
+  minHeight: 0,
+  border: "none",
+  background: "transparent",
 };

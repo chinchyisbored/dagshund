@@ -251,9 +251,42 @@ export function FlowCanvas({
     return resolvePhantomContext(selectedNodeId, baseNodes as Node[], visibleEdges as Edge[]);
   }, [selectedNode, selectedNodeId, baseNodes, visibleEdges]);
 
+  const lateralHandlesByNode = useMemo((): ReadonlyMap<string, ReadonlySet<string>> | null => {
+    if (!showLateralEdges || lateralEdges.length === 0) return null;
+    const map = new Map<string, Set<string>>();
+    const addHandle = (nodeId: string, handleId: string | null | undefined) => {
+      if (handleId === null || handleId === undefined) return;
+      let handles = map.get(nodeId);
+      if (handles === undefined) {
+        handles = new Set();
+        map.set(nodeId, handles);
+      }
+      handles.add(handleId);
+    };
+    for (const edge of lateralEdges) {
+      addHandle(edge.source, edge.sourceHandle);
+      addHandle(edge.target, edge.targetHandle);
+    }
+    return map;
+  }, [showLateralEdges, lateralEdges]);
+
   const hoverState = useMemo(
-    () => ({ hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds }),
-    [hoveredNodeId, selectedNodeId, connectedIds, selectedConnectedIds, filterMatchedIds],
+    () => ({
+      hoveredNodeId,
+      selectedNodeId,
+      connectedIds,
+      selectedConnectedIds,
+      filterMatchedIds,
+      lateralHandlesByNode,
+    }),
+    [
+      hoveredNodeId,
+      selectedNodeId,
+      connectedIds,
+      selectedConnectedIds,
+      filterMatchedIds,
+      lateralHandlesByNode,
+    ],
   );
 
   const styledEdges = useStyledEdges(
