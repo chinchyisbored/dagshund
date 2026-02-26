@@ -37,6 +37,7 @@ describe("extractTypeBadge", () => {
       "synced database table",
     );
     expect(extractTypeBadge("resources.registered_models.fraud_detector")).toBe("model");
+    expect(extractTypeBadge("resources.external_locations.my_loc")).toBe("external location");
   });
 
   test("falls back to raw segment for unknown resource types", () => {

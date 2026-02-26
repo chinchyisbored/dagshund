@@ -28,13 +28,13 @@ export const HierarchyNode = memo(function HierarchyNode({
   );
   const isPhantom = data.nodeKind === "phantom";
   const badge = isPhantom ? extractPhantomBadge(data.resourceKey) : undefined;
-  const diffBadge = getDiffBadge(data.diffState);
+  const diffBadge = isPhantom ? getDiffBadge(data.diffState) : undefined;
   const borderStyle = isPhantom ? "border-dashed" : styles.borderStyle;
 
   return (
     <div
       style={{ width: NODE_WIDTH, ...glowStyle }}
-      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm font-semibold ${styles.border} ${borderStyle} ${styles.background} ${styles.text}`}
+      className={`flex cursor-pointer flex-col rounded-lg border-2 px-4 py-1.5 font-semibold ${styles.border} ${borderStyle} ${styles.background} ${styles.text}`}
       title={data.label}
     >
       <Handle
@@ -43,7 +43,7 @@ export const HierarchyNode = memo(function HierarchyNode({
         className="!bg-handle"
         style={hasIncoming ? undefined : { visibility: "hidden" }}
       />
-      <span className="truncate">
+      <span className="truncate text-sm">
         {diffBadge !== undefined && (
           <span className="mr-1" aria-hidden="true">
             {diffBadge}
@@ -51,11 +51,13 @@ export const HierarchyNode = memo(function HierarchyNode({
         )}
         {data.label}
       </span>
-      {badge !== undefined && (
-        <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
-          {badge}
-        </span>
-      )}
+      <div className="flex items-center gap-1.5">
+        {badge !== undefined && (
+          <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] font-normal text-badge-text">
+            {badge}
+          </span>
+        )}
+      </div>
       <Handle
         type="source"
         position={Position.Right}

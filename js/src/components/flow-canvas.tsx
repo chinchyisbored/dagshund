@@ -109,7 +109,7 @@ export function FlowCanvas({
         const currentZoom = instance.getZoom();
         const { x, y } = internal.internals.positionAbsolute;
         const width = internal.measured.width ?? 200;
-        const height = internal.measured.height ?? 50;
+        const height = internal.measured.height ?? 56;
         instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom: currentZoom });
       }
     }
@@ -200,7 +200,7 @@ export function FlowCanvas({
       const zoom = instance.getZoom();
       const { x, y } = internal.internals.positionAbsolute;
       const width = internal.measured.width ?? 200;
-      const height = internal.measured.height ?? 50;
+      const height = internal.measured.height ?? 56;
       instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom });
       onFocusComplete?.();
     }, 50);

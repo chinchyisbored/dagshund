@@ -21,7 +21,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
   return (
     <div
       style={{ width: NODE_WIDTH, ...glowStyle }}
-      className={`flex cursor-pointer items-center gap-2 truncate rounded-lg border-2 px-4 py-2 text-sm ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
+      className={`flex cursor-pointer flex-col rounded-lg border-2 px-4 py-1.5 ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
       <Handle
@@ -30,32 +30,32 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
         className="!bg-handle"
         style={hasIncoming ? undefined : { visibility: "hidden" }}
       />
-      <span className="truncate">
-        {diffBadge !== undefined && (
-          <span className="mr-1 font-semibold" aria-hidden="true">
-            {diffBadge}
-          </span>
-        )}
+      <span className="truncate text-sm">
+        <span className="mr-1 font-semibold" aria-hidden="true">
+          {diffBadge}
+        </span>
         {data.label}
       </span>
-      {isJob && navigateToJob !== null ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigateToJob(data.resourceKey);
-          }}
-          className="shrink-0 cursor-pointer rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text transition-all hover:bg-accent/20 hover:text-accent hover:ring-1 hover:ring-accent/40"
-          title="View in Jobs tab"
-          aria-label="View in Jobs tab"
-        >
-          job →
-        </button>
-      ) : typeBadge !== undefined ? (
-        <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
-          {typeBadge}
-        </span>
-      ) : null}
+      <div className="flex items-center gap-1.5">
+        {isJob && navigateToJob !== null ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigateToJob(data.resourceKey);
+            }}
+            className="shrink-0 cursor-pointer rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text transition-all hover:bg-accent/20 hover:text-accent hover:ring-1 hover:ring-accent/40"
+            title="View in Jobs tab"
+            aria-label="View in Jobs tab"
+          >
+            job →
+          </button>
+        ) : typeBadge !== undefined ? (
+          <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
+            {typeBadge}
+          </span>
+        ) : null}
+      </div>
       <Handle
         type="source"
         position={Position.Right}

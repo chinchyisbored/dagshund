@@ -68,8 +68,8 @@ describe("getDiffBadge", () => {
     expect(getDiffBadge("modified")).toBe("~");
   });
 
-  test("returns undefined for unchanged", () => {
-    expect(getDiffBadge("unchanged")).toBeUndefined();
+  test("returns = for unchanged", () => {
+    expect(getDiffBadge("unchanged")).toBe("=");
   });
 });
 

@@ -19,7 +19,7 @@ const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {
   genie_spaces: "genie",
   apps: "app",
   experiments: "experiment",
-  external_locations: "ext location",
+  external_locations: "external location",
   jobs: "job",
   models: "mlflow",
   pipelines: "pipeline",
