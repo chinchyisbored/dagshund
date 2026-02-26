@@ -81,6 +81,11 @@ export const LATERAL_EDGE_STYLE: EdgeStyle = {
   strokeDasharray: undefined,
 };
 
+export const LATERAL_TOP = "lateral-top" as const;
+export const LATERAL_TOP_OUT = "lateral-top-out" as const;
+export const LATERAL_BOTTOM = "lateral-bottom" as const;
+export const LATERAL_BOTTOM_OUT = "lateral-bottom-out" as const;
+
 /** Inline style for visible lateral handle dots. */
 export const LATERAL_HANDLE_STYLE: CSSProperties = {
   width: 6,

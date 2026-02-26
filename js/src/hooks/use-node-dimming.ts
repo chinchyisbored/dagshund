@@ -23,12 +23,7 @@ const buildGlowStyle = (
   ...(isDimmed ? { opacity: dimOpacity } : undefined),
 });
 
-export type NodeDimmingResult = {
-  readonly isDimmed: boolean;
-  readonly dimOpacity: number;
-  readonly isHovered: boolean;
-  readonly isSelected: boolean;
-  readonly isFilterHighlighted: boolean;
+type NodeDimmingResult = {
   readonly opacityClass: string;
   readonly glowStyle: CSSProperties;
   readonly styles: DiffStateStyles;
@@ -65,11 +60,6 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
   const glowStyle = buildGlowStyle(isSelected, isHovered, isDimmed, dimOpacity, styles.hoverGlow);
 
   return {
-    isDimmed,
-    dimOpacity,
-    isHovered,
-    isSelected,
-    isFilterHighlighted,
     opacityClass,
     glowStyle,
     styles,

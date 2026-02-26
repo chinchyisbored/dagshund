@@ -410,6 +410,47 @@ describe("toLateralFlowEdges", () => {
     expect(edges[0]?.targetHandle).toBe("lateral-top");
   });
 
+  test("chooses top-out to bottom handles when source is below target", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const layouts = new Map([
+      ["a", { position: { x: 0, y: 200 }, height: 50 }],
+      ["b", { position: { x: 0, y: 0 }, height: 50 }],
+    ]);
+    const edges = toLateralFlowEdges(
+      [{ id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" }],
+      layouts,
+    );
+
+    expect(edges[0]?.sourceHandle).toBe("lateral-top-out");
+    expect(edges[0]?.targetHandle).toBe("lateral-bottom");
+  });
+
+  test("breaks tie by iteration order when nodes share the same y position", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const edges = toLateralFlowEdges(
+      [{ id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" }],
+      nodeLayouts,
+    );
+
+    expect(edges[0]?.sourceHandle).toBe("lateral-top-out");
+    expect(edges[0]?.targetHandle).toBe("lateral-top");
+  });
+
+  test("chooses bottom-out to bottom handles with different node heights", async () => {
+    const { toLateralFlowEdges } = await loadModule();
+    const layouts = new Map([
+      ["a", { position: { x: 0, y: 0 }, height: 50 }],
+      ["b", { position: { x: 300, y: 10 }, height: 40 }],
+    ]);
+    const edges = toLateralFlowEdges(
+      [{ id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" }],
+      layouts,
+    );
+
+    expect(edges[0]?.sourceHandle).toBe("lateral-bottom-out");
+    expect(edges[0]?.targetHandle).toBe("lateral-bottom");
+  });
+
   test("skips edges when node positions are missing", async () => {
     const { toLateralFlowEdges } = await loadModule();
     const edges = toLateralFlowEdges(

@@ -1,6 +1,13 @@
 import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
-import { getEdgeStyle, LATERAL_EDGE_STYLE } from "../components/diff-state-styles.ts";
+import {
+  getEdgeStyle,
+  LATERAL_BOTTOM,
+  LATERAL_BOTTOM_OUT,
+  LATERAL_EDGE_STYLE,
+  LATERAL_TOP,
+  LATERAL_TOP_OUT,
+} from "../components/diff-state-styles.ts";
 import type {
   DagNodeData,
   GraphEdge,
@@ -344,10 +351,10 @@ const chooseLateralHandles = (
   const halfW = NODE_WIDTH / 2;
 
   const anchors = [
-    { src: "lateral-top-out", tgt: "lateral-top", sy: 0, ty: 0 },
-    { src: "lateral-top-out", tgt: "lateral-bottom", sy: 0, ty: targetHeight },
-    { src: "lateral-bottom-out", tgt: "lateral-top", sy: sourceHeight, ty: 0 },
-    { src: "lateral-bottom-out", tgt: "lateral-bottom", sy: sourceHeight, ty: targetHeight },
+    { src: LATERAL_TOP_OUT, tgt: LATERAL_TOP, sy: 0, ty: 0 },
+    { src: LATERAL_TOP_OUT, tgt: LATERAL_BOTTOM, sy: 0, ty: targetHeight },
+    { src: LATERAL_BOTTOM_OUT, tgt: LATERAL_TOP, sy: sourceHeight, ty: 0 },
+    { src: LATERAL_BOTTOM_OUT, tgt: LATERAL_BOTTOM, sy: sourceHeight, ty: targetHeight },
   ] as const;
 
   let best: (typeof anchors)[number] = anchors[0];
