@@ -9,11 +9,11 @@ export const extractResourceType = (key: string): string | undefined => key.spli
 
 /** Derive a type badge for phantom nodes from their ID convention. */
 export const extractPhantomBadge = (resourceKey: string): string | undefined => {
-  if (resourceKey.startsWith("postgres-project::")) return "postgres project";
-  if (resourceKey.startsWith("external::postgres-branch::")) return "postgres branch";
-  if (resourceKey.startsWith("source-table::")) return "table";
   if (resourceKey.startsWith("catalog::")) return "catalog";
-  if (resourceKey.startsWith("external::")) return "schema"; // catch-all for external:: LAST
+  if (resourceKey.startsWith("schema::")) return "schema";
+  if (resourceKey.startsWith("source-table::")) return "table";
+  if (resourceKey.startsWith("postgres-project::")) return "postgres project";
+  if (resourceKey.startsWith("postgres-branch::")) return "postgres branch";
   return undefined;
 };
 

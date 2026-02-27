@@ -186,15 +186,15 @@ describe("buildResourceGraph", () => {
     });
 
     // Phantom schema node should exist
-    const phantom = graph.nodes.find((n) => n.id === "external::dagshund.missing");
+    const phantom = graph.nodes.find((n) => n.id === "schema::dagshund.missing");
     expect(phantom).toBeDefined();
     expect(phantom?.nodeKind).toBe("phantom");
     expect(phantom?.label).toBe("missing");
 
     // Edge chain: catalog → phantom → volume
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("catalog::dagshund→external::dagshund.missing");
-    expect(edgePairs).toContain("external::dagshund.missing→resources.volumes.orphan_vol");
+    expect(edgePairs).toContain("catalog::dagshund→schema::dagshund.missing");
+    expect(edgePairs).toContain("schema::dagshund.missing→resources.volumes.orphan_vol");
   });
 
   test("falls back to catalog when both schema and catalog are missing", () => {
@@ -212,7 +212,7 @@ describe("buildResourceGraph", () => {
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("catalog::dagshund→resources.volumes.no_schema");
     // No phantom nodes
-    const phantoms = graph.nodes.filter((n) => n.id.startsWith("external::"));
+    const phantoms = graph.nodes.filter((n) => n.id.startsWith("schema::"));
     expect(phantoms).toHaveLength(0);
   });
 
@@ -235,13 +235,13 @@ describe("buildResourceGraph", () => {
     });
 
     // Only one phantom node despite two volumes referencing the same external schema
-    const phantoms = graph.nodes.filter((n) => n.id === "external::dagshund.ext_schema");
+    const phantoms = graph.nodes.filter((n) => n.id === "schema::dagshund.ext_schema");
     expect(phantoms).toHaveLength(1);
 
     // Both volumes link through the phantom
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("external::dagshund.ext_schema→resources.volumes.vol_a");
-    expect(edgePairs).toContain("external::dagshund.ext_schema→resources.volumes.vol_b");
+    expect(edgePairs).toContain("schema::dagshund.ext_schema→resources.volumes.vol_a");
+    expect(edgePairs).toContain("schema::dagshund.ext_schema→resources.volumes.vol_b");
   });
 
   test("real catalog entry creates resource node with hierarchy ID", () => {
@@ -424,16 +424,16 @@ describe("buildResourceGraph", () => {
       const graph = buildResourceGraph(plan);
 
       // Phantom schema node should exist for dagshund_no_dabs
-      const phantom = graph.nodes.find((n) => n.id === "external::dagshund.dagshund_no_dabs");
+      const phantom = graph.nodes.find((n) => n.id === "schema::dagshund.dagshund_no_dabs");
       expect(phantom).toBeDefined();
       expect(phantom?.label).toBe("dagshund_no_dabs");
       expect(phantom?.nodeKind).toBe("phantom");
 
       // Edge chain: catalog → phantom → volume
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-      expect(edgePairs).toContain("catalog::dagshund→external::dagshund.dagshund_no_dabs");
+      expect(edgePairs).toContain("catalog::dagshund→schema::dagshund.dagshund_no_dabs");
       expect(edgePairs).toContain(
-        "external::dagshund.dagshund_no_dabs→resources.volumes.external_imports",
+        "schema::dagshund.dagshund_no_dabs→resources.volumes.external_imports",
       );
     });
   });
@@ -785,19 +785,19 @@ describe("postgres hierarchy", () => {
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("external::postgres-branch::some-project/missing-branch");
+    expect(nodeIds).toContain("postgres-branch::some-project/missing-branch");
 
     const phantom = graph.nodes.find(
-      (n) => n.id === "external::postgres-branch::some-project/missing-branch",
+      (n) => n.id === "postgres-branch::some-project/missing-branch",
     );
     expect(phantom?.nodeKind).toBe("phantom");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain(
-      "postgres-project::some-project→external::postgres-branch::some-project/missing-branch",
+      "postgres-project::some-project→postgres-branch::some-project/missing-branch",
     );
     expect(edgePairs).toContain(
-      "external::postgres-branch::some-project/missing-branch→resources.postgres_endpoints.my_endpoint",
+      "postgres-branch::some-project/missing-branch→resources.postgres_endpoints.my_endpoint",
     );
   });
 
@@ -908,13 +908,13 @@ describe("synced_database_tables in UC", () => {
     });
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("external::prod.missing_schema");
+    expect(nodeIds).toContain("schema::prod.missing_schema");
     expect(nodeIds).toContain("resources.synced_database_tables.my_table");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("catalog::prod→external::prod.missing_schema");
+    expect(edgePairs).toContain("catalog::prod→schema::prod.missing_schema");
     expect(edgePairs).toContain(
-      "external::prod.missing_schema→resources.synced_database_tables.my_table",
+      "schema::prod.missing_schema→resources.synced_database_tables.my_table",
     );
   });
 
@@ -947,14 +947,14 @@ describe("synced_database_tables in UC", () => {
     const nodeIds = graph.nodes.map((n) => n.id);
     expect(nodeIds).toContain("uc-root");
     expect(nodeIds).toContain("catalog::new_catalog");
-    expect(nodeIds).toContain("external::new_catalog.new_schema");
+    expect(nodeIds).toContain("schema::new_catalog.new_schema");
     expect(nodeIds).toContain("resources.synced_database_tables.my_table");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("uc-root→catalog::new_catalog");
-    expect(edgePairs).toContain("catalog::new_catalog→external::new_catalog.new_schema");
+    expect(edgePairs).toContain("catalog::new_catalog→schema::new_catalog.new_schema");
     expect(edgePairs).toContain(
-      "external::new_catalog.new_schema→resources.synced_database_tables.my_table",
+      "schema::new_catalog.new_schema→resources.synced_database_tables.my_table",
     );
   });
 
@@ -1173,11 +1173,11 @@ describe("all-hierarchies-plan.json fixture", () => {
     // Phantom catalog (dagshund inferred from schemas)
     expect(nodeIds).toContain("catalog::dagshund");
     // Phantom schema for partner_feeds volume
-    expect(nodeIds).toContain("external::dagshund.integrations");
+    expect(nodeIds).toContain("schema::dagshund.integrations");
     // Phantom schema for synced tables under lakebase_analytics
-    expect(nodeIds).toContain("external::lakebase_analytics.analytics_data");
+    expect(nodeIds).toContain("schema::lakebase_analytics.analytics_data");
     // Phantom schema for partner_metrics under production
-    expect(nodeIds).toContain("external::production.warehouse");
+    expect(nodeIds).toContain("schema::production.warehouse");
 
     // Phantom source table nodes from spec.source_table_full_name
     expect(nodeIds).toContain("source-table::dagshund.analytics.customer_profiles");
@@ -1199,26 +1199,26 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(edgePairs).toContain("catalog::dagshund→resources.schemas.ml_features");
     // Volume links
     expect(edgePairs).toContain("resources.schemas.analytics→resources.volumes.raw_data");
-    expect(edgePairs).toContain("catalog::dagshund→external::dagshund.integrations");
-    expect(edgePairs).toContain("external::dagshund.integrations→resources.volumes.partner_feeds");
+    expect(edgePairs).toContain("catalog::dagshund→schema::dagshund.integrations");
+    expect(edgePairs).toContain("schema::dagshund.integrations→resources.volumes.partner_feeds");
     // Deleted model
     expect(edgePairs).toContain(
       "resources.schemas.analytics→resources.registered_models.churn_predictor",
     );
     // Synced tables under lakebase_analytics catalog → phantom analytics_data schema
     expect(edgePairs).toContain(
-      "catalog::lakebase_analytics→external::lakebase_analytics.analytics_data",
+      "catalog::lakebase_analytics→schema::lakebase_analytics.analytics_data",
     );
     expect(edgePairs).toContain(
-      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
+      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
     );
     expect(edgePairs).toContain(
-      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
+      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
     );
     // partner_metrics under production catalog → phantom warehouse schema
-    expect(edgePairs).toContain("catalog::production→external::production.warehouse");
+    expect(edgePairs).toContain("catalog::production→schema::production.warehouse");
     expect(edgePairs).toContain(
-      "external::production.warehouse→resources.synced_database_tables.partner_metrics",
+      "schema::production.warehouse→resources.synced_database_tables.partner_metrics",
     );
 
     // Source table phantoms under existing schemas
@@ -1229,7 +1229,7 @@ describe("all-hierarchies-plan.json fixture", () => {
       "resources.schemas.analytics→source-table::dagshund.analytics.product_interactions",
     );
     expect(edgePairs).toContain(
-      "external::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
+      "schema::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
     );
 
     // Node kinds
@@ -1251,7 +1251,7 @@ describe("all-hierarchies-plan.json fixture", () => {
     expect(nodeIds).toContain("resources.postgres_branches.production");
     expect(nodeIds).toContain("resources.postgres_endpoints.staging_read");
     expect(nodeIds).toContain("resources.postgres_endpoints.production_rw");
-    expect(nodeIds).toContain("external::postgres-branch::warehouse-replica/archive");
+    expect(nodeIds).toContain("postgres-branch::warehouse-replica/archive");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("workspace-root→postgres-root");
@@ -1269,10 +1269,10 @@ describe("all-hierarchies-plan.json fixture", () => {
       "resources.postgres_branches.production→resources.postgres_endpoints.production_rw",
     );
     expect(edgePairs).toContain(
-      "postgres-project::warehouse-replica→external::postgres-branch::warehouse-replica/archive",
+      "postgres-project::warehouse-replica→postgres-branch::warehouse-replica/archive",
     );
     expect(edgePairs).toContain(
-      "external::postgres-branch::warehouse-replica/archive→resources.postgres_endpoints.legacy_reader",
+      "postgres-branch::warehouse-replica/archive→resources.postgres_endpoints.legacy_reader",
     );
   });
 
@@ -1424,8 +1424,8 @@ describe("all-hierarchies synced tables in UC", () => {
     expect(nodeIds).toContain("resources.synced_database_tables.product_events");
     expect(nodeIds).toContain("resources.synced_database_tables.partner_metrics");
     // Phantom schemas for synced table parent resolution
-    expect(nodeIds).toContain("external::lakebase_analytics.analytics_data");
-    expect(nodeIds).toContain("external::production.warehouse");
+    expect(nodeIds).toContain("schema::lakebase_analytics.analytics_data");
+    expect(nodeIds).toContain("schema::production.warehouse");
     // No sync-target:: phantom nodes
     const syncTargets = nodeIds.filter((id) => id.startsWith("sync-target::"));
     expect(syncTargets).toHaveLength(0);
@@ -1438,18 +1438,18 @@ describe("all-hierarchies synced tables in UC", () => {
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     // Synced tables under lakebase_analytics catalog → phantom analytics_data schema
     expect(edgePairs).toContain(
-      "catalog::lakebase_analytics→external::lakebase_analytics.analytics_data",
+      "catalog::lakebase_analytics→schema::lakebase_analytics.analytics_data",
     );
     expect(edgePairs).toContain(
-      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
+      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
     );
     expect(edgePairs).toContain(
-      "external::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
+      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
     );
     // partner_metrics under production catalog → phantom warehouse schema
-    expect(edgePairs).toContain("catalog::production→external::production.warehouse");
+    expect(edgePairs).toContain("catalog::production→schema::production.warehouse");
     expect(edgePairs).toContain(
-      "external::production.warehouse→resources.synced_database_tables.partner_metrics",
+      "schema::production.warehouse→resources.synced_database_tables.partner_metrics",
     );
     // Source table phantoms under existing real/phantom schemas
     expect(edgePairs).toContain(
@@ -1459,7 +1459,7 @@ describe("all-hierarchies synced tables in UC", () => {
       "resources.schemas.analytics→source-table::dagshund.analytics.product_interactions",
     );
     expect(edgePairs).toContain(
-      "external::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
+      "schema::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
     );
   });
 });
@@ -1516,14 +1516,14 @@ describe("source table phantom nodes", () => {
 
     const nodeIds = graph.nodes.map((n) => n.id);
     expect(nodeIds).toContain("source-table::ext_catalog.ext_schema.ext_table");
-    expect(nodeIds).toContain("external::ext_catalog.ext_schema");
+    expect(nodeIds).toContain("schema::ext_catalog.ext_schema");
     expect(nodeIds).toContain("catalog::ext_catalog");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("uc-root→catalog::ext_catalog");
-    expect(edgePairs).toContain("catalog::ext_catalog→external::ext_catalog.ext_schema");
+    expect(edgePairs).toContain("catalog::ext_catalog→schema::ext_catalog.ext_schema");
     expect(edgePairs).toContain(
-      "external::ext_catalog.ext_schema→source-table::ext_catalog.ext_schema.ext_table",
+      "schema::ext_catalog.ext_schema→source-table::ext_catalog.ext_schema.ext_table",
     );
   });
 
@@ -1555,12 +1555,12 @@ describe("source table phantom nodes", () => {
     expect(nodeIds).toContain("source-table::src.shared.alpha");
     expect(nodeIds).toContain("source-table::src.shared.beta");
     // Only one phantom schema for src.shared
-    const schemaPhantoms = nodeIds.filter((id) => id === "external::src.shared");
+    const schemaPhantoms = nodeIds.filter((id) => id === "schema::src.shared");
     expect(schemaPhantoms).toHaveLength(1);
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("external::src.shared→source-table::src.shared.alpha");
-    expect(edgePairs).toContain("external::src.shared→source-table::src.shared.beta");
+    expect(edgePairs).toContain("schema::src.shared→source-table::src.shared.alpha");
+    expect(edgePairs).toContain("schema::src.shared→source-table::src.shared.beta");
   });
 
   test("source matching real bundle synced table name creates no duplicate phantom", () => {

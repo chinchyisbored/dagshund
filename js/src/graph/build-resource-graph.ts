@@ -282,7 +282,7 @@ const UC_CHAIN: ChainSpec = {
       },
       resolveParentRef: (entry) => extractStateField(entry, "catalog_name"),
       deriveParentRef: (identity) => identity.split(".")[0],
-      buildHierarchyId: (identity) => `external::${identity}`,
+      buildHierarchyId: (identity) => `schema::${identity}`,
     },
     {
       name: "leaf",
@@ -348,7 +348,7 @@ const POSTGRES_CHAIN: ChainSpec = {
         return parent !== undefined ? extractLastPathSegment(parent) : undefined;
       },
       deriveParentRef: (identity) => identity.split("/")[0],
-      buildHierarchyId: (name) => `external::postgres-branch::${name}`,
+      buildHierarchyId: (name) => `postgres-branch::${name}`,
     },
     {
       name: "endpoint",

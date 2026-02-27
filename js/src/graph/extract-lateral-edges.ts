@@ -158,7 +158,7 @@ const collectPipelineCatalogTargets = (
   if (nodeIds.has(catalogId)) targets.push(catalogId);
   const targetSchemaName = extractStateField(entry, "target");
   if (targetSchemaName !== undefined) {
-    const schemaId = `external::${catalogName}.${targetSchemaName}`;
+    const schemaId = `schema::${catalogName}.${targetSchemaName}`;
     if (nodeIds.has(schemaId)) targets.push(schemaId);
   }
   return targets;
@@ -186,7 +186,7 @@ const collectPipelineIngestionTargets = (
     const sCatalog = (schemaDef as Readonly<Record<string, unknown>>)["source_catalog"];
     const sSchema = (schemaDef as Readonly<Record<string, unknown>>)["source_schema"];
     if (typeof sCatalog === "string" && typeof sSchema === "string") {
-      const schemaId = `external::${sCatalog}.${sSchema}`;
+      const schemaId = `schema::${sCatalog}.${sSchema}`;
       if (nodeIds.has(schemaId)) targets.push(schemaId);
     }
   }

@@ -313,7 +313,7 @@ describe("extractPipelineTargetEdges", () => {
     const nodeIds = new Set([
       "resources.pipelines.ingest",
       "catalog::production",
-      "external::production.reporting",
+      "schema::production.reporting",
     ]);
     const nodeIdByResourceKey = new Map([
       ["resources.pipelines.ingest", "resources.pipelines.ingest"],
@@ -324,7 +324,7 @@ describe("extractPipelineTargetEdges", () => {
     expect(edges).toHaveLength(2);
     expect(edges.map((e) => e.target).toSorted()).toEqual([
       "catalog::production",
-      "external::production.reporting",
+      "schema::production.reporting",
     ]);
   });
 
@@ -358,7 +358,7 @@ describe("extractPipelineTargetEdges", () => {
     const nodeIds = new Set([
       "resources.pipelines.ingest",
       "catalog::production",
-      "external::production.reporting",
+      "schema::production.reporting",
     ]);
     const nodeIdByResourceKey = new Map([
       ["resources.pipelines.ingest", "resources.pipelines.ingest"],
@@ -370,7 +370,7 @@ describe("extractPipelineTargetEdges", () => {
     expect(edges).toHaveLength(2);
     expect(edges.map((e) => e.target).toSorted()).toEqual([
       "catalog::production",
-      "external::production.reporting",
+      "schema::production.reporting",
     ]);
   });
 
@@ -385,7 +385,7 @@ describe("extractPipelineTargetEdges", () => {
         }),
       ],
     ];
-    const nodeIds = new Set(["resources.pipelines.ingest", "external::dagshund.analytics"]);
+    const nodeIds = new Set(["resources.pipelines.ingest", "schema::dagshund.analytics"]);
     const nodeIdByResourceKey = new Map([
       ["resources.pipelines.ingest", "resources.pipelines.ingest"],
     ]);
@@ -395,7 +395,7 @@ describe("extractPipelineTargetEdges", () => {
     expect(edges).toHaveLength(1);
     expect(edges[0]).toMatchObject({
       source: "resources.pipelines.ingest",
-      target: "external::dagshund.analytics",
+      target: "schema::dagshund.analytics",
     });
   });
 });
