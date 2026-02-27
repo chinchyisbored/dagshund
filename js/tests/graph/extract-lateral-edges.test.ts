@@ -401,6 +401,120 @@ describe("extractPipelineTargetEdges", () => {
 });
 
 // ---------------------------------------------------------------------------
+// source_table_full_name (synced_database_table → source-table phantom)
+// ---------------------------------------------------------------------------
+
+describe("extractSourceTableEdges", () => {
+  test("synced table links to source-table phantom when both exist", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.customer_360",
+        makeEntry({
+          name: "cat.schema.customer_360",
+          spec: { source_table_full_name: "dagshund.analytics.customer_profiles" },
+        }),
+      ],
+    ];
+    const nodeIds = new Set([
+      "resources.synced_database_tables.customer_360",
+      "source-table::dagshund.analytics.customer_profiles",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      [
+        "resources.synced_database_tables.customer_360",
+        "resources.synced_database_tables.customer_360",
+      ],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    const sourceTableEdges = edges.filter((e) => e.target.startsWith("source-table::"));
+    expect(sourceTableEdges).toHaveLength(1);
+    expect(sourceTableEdges[0]).toMatchObject({
+      source: "resources.synced_database_tables.customer_360",
+      target: "source-table::dagshund.analytics.customer_profiles",
+      diffState: "unchanged",
+    });
+  });
+
+  test("no edge when source_table_full_name is missing", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.customer_360",
+        makeEntry({ name: "cat.schema.customer_360" }),
+      ],
+    ];
+    const nodeIds = new Set([
+      "resources.synced_database_tables.customer_360",
+      "source-table::dagshund.analytics.customer_profiles",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      [
+        "resources.synced_database_tables.customer_360",
+        "resources.synced_database_tables.customer_360",
+      ],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    const sourceTableEdges = edges.filter((e) => e.target.startsWith("source-table::"));
+    expect(sourceTableEdges).toHaveLength(0);
+  });
+
+  test("no edge when source_table_full_name is not a valid three-part name", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.customer_360",
+        makeEntry({
+          name: "cat.schema.customer_360",
+          spec: { source_table_full_name: "not_three_parts" },
+        }),
+      ],
+    ];
+    const nodeIds = new Set([
+      "resources.synced_database_tables.customer_360",
+      "source-table::not_three_parts",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      [
+        "resources.synced_database_tables.customer_360",
+        "resources.synced_database_tables.customer_360",
+      ],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    const sourceTableEdges = edges.filter((e) => e.target.startsWith("source-table::"));
+    expect(sourceTableEdges).toHaveLength(0);
+  });
+
+  test("no edge when source-table phantom not in nodeIds", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.customer_360",
+        makeEntry({
+          name: "cat.schema.customer_360",
+          spec: { source_table_full_name: "dagshund.analytics.customer_profiles" },
+        }),
+      ],
+    ];
+    // phantom NOT in nodeIds
+    const nodeIds = new Set(["resources.synced_database_tables.customer_360"]);
+    const nodeIdByResourceKey = new Map([
+      [
+        "resources.synced_database_tables.customer_360",
+        "resources.synced_database_tables.customer_360",
+      ],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    const sourceTableEdges = edges.filter((e) => e.target.startsWith("source-table::"));
+    expect(sourceTableEdges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Integration: all-hierarchies-plan.json
 // ---------------------------------------------------------------------------
 
@@ -428,9 +542,28 @@ describe("all-hierarchies-plan integration", () => {
     const graph = buildResourceGraph(plan);
 
     const reportingEdges = graph.lateralEdges.filter(
-      (e) => e.source === "resources.synced_database_tables.partner_metrics",
+      (e) =>
+        e.source === "resources.synced_database_tables.partner_metrics" &&
+        e.target.includes("database_instances"),
     );
 
     expect(reportingEdges).toHaveLength(0);
+  });
+
+  test("synced tables produce source-table edges to phantoms", async () => {
+    const plan = await loadFixture("all-hierarchies-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const sourceTableEdges = graph.lateralEdges.filter((e) =>
+      e.target.startsWith("source-table::"),
+    );
+
+    // customer_360 → customer_profiles, product_events → product_interactions, partner_metrics → partner_rollup
+    expect(sourceTableEdges).toHaveLength(3);
+
+    const targets = sourceTableEdges.map((e) => e.target).toSorted();
+    expect(targets).toContain("source-table::dagshund.analytics.customer_profiles");
+    expect(targets).toContain("source-table::dagshund.analytics.product_interactions");
+    expect(targets).toContain("source-table::dagshund.integrations.partner_rollup");
   });
 });
