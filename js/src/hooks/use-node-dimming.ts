@@ -46,6 +46,7 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
     isolatedLateralIds,
     lateralNodeIds,
     isolatedLateralNodeId,
+    showLateralEdges,
   } = useInteractionState();
   const incomingConnections = useNodeConnections(TARGET_HANDLE);
   const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
@@ -54,14 +55,23 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
   const isDimmedBySelection =
     connectedIds === null && selectedConnectedIds !== null && !selectedConnectedIds.has(id);
   const isDimmedByLateralIsolation = isolatedLateralIds !== null && !isolatedLateralIds.has(id);
+  const isDimmedByLateralToggle =
+    showLateralEdges &&
+    isolatedLateralIds === null &&
+    lateralNodeIds !== null &&
+    !lateralNodeIds.has(id);
   const isDimmed =
-    isDimmedByHover || isDimmedByFilter || isDimmedBySelection || isDimmedByLateralIsolation;
+    isDimmedByHover ||
+    isDimmedByFilter ||
+    isDimmedBySelection ||
+    isDimmedByLateralIsolation ||
+    isDimmedByLateralToggle;
   const dimOpacity =
     isDimmedByHover || isDimmedByFilter
       ? 0.3
       : isDimmedBySelection
         ? 0.5
-        : isDimmedByLateralIsolation
+        : isDimmedByLateralIsolation || isDimmedByLateralToggle
           ? 0.3
           : 1;
   // biome-ignore lint/complexity/useOptionalChain: optional chain returns boolean | undefined, need boolean

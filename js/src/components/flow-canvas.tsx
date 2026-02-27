@@ -327,6 +327,7 @@ export function FlowCanvas({
       isolatedLateralIds,
       lateralNodeIds,
       isolatedLateralNodeId,
+      showLateralEdges,
     }),
     [
       hoveredNodeId,
@@ -338,6 +339,7 @@ export function FlowCanvas({
       isolatedLateralIds,
       lateralNodeIds,
       isolatedLateralNodeId,
+      showLateralEdges,
     ],
   );
 
