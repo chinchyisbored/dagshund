@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-type HoverState = {
+type InteractionState = {
   readonly hoveredNodeId: string | null;
   readonly selectedNodeId: string | null;
   readonly connectedIds: ReadonlySet<string> | null;
@@ -12,7 +12,7 @@ type HoverState = {
   readonly isolatedLateralNodeId: string | null;
 };
 
-export const HoverContext = createContext<HoverState>({
+export const InteractionContext = createContext<InteractionState>({
   hoveredNodeId: null,
   selectedNodeId: null,
   connectedIds: null,
@@ -24,5 +24,5 @@ export const HoverContext = createContext<HoverState>({
   isolatedLateralNodeId: null,
 });
 
-/** Read the current hover-dimming state from the nearest HoverContext provider. */
-export const useHoverState = (): HoverState => useContext(HoverContext);
+/** Read the current interaction state from the nearest InteractionContext provider. */
+export const useInteractionState = (): InteractionState => useContext(InteractionContext);

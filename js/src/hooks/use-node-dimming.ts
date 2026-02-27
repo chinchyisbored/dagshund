@@ -2,7 +2,7 @@ import { useNodeConnections } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import { type DiffStateStyles, getDiffStateStyles } from "../components/diff-state-styles.ts";
 import type { DiffState } from "../types/diff-state.ts";
-import { useHoverState } from "./use-hover-context.ts";
+import { useInteractionState } from "./use-interaction-context.ts";
 
 const TARGET_HANDLE = { handleType: "target" } as const;
 const SOURCE_HANDLE = { handleType: "source" } as const;
@@ -46,7 +46,7 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
     isolatedLateralIds,
     lateralNodeIds,
     isolatedLateralNodeId,
-  } = useHoverState();
+  } = useInteractionState();
   const incomingConnections = useNodeConnections(TARGET_HANDLE);
   const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
   const isDimmedByHover = connectedIds !== null && !connectedIds.has(id);

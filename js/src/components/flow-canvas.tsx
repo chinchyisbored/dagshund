@@ -9,7 +9,8 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { HoverContext } from "../hooks/use-hover-context.ts";
+import { InteractionContext } from "../hooks/use-interaction-context.ts";
+import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
 import { LateralIsolationContext } from "../hooks/use-lateral-isolation.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
@@ -178,49 +179,13 @@ export function FlowCanvas({
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
   const lateralEdges = layout?.lateralEdges ?? EMPTY_EDGES;
 
-  /** All node IDs that participate in any lateral edge — always computed for icon visibility. */
-  const lateralNodeIds = useMemo((): ReadonlySet<string> | null => {
-    if (lateralEdges.length === 0) return null;
-    const ids = new Set<string>();
-    for (const edge of lateralEdges) {
-      ids.add(edge.source);
-      ids.add(edge.target);
-    }
-    return ids;
-  }, [lateralEdges]);
-
-  /** Lateral edges touching the isolated node — shown even when the global toggle is off. */
-  const isolatedLateralEdges = useMemo(
-    (): readonly Edge[] =>
-      isolatedLateralNodeId !== null
-        ? lateralEdges.filter(
-            (e) => e.source === isolatedLateralNodeId || e.target === isolatedLateralNodeId,
-          )
-        : [],
-    [lateralEdges, isolatedLateralNodeId],
-  );
-
-  /** Active lateral edges: global toggle shows all, otherwise only isolated node's edges. */
-  const activeLateralEdges = useMemo(
-    (): readonly Edge[] => (showLateralEdges ? lateralEdges : isolatedLateralEdges),
-    [showLateralEdges, lateralEdges, isolatedLateralEdges],
-  );
+  const { lateralNodeIds, activeLateralEdges, isolatedLateralIds, lateralHandlesByNode } =
+    useLateralEdgeState(lateralEdges, showLateralEdges, isolatedLateralNodeId);
 
   const visibleEdges = useMemo(
     () => (activeLateralEdges.length > 0 ? [...baseEdges, ...activeLateralEdges] : baseEdges),
     [baseEdges, activeLateralEdges],
   );
-
-  /** Isolated node + its lateral neighbors — used for dimming non-connected nodes/edges. */
-  const isolatedLateralIds = useMemo((): ReadonlySet<string> | null => {
-    if (isolatedLateralNodeId === null) return null;
-    const ids = new Set<string>([isolatedLateralNodeId]);
-    for (const edge of lateralEdges) {
-      if (edge.source === isolatedLateralNodeId) ids.add(edge.target);
-      if (edge.target === isolatedLateralNodeId) ids.add(edge.source);
-    }
-    return ids;
-  }, [lateralEdges, isolatedLateralNodeId]);
 
   /** Fit the viewport exactly once after the layout produces nodes.
    *  Skipped when focusNodeId is set — the focus effect handles viewport positioning instead.
@@ -302,26 +267,7 @@ export function FlowCanvas({
     return resolvePhantomContext(selectedNodeId, baseNodes as Node[], visibleEdges as Edge[]);
   }, [selectedNode, selectedNodeId, baseNodes, visibleEdges]);
 
-  const lateralHandlesByNode = useMemo((): ReadonlyMap<string, ReadonlySet<string>> | null => {
-    if (activeLateralEdges.length === 0) return null;
-    const map = new Map<string, Set<string>>();
-    const addHandle = (nodeId: string, handleId: string | null | undefined) => {
-      if (handleId === null || handleId === undefined) return;
-      let handles = map.get(nodeId);
-      if (handles === undefined) {
-        handles = new Set();
-        map.set(nodeId, handles);
-      }
-      handles.add(handleId);
-    };
-    for (const edge of activeLateralEdges) {
-      addHandle(edge.source, edge.sourceHandle);
-      addHandle(edge.target, edge.targetHandle);
-    }
-    return map;
-  }, [activeLateralEdges]);
-
-  const hoverState = useMemo(
+  const interactionState = useMemo(
     () => ({
       hoveredNodeId,
       selectedNodeId,
@@ -374,7 +320,7 @@ export function FlowCanvas({
 
   return (
     <div className="flex h-full">
-      <HoverContext.Provider value={hoverState}>
+      <InteractionContext.Provider value={interactionState}>
         <LateralIsolationContext.Provider value={handleToggleLateralIsolation}>
           {layoutState.status === "loading" && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/80">
@@ -435,7 +381,7 @@ export function FlowCanvas({
             </Panel>
           </ReactFlow>
         </LateralIsolationContext.Provider>
-      </HoverContext.Provider>
+      </InteractionContext.Provider>
       {selectedNode !== null && (
         <>
           <div
