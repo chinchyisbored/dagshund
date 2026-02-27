@@ -1,0 +1,115 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+const DEBOUNCE_MS = 300;
+
+type SearchBarProps = {
+  readonly onSearch: (query: string) => void;
+  readonly matchCount: number;
+};
+
+export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
+  const [rawInput, setRawInput] = useState("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const clearSearch = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setRawInput("");
+    onSearch("");
+  }, [onSearch]);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setRawInput(value);
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        onSearch(value.trim().toLowerCase());
+        timerRef.current = null;
+      }, DEBOUNCE_MS);
+    },
+    [onSearch],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Escape") {
+        clearSearch();
+        inputRef.current?.blur();
+      }
+    },
+    [clearSearch],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const hasQuery = rawInput.length > 0;
+
+  return (
+    <div className="flex w-full items-center gap-1.5">
+      <div className="relative flex-1">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-muted"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          ref={inputRef}
+          type="text"
+          value={rawInput}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          placeholder={'Search\u2026 "exact" or type:badge'}
+          aria-label="Search nodes"
+          className="h-7 w-full rounded-md border border-outline bg-surface-raised pl-7 pr-7 text-xs text-ink placeholder:text-ink-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        />
+        {hasQuery && (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-ink-muted transition-colors hover:text-ink"
+            aria-label="Clear search"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+      {hasQuery && (
+        <span className="text-xs text-ink-muted">
+          {matchCount} {matchCount === 1 ? "match" : "matches"}
+        </span>
+      )}
+    </div>
+  );
+}

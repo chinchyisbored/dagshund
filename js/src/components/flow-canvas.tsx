@@ -18,10 +18,12 @@ import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import type { PhantomContext } from "../types/phantom-context.ts";
+import { extractNodeSearchText, type NodeSearchEntry } from "../utils/node-search-text.ts";
 import { extractTypeBadge } from "../utils/resource-key.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { LateralEdgeToggle } from "./lateral-edge-toggle.tsx";
+import { SearchBar } from "./search-bar.tsx";
 
 type FlowCanvasProps = {
   readonly layoutState: GraphLayoutState;
@@ -96,6 +98,7 @@ export function FlowCanvas({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showLateralEdges, setShowLateralEdges] = useState(false);
   const [isolatedLateralNodeId, setIsolatedLateralNodeId] = useState<string | null>(null);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
@@ -261,6 +264,91 @@ export function FlowCanvas({
     return matched;
   }, [baseNodes, filterDiffState]);
 
+  const nodeSearchIndex = useMemo((): ReadonlyMap<string, NodeSearchEntry> => {
+    const index = new Map<string, NodeSearchEntry>();
+    for (const node of baseNodes) {
+      index.set(node.id, extractNodeSearchText(getNodeData(node)));
+    }
+    return index;
+  }, [baseNodes]);
+
+  const searchMatchedIds = useMemo((): ReadonlySet<string> | null => {
+    if (searchQuery === "") return null;
+
+    const isExact =
+      searchQuery.startsWith('"') && searchQuery.endsWith('"') && searchQuery.length > 2;
+    const isBadge = searchQuery.startsWith("type:");
+
+    const matched = new Set<string>();
+    if (isExact) {
+      const exactTerm = searchQuery.slice(1, -1);
+      for (const node of baseNodes) {
+        if (getNodeData(node).label.toLowerCase() === exactTerm) matched.add(node.id);
+      }
+    } else if (isBadge) {
+      const badgeTerm = searchQuery.slice(5);
+      if (badgeTerm.length > 0) {
+        for (const [nodeId, entry] of nodeSearchIndex) {
+          if (entry.badgeText.includes(badgeTerm)) matched.add(nodeId);
+        }
+      }
+    } else {
+      for (const [nodeId, entry] of nodeSearchIndex) {
+        if (entry.text.includes(searchQuery)) matched.add(nodeId);
+      }
+    }
+
+    return matched;
+  }, [baseNodes, nodeSearchIndex, searchQuery]);
+
+  /** Direct matches — used for centering and match count (excludes parent containers). */
+  const directMatchIds = useMemo((): ReadonlySet<string> | null => {
+    if (filterMatchedIds === null) return searchMatchedIds;
+    if (searchMatchedIds === null) return filterMatchedIds;
+    const intersection = new Set<string>();
+    for (const id of filterMatchedIds) {
+      if (searchMatchedIds.has(id)) intersection.add(id);
+    }
+    return intersection;
+  }, [filterMatchedIds, searchMatchedIds]);
+
+  /** Effective filter with parent job containers included for dimming. */
+  const effectiveFilterIds = useMemo((): ReadonlySet<string> | null => {
+    if (directMatchIds === null) return null;
+    const withParents = new Set(directMatchIds);
+    for (const node of baseNodes) {
+      if (node.parentId !== undefined && withParents.has(node.id)) {
+        withParents.add(node.parentId);
+      }
+    }
+    return withParents;
+  }, [baseNodes, directMatchIds]);
+
+  /** Center when search narrows to a single top-level match.
+   *  Matches whose parent is also matched are collapsed (e.g. job + its tasks → job). */
+  useEffect(() => {
+    if (directMatchIds === null || directMatchIds.size === 0) return;
+
+    // Collapse: remove matches whose parent is also matched.
+    const topLevel: string[] = [];
+    for (const node of baseNodes) {
+      if (!directMatchIds.has(node.id)) continue;
+      if (node.parentId !== undefined && directMatchIds.has(node.parentId)) continue;
+      topLevel.push(node.id);
+    }
+    if (topLevel.length !== 1) return;
+
+    const instance = rfInstanceRef.current;
+    if (instance === null) return;
+    const internal = instance.getInternalNode(topLevel[0] as string);
+    if (internal === undefined) return;
+    const zoom = instance.getZoom();
+    const { x, y } = internal.internals.positionAbsolute;
+    const width = internal.measured.width ?? 200;
+    const height = internal.measured.height ?? 56;
+    instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom });
+  }, [baseNodes, directMatchIds]);
+
   const phantomContext = useMemo(() => {
     if (selectedNode === null || selectedNode.nodeKind !== "phantom" || selectedNodeId === null)
       return undefined;
@@ -273,7 +361,7 @@ export function FlowCanvas({
       selectedNodeId,
       connectedIds,
       selectedConnectedIds,
-      filterMatchedIds,
+      filterMatchedIds: effectiveFilterIds,
       lateralHandlesByNode,
       isolatedLateralIds,
       lateralNodeIds,
@@ -284,7 +372,7 @@ export function FlowCanvas({
       selectedNodeId,
       connectedIds,
       selectedConnectedIds,
-      filterMatchedIds,
+      effectiveFilterIds,
       lateralHandlesByNode,
       isolatedLateralIds,
       lateralNodeIds,
@@ -298,7 +386,7 @@ export function FlowCanvas({
     selectedNodeId,
     connectedIds,
     selectedConnectedIds,
-    filterMatchedIds,
+    effectiveFilterIds,
     isolatedLateralIds,
   );
 
@@ -342,6 +430,7 @@ export function FlowCanvas({
             onInit={handleInit}
           >
             <Panel position="top-left" className="z-10 flex flex-col gap-1.5">
+              <SearchBar onSearch={setSearchQuery} matchCount={directMatchIds?.size ?? 0} />
               <DiffFilterToolbar
                 activeFilter={filterDiffState}
                 onFilterChange={setFilterDiffState}

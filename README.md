@@ -92,6 +92,16 @@ Toggle **Links** in the toolbar to overlay these lateral edges on the graph. The
 
 <!-- TODO: screenshot of resource links overlay -->
 
+### Search
+
+The search bar in the top-left filters nodes by name or type badge. Non-matching nodes dim to 0.3 opacity. Matching composes with the diff filter buttons — when both are active, only nodes matching both criteria stay highlighted.
+
+- **Substring search** (default) — type `warehouse` to match node names and badges. Case-insensitive.
+- **Exact search** — wrap in quotes to match the node label exactly: `"analytics"` finds only the node named "analytics", not "analytics_pipeline".
+- **Badge search** — prefix with `type:` to match badge text only: `type:wheel` highlights all python wheel tasks, `type:warehouse` highlights all SQL warehouses.
+- When exactly one node (or one job group) matches, the viewport auto-centers on it.
+- Press **Escape** to clear the search.
+
 ## Structural Diff
 
 Clicking a modified node in the DAG opens a detail panel showing per-field structural diffs — not raw JSON dumps, but smart comparisons that surface only the meaningful deltas.

@@ -3,21 +3,12 @@ import { memo } from "react";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { PhantomGraphNode, RootGraphNode } from "../types/graph-types.ts";
+import { extractPhantomBadge } from "../utils/resource-key.ts";
 import { getDiffBadge } from "./diff-state-styles.ts";
 import { LateralHandles } from "./lateral-handles.tsx";
 import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
 
 type HierarchyNodeType = Node<Omit<RootGraphNode | PhantomGraphNode, "id">, "root" | "phantom">;
-
-/** Derive a type badge for phantom nodes from their ID convention. */
-const extractPhantomBadge = (resourceKey: string): string | undefined => {
-  if (resourceKey.startsWith("postgres-project::")) return "project";
-  if (resourceKey.startsWith("external::postgres-branch::")) return "branch";
-  if (resourceKey.startsWith("source-table::")) return "table";
-  if (resourceKey.startsWith("catalog::")) return "catalog";
-  if (resourceKey.startsWith("external::")) return "schema"; // catch-all for external:: LAST
-  return undefined;
-};
 
 export const HierarchyNode = memo(function HierarchyNode({
   id,
