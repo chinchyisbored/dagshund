@@ -50,6 +50,21 @@ export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "/") return;
+      // EventTarget has no tagName; narrow to Element which is always the case for DOM keydown.
+      const tag = (e.target as Element).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      // offsetParent is null for elements inside display:none (e.g. hidden tab).
+      if (inputRef.current === null || inputRef.current.offsetParent === null) return;
+      e.preventDefault();
+      inputRef.current.focus();
+    };
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
   const hasQuery = rawInput.length > 0;
 
   return (
@@ -105,11 +120,9 @@ export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
           </button>
         )}
       </div>
-      {hasQuery && (
-        <span className="text-xs text-ink-muted">
-          {matchCount} {matchCount === 1 ? "match" : "matches"}
-        </span>
-      )}
+      <span className="text-xs text-ink-muted" aria-live="polite">
+        {hasQuery ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}` : ""}
+      </span>
     </div>
   );
 }

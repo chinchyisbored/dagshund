@@ -12,13 +12,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InteractionContext } from "../hooks/use-interaction-context.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
 import { LateralIsolationContext } from "../hooks/use-lateral-isolation.ts";
+import { useNodeSearch } from "../hooks/use-node-search.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import type { PhantomContext } from "../types/phantom-context.ts";
-import { extractNodeSearchText, type NodeSearchEntry } from "../utils/node-search-text.ts";
+import { getNodeData } from "../utils/node-data.ts";
 import { extractTypeBadge } from "../utils/resource-key.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
@@ -59,10 +60,6 @@ const buildConnectedNodeIds = (
   return connected;
 };
 
-/** React Flow types node.data as Record<string, unknown>; our nodes carry DagNodeData.
- *  The cast is unavoidable because React Flow's generic param doesn't propagate to event handlers. */
-const getNodeData = (node: Node): DagNodeData => node.data as DagNodeData;
-
 /** Derive inference context for a phantom node from its outgoing edges.
  *  Every outgoing edge points to a child/referenced node that caused the phantom to exist. */
 const resolvePhantomContext = (
@@ -98,7 +95,6 @@ export function FlowCanvas({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [showLateralEdges, setShowLateralEdges] = useState(false);
   const [isolatedLateralNodeId, setIsolatedLateralNodeId] = useState<string | null>(null);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
@@ -185,6 +181,8 @@ export function FlowCanvas({
   const { lateralNodeIds, activeLateralEdges, isolatedLateralIds, lateralHandlesByNode } =
     useLateralEdgeState(lateralEdges, showLateralEdges, isolatedLateralNodeId);
 
+  const { setSearchQuery, searchMatchedIds } = useNodeSearch(baseNodes);
+
   const visibleEdges = useMemo(
     () => (activeLateralEdges.length > 0 ? [...baseEdges, ...activeLateralEdges] : baseEdges),
     [baseEdges, activeLateralEdges],
@@ -263,43 +261,6 @@ export function FlowCanvas({
     }
     return matched;
   }, [baseNodes, filterDiffState]);
-
-  const nodeSearchIndex = useMemo((): ReadonlyMap<string, NodeSearchEntry> => {
-    const index = new Map<string, NodeSearchEntry>();
-    for (const node of baseNodes) {
-      index.set(node.id, extractNodeSearchText(getNodeData(node)));
-    }
-    return index;
-  }, [baseNodes]);
-
-  const searchMatchedIds = useMemo((): ReadonlySet<string> | null => {
-    if (searchQuery === "") return null;
-
-    const isExact =
-      searchQuery.startsWith('"') && searchQuery.endsWith('"') && searchQuery.length > 2;
-    const isBadge = searchQuery.startsWith("type:");
-
-    const matched = new Set<string>();
-    if (isExact) {
-      const exactTerm = searchQuery.slice(1, -1);
-      for (const node of baseNodes) {
-        if (getNodeData(node).label.toLowerCase() === exactTerm) matched.add(node.id);
-      }
-    } else if (isBadge) {
-      const badgeTerm = searchQuery.slice(5);
-      if (badgeTerm.length > 0) {
-        for (const [nodeId, entry] of nodeSearchIndex) {
-          if (entry.badgeText.includes(badgeTerm)) matched.add(nodeId);
-        }
-      }
-    } else {
-      for (const [nodeId, entry] of nodeSearchIndex) {
-        if (entry.text.includes(searchQuery)) matched.add(nodeId);
-      }
-    }
-
-    return matched;
-  }, [baseNodes, nodeSearchIndex, searchQuery]);
 
   /** Direct matches — used for centering and match count (excludes parent containers). */
   const directMatchIds = useMemo((): ReadonlySet<string> | null => {
