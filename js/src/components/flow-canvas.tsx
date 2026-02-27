@@ -212,7 +212,7 @@ export function FlowCanvas({
   );
 
   /** Isolated node + its lateral neighbors — used for dimming non-connected nodes/edges. */
-  const lateralIsolatedIds = useMemo((): ReadonlySet<string> | null => {
+  const isolatedLateralIds = useMemo((): ReadonlySet<string> | null => {
     if (isolatedLateralNodeId === null) return null;
     const ids = new Set<string>([isolatedLateralNodeId]);
     for (const edge of lateralEdges) {
@@ -329,7 +329,7 @@ export function FlowCanvas({
       selectedConnectedIds,
       filterMatchedIds,
       lateralHandlesByNode,
-      lateralIsolatedIds,
+      isolatedLateralIds,
       lateralNodeIds,
       isolatedLateralNodeId,
     }),
@@ -340,7 +340,7 @@ export function FlowCanvas({
       selectedConnectedIds,
       filterMatchedIds,
       lateralHandlesByNode,
-      lateralIsolatedIds,
+      isolatedLateralIds,
       lateralNodeIds,
       isolatedLateralNodeId,
     ],
@@ -353,7 +353,7 @@ export function FlowCanvas({
     connectedIds,
     selectedConnectedIds,
     filterMatchedIds,
-    lateralIsolatedIds,
+    isolatedLateralIds,
   );
 
   if (layoutState.status === "error") {

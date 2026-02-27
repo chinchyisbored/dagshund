@@ -7,7 +7,7 @@ type HoverState = {
   readonly selectedConnectedIds: ReadonlySet<string> | null;
   readonly filterMatchedIds: ReadonlySet<string> | null;
   readonly lateralHandlesByNode: ReadonlyMap<string, ReadonlySet<string>> | null;
-  readonly lateralIsolatedIds: ReadonlySet<string> | null;
+  readonly isolatedLateralIds: ReadonlySet<string> | null;
   readonly lateralNodeIds: ReadonlySet<string> | null;
   readonly isolatedLateralNodeId: string | null;
 };
@@ -19,7 +19,7 @@ export const HoverContext = createContext<HoverState>({
   selectedConnectedIds: null,
   filterMatchedIds: null,
   lateralHandlesByNode: null,
-  lateralIsolatedIds: null,
+  isolatedLateralIds: null,
   lateralNodeIds: null,
   isolatedLateralNodeId: null,
 });

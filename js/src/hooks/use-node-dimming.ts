@@ -43,7 +43,7 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
     selectedConnectedIds,
     filterMatchedIds,
     lateralHandlesByNode,
-    lateralIsolatedIds,
+    isolatedLateralIds,
     lateralNodeIds,
     isolatedLateralNodeId,
   } = useHoverState();
@@ -53,7 +53,7 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
   const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
   const isDimmedBySelection =
     connectedIds === null && selectedConnectedIds !== null && !selectedConnectedIds.has(id);
-  const isDimmedByLateralIsolation = lateralIsolatedIds !== null && !lateralIsolatedIds.has(id);
+  const isDimmedByLateralIsolation = isolatedLateralIds !== null && !isolatedLateralIds.has(id);
   const isDimmed =
     isDimmedByHover || isDimmedByFilter || isDimmedBySelection || isDimmedByLateralIsolation;
   const dimOpacity =

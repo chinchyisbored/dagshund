@@ -14,7 +14,7 @@ export const useStyledEdges = (
   connectedIds: ReadonlySet<string> | null,
   selectedConnectedIds: ReadonlySet<string> | null,
   filterMatchedIds: ReadonlySet<string> | null,
-  lateralIsolatedIds: ReadonlySet<string> | null,
+  isolatedLateralIds: ReadonlySet<string> | null,
 ): readonly Edge[] =>
   useMemo((): readonly Edge[] => {
     // React Flow requires mutable Edge[]; the `as` cast sheds the readonly modifier.
@@ -22,7 +22,7 @@ export const useStyledEdges = (
       connectedIds === null &&
       selectedConnectedIds === null &&
       filterMatchedIds === null &&
-      lateralIsolatedIds === null
+      isolatedLateralIds === null
     )
       return baseEdges as Edge[];
     return baseEdges.map((edge) => {
@@ -45,9 +45,9 @@ export const useStyledEdges = (
           : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
       }
       // Lateral isolation — edges touching isolated node stay visible, others dim.
-      if (lateralIsolatedIds !== null) {
+      if (isolatedLateralIds !== null) {
         const touchesIsolated =
-          lateralIsolatedIds.has(edge.source) && lateralIsolatedIds.has(edge.target);
+          isolatedLateralIds.has(edge.source) && isolatedLateralIds.has(edge.target);
         return touchesIsolated
           ? { ...edge, style: baseStyle }
           : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
@@ -71,7 +71,7 @@ export const useStyledEdges = (
     connectedIds,
     selectedConnectedIds,
     filterMatchedIds,
-    lateralIsolatedIds,
+    isolatedLateralIds,
     hoveredNodeId,
     selectedNodeId,
   ]);
