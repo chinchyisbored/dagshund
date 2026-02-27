@@ -30,6 +30,8 @@ type NodeDimmingResult = {
   readonly hasIncoming: boolean;
   readonly hasOutgoing: boolean;
   readonly lateralHandles: ReadonlySet<string> | undefined;
+  readonly hasLateralEdges: boolean;
+  readonly isLateralIsolated: boolean;
 };
 
 /** Shared dimming, filtering, and connection logic for all node components. */
@@ -41,6 +43,9 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
     selectedConnectedIds,
     filterMatchedIds,
     lateralHandlesByNode,
+    lateralIsolatedIds,
+    lateralNodeIds,
+    isolatedLateralNodeId,
   } = useHoverState();
   const incomingConnections = useNodeConnections(TARGET_HANDLE);
   const outgoingConnections = useNodeConnections(SOURCE_HANDLE);
@@ -48,8 +53,17 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
   const isDimmedByFilter = filterMatchedIds !== null && !filterMatchedIds.has(id);
   const isDimmedBySelection =
     connectedIds === null && selectedConnectedIds !== null && !selectedConnectedIds.has(id);
-  const isDimmed = isDimmedByHover || isDimmedByFilter || isDimmedBySelection;
-  const dimOpacity = isDimmedByHover || isDimmedByFilter ? 0.3 : isDimmedBySelection ? 0.5 : 1;
+  const isDimmedByLateralIsolation = lateralIsolatedIds !== null && !lateralIsolatedIds.has(id);
+  const isDimmed =
+    isDimmedByHover || isDimmedByFilter || isDimmedBySelection || isDimmedByLateralIsolation;
+  const dimOpacity =
+    isDimmedByHover || isDimmedByFilter
+      ? 0.3
+      : isDimmedBySelection
+        ? 0.5
+        : isDimmedByLateralIsolation
+          ? 0.3
+          : 1;
   // biome-ignore lint/complexity/useOptionalChain: optional chain returns boolean | undefined, need boolean
   const isFilterHighlighted = filterMatchedIds !== null && filterMatchedIds.has(id);
   const styles = getDiffStateStyles(diffState);
@@ -66,5 +80,8 @@ export const useNodeDimming = (id: string, diffState: DiffState): NodeDimmingRes
     hasIncoming: incomingConnections.some((c) => !c.targetHandle?.startsWith("lateral-")),
     hasOutgoing: outgoingConnections.some((c) => !c.sourceHandle?.startsWith("lateral-")),
     lateralHandles: lateralHandlesByNode?.get(id),
+    // biome-ignore lint/complexity/useOptionalChain: optional chain returns boolean | undefined, need boolean
+    hasLateralEdges: lateralNodeIds !== null && lateralNodeIds.has(id),
+    isLateralIsolated: isolatedLateralNodeId === id,
   };
 };

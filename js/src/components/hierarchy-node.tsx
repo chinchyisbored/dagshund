@@ -5,6 +5,7 @@ import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { PhantomGraphNode, RootGraphNode } from "../types/graph-types.ts";
 import { getDiffBadge } from "./diff-state-styles.ts";
 import { LateralHandles } from "./lateral-handles.tsx";
+import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
 
 type HierarchyNodeType = Node<Omit<RootGraphNode | PhantomGraphNode, "id">, "root" | "phantom">;
 
@@ -22,10 +23,15 @@ export const HierarchyNode = memo(function HierarchyNode({
   id,
   data,
 }: NodeProps<HierarchyNodeType>) {
-  const { glowStyle, styles, hasIncoming, hasOutgoing, lateralHandles } = useNodeDimming(
-    id,
-    data.diffState,
-  );
+  const {
+    glowStyle,
+    styles,
+    hasIncoming,
+    hasOutgoing,
+    lateralHandles,
+    hasLateralEdges,
+    isLateralIsolated,
+  } = useNodeDimming(id, data.diffState);
   const isPhantom = data.nodeKind === "phantom";
   const badge = isPhantom ? extractPhantomBadge(data.resourceKey) : undefined;
   const diffBadge = isPhantom ? getDiffBadge(data.diffState) : undefined;
@@ -57,6 +63,7 @@ export const HierarchyNode = memo(function HierarchyNode({
             {badge}
           </span>
         )}
+        {hasLateralEdges && <LateralIsolateButton nodeId={id} isActive={isLateralIsolated} />}
       </div>
       <Handle
         type="source"

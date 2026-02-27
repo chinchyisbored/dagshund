@@ -7,12 +7,21 @@ import type { DagNodeData } from "../types/graph-types.ts";
 import { extractResourceType, extractTypeBadge } from "../utils/resource-key.ts";
 import { getDiffBadge } from "./diff-state-styles.ts";
 import { LateralHandles } from "./lateral-handles.tsx";
+import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
 
 type ResourceNodeType = Node<DagNodeData, "resource">;
 
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
-  const { opacityClass, glowStyle, styles, hasIncoming, hasOutgoing, lateralHandles } =
-    useNodeDimming(id, data.diffState);
+  const {
+    opacityClass,
+    glowStyle,
+    styles,
+    hasIncoming,
+    hasOutgoing,
+    lateralHandles,
+    hasLateralEdges,
+    isLateralIsolated,
+  } = useNodeDimming(id, data.diffState);
   const typeBadge = extractTypeBadge(data.resourceKey);
   const diffBadge = getDiffBadge(data.diffState);
   const navigateToJob = useJobNavigation();
@@ -40,7 +49,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
         {isJob && navigateToJob !== null ? (
           <button
             type="button"
-            onClick={(e) => {
+            onPointerDown={(e) => {
               e.stopPropagation();
               navigateToJob(data.resourceKey);
             }}
@@ -55,6 +64,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
             {typeBadge}
           </span>
         ) : null}
+        {hasLateralEdges && <LateralIsolateButton nodeId={id} isActive={isLateralIsolated} />}
       </div>
       <Handle
         type="source"

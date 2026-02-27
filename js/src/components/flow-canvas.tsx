@@ -10,6 +10,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HoverContext } from "../hooks/use-hover-context.ts";
+import { LateralIsolationContext } from "../hooks/use-lateral-isolation.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
@@ -95,6 +96,7 @@ export function FlowCanvas({
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
   const [showLateralEdges, setShowLateralEdges] = useState(false);
+  const [isolatedLateralNodeId, setIsolatedLateralNodeId] = useState<string | null>(null);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   // Never reset — safe because FlowCanvas remounts when the plan/tab changes.
@@ -127,6 +129,16 @@ export function FlowCanvas({
   const handleClosePanel = useCallback(() => {
     setSelectedNode(null);
     setSelectedNodeId(null);
+  }, []);
+
+  const handleToggleLateralIsolation = useCallback((nodeId: string) => {
+    setIsolatedLateralNodeId((prev) => (prev === nodeId ? null : nodeId));
+  }, []);
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedNodeId(null);
+    setIsolatedLateralNodeId(null);
   }, []);
 
   const handleNodeMouseEnter: NodeMouseHandler = useCallback((_, node) => {
@@ -166,10 +178,49 @@ export function FlowCanvas({
   const baseEdges = layout?.edges ?? EMPTY_EDGES;
   const lateralEdges = layout?.lateralEdges ?? EMPTY_EDGES;
 
-  const visibleEdges = useMemo(
-    () => (showLateralEdges ? [...baseEdges, ...lateralEdges] : baseEdges),
-    [baseEdges, lateralEdges, showLateralEdges],
+  /** All node IDs that participate in any lateral edge — always computed for icon visibility. */
+  const lateralNodeIds = useMemo((): ReadonlySet<string> | null => {
+    if (lateralEdges.length === 0) return null;
+    const ids = new Set<string>();
+    for (const edge of lateralEdges) {
+      ids.add(edge.source);
+      ids.add(edge.target);
+    }
+    return ids;
+  }, [lateralEdges]);
+
+  /** Lateral edges touching the isolated node — shown even when the global toggle is off. */
+  const isolatedLateralEdges = useMemo(
+    (): readonly Edge[] =>
+      isolatedLateralNodeId !== null
+        ? lateralEdges.filter(
+            (e) => e.source === isolatedLateralNodeId || e.target === isolatedLateralNodeId,
+          )
+        : [],
+    [lateralEdges, isolatedLateralNodeId],
   );
+
+  /** Active lateral edges: global toggle shows all, otherwise only isolated node's edges. */
+  const activeLateralEdges = useMemo(
+    (): readonly Edge[] => (showLateralEdges ? lateralEdges : isolatedLateralEdges),
+    [showLateralEdges, lateralEdges, isolatedLateralEdges],
+  );
+
+  const visibleEdges = useMemo(
+    () => (activeLateralEdges.length > 0 ? [...baseEdges, ...activeLateralEdges] : baseEdges),
+    [baseEdges, activeLateralEdges],
+  );
+
+  /** Isolated node + its lateral neighbors — used for dimming non-connected nodes/edges. */
+  const lateralIsolatedIds = useMemo((): ReadonlySet<string> | null => {
+    if (isolatedLateralNodeId === null) return null;
+    const ids = new Set<string>([isolatedLateralNodeId]);
+    for (const edge of lateralEdges) {
+      if (edge.source === isolatedLateralNodeId) ids.add(edge.target);
+      if (edge.target === isolatedLateralNodeId) ids.add(edge.source);
+    }
+    return ids;
+  }, [lateralEdges, isolatedLateralNodeId]);
 
   /** Fit the viewport exactly once after the layout produces nodes.
    *  Skipped when focusNodeId is set — the focus effect handles viewport positioning instead.
@@ -252,7 +303,7 @@ export function FlowCanvas({
   }, [selectedNode, selectedNodeId, baseNodes, visibleEdges]);
 
   const lateralHandlesByNode = useMemo((): ReadonlyMap<string, ReadonlySet<string>> | null => {
-    if (!showLateralEdges || lateralEdges.length === 0) return null;
+    if (activeLateralEdges.length === 0) return null;
     const map = new Map<string, Set<string>>();
     const addHandle = (nodeId: string, handleId: string | null | undefined) => {
       if (handleId === null || handleId === undefined) return;
@@ -263,12 +314,12 @@ export function FlowCanvas({
       }
       handles.add(handleId);
     };
-    for (const edge of lateralEdges) {
+    for (const edge of activeLateralEdges) {
       addHandle(edge.source, edge.sourceHandle);
       addHandle(edge.target, edge.targetHandle);
     }
     return map;
-  }, [showLateralEdges, lateralEdges]);
+  }, [activeLateralEdges]);
 
   const hoverState = useMemo(
     () => ({
@@ -278,6 +329,9 @@ export function FlowCanvas({
       selectedConnectedIds,
       filterMatchedIds,
       lateralHandlesByNode,
+      lateralIsolatedIds,
+      lateralNodeIds,
+      isolatedLateralNodeId,
     }),
     [
       hoveredNodeId,
@@ -286,6 +340,9 @@ export function FlowCanvas({
       selectedConnectedIds,
       filterMatchedIds,
       lateralHandlesByNode,
+      lateralIsolatedIds,
+      lateralNodeIds,
+      isolatedLateralNodeId,
     ],
   );
 
@@ -296,6 +353,7 @@ export function FlowCanvas({
     connectedIds,
     selectedConnectedIds,
     filterMatchedIds,
+    lateralIsolatedIds,
   );
 
   if (layoutState.status === "error") {
@@ -317,64 +375,66 @@ export function FlowCanvas({
   return (
     <div className="flex h-full">
       <HoverContext.Provider value={hoverState}>
-        {layoutState.status === "loading" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/80">
-            <p className="animate-pulse text-ink-muted">Computing layout...</p>
-          </div>
-        )}
-        <ReactFlow
-          className="flex-1"
-          nodes={baseNodes as Node[]}
-          edges={styledEdges as Edge[]}
-          nodeTypes={nodeTypes}
-          defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-          nodesConnectable={false}
-          proOptions={{ hideAttribution: true }}
-          onNodeClick={handleNodeClick}
-          onNodeMouseEnter={handleNodeMouseEnter}
-          onNodeMouseLeave={handleNodeMouseLeave}
-          onPaneClick={handleClosePanel}
-          onInit={handleInit}
-        >
-          <Panel position="top-left" className="z-10 flex flex-col gap-1.5">
-            <DiffFilterToolbar
-              activeFilter={filterDiffState}
-              onFilterChange={setFilterDiffState}
-              diffStateCounts={diffStateCounts}
-            />
-            {lateralEdges.length > 0 && (
-              <LateralEdgeToggle
-                active={showLateralEdges}
-                onToggle={() => setShowLateralEdges((prev) => !prev)}
-                count={lateralEdges.length}
+        <LateralIsolationContext.Provider value={handleToggleLateralIsolation}>
+          {layoutState.status === "loading" && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/80">
+              <p className="animate-pulse text-ink-muted">Computing layout...</p>
+            </div>
+          )}
+          <ReactFlow
+            className="flex-1"
+            nodes={baseNodes as Node[]}
+            edges={styledEdges as Edge[]}
+            nodeTypes={nodeTypes}
+            defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+            nodesConnectable={false}
+            proOptions={{ hideAttribution: true }}
+            onNodeClick={handleNodeClick}
+            onNodeMouseEnter={handleNodeMouseEnter}
+            onNodeMouseLeave={handleNodeMouseLeave}
+            onPaneClick={handlePaneClick}
+            onInit={handleInit}
+          >
+            <Panel position="top-left" className="z-10 flex flex-col gap-1.5">
+              <DiffFilterToolbar
+                activeFilter={filterDiffState}
+                onFilterChange={setFilterDiffState}
+                diffStateCounts={diffStateCounts}
               />
-            )}
-          </Panel>
-          <Panel position="bottom-right" className="z-10">
-            <button
-              type="button"
-              onClick={handleFitView}
-              className="rounded-md border border-outline bg-surface-raised p-1.5 text-ink-muted shadow-sm transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              aria-label="Fit view"
-              title="Reset view"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+              {lateralEdges.length > 0 && (
+                <LateralEdgeToggle
+                  active={showLateralEdges}
+                  onToggle={() => setShowLateralEdges((prev) => !prev)}
+                  count={lateralEdges.length}
+                />
+              )}
+            </Panel>
+            <Panel position="bottom-right" className="z-10">
+              <button
+                type="button"
+                onClick={handleFitView}
+                className="rounded-md border border-outline bg-surface-raised p-1.5 text-ink-muted shadow-sm transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                aria-label="Fit view"
+                title="Reset view"
               >
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-              </svg>
-            </button>
-          </Panel>
-        </ReactFlow>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </button>
+            </Panel>
+          </ReactFlow>
+        </LateralIsolationContext.Provider>
       </HoverContext.Provider>
       {selectedNode !== null && (
         <>
