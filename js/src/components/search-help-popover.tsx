@@ -41,16 +41,16 @@ export function SearchHelpPopover() {
   }, [isOpen]);
 
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <button
         ref={buttonRef}
         type="button"
         onClick={toggle}
-        className="flex h-5 w-5 items-center justify-center rounded text-[10px] text-ink-muted transition-colors hover:text-ink"
+        className="text-xs text-ink-muted transition-colors hover:text-ink"
         aria-label="Search syntax help"
         aria-expanded={isOpen}
       >
-        ?
+        i
       </button>
       {isOpen && (
         <div

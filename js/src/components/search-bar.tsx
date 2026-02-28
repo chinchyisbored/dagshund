@@ -69,7 +69,7 @@ export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
   const hasQuery = rawInput.length > 0;
 
   return (
-    <div className="flex w-full items-center gap-1.5">
+    <div className="flex items-center gap-1.5">
       <div className="relative flex-1">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -93,7 +93,7 @@ export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
           value={rawInput}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder={'Search\u2026 type:job "exact" status:added'}
+          placeholder="Search…"
           aria-label="Search nodes"
           className="h-7 w-full rounded-md border border-outline bg-surface-raised pl-7 pr-7 text-xs text-ink placeholder:text-ink-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         />
