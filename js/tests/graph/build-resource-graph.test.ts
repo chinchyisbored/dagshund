@@ -1,14 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildResourceGraph,
-  extractResourceType,
-  extractStateField,
   isJobEntry,
   isPostgresType,
   isUnityCatalogType,
-  parseThreePartName,
 } from "../../src/graph/build-resource-graph.ts";
+import { extractStateField, parseThreePartName } from "../../src/graph/extract-resource-state.ts";
 import type { ResourceGraphNode } from "../../src/types/graph-types.ts";
+import { extractResourceType } from "../../src/utils/resource-key.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 describe("extractResourceType", () => {

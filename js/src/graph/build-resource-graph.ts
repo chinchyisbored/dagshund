@@ -55,15 +55,6 @@ const POSTGRES_TYPES: ReadonlySet<string> = new Set([
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-// Re-export so existing consumers (resource-node.tsx, tests) don't break.
-export { extractResourceType } from "../utils/resource-key.ts";
-export {
-  extractResourceState,
-  extractSourceTableFullName,
-  extractStateField,
-  parseThreePartName,
-} from "./extract-resource-state.ts";
-
 /** Check whether a plan key represents a job entry. */
 export const isJobEntry = (key: string): boolean => key.startsWith("resources.jobs.");
 
