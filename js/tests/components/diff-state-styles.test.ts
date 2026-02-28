@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import type { DiffState } from "../../src/types/diff-state.ts";
+import type { EdgeDiffState } from "../../src/types/graph-types.ts";
 import {
   getDiffBadge,
   getDiffStateStyles,
   getEdgeStyle,
-} from "../../src/components/diff-state-styles.ts";
-import type { DiffState } from "../../src/types/diff-state.ts";
-import type { EdgeDiffState } from "../../src/types/graph-types.ts";
+} from "../../src/utils/diff-state-styles.ts";
 
 describe("getDiffStateStyles", () => {
   test("added returns themed diff classes with full opacity", () => {

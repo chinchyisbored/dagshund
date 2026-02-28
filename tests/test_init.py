@@ -50,8 +50,8 @@ def test_detect_changes_all_skip_returns_false() -> None:
     assert detect_changes({"a": {"action": "skip"}, "b": {"action": "skip"}}) is False
 
 
-def test_detect_changes_empty_action_returns_true() -> None:
-    assert detect_changes({"a": {"action": ""}}) is True
+def test_detect_changes_empty_action_returns_false() -> None:
+    assert detect_changes({"a": {"action": ""}}) is False
 
 
 def test_detect_changes_missing_action_returns_true() -> None:

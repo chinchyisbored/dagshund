@@ -6,7 +6,7 @@ import {
   extractSourceTableFullName,
   extractStateField,
   parseThreePartName,
-} from "./build-resource-graph.ts";
+} from "./extract-resource-state.ts";
 
 // ---------------------------------------------------------------------------
 // Context type passed to all extractors

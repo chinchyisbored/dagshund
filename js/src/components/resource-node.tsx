@@ -4,8 +4,8 @@ import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useJobNavigation } from "../hooks/use-job-navigation.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
+import { getDiffBadge } from "../utils/diff-state-styles.ts";
 import { extractResourceType, extractTypeBadge } from "../utils/resource-key.ts";
-import { getDiffBadge } from "./diff-state-styles.ts";
 import { LateralHandles } from "./lateral-handles.tsx";
 import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
 

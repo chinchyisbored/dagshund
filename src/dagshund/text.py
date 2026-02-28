@@ -41,6 +41,7 @@ class _ActionConfig:
 
 
 _ACTIONS: dict[str, _ActionConfig] = {
+    "": _ActionConfig("unchanged", DIM, " ", changed=False),
     "create": _ActionConfig("create", GREEN, "+"),
     "delete": _ActionConfig("delete", RED, "-"),
     "update": _ActionConfig("update", YELLOW, "~", show_field_changes=True),

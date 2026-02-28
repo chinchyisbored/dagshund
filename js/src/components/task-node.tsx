@@ -3,8 +3,8 @@ import { memo } from "react";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
+import { getDiffBadge } from "../utils/diff-state-styles.ts";
 import { extractTaskTypeBadge } from "../utils/task-type.ts";
-import { getDiffBadge } from "./diff-state-styles.ts";
 
 type TaskNodeType = Node<DagNodeData, "task">;
 

@@ -1,13 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
-import {
-  getEdgeStyle,
-  LATERAL_BOTTOM,
-  LATERAL_BOTTOM_OUT,
-  LATERAL_EDGE_STYLE,
-  LATERAL_TOP,
-  LATERAL_TOP_OUT,
-} from "../components/diff-state-styles.ts";
 import type {
   DagNodeData,
   GraphEdge,
@@ -17,6 +9,14 @@ import type {
   TaskGraphNode,
 } from "../types/graph-types.ts";
 import type { LayoutResult } from "../types/layout-result.ts";
+import {
+  getEdgeStyle,
+  LATERAL_BOTTOM,
+  LATERAL_BOTTOM_OUT,
+  LATERAL_EDGE_STYLE,
+  LATERAL_TOP,
+  LATERAL_TOP_OUT,
+} from "../utils/diff-state-styles.ts";
 
 /** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner).
  *  No crash recovery: if the Worker dies the layout call rejects and the UI shows an error state,

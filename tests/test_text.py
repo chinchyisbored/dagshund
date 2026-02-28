@@ -92,7 +92,7 @@ def test_colorize_returns_plain_when_disabled() -> None:
         ("resize", _ActionConfig("resize", YELLOW, "~", show_field_changes=True)),
         ("update_id", _ActionConfig("update_id", YELLOW, "~", show_field_changes=True)),
         ("skip", _ActionConfig("unchanged", DIM, " ", changed=False)),
-        ("", _DEFAULT_ACTION),
+        ("", _ActionConfig("unchanged", DIM, " ", changed=False)),
         ("unknown_action", _DEFAULT_ACTION),
     ],
     ids=[
@@ -235,11 +235,11 @@ def test_render_resource_skip_action_omits_label() -> None:
     assert "(unchanged)" not in lines[0]
 
 
-def test_render_resource_empty_action_shows_unknown() -> None:
+def test_render_resource_empty_action_shows_unchanged() -> None:
     lines = list(_render_resource("resources.jobs.stable", {"action": ""}, use_color=False))
 
-    assert "? jobs/stable" in lines[0]
-    assert "(unknown)" not in lines[0]
+    assert "  jobs/stable" in lines[0]
+    assert "(unchanged)" not in lines[0]
 
 
 def test_render_resource_field_change_null_old_shows_transition() -> None:
@@ -383,9 +383,9 @@ def test_count_by_action_skip_becomes_unchanged() -> None:
     assert _count_by_action(entries) == {_action_config("skip"): 2}
 
 
-def test_count_by_action_empty_becomes_unknown() -> None:
+def test_count_by_action_empty_becomes_unchanged() -> None:
     entries = {"a": {"action": ""}, "b": {}}
-    assert _count_by_action(entries) == {_DEFAULT_ACTION: 2}
+    assert _count_by_action(entries) == {_action_config(""): 2}
 
 
 def test_count_by_action_empty_input() -> None:

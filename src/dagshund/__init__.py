@@ -38,7 +38,7 @@ class DagshundError(Exception):
 
 def detect_changes(resources: ResourceChanges) -> bool:
     """Check whether any resource has a non-skip action (i.e., drift detected)."""
-    return any(entry.get("action") != "skip" for entry in resources.values())
+    return any(entry.get("action") not in ("skip", "") for entry in resources.values())
 
 
 def parse_plan(raw: str) -> Plan:

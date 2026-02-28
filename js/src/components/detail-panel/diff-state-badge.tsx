@@ -1,5 +1,5 @@
 import type { DagNodeData } from "../../types/graph-types.ts";
-import { getDiffStateStyles } from "../diff-state-styles.ts";
+import { getDiffStateStyles } from "../../utils/diff-state-styles.ts";
 
 export function DiffStateBadge({ diffState }: { readonly diffState: DagNodeData["diffState"] }) {
   const styles = getDiffStateStyles(diffState);

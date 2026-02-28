@@ -6,7 +6,7 @@ import {
   LATERAL_HANDLE_STYLE,
   LATERAL_TOP,
   LATERAL_TOP_OUT,
-} from "./diff-state-styles.ts";
+} from "../utils/diff-state-styles.ts";
 
 type LateralHandlesProps = {
   readonly lateralHandles: ReadonlySet<string> | undefined;

@@ -1,5 +1,5 @@
 import type { DagNodeData, TaskChangeSummary } from "../../types/graph-types.ts";
-import { getDiffBadge, getDiffStateStyles } from "../diff-state-styles.ts";
+import { getDiffBadge, getDiffStateStyles } from "../../utils/diff-state-styles.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { SectionDivider } from "./section-divider.tsx";
 

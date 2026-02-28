@@ -3,8 +3,8 @@ import { memo } from "react";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { PhantomGraphNode, RootGraphNode } from "../types/graph-types.ts";
+import { getDiffBadge } from "../utils/diff-state-styles.ts";
 import { extractPhantomBadge } from "../utils/resource-key.ts";
-import { getDiffBadge } from "./diff-state-styles.ts";
 import { LateralHandles } from "./lateral-handles.tsx";
 import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
 

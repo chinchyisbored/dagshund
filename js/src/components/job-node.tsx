@@ -2,8 +2,8 @@ import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
+import { getDiffBadge } from "../utils/diff-state-styles.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
-import { getDiffBadge } from "./diff-state-styles.ts";
 
 type JobNodeType = Node<DagNodeData, "job">;
 
