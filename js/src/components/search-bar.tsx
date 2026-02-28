@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SearchHelpPopover } from "./search-help-popover.tsx";
 
 const DEBOUNCE_MS = 300;
 
@@ -92,7 +93,7 @@ export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
           value={rawInput}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder={'Search\u2026 "exact" or type:badge'}
+          placeholder={'Search\u2026 type:job "exact" status:added'}
           aria-label="Search nodes"
           className="h-7 w-full rounded-md border border-outline bg-surface-raised pl-7 pr-7 text-xs text-ink placeholder:text-ink-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         />
@@ -123,6 +124,7 @@ export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
       <span className="text-xs text-ink-muted" aria-live="polite">
         {hasQuery ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}` : ""}
       </span>
+      <SearchHelpPopover />
     </div>
   );
 }

@@ -25,6 +25,8 @@ const collectBadges = (data: DagNodeData): string[] => {
 export type NodeSearchEntry = {
   readonly text: string;
   readonly badgeText: string;
+  readonly label: string;
+  readonly diffState: string;
 };
 
 /** Build search strings for a node: full text (label + badges) and badge-only text. */
@@ -33,5 +35,7 @@ export const extractNodeSearchText = (data: DagNodeData): NodeSearchEntry => {
   return {
     text: [data.label, ...badges].join("\0").toLowerCase(),
     badgeText: badges.join("\0").toLowerCase(),
+    label: data.label.toLowerCase(),
+    diffState: data.diffState.toLowerCase(),
   };
 };
