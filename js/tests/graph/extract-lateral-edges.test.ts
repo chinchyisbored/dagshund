@@ -175,6 +175,25 @@ describe("extractServingEndpointModelEdges", () => {
 
     expect(edges).toHaveLength(0);
   });
+
+  test("deduplicates when two served_entities reference the same model", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.model_serving_endpoints.predictor",
+        makeEntry({
+          config: {
+            served_entities: [{ entity_name: "churn_model" }, { entity_name: "churn_model" }],
+          },
+        }),
+      ],
+      ["resources.registered_models.churn_model", makeEntry({ name: "churn_model" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    const modelEdges = edges.filter((e) => e.target.includes("registered_models"));
+    expect(modelEdges).toHaveLength(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -524,30 +543,39 @@ describe("all-hierarchies-plan integration", () => {
     const graph = buildResourceGraph(plan);
 
     const dbInstanceEdges = graph.lateralEdges.filter(
-      (e) =>
-        e.target === "resources.database_instances.analytics_db" ||
-        e.target.includes("database_instances"),
+      (e) => e.target.includes("database_instances") || e.target.startsWith("database-instance::"),
     );
 
-    // customer_360 → analytics_db, product_events → analytics_db, lakebase_analytics → analytics_db
-    expect(dbInstanceEdges).toHaveLength(3);
+    // customer_360 → analytics_db, product_events → analytics_db, lakebase_analytics → analytics_db,
+    // partner_metrics → reporting_db (phantom)
+    expect(dbInstanceEdges).toHaveLength(4);
 
     const sourceIds = dbInstanceEdges.map((e) => e.source).toSorted();
     expect(sourceIds).toContain("resources.synced_database_tables.customer_360");
     expect(sourceIds).toContain("resources.synced_database_tables.product_events");
+    expect(sourceIds).toContain("resources.synced_database_tables.partner_metrics");
   });
 
-  test("partner_metrics → reporting_db produces no edge (reporting_db not in plan)", async () => {
+  test("partner_metrics → reporting_db links to phantom database instance", async () => {
     const plan = await loadFixture("all-hierarchies-plan.json");
     const graph = buildResourceGraph(plan);
 
     const reportingEdges = graph.lateralEdges.filter(
       (e) =>
         e.source === "resources.synced_database_tables.partner_metrics" &&
-        e.target.includes("database_instances"),
+        e.target.startsWith("database-instance::"),
     );
 
-    expect(reportingEdges).toHaveLength(0);
+    expect(reportingEdges).toHaveLength(1);
+    expect(reportingEdges[0]).toMatchObject({
+      source: "resources.synced_database_tables.partner_metrics",
+      target: "database-instance::reporting_db",
+    });
+
+    // The target should be a phantom node
+    const phantomNode = graph.nodes.find((n) => n.id === "database-instance::reporting_db");
+    expect(phantomNode).toBeDefined();
+    expect(phantomNode?.nodeKind).toBe("phantom");
   });
 
   test("synced tables produce source-table edges to phantoms", async () => {

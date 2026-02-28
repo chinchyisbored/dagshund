@@ -31,7 +31,7 @@ const buildLateralEdge = (source: string, target: string): GraphEdge => ({
   diffState: "unchanged",
 });
 
-/** Build a reverse index mapping warehouse API ID → node ID by scanning sql_warehouses entries. */
+/** Build a reverse index mapping warehouse API ID → resource key by scanning sql_warehouses entries. */
 const buildWarehouseApiIdIndex = (
   entries: readonly (readonly [string, PlanEntry])[],
 ): ReadonlyMap<string, string> => {
@@ -48,102 +48,81 @@ const buildWarehouseApiIdIndex = (
 // Declarative lateral edge specs
 // ---------------------------------------------------------------------------
 
-/** A declarative spec for a simple field→target lateral edge pattern. */
+/** A declarative spec: given a plan entry and context, return 0+ target node IDs. */
 type LateralEdgeSpec = {
   readonly sourceTypes: ReadonlySet<string>;
-  readonly extractField: (entry: PlanEntry) => string | undefined;
-  readonly resolveTargetId: (value: string, context: LateralEdgeContext) => string | undefined;
+  readonly extractTargetIds: (entry: PlanEntry, context: LateralEdgeContext) => readonly string[];
 };
 
-/** Execute a lateral edge spec against all entries, producing edges for matches. */
+/** Execute a lateral edge spec against all entries, with built-in deduplication. */
 const runLateralEdgeSpec = (
   spec: LateralEdgeSpec,
   context: LateralEdgeContext,
 ): readonly GraphEdge[] => {
   const edges: GraphEdge[] = [];
+  const seen = new Set<string>();
   for (const [key, entry] of context.entries) {
     const rt = extractResourceType(key);
     if (rt === undefined || !spec.sourceTypes.has(rt)) continue;
-    const fieldValue = spec.extractField(entry);
-    if (fieldValue === undefined) continue;
-    const targetId = spec.resolveTargetId(fieldValue, context);
-    if (targetId === undefined) continue;
     const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
     if (!context.nodeIds.has(sourceNodeId)) continue;
-    edges.push(buildLateralEdge(sourceNodeId, targetId));
+    for (const targetId of spec.extractTargetIds(entry, context)) {
+      const pair = `${sourceNodeId}→${targetId}`;
+      if (seen.has(pair)) continue;
+      seen.add(pair);
+      edges.push(buildLateralEdge(sourceNodeId, targetId));
+    }
   }
   return edges;
 };
 
+// ---------------------------------------------------------------------------
+// Specs
+// ---------------------------------------------------------------------------
+
 /** synced_database_table → database_instance, database_catalog → database_instance (name-to-key). */
 const DATABASE_INSTANCE_SPEC: LateralEdgeSpec = {
   sourceTypes: new Set(["synced_database_tables", "database_catalogs"]),
-  extractField: (entry) => extractStateField(entry, "database_instance_name"),
-  resolveTargetId: (name, ctx) =>
-    ctx.nodeIdByResourceKey.get(`resources.database_instances.${name}`),
+  extractTargetIds: (entry, ctx) => {
+    const name = extractStateField(entry, "database_instance_name");
+    if (name === undefined) return [];
+    const id = ctx.nodeIdByResourceKey.get(`resources.database_instances.${name}`);
+    return id !== undefined ? [id] : [];
+  },
 };
 
 /** synced_database_table → source-table phantom (three-part name resolution). */
 const SOURCE_TABLE_SPEC: LateralEdgeSpec = {
   sourceTypes: new Set(["synced_database_tables"]),
-  extractField: (entry) => extractSourceTableFullName(entry),
-  resolveTargetId: (name, ctx) => {
-    if (parseThreePartName(name) === undefined) return undefined;
+  extractTargetIds: (entry, ctx) => {
+    const name = extractSourceTableFullName(entry);
+    if (name === undefined || parseThreePartName(name) === undefined) return [];
     const id = `source-table::${name}`;
-    return ctx.nodeIds.has(id) ? id : undefined;
+    return ctx.nodeIds.has(id) ? [id] : [];
   },
 };
 
-const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [DATABASE_INSTANCE_SPEC, SOURCE_TABLE_SPEC];
-
-// ---------------------------------------------------------------------------
-// Per-category extractors (custom patterns that don't fit the simple spec)
-// ---------------------------------------------------------------------------
-
-/** alert → sql_warehouse (API-ID resolution). */
-const extractWarehouseEdges = (context: LateralEdgeContext): readonly GraphEdge[] => {
-  const warehouseIndex = buildWarehouseApiIdIndex(context.entries);
-  if (warehouseIndex.size === 0) return [];
-
-  const edges: GraphEdge[] = [];
-  for (const [key, entry] of context.entries) {
-    if (extractResourceType(key) !== "alerts") continue;
-    const warehouseId = extractStateField(entry, "warehouse_id");
-    if (warehouseId === undefined) continue;
-    const targetNodeId = warehouseIndex.get(warehouseId);
-    if (targetNodeId === undefined) continue;
-    const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
-    if (!context.nodeIds.has(sourceNodeId) || !context.nodeIds.has(targetNodeId)) continue;
-    edges.push(buildLateralEdge(sourceNodeId, targetNodeId));
-  }
-  return edges;
-};
-
 /** model_serving_endpoint → registered_model (name-to-key + nested traversal). */
-const extractServingEndpointModelEdges = (context: LateralEdgeContext): readonly GraphEdge[] => {
-  const edges: GraphEdge[] = [];
-  for (const [key, entry] of context.entries) {
-    if (extractResourceType(key) !== "model_serving_endpoints") continue;
+const SERVING_ENDPOINT_MODEL_SPEC: LateralEdgeSpec = {
+  sourceTypes: new Set(["model_serving_endpoints"]),
+  extractTargetIds: (entry, ctx) => {
     const state = extractResourceState(entry);
-    if (state === undefined) continue;
+    if (state === undefined) return [];
     const config = state["config"];
-    if (typeof config !== "object" || config === null) continue;
+    if (typeof config !== "object" || config === null) return [];
     // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
-    const servedEntities = (config as Readonly<Record<string, unknown>>)["served_entities"];
-    if (!Array.isArray(servedEntities)) continue;
-    const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
-    if (!context.nodeIds.has(sourceNodeId)) continue;
-    for (const entity of servedEntities) {
+    const entities = (config as Readonly<Record<string, unknown>>)["served_entities"];
+    if (!Array.isArray(entities)) return [];
+    const targets: string[] = [];
+    for (const entity of entities) {
       if (typeof entity !== "object" || entity === null) continue;
-      const entityName = (entity as Readonly<Record<string, unknown>>)["entity_name"];
-      if (typeof entityName !== "string") continue;
-      const targetKey = `resources.registered_models.${entityName}`;
-      const targetNodeId = context.nodeIdByResourceKey.get(targetKey);
-      if (targetNodeId === undefined) continue;
-      edges.push(buildLateralEdge(sourceNodeId, targetNodeId));
+      const name = (entity as Readonly<Record<string, unknown>>)["entity_name"];
+      if (typeof name !== "string") continue;
+      const id = ctx.nodeIdByResourceKey.get(`resources.registered_models.${name}`);
+      if (id !== undefined) targets.push(id);
     }
-  }
-  return edges;
+    return targets;
+  },
 };
 
 /** Collect catalog/schema target IDs from a pipeline's direct catalog and target fields. */
@@ -193,36 +172,45 @@ const collectPipelineIngestionTargets = (
   return targets;
 };
 
-/** pipeline → catalog/schema (hierarchy-ID resolution, deduped). */
-const extractPipelineTargetEdges = (context: LateralEdgeContext): readonly GraphEdge[] => {
-  const edges: GraphEdge[] = [];
-  const seen = new Set<string>();
-  for (const [key, entry] of context.entries) {
-    if (extractResourceType(key) !== "pipelines") continue;
-    const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
-    if (!context.nodeIds.has(sourceNodeId)) continue;
-    const targets = [
-      ...collectPipelineCatalogTargets(entry, context.nodeIds),
-      ...collectPipelineIngestionTargets(entry, context.nodeIds),
-    ];
-    for (const target of targets) {
-      const pair = `${sourceNodeId}→${target}`;
-      if (seen.has(pair)) continue;
-      seen.add(pair);
-      edges.push(buildLateralEdge(sourceNodeId, target));
-    }
-  }
-  return edges;
+/** pipeline → catalog/schema (hierarchy-ID resolution). */
+const PIPELINE_TARGET_SPEC: LateralEdgeSpec = {
+  sourceTypes: new Set(["pipelines"]),
+  extractTargetIds: (entry, ctx) => [
+    ...collectPipelineCatalogTargets(entry, ctx.nodeIds),
+    ...collectPipelineIngestionTargets(entry, ctx.nodeIds),
+  ],
+};
+
+/** Factory: alert → sql_warehouse (API-ID resolution via pre-built reverse index). */
+const createWarehouseSpec = (context: LateralEdgeContext): LateralEdgeSpec => {
+  const warehouseIndex = buildWarehouseApiIdIndex(context.entries);
+  return {
+    sourceTypes: new Set(["alerts"]),
+    extractTargetIds: (entry, ctx) => {
+      if (warehouseIndex.size === 0) return [];
+      const apiId = extractStateField(entry, "warehouse_id");
+      if (apiId === undefined) return [];
+      const targetKey = warehouseIndex.get(apiId);
+      if (targetKey === undefined) return [];
+      const targetNodeId = ctx.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+      return ctx.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+    },
+  };
 };
 
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 
-/** Extract all lateral (cross-reference) edges from plan entries. */
-export const extractLateralEdges = (context: LateralEdgeContext): readonly GraphEdge[] => [
-  ...LATERAL_EDGE_SPECS.flatMap((spec) => runLateralEdgeSpec(spec, context)),
-  ...extractWarehouseEdges(context),
-  ...extractServingEndpointModelEdges(context),
-  ...extractPipelineTargetEdges(context),
+const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
+  DATABASE_INSTANCE_SPEC,
+  SOURCE_TABLE_SPEC,
+  SERVING_ENDPOINT_MODEL_SPEC,
+  PIPELINE_TARGET_SPEC,
 ];
+
+/** Extract all lateral (cross-reference) edges from plan entries. */
+export const extractLateralEdges = (context: LateralEdgeContext): readonly GraphEdge[] => {
+  const allSpecs = [...LATERAL_EDGE_SPECS, createWarehouseSpec(context)];
+  return allSpecs.flatMap((spec) => runLateralEdgeSpec(spec, context));
+};

@@ -69,11 +69,24 @@ const resolvePhantomContext = (
   nodes: readonly Node[],
   edges: readonly Edge[],
 ): PhantomContext | undefined => {
+  // Hierarchy phantoms: inferred from their children (outgoing hierarchy edges)
   const childIds = new Set(edges.filter((e) => e.source === nodeId).map((e) => e.target));
-  if (childIds.size === 0) return undefined;
+
+  // Leaf phantoms: inferred from lateral edge sources (incoming lateral edges)
+  const lateralSourceIds =
+    childIds.size === 0
+      ? new Set(
+          edges
+            .filter((e) => e.target === nodeId && e.id.startsWith("lateral::"))
+            .map((e) => e.source),
+        )
+      : new Set<string>();
+
+  const relatedIds = childIds.size > 0 ? childIds : lateralSourceIds;
+  if (relatedIds.size === 0) return undefined;
 
   const sources = nodes
-    .filter((n) => childIds.has(n.id))
+    .filter((n) => relatedIds.has(n.id))
     .map((n) => {
       const data = getNodeData(n);
       return {
@@ -352,12 +365,11 @@ export function FlowCanvas({
       effectiveSelectedNodeId === null
     )
       return undefined;
-    return resolvePhantomContext(
-      effectiveSelectedNodeId,
-      baseNodes as Node[],
-      visibleEdges as Edge[],
-    );
-  }, [effectiveSelectedNode, effectiveSelectedNodeId, baseNodes, visibleEdges]);
+    // Include lateral edges regardless of toggle — phantom context should always
+    // show inference sources even when lateral edges aren't displayed on the canvas.
+    const allEdges = [...(baseEdges as Edge[]), ...(lateralEdges as Edge[])];
+    return resolvePhantomContext(effectiveSelectedNodeId, baseNodes as Node[], allEdges);
+  }, [effectiveSelectedNode, effectiveSelectedNodeId, baseNodes, baseEdges, lateralEdges]);
 
   const interactionState = useMemo(
     () => ({

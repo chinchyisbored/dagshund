@@ -7,18 +7,20 @@ export const extractResourceName = (resourceKey: string): string => {
 /** Extract the resource type segment from a resource key (second dot-segment). */
 export const extractResourceType = (key: string): string | undefined => key.split(".")[1];
 
-/** Derive a type badge for phantom nodes from their ID convention. */
+/** Derive a type badge for phantom nodes from their ID or resource key.
+ *  Checks `::` prefixed IDs first, then falls through to the standard resource type badge. */
 export const extractPhantomBadge = (resourceKey: string): string | undefined => {
   if (resourceKey.startsWith("catalog::")) return "catalog";
   if (resourceKey.startsWith("schema::")) return "schema";
   if (resourceKey.startsWith("source-table::")) return "table";
+  if (resourceKey.startsWith("database-instance::")) return "database instance";
   if (resourceKey.startsWith("postgres-project::")) return "postgres project";
   if (resourceKey.startsWith("postgres-branch::")) return "postgres branch";
-  return undefined;
+  return extractTypeBadge(resourceKey);
 };
 
 /** Phantom leaf prefixes: inferred reference targets (not structural hierarchy). */
-const PHANTOM_LEAF_PREFIXES: readonly string[] = ["source-table::"];
+const PHANTOM_LEAF_PREFIXES: readonly string[] = ["source-table::", "database-instance::"];
 
 /** Check whether a node ID represents an inferred leaf phantom (not a hierarchy phantom).
  *  Convention: only phantom nodes use `::` prefixed IDs; real resources use `resources.type.name`. */

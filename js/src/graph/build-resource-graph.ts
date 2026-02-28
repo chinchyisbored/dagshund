@@ -661,6 +661,40 @@ const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => 
 };
 
 // ---------------------------------------------------------------------------
+// Phantom database instances
+// ---------------------------------------------------------------------------
+
+/** Collect phantom nodes for database instances referenced by entries but absent from the plan.
+ *  Uses `database-instance::` prefix following the phantom node ID convention. */
+const collectPhantomDatabaseInstances = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  existingResourceKeys: ReadonlySet<string>,
+  parentId: string,
+): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
+  const phantomNames = new Set<string>();
+  for (const [, entry] of entries) {
+    const name = extractStateField(entry, "database_instance_name");
+    if (name === undefined) continue;
+    const key = `resources.database_instances.${name}`;
+    if (!existingResourceKeys.has(key)) phantomNames.add(name);
+  }
+  if (phantomNames.size === 0) return { nodes: [], edges: [] };
+  // Inline construction instead of buildPhantomNode: resourceKey uses dot-path form
+  // (not the :: prefixed id) so nodeIdByResourceKey can resolve it from lateral edge specs.
+  const nodes: PhantomGraphNode[] = [...phantomNames].map((name) => ({
+    id: `database-instance::${name}`,
+    label: name,
+    nodeKind: "phantom",
+    diffState: "unchanged",
+    resourceKey: `resources.database_instances.${name}`,
+    changes: undefined,
+    resourceState: undefined,
+  }));
+  const edges = filterDefinedEdges(nodes.map((n) => buildEdge(parentId, n.id)));
+  return { nodes, edges };
+};
+
+// ---------------------------------------------------------------------------
 // Main orchestrator
 // ---------------------------------------------------------------------------
 
@@ -690,7 +724,18 @@ export const buildResourceGraph = (
   const workspaceGraph = buildWorkspaceGraph(workspaceEntries, postgresEntries);
   const dependsOnEdges = collectDependsOnEdges(entries);
 
-  const allNodes = [...ucGraph.nodes, ...workspaceGraph.nodes];
+  const graphNodes = [...ucGraph.nodes, ...workspaceGraph.nodes];
+
+  // Create phantom nodes for database instances referenced but not in the plan.
+  // Parent to the same group as real flat workspace resources.
+  const existingKeys = new Set(graphNodes.map((n) => n.resourceKey));
+  const flatParentId =
+    workspaceEntries.length > 0 && postgresEntries.length > 0
+      ? "other-resources-root"
+      : "workspace-root";
+  const phantomDbInstances = collectPhantomDatabaseInstances(entries, existingKeys, flatParentId);
+
+  const allNodes = [...graphNodes, ...phantomDbInstances.nodes];
 
   // Build lookup maps for lateral edge extraction
   const nodeIdByResourceKey = new Map<string, string>(allNodes.map((n) => [n.resourceKey, n.id]));
@@ -700,7 +745,12 @@ export const buildResourceGraph = (
 
   return {
     nodes: allNodes,
-    edges: deduplicateEdges([...ucGraph.edges, ...workspaceGraph.edges, ...dependsOnEdges]),
+    edges: deduplicateEdges([
+      ...ucGraph.edges,
+      ...workspaceGraph.edges,
+      ...dependsOnEdges,
+      ...phantomDbInstances.edges,
+    ]),
     lateralEdges,
   };
 };
