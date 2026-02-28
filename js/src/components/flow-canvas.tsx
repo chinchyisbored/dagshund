@@ -13,6 +13,7 @@ import { InteractionContext } from "../hooks/use-interaction-context.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
 import { LateralIsolationContext } from "../hooks/use-lateral-isolation.ts";
 import { useNodeSearch } from "../hooks/use-node-search.ts";
+import { usePhantomLeafState } from "../hooks/use-phantom-leaf-state.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
@@ -24,6 +25,7 @@ import { extractTypeBadge } from "../utils/resource-key.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { LateralEdgeToggle } from "./lateral-edge-toggle.tsx";
+import { PhantomLeafToggle } from "./phantom-leaf-toggle.tsx";
 import { SearchBar } from "./search-bar.tsx";
 
 type FlowCanvasProps = {
@@ -96,6 +98,7 @@ export function FlowCanvas({
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
   const [showLateralEdges, setShowLateralEdges] = useState(false);
+  const [showPhantomLeaves, setShowPhantomLeaves] = useState(false);
   const [isolatedLateralNodeId, setIsolatedLateralNodeId] = useState<string | null>(null);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
@@ -174,9 +177,26 @@ export function FlowCanvas({
   const layout = layoutState.status === "ready" ? layoutState.layout : null;
   // Layout produces readonly arrays; React Flow's component props and internal helpers
   // require mutable Node[]/Edge[]. The `as` casts below shed the readonly modifier.
-  const baseNodes = layout?.nodes ?? EMPTY_NODES;
-  const baseEdges = layout?.edges ?? EMPTY_EDGES;
-  const lateralEdges = layout?.lateralEdges ?? EMPTY_EDGES;
+  const rawNodes = layout?.nodes ?? EMPTY_NODES;
+  const rawEdges = layout?.edges ?? EMPTY_EDGES;
+  const rawLateralEdges = layout?.lateralEdges ?? EMPTY_EDGES;
+
+  const {
+    visibleNodes: baseNodes,
+    visibleEdges: baseEdges,
+    phantomLeafCount,
+    hiddenPhantomIds,
+  } = usePhantomLeafState(rawNodes, rawEdges, showPhantomLeaves);
+
+  const lateralEdges = useMemo(
+    () =>
+      hiddenPhantomIds.size === 0
+        ? rawLateralEdges
+        : rawLateralEdges.filter(
+            (e) => !hiddenPhantomIds.has(e.source) && !hiddenPhantomIds.has(e.target),
+          ),
+    [rawLateralEdges, hiddenPhantomIds],
+  );
 
   const { lateralNodeIds, activeLateralEdges, isolatedLateralIds, lateralHandlesByNode } =
     useLateralEdgeState(lateralEdges, showLateralEdges, isolatedLateralNodeId);
@@ -186,6 +206,17 @@ export function FlowCanvas({
   const visibleEdges = useMemo(
     () => (activeLateralEdges.length > 0 ? [...baseEdges, ...activeLateralEdges] : baseEdges),
     [baseEdges, activeLateralEdges],
+  );
+
+  /** Synchronously clear selection when the selected node is hidden by the phantom toggle.
+   *  Derived via useMemo (not an effect) to avoid a one-frame flash of the detail panel. */
+  const effectiveSelectedNode = useMemo(
+    () => (selectedNodeId !== null && hiddenPhantomIds.has(selectedNodeId) ? null : selectedNode),
+    [selectedNode, selectedNodeId, hiddenPhantomIds],
+  );
+  const effectiveSelectedNodeId = useMemo(
+    () => (selectedNodeId !== null && hiddenPhantomIds.has(selectedNodeId) ? null : selectedNodeId),
+    [selectedNodeId, hiddenPhantomIds],
   );
 
   /** Fit the viewport exactly once after the layout produces nodes.
@@ -244,10 +275,14 @@ export function FlowCanvas({
 
   const selectedConnectedIds = useMemo(
     () =>
-      selectedNodeId !== null
-        ? buildConnectedNodeIds(baseNodes as Node[], visibleEdges as Edge[], selectedNodeId)
+      effectiveSelectedNodeId !== null
+        ? buildConnectedNodeIds(
+            baseNodes as Node[],
+            visibleEdges as Edge[],
+            effectiveSelectedNodeId,
+          )
         : null,
-    [baseNodes, visibleEdges, selectedNodeId],
+    [baseNodes, visibleEdges, effectiveSelectedNodeId],
   );
 
   const filterMatchedIds = useMemo((): ReadonlySet<string> | null => {
@@ -311,15 +346,23 @@ export function FlowCanvas({
   }, [baseNodes, directMatchIds]);
 
   const phantomContext = useMemo(() => {
-    if (selectedNode === null || selectedNode.nodeKind !== "phantom" || selectedNodeId === null)
+    if (
+      effectiveSelectedNode === null ||
+      effectiveSelectedNode.nodeKind !== "phantom" ||
+      effectiveSelectedNodeId === null
+    )
       return undefined;
-    return resolvePhantomContext(selectedNodeId, baseNodes as Node[], visibleEdges as Edge[]);
-  }, [selectedNode, selectedNodeId, baseNodes, visibleEdges]);
+    return resolvePhantomContext(
+      effectiveSelectedNodeId,
+      baseNodes as Node[],
+      visibleEdges as Edge[],
+    );
+  }, [effectiveSelectedNode, effectiveSelectedNodeId, baseNodes, visibleEdges]);
 
   const interactionState = useMemo(
     () => ({
       hoveredNodeId,
-      selectedNodeId,
+      selectedNodeId: effectiveSelectedNodeId,
       connectedIds,
       selectedConnectedIds,
       filterMatchedIds: effectiveFilterIds,
@@ -331,7 +374,7 @@ export function FlowCanvas({
     }),
     [
       hoveredNodeId,
-      selectedNodeId,
+      effectiveSelectedNodeId,
       connectedIds,
       selectedConnectedIds,
       effectiveFilterIds,
@@ -346,7 +389,7 @@ export function FlowCanvas({
   const styledEdges = useStyledEdges(
     visibleEdges,
     hoveredNodeId,
-    selectedNodeId,
+    effectiveSelectedNodeId,
     connectedIds,
     selectedConnectedIds,
     effectiveFilterIds,
@@ -406,6 +449,13 @@ export function FlowCanvas({
                   count={lateralEdges.length}
                 />
               )}
+              {phantomLeafCount > 0 && (
+                <PhantomLeafToggle
+                  active={showPhantomLeaves}
+                  onToggle={() => setShowPhantomLeaves((prev) => !prev)}
+                  count={phantomLeafCount}
+                />
+              )}
             </Panel>
             <Panel position="bottom-right" className="z-10">
               <button
@@ -434,7 +484,7 @@ export function FlowCanvas({
           </ReactFlow>
         </LateralIsolationContext.Provider>
       </InteractionContext.Provider>
-      {selectedNode !== null && (
+      {effectiveSelectedNode !== null && (
         <>
           <div
             className="flex w-2 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-accent/40"
@@ -453,8 +503,8 @@ export function FlowCanvas({
             </svg>
           </div>
           <DetailPanel
-            key={selectedNode.resourceKey}
-            data={selectedNode}
+            key={effectiveSelectedNode.resourceKey}
+            data={effectiveSelectedNode}
             onClose={handleClosePanel}
             width={panelWidth}
             phantomContext={phantomContext}

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { extractResourceName, extractTypeBadge } from "../../src/utils/resource-key.ts";
+import {
+  extractResourceName,
+  extractTypeBadge,
+  isPhantomLeaf,
+} from "../../src/utils/resource-key.ts";
 
 describe("extractResourceName", () => {
   test("returns last segment of a dotted key", () => {
@@ -47,5 +51,26 @@ describe("extractTypeBadge", () => {
   test("returns undefined when key has no type segment", () => {
     expect(extractTypeBadge("resources")).toBeUndefined();
     expect(extractTypeBadge("")).toBeUndefined();
+  });
+});
+
+describe("isPhantomLeaf", () => {
+  test("returns true for source-table phantom nodes", () => {
+    expect(isPhantomLeaf("source-table::prod.staging.customers")).toBe(true);
+  });
+
+  test("returns false for hierarchy phantom prefixes", () => {
+    expect(isPhantomLeaf("catalog::prod")).toBe(false);
+    expect(isPhantomLeaf("schema::prod.staging")).toBe(false);
+    expect(isPhantomLeaf("postgres-project::my_project")).toBe(false);
+    expect(isPhantomLeaf("postgres-branch::main")).toBe(false);
+  });
+
+  test("returns false for real resource keys", () => {
+    expect(isPhantomLeaf("resources.schemas.analytics")).toBe(false);
+  });
+
+  test("returns false for empty string", () => {
+    expect(isPhantomLeaf("")).toBe(false);
   });
 });

@@ -17,6 +17,14 @@ export const extractPhantomBadge = (resourceKey: string): string | undefined => 
   return undefined;
 };
 
+/** Phantom leaf prefixes: inferred reference targets (not structural hierarchy). */
+const PHANTOM_LEAF_PREFIXES: readonly string[] = ["source-table::"];
+
+/** Check whether a node ID represents an inferred leaf phantom (not a hierarchy phantom).
+ *  Convention: only phantom nodes use `::` prefixed IDs; real resources use `resources.type.name`. */
+export const isPhantomLeaf = (nodeId: string): boolean =>
+  PHANTOM_LEAF_PREFIXES.some((prefix) => nodeId.startsWith(prefix));
+
 /** Map resource type segment to a short display badge. */
 const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {
   schemas: "schema",
