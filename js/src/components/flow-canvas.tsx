@@ -1,13 +1,4 @@
-import {
-  type DefaultEdgeOptions,
-  type Edge,
-  type Node,
-  type NodeMouseHandler,
-  type NodeTypes,
-  Panel,
-  ReactFlow,
-  type ReactFlowInstance,
-} from "@xyflow/react";
+import type { Edge, Node, NodeMouseHandler, NodeTypes, ReactFlowInstance } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InteractionContext } from "../hooks/use-interaction-context.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
@@ -19,14 +10,12 @@ import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
-import type { PhantomContext } from "../types/phantom-context.ts";
+import { centerOnNode } from "../utils/center-on-node.ts";
+import { buildConnectedNodeIds, resolvePhantomContext } from "../utils/connected-nodes.ts";
 import { getNodeData } from "../utils/node-data.ts";
-import { extractTypeBadge } from "../utils/resource-key.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
-import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
-import { LateralEdgeToggle } from "./lateral-edge-toggle.tsx";
-import { PhantomLeafToggle } from "./phantom-leaf-toggle.tsx";
-import { SearchBar } from "./search-bar.tsx";
+import type { FilterableDiffState } from "./diff-filter-toolbar.tsx";
+import { FlowCanvasLayout } from "./flow-canvas-layout.tsx";
 
 type FlowCanvasProps = {
   readonly layoutState: GraphLayoutState;
@@ -36,68 +25,9 @@ type FlowCanvasProps = {
   readonly emptyLabel?: string;
 };
 
-const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
-  style: { stroke: "var(--edge-default)", strokeWidth: 2 },
-};
-
 const EMPTY_NODES: readonly never[] = [];
 const EMPTY_EDGES: readonly never[] = [];
 const HOVER_DEBOUNCE_MS = 50;
-
-/** Returns the given node ID plus all node IDs sharing an edge with it.
- *  When a job (parent) node is targeted, its child tasks are included too. */
-const buildConnectedNodeIds = (
-  nodes: readonly Node[],
-  edges: readonly Edge[],
-  targetNodeId: string,
-): ReadonlySet<string> => {
-  const connected = new Set<string>([targetNodeId]);
-  for (const edge of edges) {
-    if (edge.source === targetNodeId) connected.add(edge.target);
-    if (edge.target === targetNodeId) connected.add(edge.source);
-  }
-  for (const node of nodes) {
-    if (node.parentId === targetNodeId) connected.add(node.id);
-  }
-  return connected;
-};
-
-/** Derive inference context for a phantom node from its outgoing edges.
- *  Every outgoing edge points to a child/referenced node that caused the phantom to exist. */
-const resolvePhantomContext = (
-  nodeId: string,
-  nodes: readonly Node[],
-  edges: readonly Edge[],
-): PhantomContext | undefined => {
-  // Hierarchy phantoms: inferred from their children (outgoing hierarchy edges)
-  const childIds = new Set(edges.filter((e) => e.source === nodeId).map((e) => e.target));
-
-  // Leaf phantoms: inferred from lateral edge sources (incoming lateral edges)
-  const lateralSourceIds =
-    childIds.size === 0
-      ? new Set(
-          edges
-            .filter((e) => e.target === nodeId && e.id.startsWith("lateral::"))
-            .map((e) => e.source),
-        )
-      : new Set<string>();
-
-  const relatedIds = childIds.size > 0 ? childIds : lateralSourceIds;
-  if (relatedIds.size === 0) return undefined;
-
-  const sources = nodes
-    .filter((n) => relatedIds.has(n.id))
-    .map((n) => {
-      const data = getNodeData(n);
-      return {
-        label: data.label,
-        resourceKey: data.resourceKey,
-        resourceType: extractTypeBadge(data.resourceKey),
-      };
-    });
-
-  return { sources };
-};
 
 export function FlowCanvas({
   layoutState,
@@ -122,14 +52,7 @@ export function FlowCanvas({
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
     const instance = rfInstanceRef.current;
     if (instance !== null) {
-      const internal = instance.getInternalNode(node.id);
-      if (internal !== undefined) {
-        const currentZoom = instance.getZoom();
-        const { x, y } = internal.internals.positionAbsolute;
-        const width = internal.measured.width ?? 200;
-        const height = internal.measured.height ?? 56;
-        instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom: currentZoom });
-      }
+      centerOnNode(instance, node.id);
     }
 
     const data = getNodeData(node);
@@ -181,6 +104,14 @@ export function FlowCanvas({
     rfInstanceRef.current?.fitView();
   }, []);
 
+  const handleToggleLateralEdges = useCallback(() => {
+    setShowLateralEdges((prev) => !prev);
+  }, []);
+
+  const handleTogglePhantomLeaves = useCallback(() => {
+    setShowPhantomLeaves((prev) => !prev);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
@@ -189,7 +120,8 @@ export function FlowCanvas({
 
   const layout = layoutState.status === "ready" ? layoutState.layout : null;
   // Layout produces readonly arrays; React Flow's component props and internal helpers
-  // require mutable Node[]/Edge[]. The `as` casts below shed the readonly modifier.
+  // require mutable Node[]/Edge[]. The `as` casts below shed the readonly modifier
+  // at the ReactFlow prop boundary only.
   const rawNodes = layout?.nodes ?? EMPTY_NODES;
   const rawEdges = layout?.edges ?? EMPTY_EDGES;
   const rawLateralEdges = layout?.lateralEdges ?? EMPTY_EDGES;
@@ -256,14 +188,9 @@ export function FlowCanvas({
     const timerId = setTimeout(() => {
       const instance = rfInstanceRef.current;
       if (instance === null) return;
-      const internal = instance.getInternalNode(focusNodeId);
-      if (internal === undefined) return;
-      const zoom = instance.getZoom();
-      const { x, y } = internal.internals.positionAbsolute;
-      const width = internal.measured.width ?? 200;
-      const height = internal.measured.height ?? 56;
-      instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom });
-      onFocusComplete?.();
+      if (centerOnNode(instance, focusNodeId)) {
+        onFocusComplete?.();
+      }
     }, 50);
     return () => clearTimeout(timerId);
   }, [focusNodeId, onFocusComplete, layoutState.status]);
@@ -280,20 +207,14 @@ export function FlowCanvas({
 
   const connectedIds = useMemo(
     () =>
-      hoveredNodeId !== null
-        ? buildConnectedNodeIds(baseNodes as Node[], visibleEdges as Edge[], hoveredNodeId)
-        : null,
+      hoveredNodeId !== null ? buildConnectedNodeIds(baseNodes, visibleEdges, hoveredNodeId) : null,
     [baseNodes, visibleEdges, hoveredNodeId],
   );
 
   const selectedConnectedIds = useMemo(
     () =>
       effectiveSelectedNodeId !== null
-        ? buildConnectedNodeIds(
-            baseNodes as Node[],
-            visibleEdges as Edge[],
-            effectiveSelectedNodeId,
-          )
+        ? buildConnectedNodeIds(baseNodes, visibleEdges, effectiveSelectedNodeId)
         : null,
     [baseNodes, visibleEdges, effectiveSelectedNodeId],
   );
@@ -349,13 +270,7 @@ export function FlowCanvas({
 
     const instance = rfInstanceRef.current;
     if (instance === null) return;
-    const internal = instance.getInternalNode(topLevel[0] as string);
-    if (internal === undefined) return;
-    const zoom = instance.getZoom();
-    const { x, y } = internal.internals.positionAbsolute;
-    const width = internal.measured.width ?? 200;
-    const height = internal.measured.height ?? 56;
-    instance.setCenter(x + width / 2, y + height / 2, { duration: 300, zoom });
+    centerOnNode(instance, topLevel[0] as string);
   }, [baseNodes, directMatchIds]);
 
   const phantomContext = useMemo(() => {
@@ -367,8 +282,8 @@ export function FlowCanvas({
       return undefined;
     // Include lateral edges regardless of toggle — phantom context should always
     // show inference sources even when lateral edges aren't displayed on the canvas.
-    const allEdges = [...(baseEdges as Edge[]), ...(lateralEdges as Edge[])];
-    return resolvePhantomContext(effectiveSelectedNodeId, baseNodes as Node[], allEdges);
+    const allEdges = [...baseEdges, ...lateralEdges];
+    return resolvePhantomContext(effectiveSelectedNodeId, baseNodes, allEdges);
   }, [effectiveSelectedNode, effectiveSelectedNodeId, baseNodes, baseEdges, lateralEdges]);
 
   const interactionState = useMemo(
@@ -428,72 +343,29 @@ export function FlowCanvas({
     <div className="flex h-full">
       <InteractionContext.Provider value={interactionState}>
         <LateralIsolationContext.Provider value={handleToggleLateralIsolation}>
-          {layoutState.status === "loading" && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/80">
-              <p className="animate-pulse text-ink-muted">Computing layout...</p>
-            </div>
-          )}
-          <ReactFlow
-            className="flex-1"
+          <FlowCanvasLayout
             nodes={baseNodes as Node[]}
             edges={styledEdges as Edge[]}
             nodeTypes={nodeTypes}
-            defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-            nodesConnectable={false}
-            proOptions={{ hideAttribution: true }}
             onNodeClick={handleNodeClick}
             onNodeMouseEnter={handleNodeMouseEnter}
             onNodeMouseLeave={handleNodeMouseLeave}
             onPaneClick={handlePaneClick}
             onInit={handleInit}
-          >
-            <Panel position="top-left" className="z-10 flex flex-col gap-1.5">
-              <SearchBar onSearch={setSearchQuery} matchCount={directMatchIds?.size ?? 0} />
-              <DiffFilterToolbar
-                activeFilter={filterDiffState}
-                onFilterChange={setFilterDiffState}
-                diffStateCounts={diffStateCounts}
-              />
-              {lateralEdges.length > 0 && (
-                <LateralEdgeToggle
-                  active={showLateralEdges}
-                  onToggle={() => setShowLateralEdges((prev) => !prev)}
-                  count={lateralEdges.length}
-                />
-              )}
-              {phantomLeafCount > 0 && (
-                <PhantomLeafToggle
-                  active={showPhantomLeaves}
-                  onToggle={() => setShowPhantomLeaves((prev) => !prev)}
-                  count={phantomLeafCount}
-                />
-              )}
-            </Panel>
-            <Panel position="bottom-right" className="z-10">
-              <button
-                type="button"
-                onClick={handleFitView}
-                className="rounded-md border border-outline bg-surface-raised p-1.5 text-ink-muted shadow-sm transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                aria-label="Fit view"
-                title="Reset view"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                </svg>
-              </button>
-            </Panel>
-          </ReactFlow>
+            isLoading={layoutState.status === "loading"}
+            onSearch={setSearchQuery}
+            matchCount={directMatchIds?.size ?? 0}
+            activeFilter={filterDiffState}
+            onFilterChange={setFilterDiffState}
+            diffStateCounts={diffStateCounts}
+            lateralEdgeCount={lateralEdges.length}
+            showLateralEdges={showLateralEdges}
+            onToggleLateralEdges={handleToggleLateralEdges}
+            phantomLeafCount={phantomLeafCount}
+            showPhantomLeaves={showPhantomLeaves}
+            onTogglePhantomLeaves={handleTogglePhantomLeaves}
+            onFitView={handleFitView}
+          />
         </LateralIsolationContext.Provider>
       </InteractionContext.Provider>
       {effectiveSelectedNode !== null && (
