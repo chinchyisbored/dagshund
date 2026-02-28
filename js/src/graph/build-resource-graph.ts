@@ -24,15 +24,15 @@ import { resolveJobState, resolveTaskEntries, type TaskEntry } from "./extract-t
 // Zod schemas (parse boundary only)
 // ---------------------------------------------------------------------------
 
-/** Schema for new_state: { value: { ...fields } }. */
-const newStateSchema = z
+/** Schema for new_state: { value: { ...fields } } — generic (no field validation). */
+const resourceNewStateSchema = z
   .object({
     value: z.record(z.string(), z.unknown()).readonly().optional(),
   })
   .readonly();
 
-/** Schema for remote_state: { ...fields }. */
-const remoteStateSchema = z.record(z.string(), z.unknown()).readonly();
+/** Schema for remote_state: { ...fields } — generic (no field validation). */
+const resourceRemoteStateSchema = z.record(z.string(), z.unknown()).readonly();
 
 // ---------------------------------------------------------------------------
 // Type classification sets
@@ -81,13 +81,13 @@ export const isPostgresType = (resourceType: string): boolean => POSTGRES_TYPES.
  * Checks new_state.value first (for live resources), then remote_state (for deleted resources).
  */
 export const extractStateField = (entry: PlanEntry, field: string): string | undefined => {
-  const parsedNew = newStateSchema.safeParse(entry.new_state);
+  const parsedNew = resourceNewStateSchema.safeParse(entry.new_state);
   if (parsedNew.success) {
     const fieldValue = parsedNew.data.value?.[field];
     if (typeof fieldValue === "string") return fieldValue;
   }
 
-  const parsedRemote = remoteStateSchema.safeParse(entry.remote_state);
+  const parsedRemote = resourceRemoteStateSchema.safeParse(entry.remote_state);
   if (parsedRemote.success) {
     const fieldValue = parsedRemote.data[field];
     if (typeof fieldValue === "string") return fieldValue;
@@ -100,12 +100,12 @@ export const extractStateField = (entry: PlanEntry, field: string): string | und
 export const extractResourceState = (
   entry: PlanEntry,
 ): Readonly<Record<string, unknown>> | undefined => {
-  const parsedNew = newStateSchema.safeParse(entry.new_state);
+  const parsedNew = resourceNewStateSchema.safeParse(entry.new_state);
   if (parsedNew.success && parsedNew.data.value !== undefined) {
     return parsedNew.data.value;
   }
 
-  const parsedRemote = remoteStateSchema.safeParse(entry.remote_state);
+  const parsedRemote = resourceRemoteStateSchema.safeParse(entry.remote_state);
   if (parsedRemote.success) {
     return parsedRemote.data;
   }

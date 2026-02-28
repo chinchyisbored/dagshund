@@ -1,13 +1,7 @@
 import type { DagNodeData, TaskChangeSummary } from "../../types/graph-types.ts";
-import { getDiffStateStyles } from "../diff-state-styles.ts";
+import { getDiffBadge, getDiffStateStyles } from "../diff-state-styles.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { SectionDivider } from "./section-divider.tsx";
-
-const DIFF_STATE_PREFIX: Readonly<Record<string, string>> = {
-  added: "+",
-  removed: "-",
-  modified: "~",
-};
 
 function TaskChangeLine({
   taskKey,
@@ -20,7 +14,7 @@ function TaskChangeLine({
   return (
     <div className="flex items-center justify-between py-0.5">
       <span className={`font-mono text-xs ${styles.text}`}>
-        {DIFF_STATE_PREFIX[diffState] ?? " "} {taskKey}
+        {diffState === "unchanged" ? " " : getDiffBadge(diffState)} {taskKey}
       </span>
       <DiffStateBadge diffState={diffState} />
     </div>
