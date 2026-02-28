@@ -6,6 +6,7 @@ import {
   extractTaskEntries,
   extractTaskEntriesFromRemoteState,
   extractTaskState,
+  resolveAllTaskEntries,
   resolveJobState,
   resolveTaskEntries,
 } from "../../src/graph/extract-tasks.ts";
@@ -251,6 +252,54 @@ describe("extractDeletedTaskEntries", () => {
     };
     const deleted = extractDeletedTaskEntries(changes);
     expect(deleted).toHaveLength(0);
+  });
+});
+
+describe("resolveAllTaskEntries", () => {
+  test("combines live tasks from new_state with deleted tasks from changes", () => {
+    const newState = { value: { tasks: [{ task_key: "extract" }, { task_key: "transform" }] } };
+    const changes = {
+      "tasks[task_key='validate']": {
+        action: "delete",
+        old: { task_key: "validate", notebook_task: {} },
+      },
+    };
+    const all = resolveAllTaskEntries(newState, undefined, changes);
+    const keys = all.map((t) => t.task_key);
+    expect(keys).toContain("extract");
+    expect(keys).toContain("transform");
+    expect(keys).toContain("validate");
+    expect(all).toHaveLength(3);
+  });
+
+  test("returns only live tasks when no deletions exist", () => {
+    const newState = { value: { tasks: [{ task_key: "extract" }] } };
+    const all = resolveAllTaskEntries(newState, undefined, undefined);
+    expect(all).toHaveLength(1);
+    expect(all[0]?.task_key).toBe("extract");
+  });
+
+  test("returns only deleted tasks when new_state is empty", () => {
+    const changes = {
+      "tasks[task_key='old_task']": {
+        action: "delete",
+        old: { task_key: "old_task" },
+      },
+    };
+    const all = resolveAllTaskEntries(undefined, undefined, changes);
+    expect(all).toHaveLength(1);
+    expect(all[0]?.task_key).toBe("old_task");
+  });
+
+  test("returns empty array when both sources are empty", () => {
+    expect(resolveAllTaskEntries(undefined, undefined, undefined)).toEqual([]);
+  });
+
+  test("falls back to remote_state for live tasks", () => {
+    const remoteState = { tasks: [{ task_key: "from_remote" }] };
+    const all = resolveAllTaskEntries(undefined, remoteState, undefined);
+    expect(all).toHaveLength(1);
+    expect(all[0]?.task_key).toBe("from_remote");
   });
 });
 

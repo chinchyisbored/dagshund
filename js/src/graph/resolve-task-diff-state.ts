@@ -3,13 +3,17 @@ import type { DiffState } from "../types/diff-state.ts";
 import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 
-/** Determine if a whole-task change represents an addition (new only, no old). */
-const isTaskAdded = (change: ChangeDesc): boolean =>
-  change.new !== undefined && change.old === undefined;
-
-/** Determine if a whole-task change represents a removal (old only, no new). */
-const isTaskRemoved = (change: ChangeDesc): boolean =>
-  change.old !== undefined && change.new === undefined;
+/** Classify a change entry as added, removed, or modified based on old/new fields. */
+export const classifyChange = (
+  change: ChangeDesc,
+): "added" | "removed" | "modified" | undefined => {
+  const hasNew = change.new !== undefined;
+  const hasOld = change.old !== undefined;
+  if (hasNew && !hasOld) return "added";
+  if (hasOld && !hasNew) return "removed";
+  if (hasNew && hasOld) return "modified";
+  return undefined;
+};
 
 /**
  * Resolve the DiffState for a single task within a resource.
@@ -36,9 +40,8 @@ export const resolveTaskDiffState = (
   const exactKey = buildTaskKeyPrefix(taskKey);
   const wholeTaskChange = taskChanges.find(([key]) => key === exactKey);
   if (wholeTaskChange !== undefined) {
-    const change = wholeTaskChange[1];
-    if (isTaskAdded(change)) return "added";
-    if (isTaskRemoved(change)) return "removed";
+    const classification = classifyChange(wholeTaskChange[1]);
+    if (classification === "added" || classification === "removed") return classification;
     return "modified";
   }
 

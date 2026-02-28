@@ -1,5 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { resolveTaskDiffState } from "../../src/graph/resolve-task-diff-state.ts";
+import { classifyChange, resolveTaskDiffState } from "../../src/graph/resolve-task-diff-state.ts";
+import type { ChangeDesc } from "../../src/types/plan-schema.ts";
+
+describe("classifyChange", () => {
+  const make = (fields: Partial<ChangeDesc>): ChangeDesc => ({
+    action: "update" as const,
+    ...fields,
+  });
+
+  test("returns 'added' when new is present and old is absent", () => {
+    expect(classifyChange(make({ new: { task_key: "x" } }))).toBe("added");
+  });
+
+  test("returns 'removed' when old is present and new is absent", () => {
+    expect(classifyChange(make({ old: { task_key: "x" } }))).toBe("removed");
+  });
+
+  test("returns 'modified' when both old and new are present", () => {
+    expect(classifyChange(make({ old: "a", new: "b" }))).toBe("modified");
+  });
+
+  test("returns undefined when neither old nor new is present", () => {
+    expect(classifyChange(make({}))).toBeUndefined();
+  });
+});
 
 describe("resolveTaskDiffState", () => {
   test("returns 'added' when resource action is create", () => {

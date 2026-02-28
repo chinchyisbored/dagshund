@@ -125,3 +125,14 @@ export const extractDeletedTaskEntries = (
 
   return deletedTasks;
 };
+
+/** Resolve all task entries (live + deleted) for a plan entry. */
+export const resolveAllTaskEntries = (
+  newState: unknown,
+  remoteState: unknown,
+  changes: Readonly<Record<string, unknown>> | undefined,
+): readonly TaskEntry[] => {
+  const live = resolveTaskEntries(newState, remoteState);
+  const deleted = extractDeletedTaskEntries(changes);
+  return [...live, ...deleted];
+};

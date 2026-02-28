@@ -65,6 +65,20 @@ export type GraphEdge = {
   readonly diffState: EdgeDiffState;
 };
 
+/** Build a GraphEdge with standard ID format (optional prefix for namespacing). */
+export const buildGraphEdge = (
+  source: string,
+  target: string,
+  diffState: EdgeDiffState = "unchanged",
+  idPrefix = "",
+): GraphEdge => ({
+  id: `${idPrefix}${source}→${target}`,
+  source,
+  target,
+  label: undefined,
+  diffState,
+});
+
 export type PlanGraph = {
   readonly nodes: readonly GraphNode[];
   readonly edges: readonly GraphEdge[];

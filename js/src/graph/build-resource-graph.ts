@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import {
+  buildGraphEdge,
   type GraphEdge,
   type PhantomGraphNode,
   type PlanGraph,
@@ -17,7 +18,7 @@ import {
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import { extractLateralEdges } from "./extract-lateral-edges.ts";
-import { resolveJobState, resolveTaskEntries } from "./extract-tasks.ts";
+import { resolveJobState, resolveTaskEntries, type TaskEntry } from "./extract-tasks.ts";
 
 // ---------------------------------------------------------------------------
 // Zod schemas (parse boundary only)
@@ -127,19 +128,28 @@ export const extractSourceTableFullName = (entry: PlanEntry): string | undefined
 // Node builders
 // ---------------------------------------------------------------------------
 
+/** Shared fields for job nodes across both plan and resource graph views. */
+export const buildJobFields = (
+  resourceKey: string,
+  entry: PlanEntry,
+  tasks: readonly TaskEntry[],
+) => ({
+  label: extractResourceName(resourceKey),
+  diffState: mapActionToDiffState(entry.action),
+  changes: filterJobLevelChanges(entry.changes),
+  resourceState: resolveJobState(entry.new_state, entry.remote_state),
+  taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
+});
+
 /** Build a GraphNode for a real plan resource entry. */
 const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => {
   if (isJobEntry(key)) {
     const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
     return {
       id: key,
-      label: extractResourceName(key),
       nodeKind: "resource",
-      diffState: mapActionToDiffState(entry.action),
       resourceKey: key,
-      changes: filterJobLevelChanges(entry.changes),
-      resourceState: resolveJobState(entry.new_state, entry.remote_state),
-      taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
+      ...buildJobFields(key, entry, tasks),
     };
   }
   return {
@@ -200,21 +210,13 @@ const buildPhantomNode = (id: string, label: string): PhantomGraphNode => ({
 const entryEdgeDiffState = (entry: PlanEntry) =>
   toEdgeDiffState(mapActionToDiffState(entry.action));
 
-/** Build a unique edge, returning undefined if source === target. */
+/** Build a unique edge, returning undefined if source === target (self-loop guard). */
 const buildEdge = (
   source: string,
   target: string,
   diffState: GraphEdge["diffState"] = "unchanged",
 ): GraphEdge | undefined =>
-  source === target
-    ? undefined
-    : {
-        id: `${source}→${target}`,
-        source,
-        target,
-        label: undefined,
-        diffState,
-      };
+  source === target ? undefined : buildGraphEdge(source, target, diffState);
 
 /** Filter defined edges from buildEdge results. */
 const filterDefinedEdges = (edges: readonly (GraphEdge | undefined)[]): readonly GraphEdge[] =>

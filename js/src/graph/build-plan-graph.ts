@@ -1,5 +1,6 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import {
+  buildGraphEdge,
   type EdgeDiffState,
   type GraphEdge,
   type GraphNode,
@@ -9,22 +10,16 @@ import {
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
-import { extractResourceName } from "../utils/resource-key.ts";
-import {
-  buildTaskKeyPrefix,
-  collectChangesForTask,
-  filterJobLevelChanges,
-} from "../utils/task-key.ts";
-import { isJobEntry } from "./build-resource-graph.ts";
-import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
+import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
+import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
 import {
   extractDeletedTaskEntries,
   extractTaskState,
-  resolveJobState,
+  resolveAllTaskEntries,
   resolveTaskEntries,
   type TaskEntry,
 } from "./extract-tasks.ts";
-import { resolveTaskDiffState } from "./resolve-task-diff-state.ts";
+import { classifyChange, resolveTaskDiffState } from "./resolve-task-diff-state.ts";
 
 /** Create a unique node ID for a task within a resource. */
 const buildTaskNodeId = (resourceKey: string, taskKey: string): string =>
@@ -37,13 +32,9 @@ const buildJobNode = (
   tasks: readonly TaskEntry[],
 ): JobGraphNode => ({
   id: resourceKey,
-  label: extractResourceName(resourceKey),
   nodeKind: "job",
-  diffState: mapActionToDiffState(entry.action),
   resourceKey,
-  changes: filterJobLevelChanges(entry.changes),
-  resourceState: resolveJobState(entry.new_state, entry.remote_state),
-  taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
+  ...buildJobFields(resourceKey, entry, tasks),
 });
 
 /** Create task-level graph nodes from extracted tasks. */
@@ -106,9 +97,8 @@ const resolveTaskEdgeDiffState = (
 ): EdgeDiffState | undefined => {
   const wholeTaskChange = changes?.[buildTaskKeyPrefix(taskKey)];
   if (wholeTaskChange === undefined) return undefined;
-  if (wholeTaskChange.new !== undefined && wholeTaskChange.old === undefined) return "added";
-  if (wholeTaskChange.old !== undefined && wholeTaskChange.new === undefined) return "removed";
-  return undefined;
+  const classification = classifyChange(wholeTaskChange);
+  return classification === "added" || classification === "removed" ? classification : undefined;
 };
 
 /** Create a single dependency edge from depTaskKey → taskKey within resourceKey. */
@@ -117,13 +107,12 @@ const buildDepEdge = (
   depTaskKey: string,
   taskKey: string,
   diffState: EdgeDiffState,
-): GraphEdge => ({
-  id: `${buildTaskNodeId(resourceKey, depTaskKey)}→${buildTaskNodeId(resourceKey, taskKey)}`,
-  source: buildTaskNodeId(resourceKey, depTaskKey),
-  target: buildTaskNodeId(resourceKey, taskKey),
-  label: undefined,
-  diffState,
-});
+): GraphEdge =>
+  buildGraphEdge(
+    buildTaskNodeId(resourceKey, depTaskKey),
+    buildTaskNodeId(resourceKey, taskKey),
+    diffState,
+  );
 
 /** Build edges with diff states for a single task's dependencies.
  *  Handles create/delete at the resource and task levels, depends_on changes, and unchanged deps. */
@@ -179,9 +168,7 @@ const buildDiffEdges = (
   allTasks: readonly TaskEntry[],
   entry: PlanEntry,
 ): readonly GraphEdge[] => {
-  const resourceDiff = mapActionToDiffState(entry.action);
-  const edgeDiffState: EdgeDiffState =
-    resourceDiff === "added" ? "added" : resourceDiff === "removed" ? "removed" : "unchanged";
+  const edgeDiffState = toEdgeDiffState(mapActionToDiffState(entry.action));
 
   return allTasks.flatMap((task) =>
     buildEdgesForTask(
@@ -242,9 +229,7 @@ const buildRunJobEdges = (
 ): readonly GraphEdge[] => {
   const jobIdMap = buildJobIdMap(entries);
   return entries.flatMap(([resourceKey, entry]) => {
-    const liveTasks = resolveTaskEntries(entry.new_state, entry.remote_state);
-    const deletedTasks = extractDeletedTaskEntries(entry.changes);
-    const allTasks = [...liveTasks, ...deletedTasks];
+    const allTasks = resolveAllTaskEntries(entry.new_state, entry.remote_state, entry.changes);
     return allTasks.flatMap((task) => {
       const jobId = task.run_job_task?.job_id;
       if (jobId === undefined) return [];
@@ -255,15 +240,7 @@ const buildRunJobEdges = (
       const diffState = toEdgeDiffState(
         resolveTaskDiffState(task.task_key, entry.action, entry.changes),
       );
-      return [
-        {
-          id: `${sourceNodeId}→${targetResourceKey}`,
-          source: sourceNodeId,
-          target: targetResourceKey,
-          label: undefined,
-          diffState,
-        },
-      ];
+      return [buildGraphEdge(sourceNodeId, targetResourceKey, diffState)];
     });
   });
 };

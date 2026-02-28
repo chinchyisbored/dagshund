@@ -1,4 +1,4 @@
-import type { GraphEdge } from "../types/graph-types.ts";
+import { buildGraphEdge, type GraphEdge } from "../types/graph-types.ts";
 import type { PlanEntry } from "../types/plan-schema.ts";
 import { DATABASE_INSTANCE_SOURCE_TYPES, extractResourceType } from "../utils/resource-key.ts";
 import {
@@ -21,15 +21,6 @@ type LateralEdgeContext = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Build an edge with diffState "unchanged" (lateral edges are structural, not diff-related). */
-const buildLateralEdge = (source: string, target: string): GraphEdge => ({
-  id: `lateral::${source}→${target}`,
-  source,
-  target,
-  label: undefined,
-  diffState: "unchanged",
-});
 
 /** Build a reverse index mapping warehouse API ID → resource key by scanning sql_warehouses entries. */
 const buildWarehouseApiIdIndex = (
@@ -70,7 +61,7 @@ const runLateralEdgeSpec = (
       const pair = `${sourceNodeId}→${targetId}`;
       if (seen.has(pair)) continue;
       seen.add(pair);
-      edges.push(buildLateralEdge(sourceNodeId, targetId));
+      edges.push(buildGraphEdge(sourceNodeId, targetId, "unchanged", "lateral::"));
     }
   }
   return edges;
