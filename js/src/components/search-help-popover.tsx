@@ -20,8 +20,8 @@ export function SearchHelpPopover() {
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Element;
-      if (popoverRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      if (!(e.target instanceof Node)) return;
+      if (popoverRef.current?.contains(e.target) || buttonRef.current?.contains(e.target)) return;
       setIsOpen(false);
     };
 

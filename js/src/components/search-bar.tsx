@@ -54,8 +54,8 @@ export function SearchBar({ onSearch, matchCount }: SearchBarProps) {
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "/") return;
-      // EventTarget has no tagName; narrow to Element which is always the case for DOM keydown.
-      const tag = (e.target as Element).tagName;
+      if (!(e.target instanceof Element)) return;
+      const tag = e.target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       // offsetParent is null for elements inside display:none (e.g. hidden tab).
       if (inputRef.current === null || inputRef.current.offsetParent === null) return;

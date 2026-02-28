@@ -358,9 +358,9 @@ const resolveParentChain = (
 ): string => {
   if (tierIndex < 0) return spec.rootId;
 
-  // bounds check above guarantees these exist
-  const tier = spec.tiers[tierIndex] as TierSpec;
-  const index = tierIndexes[tierIndex] as TierIndex;
+  const tier = spec.tiers[tierIndex];
+  const index = tierIndexes[tierIndex];
+  if (tier === undefined || index === undefined) return spec.rootId;
 
   // Real node exists at this tier → use it
   const existingNodeId = index.get(identity);
@@ -369,8 +369,7 @@ const resolveParentChain = (
   // Create phantom — use last segment of identity as label (e.g. "missing" from "dagshund.missing")
   const phantomId = tier.buildHierarchyId(identity);
   if (!phantomAccumulator.has(phantomId)) {
-    const segments = identity.split(/[./]/);
-    const phantomLabel = segments[segments.length - 1] as string;
+    const phantomLabel = identity.split(/[./]/).at(-1) ?? identity;
     phantomAccumulator.set(phantomId, buildPhantomNode(phantomId, phantomLabel));
   }
 
@@ -466,7 +465,8 @@ const buildChainGraph = (
 
     const tierIndex = spec.tiers.findIndex((t) => t.resourceTypes.has(rt));
     if (tierIndex === -1) continue;
-    const tier = spec.tiers[tierIndex] as TierSpec;
+    const tier = spec.tiers[tierIndex];
+    if (tier === undefined) continue;
 
     const { node, nodeId } = resolveEntryNode(key, entry, tier);
     resourceNodes.push(node);

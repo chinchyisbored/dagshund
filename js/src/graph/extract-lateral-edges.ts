@@ -1,6 +1,7 @@
 import { buildGraphEdge, type GraphEdge } from "../types/graph-types.ts";
 import type { PlanEntry } from "../types/plan-schema.ts";
 import { DATABASE_INSTANCE_SOURCE_TYPES, extractResourceType } from "../utils/resource-key.ts";
+import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
 import {
   extractResourceState,
   extractSourceTableFullName,
@@ -99,15 +100,11 @@ const SERVING_ENDPOINT_MODEL_SPEC: LateralEdgeSpec = {
   extractTargetIds: (entry, ctx) => {
     const state = extractResourceState(entry);
     if (state === undefined) return [];
-    const config = state["config"];
-    if (typeof config !== "object" || config === null) return [];
-    // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
-    const entities = (config as Readonly<Record<string, unknown>>)["served_entities"];
+    const entities = getUnknownProp(state["config"], "served_entities");
     if (!Array.isArray(entities)) return [];
     const targets: string[] = [];
     for (const entity of entities) {
-      if (typeof entity !== "object" || entity === null) continue;
-      const name = (entity as Readonly<Record<string, unknown>>)["entity_name"];
+      const name = getUnknownProp(entity, "entity_name");
       if (typeof name !== "string") continue;
       const id = ctx.nodeIdByResourceKey.get(`resources.registered_models.${name}`);
       if (id !== undefined) targets.push(id);
@@ -141,20 +138,14 @@ const collectPipelineIngestionTargets = (
 ): readonly string[] => {
   const state = extractResourceState(entry);
   if (state === undefined) return [];
-  const ingestion = state["ingestion_definition"];
-  if (typeof ingestion !== "object" || ingestion === null) return [];
-  // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
-  const objects = (ingestion as Readonly<Record<string, unknown>>)["objects"];
+  const objects = getUnknownProp(state["ingestion_definition"], "objects");
   if (!Array.isArray(objects)) return [];
   const targets: string[] = [];
   for (const obj of objects) {
-    if (typeof obj !== "object" || obj === null) continue;
-    const objRecord = obj as Readonly<Record<string, unknown>>;
-    const schemaDef = objRecord["schema"];
-    if (typeof schemaDef !== "object" || schemaDef === null) continue;
-    // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
-    const sCatalog = (schemaDef as Readonly<Record<string, unknown>>)["source_catalog"];
-    const sSchema = (schemaDef as Readonly<Record<string, unknown>>)["source_schema"];
+    const schemaDef = getUnknownProp(obj, "schema");
+    if (!isUnknownRecord(schemaDef)) continue;
+    const sCatalog = schemaDef["source_catalog"];
+    const sSchema = schemaDef["source_schema"];
     if (typeof sCatalog === "string" && typeof sSchema === "string") {
       const schemaId = `schema::${sCatalog}.${sSchema}`;
       if (nodeIds.has(schemaId)) targets.push(schemaId);

@@ -2,6 +2,16 @@ import type { DiffState } from "../types/diff-state.ts";
 
 export type FilterableDiffState = Exclude<DiffState, "unchanged">;
 
+const FILTERABLE_STATES: ReadonlySet<string> = new Set<FilterableDiffState>([
+  "added",
+  "modified",
+  "removed",
+]);
+
+/** Runtime type guard for FilterableDiffState (DiffState minus "unchanged"). */
+export const isFilterableDiffState = (value: string): value is FilterableDiffState =>
+  FILTERABLE_STATES.has(value);
+
 type FilterButton = {
   readonly state: FilterableDiffState;
   readonly label: string;

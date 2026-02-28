@@ -1,4 +1,4 @@
-import type { Edge, Node, NodeMouseHandler, NodeTypes, ReactFlowInstance } from "@xyflow/react";
+import type { NodeMouseHandler, NodeTypes, ReactFlowInstance } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InteractionContext } from "../hooks/use-interaction-context.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
@@ -14,7 +14,7 @@ import { centerOnNode } from "../utils/center-on-node.ts";
 import { buildConnectedNodeIds, resolvePhantomContext } from "../utils/connected-nodes.ts";
 import { getNodeData } from "../utils/node-data.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
-import type { FilterableDiffState } from "./diff-filter-toolbar.tsx";
+import { type FilterableDiffState, isFilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { FlowCanvasLayout } from "./flow-canvas-layout.tsx";
 
 type FlowCanvasProps = {
@@ -119,9 +119,8 @@ export function FlowCanvas({
   }, []);
 
   const layout = layoutState.status === "ready" ? layoutState.layout : null;
-  // Layout produces readonly arrays; React Flow's component props and internal helpers
-  // require mutable Node[]/Edge[]. The `as` casts below shed the readonly modifier
-  // at the ReactFlow prop boundary only.
+  // Layout produces readonly arrays; React Flow requires mutable Node[]/Edge[].
+  // Spread copies at the FlowCanvasLayout boundary shed the readonly modifier.
   const rawNodes = layout?.nodes ?? EMPTY_NODES;
   const rawEdges = layout?.edges ?? EMPTY_EDGES;
   const rawLateralEdges = layout?.lateralEdges ?? EMPTY_EDGES;
@@ -199,8 +198,7 @@ export function FlowCanvas({
     const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };
     for (const node of baseNodes) {
       const state = getNodeData(node).diffState;
-      // Safe: the `in` guard ensures state is a FilterableDiffState key.
-      if (state in counts) counts[state as FilterableDiffState]++;
+      if (isFilterableDiffState(state)) counts[state]++;
     }
     return counts;
   }, [baseNodes]);
@@ -269,8 +267,9 @@ export function FlowCanvas({
     if (topLevel.length !== 1) return;
 
     const instance = rfInstanceRef.current;
-    if (instance === null) return;
-    centerOnNode(instance, topLevel[0] as string);
+    const target = topLevel[0];
+    if (instance === null || target === undefined) return;
+    centerOnNode(instance, target);
   }, [baseNodes, directMatchIds]);
 
   const phantomContext = useMemo(() => {
@@ -344,8 +343,8 @@ export function FlowCanvas({
       <InteractionContext.Provider value={interactionState}>
         <LateralIsolationContext.Provider value={handleToggleLateralIsolation}>
           <FlowCanvasLayout
-            nodes={baseNodes as Node[]}
-            edges={styledEdges as Edge[]}
+            nodes={[...baseNodes]}
+            edges={[...styledEdges]}
             nodeTypes={nodeTypes}
             onNodeClick={handleNodeClick}
             onNodeMouseEnter={handleNodeMouseEnter}

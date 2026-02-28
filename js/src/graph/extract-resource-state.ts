@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import type { PlanEntry } from "../types/plan-schema.ts";
+import { getUnknownProp } from "../utils/unknown-record.ts";
 
 // ---------------------------------------------------------------------------
 // Zod schemas (parse boundary only)
@@ -60,10 +61,7 @@ export const extractResourceState = (
 export const extractSourceTableFullName = (entry: PlanEntry): string | undefined => {
   const state = extractResourceState(entry);
   if (state === undefined) return undefined;
-  const spec = state["spec"];
-  if (typeof spec !== "object" || spec === null) return undefined;
-  // as: navigating into untyped nested JSON — typeof guard above ensures non-null object
-  const name = (spec as Readonly<Record<string, unknown>>)["source_table_full_name"];
+  const name = getUnknownProp(state["spec"], "source_table_full_name");
   return typeof name === "string" ? name : undefined;
 };
 
@@ -72,9 +70,9 @@ export const extractSourceTableFullName = (entry: PlanEntry): string | undefined
 export const parseThreePartName = (
   name: string,
 ): { readonly catalog: string; readonly schema: string; readonly table: string } | undefined => {
-  const parts = name.split(".");
-  // length === 3 guarantees these indices exist; TS cannot narrow array access from length checks
-  return parts.length === 3
-    ? { catalog: parts[0] as string, schema: parts[1] as string, table: parts[2] as string }
-    : undefined;
+  const [catalog, schema, table, ...rest] = name.split(".");
+  if (catalog === undefined || schema === undefined || table === undefined || rest.length > 0) {
+    return undefined;
+  }
+  return { catalog, schema, table };
 };

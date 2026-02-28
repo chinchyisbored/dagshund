@@ -17,14 +17,13 @@ export const useStyledEdges = (
   isolatedLateralIds: ReadonlySet<string> | null,
 ): readonly Edge[] =>
   useMemo((): readonly Edge[] => {
-    // React Flow requires mutable Edge[]; the `as` cast sheds the readonly modifier.
     if (
       connectedIds === null &&
       selectedConnectedIds === null &&
       filterMatchedIds === null &&
       isolatedLateralIds === null
     )
-      return baseEdges as Edge[];
+      return baseEdges;
     return baseEdges.map((edge) => {
       const baseStyle = edge.style ?? {};
       // Hover takes priority — highlight direct connections, dim the rest.
