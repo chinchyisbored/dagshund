@@ -26,6 +26,7 @@ export const useStdinPlan = (): StdinPlanState => {
       return;
     }
 
+    // No AbortController: App mounts once and never unmounts, fetch is localhost-only.
     const fetchPlan = async () => {
       try {
         const response = await fetch("/api/plan");
