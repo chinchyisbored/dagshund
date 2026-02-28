@@ -1,6 +1,6 @@
 import type { GraphEdge } from "../types/graph-types.ts";
 import type { PlanEntry } from "../types/plan-schema.ts";
-import { extractResourceType } from "../utils/resource-key.ts";
+import { DATABASE_INSTANCE_SOURCE_TYPES, extractResourceType } from "../utils/resource-key.ts";
 import {
   extractResourceState,
   extractSourceTableFullName,
@@ -82,7 +82,7 @@ const runLateralEdgeSpec = (
 
 /** synced_database_table → database_instance, database_catalog → database_instance (name-to-key). */
 const DATABASE_INSTANCE_SPEC: LateralEdgeSpec = {
-  sourceTypes: new Set(["synced_database_tables", "database_catalogs"]),
+  sourceTypes: DATABASE_INSTANCE_SOURCE_TYPES,
   extractTargetIds: (entry, ctx) => {
     const name = extractStateField(entry, "database_instance_name");
     if (name === undefined) return [];

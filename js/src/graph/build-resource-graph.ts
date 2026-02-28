@@ -9,7 +9,11 @@ import {
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
-import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
+import {
+  DATABASE_INSTANCE_SOURCE_TYPES,
+  extractResourceName,
+  extractResourceType,
+} from "../utils/resource-key.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import { extractLateralEdges } from "./extract-lateral-edges.ts";
@@ -585,11 +589,12 @@ const buildChainGraph = (
 const buildWorkspaceGraph = (
   workspaceEntries: readonly (readonly [string, PlanEntry])[],
   postgresEntries: readonly (readonly [string, PlanEntry])[],
-): PlanGraph => {
+): PlanGraph & { readonly flatParentId: string } => {
   const hasWorkspace = workspaceEntries.length > 0;
   const hasPostgres = postgresEntries.length > 0;
 
-  if (!hasWorkspace && !hasPostgres) return { nodes: [], edges: [] };
+  if (!hasWorkspace && !hasPostgres)
+    return { nodes: [], edges: [], flatParentId: "workspace-root" };
 
   const root = buildRootNode("workspace-root", "Workspace");
 
@@ -619,6 +624,7 @@ const buildWorkspaceGraph = (
   return {
     nodes: [root, ...otherResourcesNodes, ...flatNodes, ...pgGraph.nodes],
     edges: [...otherResourcesEdge, ...flatEdges, ...pgRootEdge, ...pgGraph.edges],
+    flatParentId,
   };
 };
 
@@ -672,7 +678,9 @@ const collectPhantomDatabaseInstances = (
   parentId: string,
 ): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
   const phantomNames = new Set<string>();
-  for (const [, entry] of entries) {
+  for (const [resourceKey, entry] of entries) {
+    const rt = extractResourceType(resourceKey);
+    if (rt === undefined || !DATABASE_INSTANCE_SOURCE_TYPES.has(rt)) continue;
     const name = extractStateField(entry, "database_instance_name");
     if (name === undefined) continue;
     const key = `resources.database_instances.${name}`;
@@ -729,11 +737,11 @@ export const buildResourceGraph = (
   // Create phantom nodes for database instances referenced but not in the plan.
   // Parent to the same group as real flat workspace resources.
   const existingKeys = new Set(graphNodes.map((n) => n.resourceKey));
-  const flatParentId =
-    workspaceEntries.length > 0 && postgresEntries.length > 0
-      ? "other-resources-root"
-      : "workspace-root";
-  const phantomDbInstances = collectPhantomDatabaseInstances(entries, existingKeys, flatParentId);
+  const phantomDbInstances = collectPhantomDatabaseInstances(
+    entries,
+    existingKeys,
+    workspaceGraph.flatParentId,
+  );
 
   const allNodes = [...graphNodes, ...phantomDbInstances.nodes];
 

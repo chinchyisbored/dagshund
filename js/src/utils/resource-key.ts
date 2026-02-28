@@ -27,6 +27,12 @@ const PHANTOM_LEAF_PREFIXES: readonly string[] = ["source-table::", "database-in
 export const isPhantomLeaf = (nodeId: string): boolean =>
   PHANTOM_LEAF_PREFIXES.some((prefix) => nodeId.startsWith(prefix));
 
+/** Resource types that reference database instances (used by both phantom collector and lateral edge spec). */
+export const DATABASE_INSTANCE_SOURCE_TYPES: ReadonlySet<string> = new Set([
+  "synced_database_tables",
+  "database_catalogs",
+]);
+
 /** Map resource type segment to a short display badge. */
 const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {
   schemas: "schema",
