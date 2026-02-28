@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  extractPhantomBadge,
   extractResourceName,
   extractTypeBadge,
   isPhantomLeaf,
@@ -59,6 +60,10 @@ describe("isPhantomLeaf", () => {
     expect(isPhantomLeaf("source-table::prod.staging.customers")).toBe(true);
   });
 
+  test("returns true for database-instance phantom nodes", () => {
+    expect(isPhantomLeaf("database-instance::my_db_instance")).toBe(true);
+  });
+
   test("returns false for hierarchy phantom prefixes", () => {
     expect(isPhantomLeaf("catalog::prod")).toBe(false);
     expect(isPhantomLeaf("schema::prod.staging")).toBe(false);
@@ -72,5 +77,25 @@ describe("isPhantomLeaf", () => {
 
   test("returns false for empty string", () => {
     expect(isPhantomLeaf("")).toBe(false);
+  });
+});
+
+describe("extractPhantomBadge", () => {
+  test("returns badge for each phantom prefix", () => {
+    expect(extractPhantomBadge("catalog::prod")).toBe("catalog");
+    expect(extractPhantomBadge("schema::prod.staging")).toBe("schema");
+    expect(extractPhantomBadge("source-table::prod.staging.customers")).toBe("table");
+    expect(extractPhantomBadge("database-instance::my_db")).toBe("database instance");
+    expect(extractPhantomBadge("postgres-project::my_project")).toBe("postgres project");
+    expect(extractPhantomBadge("postgres-branch::proj/main")).toBe("postgres branch");
+  });
+
+  test("falls back to extractTypeBadge for real resource keys", () => {
+    expect(extractPhantomBadge("resources.schemas.analytics")).toBe("schema");
+    expect(extractPhantomBadge("resources.jobs.etl")).toBe("job");
+  });
+
+  test("returns undefined for unrecognized keys", () => {
+    expect(extractPhantomBadge("resources")).toBeUndefined();
   });
 });
