@@ -20,6 +20,10 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 
+[project.urls]
+Repository = "https://gitlab.com/chinchy/dagshund"
+Issues = "https://gitlab.com/chinchy/dagshund/-/issues"
+
 [project.scripts]
 dagshund = "dagshund.cli:main"
 
