@@ -81,12 +81,21 @@ When code is working, follow this exact order. No skipping steps.
 3. **Browser verification** — `just dev` and check in the browser (`just dev-down` to stop). `just build` and `just dev` use different Bun code paths; a passing build doesn't guarantee a working app.
 4. **3-pass review** (see below) — present findings to human for decision
 5. Fix what human approves, file beads for the rest
-6. `git add <specific files>` — stage changes (NEVER combine with commit)
+6. `git add <specific files>` — stage changes, verify with `git status`
 7. `source .venv/bin/activate && git commit -m "..."`
 8. `br close <id>` — only AFTER code is committed
 9. `git push`
 
 **The git commit IS the deliverable.** Uncommitted work = unfinished work.
+
+### Git Rules
+
+- NEVER combine `git add` and `git commit` — stage first, verify, then commit
+- NEVER run `git reset HEAD` or `git checkout --` on working files
+- Activate venv before committing: `source .venv/bin/activate && git commit ...`
+- `br sync --flush-only` exports JSONL but does NOT commit or stage — always follow with `git add .beads/` and `git commit`
+- NEVER run `br sync --flush-only` before committing source code — commit source first, then sync beads
+- Beads-only commits (no source changes): `br sync --flush-only && git add .beads/ && git commit -m "sync beads"`
 
 ## Review Process
 
@@ -143,36 +152,12 @@ Present findings organized by pass. For each finding, suggest one of:
 After all work is complete:
 
 1. File issues for any loose threads discussed but not implemented
-2. Commit all code (see Completing Work above)
+2. Commit all code (follow Completing Work above)
 3. Close all finished beads
-4. Sync and commit beads:
-   ```bash
-   br sync --flush-only
-   git add .beads/
-   git commit -m "sync beads"
-   ```
-5. `git pull --rebase` — catch up with remote before pushing
-6. `git push`
-7. `git status` — must show clean tree, up to date with origin
-8. Hand off — session summary: what got done, what's open, suggested next starting point
-
-## Beads & Git Rules
-
-- `br sync --flush-only` exports JSONL but does NOT commit or stage. Always: `br sync --flush-only` → `git add .beads/` → `git commit` → `git push`
-- NEVER run `br sync --flush-only` before committing source code — commit source first, then sync beads
-- NEVER combine `git add` and `git commit` — stage first, verify with `git status`, then commit
-- NEVER run `git reset HEAD` or `git checkout --` on working files
-- NEVER run `bun run lint:fix` without reviewing scope — use `just lint` (check-only)
-- Beads-only commits (no source changes): `br sync --flush-only && git add .beads/ && git commit -m "sync beads"`
-- Activate venv before committing: `source .venv/bin/activate && git commit ...`
-
-## Priority
-
-- **P0**: Blocks everything, fix immediately
-- **P1**: Core functionality, do soon
-- **P2**: Important but not urgent (default)
-- **P3**: Nice to have, backlog
-- **P4**: Wishlist
+4. Sync and commit beads — source commits first, then: `br sync --flush-only && git add .beads/ && git commit -m "sync beads"`
+5. `git pull --rebase` then `git push`
+6. `git status` — must show clean tree, up to date with origin
+7. Hand off — session summary: what got done, what's open, suggested next starting point
 
 ## Collaboration
 
