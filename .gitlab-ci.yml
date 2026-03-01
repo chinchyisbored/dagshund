@@ -18,10 +18,16 @@ variables:
 sast:
   stage: security
   allow_failure: false
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - if: $CI_PIPELINE_SOURCE == "push"
 
 secret_detection:
   stage: security
   allow_failure: false
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - if: $CI_PIPELINE_SOURCE == "push"
 
 # --- Shared setup for release jobs ---
 
@@ -97,7 +103,7 @@ publish-test:
       aud: testpypi
   script:
     - sha256sum --check dist/SHA256SUMS
-    - uv publish --index-url https://test.pypi.org/legacy/
+    - uv publish --publish-url https://test.pypi.org/legacy/
 
 publish:
   stage: release
@@ -108,6 +114,7 @@ publish:
   environment: release
   needs:
     - build
+    - publish-test
   id_tokens:
     PYPI_ID_TOKEN:
       aud: pypi
