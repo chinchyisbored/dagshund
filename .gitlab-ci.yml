@@ -10,28 +10,28 @@ include:
 
 variables:
   SECRET_DETECTION_ENABLED: 'true'
-  UV_VERSION: '0.10.4'
-  PYTHON_VERSION: '3.12'
-  BUN_VERSION: '1.3.8'
-  BUN_SHA256: '0322b17f0722da76a64298aad498225aedcbf6df1008a1dee45e16ecb226a3f1'
+  GIT_DEPTH: 1
+  # UV_IMAGE, BUN_VERSION, BUN_SHA256 are protected CI/CD variables in GitLab settings.
 
 # --- Security (every push) ---
 
 sast:
   stage: security
+  allow_failure: false
 
 secret_detection:
   stage: security
+  allow_failure: false
 
 # --- Shared setup for release jobs ---
 
 .release-setup:
-  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-trixie-slim
+  image: ${UV_IMAGE}
   before_script:
     - curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
     - echo "${BUN_SHA256}  /tmp/bun.zip" | sha256sum --check
     - unzip -qo /tmp/bun.zip -d /tmp && mv /tmp/bun-linux-x64/bun /usr/local/bin/bun && rm -rf /tmp/bun.zip /tmp/bun-linux-x64
-    - uv sync
+    - uv sync --locked
     - bun install --frozen-lockfile --cwd js
 
 # --- Quality gate (tag push only) ---
@@ -72,18 +72,22 @@ build:
   script:
     - bun run --cwd js build:template
     - uv build
+    - sha256sum dist/* > dist/SHA256SUMS
   artifacts:
     paths:
       - dist/
+    expire_in: 1 hour
 
 # --- Publish via OIDC trusted publishing ---
 # uv natively detects PYPI_ID_TOKEN / TESTPYPI_ID_TOKEN and handles the exchange.
+# Environment claims (release / release-test) are verified on the PyPI side.
 
 publish-test:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-trixie-slim
+      when: manual
+  image: ${UV_IMAGE}
   environment: release-test
   needs:
     - build
@@ -91,13 +95,15 @@ publish-test:
     TESTPYPI_ID_TOKEN:
       aud: testpypi
   script:
+    - sha256sum --check dist/SHA256SUMS
     - uv publish --index-url https://test.pypi.org/legacy/
 
 publish:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-trixie-slim
+      when: manual
+  image: ${UV_IMAGE}
   environment: release
   needs:
     - build
@@ -105,4 +111,5 @@ publish:
     PYPI_ID_TOKEN:
       aud: pypi
   script:
+    - sha256sum --check dist/SHA256SUMS
     - uv publish
