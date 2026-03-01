@@ -128,6 +128,14 @@ just build          # JS template + Python wheel
 just check          # Lint + typecheck + all tests
 ```
 
+For [Claude Code](https://docs.anthropic.com/en/docs/claude-code) LSP support (go-to-definition, type hover, find-references), install the language server binaries:
+
+```bash
+bun install -g pyright typescript-language-server typescript
+```
+
+The plugins are already configured in `.claude/settings.json`.
+
 ## License
 
 MIT
