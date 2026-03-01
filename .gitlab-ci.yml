@@ -31,7 +31,7 @@ secret_detection:
     - apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null
     - curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
     - echo "${BUN_SHA256}  /tmp/bun.zip" | sha256sum --check
-    - unzip -qo /tmp/bun.zip -d /tmp && mv /tmp/bun-linux-x64/bun /usr/local/bin/bun && rm -rf /tmp/bun.zip /tmp/bun-linux-x64
+    - unzip -qo /tmp/bun.zip -d /tmp && mv /tmp/bun-linux-x64/bun /usr/local/bin/bun && ln -s bun /usr/local/bin/bunx && rm -rf /tmp/bun.zip /tmp/bun-linux-x64
     - uv sync --locked
     - bun install --frozen-lockfile --cwd js
 
