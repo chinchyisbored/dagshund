@@ -53,7 +53,7 @@ describe("extractTaskEntries", () => {
       },
     };
     const tasks = extractTaskEntries(newState);
-    expect(tasks[0]).toHaveProperty("notebook_task");
+    expect(tasks[0]?.["notebook_task"]).toEqual({ notebook_path: "/Workspace/etl/extract" });
   });
 });
 
@@ -318,6 +318,6 @@ describe("extractTaskState", () => {
     // biome-ignore lint/style/noNonNullAssertion: test array has exactly one element
     const state = extractTaskState(tasks[0]!);
     expect(state).toHaveProperty("task_key", "extract");
-    expect(state).toHaveProperty("notebook_task");
+    expect(state["notebook_task"]).toEqual({ notebook_path: "/Workspace/etl/extract" });
   });
 });

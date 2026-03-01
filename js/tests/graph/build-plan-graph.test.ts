@@ -168,7 +168,10 @@ describe("buildPlanGraph", () => {
       const extractNode = graph.nodes.find((n) => n.nodeKind === "task" && n.taskKey === "extract");
       expect(extractNode?.resourceState).toBeDefined();
       expect(extractNode?.resourceState).toHaveProperty("task_key", "extract");
-      expect(extractNode?.resourceState).toHaveProperty("notebook_task");
+      expect(extractNode?.resourceState?.["notebook_task"]).toEqual({
+        notebook_path: "/Workspace/etl/extract",
+        source: "WORKSPACE",
+      });
     });
 
     test("taskChangeSummary is undefined for skip jobs with only skip changes", async () => {
@@ -202,7 +205,7 @@ describe("buildPlanGraph", () => {
       const taskNodes = graph.nodes.filter((n) => n.nodeKind === "task");
 
       expect(jobNodes).toHaveLength(2);
-      expect(taskNodes.length).toBeGreaterThan(0);
+      expect(taskNodes).toHaveLength(14);
     });
 
     test("all nodes have diffState unchanged for all-skip plan", async () => {
@@ -218,8 +221,8 @@ describe("buildPlanGraph", () => {
       const plan = await loadFixture("no-changes-plan.json");
       const graph = buildPlanGraph(plan);
 
-      expect(graph.nodes.length).toBeGreaterThan(0);
-      expect(graph.edges.length).toBeGreaterThan(0);
+      expect(graph.nodes).toHaveLength(16);
+      expect(graph.edges).toHaveLength(17);
     });
   });
 
