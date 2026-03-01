@@ -1,19 +1,108 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure
-# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
-# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
 stages:
-- test
-- secret-detection
-sast:
-  stage: test
+  - security
+  - quality
+  - build
+  - release
+
 include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
 variables:
   SECRET_DETECTION_ENABLED: 'true'
+  UV_VERSION: '0.10.4'
+  PYTHON_VERSION: '3.12'
+  BUN_VERSION: '1.3.8'
+  BUN_SHA256: '0322b17f0722da76a64298aad498225aedcbf6df1008a1dee45e16ecb226a3f1'
+
+# --- Security (every push) ---
+
+sast:
+  stage: security
+
 secret_detection:
-  stage: secret-detection
+  stage: security
+
+# --- Shared setup for release jobs ---
+
+.release-setup:
+  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-trixie-slim
+  before_script:
+    - curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
+    - echo "${BUN_SHA256}  /tmp/bun.zip" | sha256sum --check
+    - unzip -qo /tmp/bun.zip -d /tmp && mv /tmp/bun-linux-x64/bun /usr/local/bin/bun && rm -rf /tmp/bun.zip /tmp/bun-linux-x64
+    - uv sync
+    - bun install --frozen-lockfile --cwd js
+
+# --- Quality gate (tag push only) ---
+
+quality:
+  extends: .release-setup
+  stage: quality
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    # Verify tag matches package version
+    - |
+      PKG_VERSION=$(grep -oP '__version__ = "\K[^"]+' src/dagshund/__init__.py)
+      TAG_VERSION=${CI_COMMIT_TAG#v}
+      if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+        echo "ERROR: Package version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+        exit 1
+      fi
+    # Lint
+    - bun run --cwd js biome check src/ tests/
+    - uv run ruff check src/ tests/
+    # Typecheck
+    - bun run --cwd js tsc --noEmit
+    - uv run ty check src/ tests/
+    # Test
+    - bun test --cwd js --coverage --coverage-reporter=text
+    - uv run pytest --cov=dagshund --cov-report=term-missing
+
+# --- Build wheel (tag push only) ---
+
+build:
+  extends: .release-setup
+  stage: build
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  needs:
+    - quality
+  script:
+    - bun run --cwd js build:template
+    - uv build
+  artifacts:
+    paths:
+      - dist/
+
+# --- Publish via OIDC trusted publishing ---
+# uv natively detects PYPI_ID_TOKEN / TESTPYPI_ID_TOKEN and handles the exchange.
+
+publish-test:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-trixie-slim
+  environment: release-test
+  needs:
+    - build
+  id_tokens:
+    TESTPYPI_ID_TOKEN:
+      aud: testpypi
+  script:
+    - uv publish --index-url https://test.pypi.org/legacy/
+
+publish:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-trixie-slim
+  environment: release
+  needs:
+    - build
+  id_tokens:
+    PYPI_ID_TOKEN:
+      aud: pypi
+  script:
+    - uv publish

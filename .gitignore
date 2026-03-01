@@ -29,3 +29,24 @@ __pycache__/
 
 # Beads lock file
 .beads/.jsonl.lock
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Service credentials
+credentials.json
+service-account.json
+.databrickscfg
+
+# SSH keys
+id_rsa
+id_ecdsa
+id_ed25519
