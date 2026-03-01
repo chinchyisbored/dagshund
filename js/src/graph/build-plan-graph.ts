@@ -250,7 +250,7 @@ export const buildPlanGraph = (plan: Plan): PlanGraph => {
   const entries = Object.entries(plan.plan ?? {}).filter(([key]) => isJobEntry(key));
   const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry));
   return {
-    nodes: graphs.flatMap((g) => g.nodes),
-    edges: [...graphs.flatMap((g) => g.edges), ...buildRunJobEdges(entries)],
+    nodes: graphs.flatMap((graph) => graph.nodes),
+    edges: [...graphs.flatMap((graph) => graph.edges), ...buildRunJobEdges(entries)],
   };
 };

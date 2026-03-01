@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { assembleHtml, escapeJsonForScript, readDistAssets, runBuild } from "./html-assembler.ts";
+import {
+  assembleHtml,
+  buildJsBundle,
+  escapeJsonForScript,
+  loadBuiltAssets,
+} from "./html-assembler.ts";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 import { tryOpenBrowser } from "./utils/open-browser.ts";
@@ -97,8 +102,8 @@ const main = async (): Promise<void> => {
   const plan = await readPlan(inputPath);
   console.log("dagshund: plan validated, building assets...");
 
-  await runBuild();
-  const { js, css } = await readDistAssets();
+  await buildJsBundle();
+  const { js, css } = await loadBuiltAssets();
   const safeJson = escapeJsonForScript(JSON.stringify(plan));
   const html = assembleHtml(css, js, safeJson);
 

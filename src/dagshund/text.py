@@ -114,11 +114,11 @@ def _format_value(value: object) -> str:
 
 def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
     """Render a single field-level change, or None if unchanged."""
-    field_cfg = _action_config(str(change.get("action", "")))
-    if not field_cfg.changed:
+    field_action_config = _action_config(str(change.get("action", "")))
+    if not field_action_config.changed:
         return None
 
-    prefix = f"      {field_cfg.symbol} {field_name}"
+    prefix = f"      {field_action_config.symbol} {field_name}"
     match ("old" in change, "new" in change):
         case (True, True):
             suffix = f": {_format_value(change['old'])} -> {_format_value(change['new'])}"
@@ -128,7 +128,7 @@ def _render_field_change(field_name: str, change: FieldChange, *, use_color: boo
             suffix = f": {_format_value(change['old'])}"
         case _:
             suffix = ""
-    return _colorize(f"{prefix}{suffix}", field_cfg.color, use_color=use_color)
+    return _colorize(f"{prefix}{suffix}", field_action_config.color, use_color=use_color)
 
 
 def _render_resource(
@@ -138,15 +138,15 @@ def _render_resource(
     use_color: bool,
 ) -> Iterator[str]:
     """Render a single resource entry as lines of text."""
-    cfg = _action_config(entry.get("action", ""))
+    action_config = _action_config(entry.get("action", ""))
     resource_type, resource_name = _parse_resource_key(key)
 
-    label = f"  ({cfg.display})" if cfg.changed else ""
-    header = f"  {cfg.symbol} {resource_type}/{resource_name}{label}"
-    yield _colorize(header, cfg.color, use_color=use_color)
+    label = f"  ({action_config.display})" if action_config.changed else ""
+    header = f"  {action_config.symbol} {resource_type}/{resource_name}{label}"
+    yield _colorize(header, action_config.color, use_color=use_color)
 
     changes = entry.get("changes", {})
-    if isinstance(changes, dict) and changes and cfg.show_field_changes:
+    if isinstance(changes, dict) and changes and action_config.show_field_changes:
         for field_name, change in sorted(changes.items()):
             if not isinstance(change, dict):
                 continue

@@ -49,11 +49,11 @@ export function DetailPanel({ data, onClose, width, phantomContext }: DetailPane
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const closePanelOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", closePanelOnEscape);
+    return () => document.removeEventListener("keydown", closePanelOnEscape);
   }, [onClose]);
 
   const toggleFormat = () => setValueFormat((current) => NEXT_FORMAT[current]);

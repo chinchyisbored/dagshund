@@ -47,10 +47,10 @@ type JobGroup = {
 
 /** Group graph nodes by job, pairing each job with its child tasks. */
 export const groupNodesByJob = (nodes: readonly GraphNode[]): readonly JobGroup[] => {
-  const jobs = nodes.filter((n): n is JobGraphNode => n.nodeKind === "job");
+  const jobs = nodes.filter((node): node is JobGraphNode => node.nodeKind === "job");
   const tasksByResource = Map.groupBy(
-    nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task"),
-    (t) => t.resourceKey,
+    nodes.filter((node): node is TaskGraphNode => node.nodeKind === "task"),
+    (task) => task.resourceKey,
   );
   return jobs.map((job) => ({
     job,
@@ -87,8 +87,8 @@ export const topologicalSortTasks = (
   tasks: readonly GraphNode[],
   edges: readonly { readonly source: string; readonly target: string }[],
 ): readonly GraphNode[] => {
-  const taskIds = new Set(tasks.map((t) => t.id));
-  const intraEdges = edges.filter((e) => taskIds.has(e.source) && taskIds.has(e.target));
+  const taskIds = new Set(tasks.map((task) => task.id));
+  const intraEdges = edges.filter((edge) => taskIds.has(edge.source) && taskIds.has(edge.target));
 
   const adjacency = new Map<string, string[]>();
   const inDegree = new Map<string, number>();
@@ -125,8 +125,8 @@ export const topologicalSortTasks = (
     }
   }
 
-  const taskById = new Map(tasks.map((t) => [t.id, t]));
-  const sorted = sortedIds.map((id) => taskById.get(id)).filter((t) => t !== undefined);
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const sorted = sortedIds.map((id) => taskById.get(id)).filter((task) => task !== undefined);
 
   // Append any disconnected tasks not reached by BFS in original order
   const sortedSet = new Set(sortedIds);
@@ -154,7 +154,7 @@ export const buildElkCompoundGraph = (groups: readonly JobGroup[], edges: PlanGr
   children: [...groups]
     .sort((a, b) => a.job.label.localeCompare(b.job.label))
     .map((group) => {
-      const taskIds = new Set(group.tasks.map((t) => t.id));
+      const taskIds = new Set(group.tasks.map((task) => task.id));
       return {
         id: group.job.id,
         layoutOptions: {
@@ -192,7 +192,7 @@ export const buildElkCompoundGraph = (groups: readonly JobGroup[], edges: PlanGr
   edges: collectCrossJobEdges(edges),
 });
 
-type ElkLayoutResult = {
+type ElkOutput = {
   readonly children?: ReadonlyArray<{
     readonly id: string;
     readonly x?: number;
@@ -209,7 +209,7 @@ type ElkLayoutResult = {
 
 /** Extract layout positions and job dimensions from ELK result. */
 export const extractLayoutData = (
-  elkResult: ElkLayoutResult,
+  elkResult: ElkOutput,
 ): {
   readonly positions: ReadonlyMap<string, { readonly x: number; readonly y: number }>;
   readonly dimensions: ReadonlyMap<string, { readonly width: number; readonly height: number }>;
@@ -357,13 +357,13 @@ const chooseLateralHandles = (
 
   let best: (typeof anchors)[number] = anchors[0];
   let bestDist = Number.POSITIVE_INFINITY;
-  for (const a of anchors) {
+  for (const anchor of anchors) {
     const dx = sourcePos.x - targetPos.x;
-    const dy = sourcePos.y + a.sy - (targetPos.y + a.ty);
+    const dy = sourcePos.y + anchor.sy - (targetPos.y + anchor.ty);
     const dist = dx * dx + dy * dy;
     if (dist < bestDist) {
       bestDist = dist;
-      best = a;
+      best = anchor;
     }
   }
   return { sourceHandle: best.src, targetHandle: best.tgt };
@@ -416,7 +416,7 @@ export const layoutResourceGraph = async (
     return { nodes: [], edges: [] };
   }
 
-  const targetNodeIds = new Set(graph.edges.map((e) => e.target));
+  const targetNodeIds = new Set(graph.edges.map((edge) => edge.target));
 
   const elkGraph = {
     id: "root",
@@ -450,7 +450,7 @@ export const layoutResourceGraph = async (
 
   const elkResult = await getElk().layout(elkGraph);
 
-  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const flowNodes: Node[] = [];
   const nodeLayouts = new Map<string, NodeLayout>();
 

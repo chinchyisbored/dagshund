@@ -90,7 +90,7 @@ export const assembleHtml = (css: string, js: string, planSlot: string): string 
 
 const JS_ROOT = join(import.meta.dir, "..");
 
-export const runBuild = async (): Promise<void> => {
+export const buildJsBundle = async (): Promise<void> => {
   const proc = Bun.spawn(["bun", "run", "build"], {
     cwd: JS_ROOT,
     stdout: "inherit",
@@ -103,7 +103,7 @@ export const runBuild = async (): Promise<void> => {
   }
 };
 
-export const readDistAssets = async (): Promise<{
+export const loadBuiltAssets = async (): Promise<{
   readonly js: string;
   readonly css: string;
 }> => {

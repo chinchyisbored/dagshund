@@ -147,7 +147,7 @@ const buildPhantomNode = (id: string, label: string): PhantomGraphNode => ({
 // ---------------------------------------------------------------------------
 
 /** Map an entry's action to an edge diff state. */
-const entryEdgeDiffState = (entry: PlanEntry) =>
+const resolveEntryEdgeDiffState = (entry: PlanEntry) =>
   toEdgeDiffState(mapActionToDiffState(entry.action));
 
 /** Build a unique edge, returning undefined if source === target (self-loop guard). */
@@ -160,7 +160,7 @@ const buildEdge = (
 
 /** Filter defined edges from buildEdge results. */
 const filterDefinedEdges = (edges: readonly (GraphEdge | undefined)[]): readonly GraphEdge[] =>
-  edges.filter((e): e is GraphEdge => e !== undefined);
+  edges.filter((edge): edge is GraphEdge => edge !== undefined);
 
 // ---------------------------------------------------------------------------
 // Chain spec types
@@ -331,8 +331,8 @@ const buildTierIndexes = (
   tiers.map((tier) => {
     const pairs: [string, string][] = [];
     for (const [key, entry] of entries) {
-      const rt = extractResourceType(key);
-      if (rt === undefined || !tier.resourceTypes.has(rt)) continue;
+      const resourceType = extractResourceType(key);
+      if (resourceType === undefined || !tier.resourceTypes.has(resourceType)) continue;
       const identity = tier.resolveIdentity(entry, key);
       if (identity === undefined) continue;
       const nodeId = tier.useHierarchyId === true ? tier.buildHierarchyId(identity) : key;
@@ -460,10 +460,10 @@ const buildChainGraph = (
 
   // Build resource nodes and resolve parent edges
   for (const [key, entry] of entries) {
-    const rt = extractResourceType(key);
-    if (rt === undefined) continue;
+    const resourceType = extractResourceType(key);
+    if (resourceType === undefined) continue;
 
-    const tierIndex = spec.tiers.findIndex((t) => t.resourceTypes.has(rt));
+    const tierIndex = spec.tiers.findIndex((tier) => tier.resourceTypes.has(resourceType));
     if (tierIndex === -1) continue;
     const tier = spec.tiers[tierIndex];
     if (tier === undefined) continue;
@@ -481,7 +481,7 @@ const buildChainGraph = (
       phantomNodes,
       phantomEdges,
     );
-    hierarchyEdges.push(buildEdge(parentNodeId, nodeId, entryEdgeDiffState(entry)));
+    hierarchyEdges.push(buildEdge(parentNodeId, nodeId, resolveEntryEdgeDiffState(entry)));
   }
 
   // Lateral refs: create phantom leaf nodes for referenced identities not already in the graph
@@ -492,8 +492,8 @@ const buildChainGraph = (
     // so tierIndexes won't contain them — collect three-part names directly)
     const realLeafNames = new Set<string>();
     for (const [key, entry] of entries) {
-      const rt = extractResourceType(key);
-      if (rt === undefined || !leafTier.resourceTypes.has(rt)) continue;
+      const resourceType = extractResourceType(key);
+      if (resourceType === undefined || !leafTier.resourceTypes.has(resourceType)) continue;
       const name = extractStateField(entry, "name");
       if (name !== undefined) realLeafNames.add(name);
     }
@@ -541,31 +541,33 @@ const buildWorkspaceGraph = (
   const root = buildRootNode("workspace-root", "Workspace");
 
   // Postgres hierarchy
-  const pgGraph = hasPostgres
+  const postgresGraph = hasPostgres
     ? buildChainGraph(postgresEntries, POSTGRES_CHAIN)
     : { nodes: [], edges: [] };
-  const pgRootEdge = hasPostgres
+  const postgresRootEdge = hasPostgres
     ? filterDefinedEdges([buildEdge("workspace-root", "postgres-root")])
     : [];
 
   // Flat workspace resources — wrap in "Other Resources" group when hierarchies exist
-  const wrapFlat = hasWorkspace && hasPostgres;
-  const flatParentId = wrapFlat ? "other-resources-root" : "workspace-root";
+  const shouldWrapFlatResources = hasWorkspace && hasPostgres;
+  const flatParentId = shouldWrapFlatResources ? "other-resources-root" : "workspace-root";
 
   const flatNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
   const flatEdges = filterDefinedEdges(
-    workspaceEntries.map(([key, entry]) => buildEdge(flatParentId, key, entryEdgeDiffState(entry))),
+    workspaceEntries.map(([key, entry]) =>
+      buildEdge(flatParentId, key, resolveEntryEdgeDiffState(entry)),
+    ),
   );
-  const otherResourcesNodes = wrapFlat
+  const otherResourcesNodes = shouldWrapFlatResources
     ? [buildRootNode("other-resources-root", "Other Resources")]
     : [];
-  const otherResourcesEdge = wrapFlat
+  const otherResourcesEdge = shouldWrapFlatResources
     ? filterDefinedEdges([buildEdge("workspace-root", "other-resources-root")])
     : [];
 
   return {
-    nodes: [root, ...otherResourcesNodes, ...flatNodes, ...pgGraph.nodes],
-    edges: [...otherResourcesEdge, ...flatEdges, ...pgRootEdge, ...pgGraph.edges],
+    nodes: [root, ...otherResourcesNodes, ...flatNodes, ...postgresGraph.nodes],
+    edges: [...otherResourcesEdge, ...flatEdges, ...postgresRootEdge, ...postgresGraph.edges],
     flatParentId,
   };
 };
@@ -582,7 +584,7 @@ const collectDependsOnEdges = (
     entries.flatMap(([key, entry]) =>
       (entry.depends_on ?? [])
         .filter((dep) => !(isJobEntry(key) && isJobEntry(dep.node)))
-        .map((dep) => buildEdge(dep.node, key, entryEdgeDiffState(entry))),
+        .map((dep) => buildEdge(dep.node, key, resolveEntryEdgeDiffState(entry))),
     ),
   );
 
@@ -609,8 +611,8 @@ const collectPhantomDatabaseInstances = (
 ): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
   const phantomNames = new Set<string>();
   for (const [resourceKey, entry] of entries) {
-    const rt = extractResourceType(resourceKey);
-    if (rt === undefined || !DATABASE_INSTANCE_SOURCE_TYPES.has(rt)) continue;
+    const resourceType = extractResourceType(resourceKey);
+    if (resourceType === undefined || !DATABASE_INSTANCE_SOURCE_TYPES.has(resourceType)) continue;
     const name = extractStateField(entry, "database_instance_name");
     if (name === undefined) continue;
     const key = `resources.database_instances.${name}`;
@@ -628,7 +630,7 @@ const collectPhantomDatabaseInstances = (
     changes: undefined,
     resourceState: undefined,
   }));
-  const edges = filterDefinedEdges(nodes.map((n) => buildEdge(parentId, n.id)));
+  const edges = filterDefinedEdges(nodes.map((node) => buildEdge(parentId, node.id)));
   return { nodes, edges };
 };
 
@@ -666,7 +668,7 @@ export const buildResourceGraph = (
 
   // Create phantom nodes for database instances referenced but not in the plan.
   // Parent to the same group as real flat workspace resources.
-  const existingKeys = new Set(graphNodes.map((n) => n.resourceKey));
+  const existingKeys = new Set(graphNodes.map((node) => node.resourceKey));
   const phantomDbInstances = collectPhantomDatabaseInstances(
     entries,
     existingKeys,
@@ -676,8 +678,10 @@ export const buildResourceGraph = (
   const allNodes = [...graphNodes, ...phantomDbInstances.nodes];
 
   // Build lookup maps for lateral edge extraction
-  const nodeIdByResourceKey = new Map<string, string>(allNodes.map((n) => [n.resourceKey, n.id]));
-  const nodeIds = new Set<string>(allNodes.map((n) => n.id));
+  const nodeIdByResourceKey = new Map<string, string>(
+    allNodes.map((node) => [node.resourceKey, node.id]),
+  );
+  const nodeIds = new Set<string>(allNodes.map((node) => node.id));
 
   const lateralEdges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
 
