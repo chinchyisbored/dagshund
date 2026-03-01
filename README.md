@@ -1,6 +1,6 @@
 # Dagshund
 
-Colored diff summaries and interactive DAG visualizations for Databricks Asset Bundles. Requires a plan file from the [direct deployment engine](https://docs.databricks.com/aws/en/dev-tools/bundles/direct) (`databricks bundle plan -o json`). See what changed, what's new, and what's being deleted — in your terminal or in the browser.
+Colored diff summaries and interactive DAG visualizations for Databricks Asset Bundles. Requires a plan file from the [direct deployment engine](https://docs.databricks.com/aws/en/dev-tools/bundles/direct) (`databricks bundle plan -o json`). See what changed, what's new, and what's being deleted, in your terminal or in the browser.
 
 ![Dagshund resource graph](docs/resources.png)
 
@@ -48,7 +48,7 @@ databricks bundle plan -o json | dagshund
 databricks bundle plan -o json | dagshund -o report.html
 ```
 
-Dagshund works anywhere — it just needs a plan JSON file. You don't need to run it from inside your bundle directory.
+Dagshund works anywhere, it just needs a plan JSON file. You don't need to run it from inside your bundle directory.
 
 Use `-e` for CI-friendly exit codes (see [CI Exit Codes](#ci-exit-codes)).
 
@@ -56,11 +56,11 @@ Use `-e` for CI-friendly exit codes (see [CI Exit Codes](#ci-exit-codes)).
 
 The HTML report shows your resources as an interactive graph with diff highlighting. Resources are organized into visual groups:
 
-- **Workspace** — jobs, alerts, experiments, pipelines, and other bundle resources
-- **Unity Catalog** — catalogs, schemas, volumes, and registered models in their hierarchy
-- **Lakebase** — database instances and synced tables (when present, flat resources move into an "Other Resources" group)
+- **Workspace**, jobs, alerts, experiments, pipelines, and other bundle resources
+- **Unity Catalog**, catalogs, schemas, volumes, and registered models in their hierarchy
+- **Lakebase**, database instances and synced tables (when present, flat resources move into an "Other Resources" group)
 
-Click any node to open a detail panel with per-field structural diffs — old values in red, new values in green, unchanged fields for context.
+Click any node to open a detail panel with per-field structural diffs, old values in red, new values in green, unchanged fields for context.
 
 ![Structural diff detail panel](docs/schem_detail.png)
 
@@ -74,7 +74,7 @@ If your schema references a parent catalog that isn't in your bundle, dagshund i
 
 ### Lateral Dependencies
 
-Many resources reference each other across hierarchies — an alert might target a SQL warehouse, or a serving endpoint might bind to a registered model. These relationships are hidden by default to keep the graph clean. Toggle **Lateral dependencies** in the toolbar to see how your resources connect across group boundaries.
+Many resources reference each other across hierarchies, an alert might target a SQL warehouse, or a serving endpoint might bind to a registered model. These relationships are hidden by default to keep the graph clean. Toggle **Lateral dependencies** in the toolbar to see how your resources connect across group boundaries.
 
 ### Search
 
@@ -86,7 +86,7 @@ The search bar filters nodes by name or type. Non-matching nodes dim so matches 
 - Prefix with `status:` to filter by diff status: `status:added`, `status:modified`, `status:removed`
 - Press **Escape** to clear
 
-The diff filter buttons (**Added**, **Modified**, **Removed**) compose with search — when both are active, only nodes matching both criteria stay highlighted. When exactly one node matches, the viewport auto-centers on it.
+The diff filter buttons (**Added**, **Modified**, **Removed**) compose with search, when both are active, only nodes matching both criteria stay highlighted. When exactly one node matches, the viewport auto-centers on it.
 
 ## CI Exit Codes
 
@@ -115,7 +115,7 @@ Without `-e`, dagshund always exits 0 on success.
 
 ## Contributing
 
-Dagshund is a solo project and I'm not accepting pull requests at this time. If you run into a bug or have a feature request, please open an issue — I'm happy to hear what you need.
+Dagshund is a solo project and I'm not accepting pull requests at this time. If you run into a bug or have a feature request, please open an issue, I'm happy to hear what you need.
 
 ## Development
 
