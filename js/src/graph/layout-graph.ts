@@ -40,7 +40,7 @@ const JOB_PADDING_TOP = 40;
 const JOB_PADDING_SIDE = 20;
 const JOB_PADDING_BOTTOM = 20;
 
-export type JobGroup = {
+type JobGroup = {
   readonly job: JobGraphNode;
   readonly tasks: readonly TaskGraphNode[];
 };
@@ -243,7 +243,7 @@ const toNodeData = (node: GraphNode): DagNodeData => {
 };
 
 /** Convert a job GraphNode to a React Flow container node. */
-export const toJobFlowNode = (
+const toJobFlowNode = (
   node: GraphNode,
   position: { readonly x: number; readonly y: number },
   dimension: { readonly width: number; readonly height: number },
@@ -257,7 +257,7 @@ export const toJobFlowNode = (
 });
 
 /** Convert a task GraphNode to a React Flow child node inside its job. */
-export const toTaskFlowNode = (
+const toTaskFlowNode = (
   node: GraphNode,
   position: { readonly x: number; readonly y: number },
 ): Node => ({

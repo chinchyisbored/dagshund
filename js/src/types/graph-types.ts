@@ -1,7 +1,7 @@
 import type { DiffState } from "./diff-state.ts";
 import type { ChangeDesc } from "./plan-schema.ts";
 
-export type TaskChangeSummaryEntry = {
+type TaskChangeSummaryEntry = {
   readonly taskKey: string;
   readonly diffState: DiffState;
 };

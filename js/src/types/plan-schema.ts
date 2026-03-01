@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-export const actionTypeSchema = z.enum([
+const actionTypeSchema = z.enum([
   "",
   "skip",
   "resize",
@@ -13,16 +13,14 @@ export const actionTypeSchema = z.enum([
 
 export type ActionType = z.infer<typeof actionTypeSchema>;
 
-export const dependsOnEntrySchema = z
+const dependsOnEntrySchema = z
   .object({
     node: z.string(),
     label: z.string().optional(),
   })
   .readonly();
 
-export type DependsOnEntry = z.infer<typeof dependsOnEntrySchema>;
-
-export const changeDescSchema = z
+const changeDescSchema = z
   .object({
     action: actionTypeSchema,
     reason: z.string().optional(),
@@ -34,7 +32,7 @@ export const changeDescSchema = z
 
 export type ChangeDesc = z.infer<typeof changeDescSchema>;
 
-export const planEntrySchema = z
+const planEntrySchema = z
   .object({
     id: z.string().optional(),
     depends_on: z.array(dependsOnEntrySchema).readonly().optional(),

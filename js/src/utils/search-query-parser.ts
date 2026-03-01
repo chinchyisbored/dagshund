@@ -1,6 +1,6 @@
 import type { NodeSearchEntry } from "./node-search-text.ts";
 
-export type SearchToken =
+type SearchToken =
   | { readonly kind: "type"; readonly value: string }
   | { readonly kind: "status"; readonly value: string }
   | { readonly kind: "exact"; readonly value: string }

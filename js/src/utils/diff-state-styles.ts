@@ -59,7 +59,7 @@ const DIFF_BADGES: Readonly<Record<DiffState, string>> = {
 
 export const getDiffBadge = (diffState: DiffState): string => DIFF_BADGES[diffState];
 
-export type EdgeStyle = {
+type EdgeStyle = {
   readonly stroke: string;
   readonly opacity: number;
   readonly strokeDasharray: string | undefined;

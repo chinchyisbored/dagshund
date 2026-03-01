@@ -46,7 +46,7 @@ export type DeleteOnlyDiff = {
 
 export type StructuralDiff = ScalarDiff | ArrayDiff | ObjectDiff | CreateOnlyDiff | DeleteOnlyDiff;
 
-export type BaselineLabel = "old" | "remote";
+type BaselineLabel = "old" | "remote";
 
 export type StructuralDiffResult = {
   readonly diff: StructuralDiff;

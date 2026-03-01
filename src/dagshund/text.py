@@ -23,12 +23,12 @@ from dagshund import (
 
 # ANSI color codes
 RESET = "\033[0m"
-BOLD = "\033[1m"
+_BOLD = "\033[1m"
 DIM = "\033[2m"
 GREEN = "\033[32m"
 RED = "\033[31m"
 YELLOW = "\033[33m"
-CYAN = "\033[36m"
+_CYAN = "\033[36m"
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,7 +167,7 @@ def _print_header(plan: Plan, *, use_color: bool) -> None:
     print(
         _colorize(
             f"dagshund plan (v{plan_version}, cli {cli_version})",
-            BOLD,
+            _BOLD,
             use_color=use_color,
         )
     )
@@ -192,7 +192,7 @@ def _print_resource_groups(resource_groups: ResourceChangesByType, *, use_color:
         print(
             _colorize(
                 f"  {resource_type} ({len(entries)})",
-                CYAN + BOLD,
+                _CYAN + _BOLD,
                 use_color=use_color,
             )
         )
