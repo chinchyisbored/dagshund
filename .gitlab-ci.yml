@@ -13,21 +13,17 @@ variables:
   GIT_DEPTH: 1
   # UV_IMAGE, BUN_VERSION, BUN_SHA256 are protected CI/CD variables in GitLab settings.
 
-# --- Security (every push) ---
+# --- Security (every push to main) ---
+# SAST and secret detection run on branch pushes via template rules.
+# Tag pipelines don't re-run security — the commit was already scanned on push.
 
 sast:
   stage: security
   allow_failure: false
-  rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-    - if: $CI_PIPELINE_SOURCE == "push"
 
 secret_detection:
   stage: security
   allow_failure: false
-  rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-    - if: $CI_PIPELINE_SOURCE == "push"
 
 # --- Shared setup for release jobs ---
 
