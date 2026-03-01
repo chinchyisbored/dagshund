@@ -50,6 +50,7 @@ def test_read_plan_file_not_found_raises() -> None:
         _read_plan("/nonexistent/plan.json")
 
 
+@pytest.mark.skipif(os.getuid() == 0, reason="chmod has no effect as root")
 def test_read_plan_permission_denied_raises(tmp_path: Path) -> None:
     plan_file = tmp_path / "plan.json"
     plan_file.write_text('{"plan": {}}')
