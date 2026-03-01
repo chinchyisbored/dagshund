@@ -16,7 +16,7 @@ export function LateralEdgeToggle({ active, onToggle, count }: LateralEdgeToggle
           : "border-outline text-ink-muted hover:border-[var(--edge-lateral)]/50 hover:text-[var(--edge-lateral)]"
       }`}
     >
-      Links ({count})
+      Lateral dependencies ({count})
     </button>
   );
 }

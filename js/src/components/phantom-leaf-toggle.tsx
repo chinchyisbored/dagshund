@@ -16,7 +16,7 @@ export function PhantomLeafToggle({ active, onToggle, count }: PhantomLeafToggle
           : "border-outline text-ink-muted hover:border-ink-muted/50 hover:text-ink"
       }`}
     >
-      Inferred ({count})
+      Inferred leaf nodes ({count})
     </button>
   );
 }
