@@ -72,9 +72,13 @@ Jobs with task dependencies get their own DAG view. Switch between the Resources
 
 If your schema references a parent catalog that isn't in your bundle, dagshund infers it and adds it to the graph as a **phantom node** (shown with a dashed border). Hierarchy phantoms like these always display because they hold the tree together. Inferred leaf nodes (like a warehouse referenced by an alert) can be toggled on or off with the **Inferred leaf nodes** button in the toolbar.
 
+![Phantom nodes](docs/phantom_node.png)
+
 ### Lateral Dependencies
 
 Many resources reference each other across hierarchies, an alert might target a SQL warehouse, or a serving endpoint might bind to a registered model. These relationships are hidden by default to keep the graph clean. Toggle **Lateral dependencies** in the toolbar to see how your resources connect across group boundaries.
+
+![Lateral dependencies](docs/lateral_dependencies.png)
 
 ### Search
 
