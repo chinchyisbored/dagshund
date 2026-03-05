@@ -15,48 +15,26 @@ type StructuralDiffViewProps = {
   readonly result: StructuralDiffResult;
 };
 
-/** Max characters per rendered line (including prefix).
- *  Conservative lower bound — fits the narrowest panel width (~300px at monospace ~7.2px/char).
- *  Panel is resizable up to ~600px but we wrap to the smallest size to avoid horizontal overflow. */
-const MAX_LINE_CHARS = 60;
+/** Characters after which the browser may break a long line. */
+const BREAK_OPPORTUNITY_PATTERN = /([ /\-_.,@])/;
 
-const BREAK_CHARS = " /-_.,";
-
-/** Split a long line into sub-lines that fit within maxChars. Continuation sub-lines get 2-space indent. */
-const wrapLine = (line: string, maxChars: number): readonly string[] => {
-  if (line.length <= maxChars) return [line];
-
-  const result: string[] = [];
-  let remaining = line;
-
-  while (remaining.length > 0) {
-    const isFirst = result.length === 0;
-    const indent = isFirst ? "" : "  ";
-    const effectiveMax = maxChars - indent.length;
-
-    if (remaining.length <= effectiveMax) {
-      result.push(indent + remaining);
-      break;
-    }
-
-    let breakAt = -1;
-    // Scan backward through the last 50% of the line looking for a natural break point.
-    for (let i = effectiveMax; i > Math.floor(effectiveMax * 0.5); i--) {
-      if (BREAK_CHARS.includes(remaining.charAt(i))) {
-        breakAt = i + 1;
-        break;
-      }
-    }
-    if (breakAt === -1) breakAt = effectiveMax;
-
-    result.push(indent + remaining.slice(0, breakAt));
-    remaining = remaining.slice(breakAt);
-  }
-
-  return result;
+/** Insert zero-width break opportunities after common delimiter characters,
+ *  so CSS wrapping favours natural boundaries over mid-word breaks. */
+const insertBreakOpportunities = (text: string): React.ReactNode => {
+  const parts = text.split(BREAK_OPPORTUNITY_PATTERN);
+  if (parts.length <= 1) return text;
+  return parts.map((part, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: text fragment indices are stable
+    <span key={i}>
+      {part}
+      {i % 2 === 1 ? <wbr /> : null}
+    </span>
+  ));
 };
 
-/** Render formatted text with prefix on every visual line (including wrapped continuations). */
+/** Render formatted text with prefix pinned in a fixed-width column.
+ *  Content wraps naturally via CSS within its own column, so the prefix
+ *  alignment is preserved regardless of panel width. */
 export function PrefixedBlock({
   prefix,
   text,
@@ -67,23 +45,20 @@ export function PrefixedBlock({
   readonly className: string;
 }) {
   const lines = text.split("\n");
-  const contentMax = MAX_LINE_CHARS - prefix.length;
 
   return (
     <>
-      {lines.flatMap((line, i) => {
-        const subLines = wrapLine(line, contentMax);
-        return subLines.map((sub, j) => (
-          <div
-            // biome-ignore lint/suspicious/noArrayIndexKey: wrapped lines have no stable ID
-            key={`${i}-${j}`}
-            className={`whitespace-pre-wrap break-words font-mono text-xs ${className}`}
-          >
-            {prefix}
-            {sub}
-          </div>
-        ));
-      })}
+      {lines.map((line, i) => (
+        <div
+          // biome-ignore lint/suspicious/noArrayIndexKey: line indices are stable
+          key={i}
+          className={`grid font-mono text-xs ${className}`}
+          style={{ gridTemplateColumns: `${prefix.length}ch 1fr` }}
+        >
+          <span className="whitespace-pre">{prefix}</span>
+          <span className="whitespace-pre-wrap break-words">{insertBreakOpportunities(line)}</span>
+        </div>
+      ))}
     </>
   );
 }
