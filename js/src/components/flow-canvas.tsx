@@ -11,7 +11,11 @@ import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { centerOnNode } from "../utils/center-on-node.ts";
-import { buildConnectedNodeIds, resolvePhantomContext } from "../utils/connected-nodes.ts";
+import {
+  buildConnectedNodeIds,
+  resolveLateralContext,
+  resolvePhantomContext,
+} from "../utils/connected-nodes.ts";
 import { getNodeData } from "../utils/node-data.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { type FilterableDiffState, isFilterableDiffState } from "./diff-filter-toolbar.tsx";
@@ -285,6 +289,27 @@ export function FlowCanvas({
     return resolvePhantomContext(effectiveSelectedNodeId, baseNodes, allEdges);
   }, [effectiveSelectedNode, effectiveSelectedNodeId, baseNodes, baseEdges, lateralEdges]);
 
+  const lateralContext = useMemo(() => {
+    if (effectiveSelectedNodeId === null) return undefined;
+    // Include all lateral edges regardless of toggle — dependency info should
+    // always be visible in the detail panel even when lateral edges are hidden.
+    return resolveLateralContext(effectiveSelectedNodeId, baseNodes, lateralEdges);
+  }, [effectiveSelectedNodeId, baseNodes, lateralEdges]);
+
+  const handleNavigateToNode = useCallback(
+    (nodeId: string) => {
+      const targetNode = baseNodes.find((n) => n.id === nodeId);
+      if (targetNode === undefined) return;
+      const data = getNodeData(targetNode);
+      if (data.nodeKind === "root") return;
+      setSelectedNode(data);
+      setSelectedNodeId(nodeId);
+      const instance = rfInstanceRef.current;
+      if (instance !== null) centerOnNode(instance, nodeId);
+    },
+    [baseNodes],
+  );
+
   const interactionState = useMemo(
     () => ({
       hoveredNodeId,
@@ -391,6 +416,8 @@ export function FlowCanvas({
             onClose={handleClosePanel}
             width={panelWidth}
             phantomContext={phantomContext}
+            lateralContext={lateralContext}
+            onNavigateToNode={handleNavigateToNode}
           />
         </>
       )}

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useJobNavigation } from "../../hooks/use-job-navigation.ts";
 import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
+import type { LateralContext } from "../../types/lateral-context.ts";
 import type { PhantomContext } from "../../types/phantom-context.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
 import type { ValueFormat } from "../../utils/format-value.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { FormatToggle, NEXT_FORMAT } from "./format-toggle.tsx";
+import { LateralDependencies } from "./lateral-dependencies.tsx";
 import { ModifiedBody } from "./modified-body.tsx";
 import { ObjectStateCard } from "./object-state-card.tsx";
 import { RawJsonDisclosure } from "./raw-json-disclosure.tsx";
@@ -18,6 +20,8 @@ type DetailPanelProps = {
   readonly onClose: () => void;
   readonly width: number;
   readonly phantomContext?: PhantomContext;
+  readonly lateralContext?: LateralContext;
+  readonly onNavigateToNode?: (nodeId: string) => void;
 };
 
 const NOISE_ACTIONS: ReadonlySet<string> = new Set(["skip", ""]);
@@ -44,7 +48,14 @@ function ViewInJobsTabButton({ resourceKey }: { readonly resourceKey: string }) 
   );
 }
 
-export function DetailPanel({ data, onClose, width, phantomContext }: DetailPanelProps) {
+export function DetailPanel({
+  data,
+  onClose,
+  width,
+  phantomContext,
+  lateralContext,
+  onNavigateToNode,
+}: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
   const meaningfulChanges = filterMeaningfulChanges(data.changes);
 
@@ -155,6 +166,10 @@ export function DetailPanel({ data, onClose, width, phantomContext }: DetailPane
           )}
 
           {showNoChanges && <p className="py-8 text-center text-sm text-ink-muted">No changes</p>}
+
+          {lateralContext !== undefined && onNavigateToNode !== undefined && (
+            <LateralDependencies context={lateralContext} onNavigateToNode={onNavigateToNode} />
+          )}
 
           <RawJsonDisclosure data={data} />
         </div>
