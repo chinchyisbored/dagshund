@@ -95,6 +95,7 @@ export function FlowCanvasLayout({
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         nodesConnectable={false}
         nodeClickDistance={5}
+        paneClickDistance={5}
         proOptions={{ hideAttribution: true }}
         onNodeClick={onNodeClick}
         onNodeMouseEnter={onNodeMouseEnter}
