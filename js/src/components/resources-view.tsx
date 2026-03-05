@@ -6,20 +6,13 @@ import { ResourceNode } from "./resource-node.tsx";
 
 const NODE_TYPES = { resource: ResourceNode, root: HierarchyNode, phantom: HierarchyNode };
 
-export function ResourcesView({
-  plan,
-  isVisible,
-}: {
-  readonly plan: Plan;
-  readonly isVisible?: boolean;
-}) {
+export function ResourcesView({ plan }: { readonly plan: Plan }) {
   const layoutState = useResourceGraph(plan);
   return (
     <FlowCanvas
       layoutState={layoutState}
       nodeTypes={NODE_TYPES}
       emptyLabel="No resources in this plan"
-      isVisible={isVisible}
     />
   );
 }

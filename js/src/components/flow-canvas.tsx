@@ -8,6 +8,7 @@ import { usePhantomLeafState } from "../hooks/use-phantom-leaf-state.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
+import { useTabVisibility } from "../hooks/use-tab-visibility.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { centerOnNode } from "../utils/center-on-node.ts";
@@ -27,7 +28,6 @@ type FlowCanvasProps = {
   readonly focusNodeId?: string | null;
   readonly onFocusComplete?: () => void;
   readonly emptyLabel?: string;
-  readonly isVisible?: boolean;
 };
 
 const EMPTY_NODES: readonly never[] = [];
@@ -40,8 +40,8 @@ export function FlowCanvas({
   focusNodeId,
   onFocusComplete,
   emptyLabel,
-  isVisible = true,
 }: FlowCanvasProps) {
+  const isVisible = useTabVisibility();
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);

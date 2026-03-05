@@ -12,6 +12,7 @@ import { ThemeToggle } from "./components/theme-toggle.tsx";
 import { JobNavigationContext } from "./hooks/use-job-navigation.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
+import { TabVisibilityContext } from "./hooks/use-tab-visibility.ts";
 import type { Plan } from "./types/plan-schema.ts";
 
 /** Count plan entries by tab: jobs vs all resources (resources tab includes jobs). */
@@ -27,10 +28,9 @@ type DagViewProps = {
   readonly plan: Plan;
   readonly focusNodeId?: string | null;
   readonly onFocusComplete?: () => void;
-  readonly isVisible?: boolean;
 };
 
-function DagView({ plan, focusNodeId, onFocusComplete, isVisible }: DagViewProps) {
+function DagView({ plan, focusNodeId, onFocusComplete }: DagViewProps) {
   const layoutState = usePlanGraph(plan);
   return (
     <FlowCanvas
@@ -39,7 +39,6 @@ function DagView({ plan, focusNodeId, onFocusComplete, isVisible }: DagViewProps
       focusNodeId={focusNodeId}
       onFocusComplete={onFocusComplete}
       emptyLabel="No jobs in this plan"
-      isVisible={isVisible}
     />
   );
 }
@@ -100,19 +99,18 @@ function PlanView({ plan }: { readonly plan: Plan }) {
       <div className="min-h-0 flex-1">
         <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
           <ErrorBoundary>
-            <DagView
-              plan={plan}
-              focusNodeId={focusJobId}
-              onFocusComplete={handleFocusComplete}
-              isVisible={activeTab === "jobs"}
-            />
+            <TabVisibilityContext.Provider value={activeTab === "jobs"}>
+              <DagView plan={plan} focusNodeId={focusJobId} onFocusComplete={handleFocusComplete} />
+            </TabVisibilityContext.Provider>
           </ErrorBoundary>
         </div>
         <div className="h-full" style={activeTab !== "resources" ? { display: "none" } : undefined}>
           <ErrorBoundary>
-            <JobNavigationContext.Provider value={handleNavigateToJob}>
-              <ResourcesView plan={plan} isVisible={activeTab === "resources"} />
-            </JobNavigationContext.Provider>
+            <TabVisibilityContext.Provider value={activeTab === "resources"}>
+              <JobNavigationContext.Provider value={handleNavigateToJob}>
+                <ResourcesView plan={plan} />
+              </JobNavigationContext.Provider>
+            </TabVisibilityContext.Provider>
           </ErrorBoundary>
         </div>
       </div>
