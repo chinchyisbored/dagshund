@@ -3,6 +3,7 @@ stages:
   - quality
   - build
   - release
+  - pages
 
 include:
   - template: Security/SAST.gitlab-ci.yml
@@ -117,3 +118,20 @@ publish:
   script:
     - sha256sum --check dist/SHA256SUMS
     - uv publish
+
+# --- GitLab Pages demo site (every push to main) ---
+
+pages:
+  extends: .release-setup
+  stage: pages
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - bun run --cwd js build:template
+    - mkdir -p public
+    - cp pages/index.html public/index.html
+    - uv run dagshund fixtures/complex-plan.json -o public/complex.html
+    - uv run dagshund fixtures/all-hierarchies-plan.json -o public/all-hierarchies.html
+  artifacts:
+    paths:
+      - public

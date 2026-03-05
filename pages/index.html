@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>dagshund — demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1f2335; color: #c0caf5; font-family: system-ui, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { max-width: 640px; padding: 2rem; }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #a9b1d6; margin-bottom: 2rem; }
+    .cards { display: flex; flex-direction: column; gap: 1rem; }
+    a.card { display: block; background: #24283b; border: 1px solid #292e42; border-radius: 8px; padding: 1.25rem; text-decoration: none; color: #c0caf5; transition: border-color 0.15s; }
+    a.card:hover { border-color: #7aa2f7; }
+    .card-title { color: #7aa2f7; font-weight: 600; margin-bottom: 0.25rem; }
+    .card-desc { color: #a9b1d6; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>dagshund</h1>
+    <p class="subtitle">Interactive DAG visualizer for Databricks bundle deployments</p>
+    <div class="cards">
+      <a class="card" href="complex.html">
+        <div class="card-title">Complex plan</div>
+        <div class="card-desc">Multi-job plan with task dependencies and diff highlighting</div>
+      </a>
+      <a class="card" href="all-hierarchies.html">
+        <div class="card-title">All hierarchies</div>
+        <div class="card-desc">Plan covering every resource hierarchy level</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
