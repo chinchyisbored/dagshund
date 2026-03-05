@@ -27,6 +27,7 @@ type FlowCanvasProps = {
   readonly focusNodeId?: string | null;
   readonly onFocusComplete?: () => void;
   readonly emptyLabel?: string;
+  readonly isVisible?: boolean;
 };
 
 const EMPTY_NODES: readonly never[] = [];
@@ -39,6 +40,7 @@ export function FlowCanvas({
   focusNodeId,
   onFocusComplete,
   emptyLabel,
+  isVisible = true,
 }: FlowCanvasProps) {
   const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -49,8 +51,9 @@ export function FlowCanvas({
   const [isolatedLateralNodeId, setIsolatedLateralNodeId] = useState<string | null>(null);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
-  // Never reset — safe because FlowCanvas remounts when the plan/tab changes.
+  // Never reset — safe because FlowCanvas remounts when the plan changes (keyed on plan identity).
   const hasFittedRef = useRef(false);
+  const [hasFitted, setHasFitted] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
@@ -169,16 +172,31 @@ export function FlowCanvas({
 
   /** Fit the viewport exactly once after the layout produces nodes.
    *  Skipped when focusNodeId is set — the focus effect handles viewport positioning instead.
-   *  requestAnimationFrame defers until React Flow has measured node dimensions. */
+   *  Deferred until isVisible is true so tabs rendered with display:none don't fitView
+   *  against a zero-size container. Uses rAF + setTimeout so React Flow's ResizeObserver
+   *  has time to measure node dimensions — especially job group containers which need
+   *  multiple measurement passes. */
   useEffect(() => {
-    if (rfInstanceRef.current && baseNodes.length > 0 && !hasFittedRef.current) {
-      hasFittedRef.current = true;
-      if (focusNodeId != null) return;
-      requestAnimationFrame(() => {
-        rfInstanceRef.current?.fitView({ maxZoom: 1, padding: 0.15 });
+    if (rfInstanceRef.current && baseNodes.length > 0 && isVisible && !hasFittedRef.current) {
+      if (focusNodeId != null) {
+        hasFittedRef.current = true;
+        setHasFitted(true);
+        return;
+      }
+      let timerId: ReturnType<typeof setTimeout> | undefined;
+      const frameId = requestAnimationFrame(() => {
+        timerId = setTimeout(() => {
+          hasFittedRef.current = true;
+          rfInstanceRef.current?.fitView({ maxZoom: 1, padding: 0.15 });
+          setHasFitted(true);
+        }, 50);
       });
+      return () => {
+        cancelAnimationFrame(frameId);
+        if (timerId !== undefined) clearTimeout(timerId);
+      };
     }
-  }, [baseNodes, focusNodeId]);
+  }, [baseNodes, focusNodeId, isVisible]);
 
   /** Pan to a specific node when focusNodeId is set (cross-tab navigation).
    *  Waits for layout to be ready so the node exists in React Flow's internal store.
@@ -364,7 +382,7 @@ export function FlowCanvas({
   }
 
   return (
-    <div className="flex h-full">
+    <div className={`flex h-full${hasFitted ? "" : " opacity-0"}`}>
       <InteractionContext.Provider value={interactionState}>
         <LateralIsolationContext.Provider value={handleToggleLateralIsolation}>
           <FlowCanvasLayout

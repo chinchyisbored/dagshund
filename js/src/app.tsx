@@ -27,9 +27,10 @@ type DagViewProps = {
   readonly plan: Plan;
   readonly focusNodeId?: string | null;
   readonly onFocusComplete?: () => void;
+  readonly isVisible?: boolean;
 };
 
-function DagView({ plan, focusNodeId, onFocusComplete }: DagViewProps) {
+function DagView({ plan, focusNodeId, onFocusComplete, isVisible }: DagViewProps) {
   const layoutState = usePlanGraph(plan);
   return (
     <FlowCanvas
@@ -38,6 +39,7 @@ function DagView({ plan, focusNodeId, onFocusComplete }: DagViewProps) {
       focusNodeId={focusNodeId}
       onFocusComplete={onFocusComplete}
       emptyLabel="No jobs in this plan"
+      isVisible={isVisible}
     />
   );
 }
@@ -98,13 +100,18 @@ function PlanView({ plan }: { readonly plan: Plan }) {
       <div className="min-h-0 flex-1">
         <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
           <ErrorBoundary>
-            <DagView plan={plan} focusNodeId={focusJobId} onFocusComplete={handleFocusComplete} />
+            <DagView
+              plan={plan}
+              focusNodeId={focusJobId}
+              onFocusComplete={handleFocusComplete}
+              isVisible={activeTab === "jobs"}
+            />
           </ErrorBoundary>
         </div>
         <div className="h-full" style={activeTab !== "resources" ? { display: "none" } : undefined}>
           <ErrorBoundary>
             <JobNavigationContext.Provider value={handleNavigateToJob}>
-              <ResourcesView plan={plan} />
+              <ResourcesView plan={plan} isVisible={activeTab === "resources"} />
             </JobNavigationContext.Provider>
           </ErrorBoundary>
         </div>
