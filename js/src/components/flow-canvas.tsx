@@ -1,5 +1,5 @@
 import type { NodeMouseHandler, NodeTypes, ReactFlowInstance } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InteractionContext } from "../hooks/use-interaction-context.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
 import { LateralIsolationContext } from "../hooks/use-lateral-isolation.ts";
@@ -90,7 +90,7 @@ export function FlowCanvas({
   const handleNodeMouseEnter: NodeMouseHandler = useCallback((_, node) => {
     if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => {
-      setHoveredNodeId(node.id);
+      startTransition(() => setHoveredNodeId(node.id));
       hoverTimerRef.current = null;
     }, HOVER_DEBOUNCE_MS);
   }, []);
@@ -98,7 +98,7 @@ export function FlowCanvas({
   const handleNodeMouseLeave: NodeMouseHandler = useCallback(() => {
     if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => {
-      setHoveredNodeId(null);
+      startTransition(() => setHoveredNodeId(null));
       hoverTimerRef.current = null;
     }, HOVER_DEBOUNCE_MS);
   }, []);

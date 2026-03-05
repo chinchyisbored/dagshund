@@ -49,6 +49,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
         {isJob && navigateToJob !== null ? (
           <button
             type="button"
+            // onPointerDown + stopPropagation: prevent node drag and avoid d3-drag click interference
             onPointerDown={(e) => {
               e.stopPropagation();
               navigateToJob(data.resourceKey);

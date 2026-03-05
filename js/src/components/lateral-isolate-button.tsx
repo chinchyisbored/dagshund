@@ -7,8 +7,8 @@ type LateralIsolateButtonProps = {
 };
 
 /** Per-node chain icon that toggles lateral-edge isolation on click.
- *  Uses onPointerDown instead of onClick — the hover debounce re-render
- *  can swallow click events when the mouse enters the node quickly. */
+ *  Uses onPointerDown + stopPropagation to prevent node drag initiation
+ *  and avoid click event interference from d3-drag or hover re-renders. */
 export function LateralIsolateButton({ nodeId, isActive }: LateralIsolateButtonProps) {
   const toggleIsolation = useLateralIsolation();
   if (toggleIsolation === null) return null;
