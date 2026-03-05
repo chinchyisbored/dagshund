@@ -54,10 +54,7 @@ def _validate_output_path(raw: str) -> Path:
     path = Path(raw)
     if path.is_symlink():
         target = path.resolve()
-        raise DagshundError(
-            f"output path is a symlink → {target}\n"
-            f"  use --output {target} to write there directly"
-        )
+        raise DagshundError(f"output path is a symlink → {target}\n  use --output {target} to write there directly")
     return path.resolve()
 
 

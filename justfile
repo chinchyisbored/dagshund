@@ -1,4 +1,4 @@
-root := justfile_dir()
+root := justfile_directory()
 js_dir := root / "js"
 py_src := root / "src"
 py_tests := root / "tests"

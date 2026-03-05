@@ -4,10 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch & bun --hot src/index.ts",
+    "dev": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css && (bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch & bun --hot src/index.ts)",
     "build:css": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --minify",
     "build": "rm -rf dist && bun run build:css && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
-    "build:template": "bun scripts/build-template.ts"
+    "build:template": "bun scripts/build-template.ts",
+    "lint": "biome check --fix src/ tests/",
+    "format:check": "biome format src/ tests/",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@xyflow/react": "12.10.1",

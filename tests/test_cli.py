@@ -64,7 +64,7 @@ def test_read_plan_permission_denied_raises(tmp_path: Path) -> None:
 
 def test_read_plan_non_utf8_file_raises(tmp_path: Path) -> None:
     plan_file = tmp_path / "binary.json"
-    plan_file.write_bytes(b'\x80\x81\x82\xff')
+    plan_file.write_bytes(b"\x80\x81\x82\xff")
 
     with pytest.raises(DagshundError, match="not valid UTF-8"):
         _read_plan(str(plan_file))
@@ -285,9 +285,7 @@ def test_subprocess_stdin_pipe_prints_text(fixtures_dir: Path) -> None:
     assert "etl_pipeline" in result.stdout
 
 
-def test_subprocess_output_flag_writes_html(
-    require_template: None, fixtures_dir: Path, tmp_path: Path
-) -> None:
+def test_subprocess_output_flag_writes_html(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
     output = tmp_path / "out.html"
 
     result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-o", str(output))

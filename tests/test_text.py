@@ -96,8 +96,15 @@ def test_colorize_returns_plain_when_disabled() -> None:
         ("unknown_action", _DEFAULT_ACTION),
     ],
     ids=[
-        "create", "delete", "update", "recreate", "resize",
-        "update_id", "skip", "empty", "unknown",
+        "create",
+        "delete",
+        "update",
+        "recreate",
+        "resize",
+        "update_id",
+        "skip",
+        "empty",
+        "unknown",
     ],
 )
 def test_action_config(action: str, expected: _ActionConfig) -> None:
@@ -529,9 +536,7 @@ def test_render_text_missing_plan_key_raises_error() -> None:
         render_text({"cli_version": "1.0"})
 
 
-def test_render_text_all_unchanged_shows_no_changes(
-    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_render_text_all_unchanged_shows_no_changes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = json.loads((fixtures_dir / "no-changes-plan.json").read_text())
 
     render_text(plan)
@@ -557,9 +562,7 @@ def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFix
     assert "alerts" in out
 
 
-def test_render_text_mixed_plan_fixture(
-    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_render_text_mixed_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
 
     render_text(plan)
@@ -570,9 +573,7 @@ def test_render_text_mixed_plan_fixture(
     assert "update" in out
 
 
-def test_render_text_sample_plan_fixture(
-    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_render_text_sample_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = json.loads((fixtures_dir / "sample-plan.json").read_text())
 
     render_text(plan)
@@ -582,9 +583,7 @@ def test_render_text_sample_plan_fixture(
     assert "create" in out
 
 
-def test_render_text_invalid_plan_fixture(
-    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_render_text_invalid_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = json.loads((fixtures_dir / "invalid-plan.json").read_text())
 
     render_text(plan)

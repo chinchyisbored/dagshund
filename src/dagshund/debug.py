@@ -49,10 +49,7 @@ def enable_profile_tracing() -> None:
             n_params = code.co_argcount + code.co_kwonlyargcount
             param_names = code.co_varnames[:n_params]
             locals_ = frame.f_locals
-            arg_summary = ", ".join(
-                f"{name}={_summarize_value(locals_.get(name))}"
-                for name in param_names
-            )
+            arg_summary = ", ".join(f"{name}={_summarize_value(locals_.get(name))}" for name in param_names)
             logger.debug("→ %s(%s)", fn_name, arg_summary)
             call_stack.append(time.perf_counter())
 

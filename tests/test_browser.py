@@ -21,9 +21,7 @@ def test_find_template_returns_existing_path(require_template: None) -> None:
     assert result.exists()
 
 
-def test_find_template_raises_when_missing(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_find_template_raises_when_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import dagshund.browser as browser_mod
 
     monkeypatch.setattr(browser_mod, "__file__", str(tmp_path / "browser.py"))
