@@ -13,10 +13,14 @@ from dagshund.text import (
     RED,
     RESET,
     YELLOW,
+    DiffState,
     _action_config,
+    _action_to_diff_state,
     _ActionConfig,
     _colorize,
     _count_by_action,
+    _filter_by_diff_state,
+    _format_group_header,
     _format_value,
     _group_by_resource_type,
     _parse_resource_key,
@@ -91,8 +95,8 @@ def test_colorize_returns_plain_when_disabled() -> None:
         ("recreate", _ActionConfig("recreate", YELLOW, "~", show_field_changes=True)),
         ("resize", _ActionConfig("resize", YELLOW, "~", show_field_changes=True)),
         ("update_id", _ActionConfig("update_id", YELLOW, "~", show_field_changes=True)),
-        ("skip", _ActionConfig("unchanged", DIM, " ", changed=False)),
-        ("", _ActionConfig("unchanged", DIM, " ", changed=False)),
+        ("skip", _ActionConfig("unchanged", DIM, " ")),
+        ("", _ActionConfig("unchanged", DIM, " ")),
         ("unknown_action", _DEFAULT_ACTION),
     ],
     ids=[
@@ -338,7 +342,7 @@ def test_render_resource_field_change_missing_action_key() -> None:
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
-    # Default action has changed=False, so field is filtered out
+    # Default action maps to DiffState.UNCHANGED, so field is filtered out
     assert len(lines) == 1
 
 
@@ -613,3 +617,199 @@ def test_render_text_no_color_excludes_ansi(
 
     out = capsys.readouterr().out
     assert RESET not in out
+
+
+# --- _action_to_diff_state ---
+
+
+@pytest.mark.parametrize(
+    ("action", "expected"),
+    [
+        ("create", DiffState.ADDED),
+        ("delete", DiffState.REMOVED),
+        ("update", DiffState.MODIFIED),
+        ("recreate", DiffState.MODIFIED),
+        ("resize", DiffState.MODIFIED),
+        ("update_id", DiffState.MODIFIED),
+        ("skip", DiffState.UNCHANGED),
+        ("", DiffState.UNCHANGED),
+        ("unknown_action", DiffState.UNCHANGED),
+    ],
+    ids=["create", "delete", "update", "recreate", "resize", "update_id", "skip", "empty", "unknown"],
+)
+def test_action_to_diff_state(action: str, expected: DiffState) -> None:
+    assert _action_to_diff_state(action) == expected
+
+
+def test_all_diff_states_reachable_from_actions() -> None:
+    """Every defined diff state must be reachable from at least one action."""
+    reachable = {_action_to_diff_state(action) for action in _ACTIONS}
+    assert reachable == set(DiffState)
+
+
+# --- _filter_by_diff_state ---
+
+
+def test_filter_by_diff_state_keeps_matching() -> None:
+    entries = {
+        "resources.jobs.a": {"action": "create"},
+        "resources.jobs.b": {"action": "skip"},
+        "resources.jobs.c": {"action": "delete"},
+    }
+
+    result = _filter_by_diff_state(entries, frozenset({DiffState.ADDED}))
+
+    assert list(result.keys()) == ["resources.jobs.a"]
+
+
+def test_filter_by_diff_state_multiple_states() -> None:
+    entries = {
+        "resources.jobs.a": {"action": "create"},
+        "resources.jobs.b": {"action": "delete"},
+        "resources.jobs.c": {"action": "skip"},
+    }
+
+    result = _filter_by_diff_state(entries, frozenset({DiffState.ADDED, DiffState.REMOVED}))
+
+    assert set(result.keys()) == {"resources.jobs.a", "resources.jobs.b"}
+
+
+def test_filter_by_diff_state_returns_empty_when_none_match() -> None:
+    entries = {"resources.jobs.a": {"action": "skip"}}
+
+    result = _filter_by_diff_state(entries, frozenset({DiffState.ADDED}))
+
+    assert result == {}
+
+
+def test_filter_by_diff_state_modified_includes_all_update_actions() -> None:
+    entries = {
+        "resources.jobs.a": {"action": "update"},
+        "resources.jobs.b": {"action": "recreate"},
+        "resources.jobs.c": {"action": "resize"},
+        "resources.jobs.d": {"action": "update_id"},
+        "resources.jobs.e": {"action": "skip"},
+    }
+
+    result = _filter_by_diff_state(entries, frozenset({DiffState.MODIFIED}))
+
+    assert len(result) == 4
+    assert "resources.jobs.e" not in result
+
+
+# --- _format_group_header ---
+
+
+def test_format_group_header_all_visible() -> None:
+    assert _format_group_header("jobs", 3, 3) == "  jobs (3)"
+
+
+def test_format_group_header_partial_visible() -> None:
+    assert _format_group_header("experiments", 3, 1) == "  experiments (1/3)"
+
+
+# --- _print_resource_groups with visible_states ---
+
+
+def test_print_resource_groups_visible_states_hides_unchanged_groups(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    by_type = {
+        "jobs": {"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "skip"}},
+        "alerts": {"resources.alerts.a": {"action": "create"}},
+    }
+
+    _print_resource_groups(by_type, use_color=False, visible_states=frozenset({DiffState.ADDED}))
+
+    out = capsys.readouterr().out
+    assert "alerts" in out
+    assert "jobs" not in out
+
+
+def test_print_resource_groups_visible_states_shows_partial_count(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    by_type = {
+        "experiments": {
+            "resources.experiments.a": {"action": "skip"},
+            "resources.experiments.b": {"action": "create"},
+        },
+    }
+
+    _print_resource_groups(by_type, use_color=False, visible_states=frozenset({DiffState.ADDED}))
+
+    out = capsys.readouterr().out
+    assert "experiments (1/2)" in out
+    assert "experiments/b" in out
+    assert "experiments/a" not in out
+
+
+def test_print_resource_groups_no_visible_states_shows_all(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    by_type = {
+        "jobs": {"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "create"}},
+    }
+
+    _print_resource_groups(by_type, use_color=False)
+
+    out = capsys.readouterr().out
+    assert "jobs (2)" in out
+    assert "jobs/a" in out
+    assert "jobs/b" in out
+
+
+# --- render_text with visible_states (integration) ---
+
+
+def test_render_text_changes_only_hides_unchanged(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    all_changes = frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
+
+    render_text(plan, visible_states=all_changes)
+
+    out = capsys.readouterr().out
+    # Changed resources visible
+    assert "alerts/stale_pipeline_alert" in out
+    assert "experiments/audit_analysis_final" in out
+    assert "volumes/external_imports" in out
+    # Unchanged groups hidden
+    assert "jobs" not in out
+    assert "schemas" not in out
+    # Summary excludes unchanged when filtering
+    assert "unchanged" not in out
+
+
+def test_render_text_added_only_shows_creates(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+
+    render_text(plan, visible_states=frozenset({DiffState.ADDED}))
+
+    out = capsys.readouterr().out
+    assert "experiments/audit_analysis_final" in out
+    assert "(create)" in out
+    # No modified or deleted
+    assert "alerts/stale_pipeline_alert" not in out
+    assert "volumes/external_imports" not in out
+
+
+def test_render_text_removed_only_shows_deletes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+
+    render_text(plan, visible_states=frozenset({DiffState.REMOVED}))
+
+    out = capsys.readouterr().out
+    assert "volumes/external_imports" in out
+    assert "(delete)" in out
+    assert "experiments" not in out
+
+
+def test_render_text_no_visible_states_shows_everything(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "jobs" in out
+    assert "schemas" in out
+    assert "alerts" in out

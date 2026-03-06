@@ -1,3 +1,4 @@
+import argparse
 import os
 import subprocess
 import sys
@@ -7,7 +8,8 @@ from pathlib import Path
 import pytest
 
 from dagshund import DagshundError, __version__
-from dagshund.cli import _read_plan, main
+from dagshund.cli import _build_visible_states, _read_plan, main
+from dagshund.text import DiffState
 
 
 def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -293,3 +295,81 @@ def test_subprocess_output_flag_writes_html(require_template: None, fixtures_dir
     assert result.returncode == 0
     assert output.exists()
     assert "exported to" in result.stdout
+
+
+# --- _build_visible_states ---
+
+
+def test_build_visible_states_no_flags_returns_none() -> None:
+    args = argparse.Namespace(changes_only=False, added=False, modified=False, removed=False)
+    assert _build_visible_states(args) is None
+
+
+def test_build_visible_states_changes_only_returns_all_three() -> None:
+    args = argparse.Namespace(changes_only=True, added=False, modified=False, removed=False)
+    assert _build_visible_states(args) == frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
+
+
+def test_build_visible_states_individual_flags_compose() -> None:
+    args = argparse.Namespace(changes_only=False, added=True, modified=False, removed=True)
+    assert _build_visible_states(args) == frozenset({DiffState.ADDED, DiffState.REMOVED})
+
+
+def test_build_visible_states_single_flag() -> None:
+    args = argparse.Namespace(changes_only=False, added=False, modified=True, removed=False)
+    assert _build_visible_states(args) == frozenset({DiffState.MODIFIED})
+
+
+def test_build_visible_states_changes_only_overrides_individual() -> None:
+    args = argparse.Namespace(changes_only=True, added=True, modified=False, removed=False)
+    assert _build_visible_states(args) == frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
+
+
+# --- diff state filter flags ---
+
+
+def test_changes_only_flag_hides_unchanged(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-c")
+
+    assert result.returncode == 0
+    assert "alerts/stale_pipeline_alert" in result.stdout
+    assert "experiments/audit_analysis_final" in result.stdout
+    assert "volumes/external_imports" in result.stdout
+    # All-unchanged groups hidden
+    assert "\n  jobs" not in result.stdout
+    assert "\n  schemas" not in result.stdout
+
+
+def test_added_flag_shows_only_creates(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-a")
+
+    assert result.returncode == 0
+    assert "experiments/audit_analysis_final" in result.stdout
+    assert "alerts/stale_pipeline_alert" not in result.stdout
+    assert "volumes/external_imports" not in result.stdout
+
+
+def test_removed_flag_shows_only_deletes(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-r")
+
+    assert result.returncode == 0
+    assert "volumes/external_imports" in result.stdout
+    assert "experiments/audit_analysis_final" not in result.stdout
+
+
+def test_modified_flag_shows_only_updates(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-m")
+
+    assert result.returncode == 0
+    assert "alerts/stale_pipeline_alert" in result.stdout
+    assert "experiments/audit_analysis_final" not in result.stdout
+    assert "volumes/external_imports" not in result.stdout
+
+
+def test_flags_compose_added_and_removed(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-a", "-r")
+
+    assert result.returncode == 0
+    assert "experiments/audit_analysis_final" in result.stdout
+    assert "volumes/external_imports" in result.stdout
+    assert "alerts/stale_pipeline_alert" not in result.stdout

@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from dagshund import DagshundError, __version__, detect_changes, is_resource_changes, parse_plan
+from dagshund.text import DiffState
 
 EPILOG = """\
 examples:
@@ -21,12 +22,13 @@ examples:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d]",
+        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d] [-c] [-a] [-m] [-r]",
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
+        "-v",
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -59,6 +61,30 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exit 2 if changes detected, 0 if no changes (for CI usage)",
     )
+    parser.add_argument(
+        "-c",
+        "--changes-only",
+        action="store_true",
+        help="Show only changed resources (shorthand for -a -m -r)",
+    )
+    parser.add_argument(
+        "-a",
+        "--added",
+        action="store_true",
+        help="Show only added (created) resources",
+    )
+    parser.add_argument(
+        "-m",
+        "--modified",
+        action="store_true",
+        help="Show only modified (updated/recreated/resized) resources",
+    )
+    parser.add_argument(
+        "-r",
+        "--removed",
+        action="store_true",
+        help="Show only removed (deleted) resources",
+    )
     return parser
 
 
@@ -86,6 +112,22 @@ def _read_plan(plan_file: str | None) -> str:
     )
 
 
+def _build_visible_states(args: argparse.Namespace) -> frozenset[DiffState] | None:
+    """Build the set of visible diff states from CLI flags, or None to show all."""
+    if args.changes_only:
+        return frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
+
+    states: set[DiffState] = set()
+    if args.added:
+        states.add(DiffState.ADDED)
+    if args.modified:
+        states.add(DiffState.MODIFIED)
+    if args.removed:
+        states.add(DiffState.REMOVED)
+
+    return frozenset(states) if states else None
+
+
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
@@ -104,6 +146,8 @@ def main() -> None:
     if args.browser and not args.output:
         parser.error("--browser requires --output")
 
+    visible_states = _build_visible_states(args)
+
     try:
         raw = _read_plan(args.plan_file)
         plan = parse_plan(raw)
@@ -120,7 +164,7 @@ def main() -> None:
         else:
             from dagshund.text import render_text
 
-            render_text(plan)
+            render_text(plan, visible_states=visible_states)
 
         if args.detailed_exitcode:
             resources = plan.get("plan", {})
