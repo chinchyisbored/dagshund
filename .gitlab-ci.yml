@@ -60,13 +60,13 @@ quality:
 # --- Version check (tag push only) ---
 
 version-check:
-  extends: .release-setup
+  image: alpine:3
   stage: quality
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   script:
     - |
-      PKG_VERSION=$(grep -oP '__version__ = "\K[^"]+' src/dagshund/__init__.py)
+      PKG_VERSION=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/dagshund/__init__.py)
       TAG_VERSION=${CI_COMMIT_TAG#v}
       if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
         echo "ERROR: Package version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
