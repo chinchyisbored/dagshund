@@ -50,6 +50,17 @@ databricks bundle plan -o json | dagshund -o report.html
 
 Dagshund works anywhere, it just needs a plan JSON file. You don't need to run it from inside your bundle directory.
 
+Filter the output to specific change types:
+
+```bash
+dagshund plan.json -c              # changed resources only (hides unchanged)
+dagshund plan.json -a              # added only
+dagshund plan.json -m              # modified only
+dagshund plan.json -a -r           # added and removed
+```
+
+The filter flags (`-a`, `-m`, `-r`) compose freely. `-c` is shorthand for `-a -m -r`.
+
 Use `-e` for CI-friendly exit codes (see [CI Exit Codes](#ci-exit-codes)).
 
 ## Interactive Visualization
