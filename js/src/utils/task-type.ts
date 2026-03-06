@@ -11,6 +11,9 @@ const TASK_TYPE_BADGES: Readonly<Record<string, string>> = {
   spark_submit_task: "spark submit",
   condition_task: "condition",
   for_each_task: "for each",
+  clean_rooms_notebook_task: "clean room",
+  dashboard_task: "dashboard",
+  power_bi_task: "power bi",
 };
 
 /** Derive a short task type badge from a task's resource state.

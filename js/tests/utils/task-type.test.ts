@@ -14,6 +14,9 @@ describe("extractTaskTypeBadge", () => {
     expect(extractTaskTypeBadge({ spark_submit_task: {} })).toBe("spark submit");
     expect(extractTaskTypeBadge({ condition_task: {} })).toBe("condition");
     expect(extractTaskTypeBadge({ for_each_task: {} })).toBe("for each");
+    expect(extractTaskTypeBadge({ clean_rooms_notebook_task: {} })).toBe("clean room");
+    expect(extractTaskTypeBadge({ dashboard_task: {} })).toBe("dashboard");
+    expect(extractTaskTypeBadge({ power_bi_task: {} })).toBe("power bi");
   });
 
   test("falls back to stripped key for unknown _task keys", () => {
