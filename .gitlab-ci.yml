@@ -2,6 +2,7 @@ stages:
   - security
   - quality
   - build
+  - smoke
   - release
   - pages
 
@@ -92,6 +93,46 @@ build:
       - dist/
     expire_in: 1 hour
 
+# --- Smoke tests (golden-file CLI output checks) ---
+
+# Text-only smoke: runs on every push. No Bun needed — text mode has no JS dependency.
+smoke-text:
+  image: ${UV_IMAGE}
+  stage: smoke
+  variables:
+    NO_COLOR: "1"
+  rules:
+    - when: on_success
+  needs:
+    - quality
+  allow_failure: false
+  before_script:
+    - uv sync --locked
+  script:
+    - ./tests/golden/smoke.sh check
+
+# Wheel smoke: runs on tags only. Tests the actual build artifact before release.
+smoke-wheel:
+  image: ${UV_IMAGE}
+  stage: smoke
+  variables:
+    NO_COLOR: "1"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  needs:
+    - quality
+    - build
+  allow_failure: false
+  script:
+    - uv venv /tmp/smoke-env
+    - uv pip install --python /tmp/smoke-env/bin/python dist/*.whl
+    - export PATH="/tmp/smoke-env/bin:$PATH"
+    - DAGSHUND=dagshund ./tests/golden/smoke.sh check
+    # HTML output (requires template baked into the wheel)
+    - dagshund fixtures/complex-plan.json -o /tmp/smoke-out.html
+    - test -s /tmp/smoke-out.html
+    - grep -q "<html" /tmp/smoke-out.html
+
 # --- Publish via OIDC trusted publishing ---
 # uv natively detects PYPI_ID_TOKEN / TESTPYPI_ID_TOKEN and handles the exchange.
 # Environment claims (release / release-test) are verified on the PyPI side.
@@ -105,6 +146,7 @@ publish-test:
   environment: release-test
   needs:
     - build
+    - smoke-wheel
   id_tokens:
     TESTPYPI_ID_TOKEN:
       aud: testpypi

@@ -1,0 +1,7 @@
+dagshund plan (v2, cli 0.288.0)
+
+  alerts (1)
+  ~ alerts/stale_pipeline_alert  (update)
+      ~ evaluation.threshold.value.double_value: 24 -> 48
+
+  ~1 update

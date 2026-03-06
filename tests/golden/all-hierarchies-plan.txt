@@ -1,0 +1,66 @@
+dagshund plan (v2, cli 0.290.0)
+
+  alerts (1)
+  + alerts/data_freshness  (create)
+
+  catalogs (1)
+  ~ catalogs/production  (update)
+      ~ comment: "Production catalog" -> "Production catalog for all customer-facing data"
+      ~ properties['environment']: "production"
+
+  database_catalogs (1)
+  + database_catalogs/lakebase_analytics  (create)
+
+  database_instances (1)
+  + database_instances/analytics_db  (create)
+
+  experiments (1)
+  + experiments/ab_test_v2  (create)
+
+  external_locations (1)
+  + external_locations/raw_landing_zone  (create)
+
+  jobs (1)
+  ~ jobs/etl_pipeline  (update)
+      ~ tasks[task_key='transform'].notebook_task.notebook_path: "/Workspace/etl/transform_v2" -> "/Workspace/etl/transform_v3"
+
+  postgres_branches (2)
+  ~ postgres_branches/production  (update)
+      ~ is_protected: false -> true
+  + postgres_branches/staging  (create)
+
+  postgres_endpoints (3)
+  + postgres_endpoints/legacy_reader  (create)
+  ~ postgres_endpoints/production_rw  (update)
+      ~ autoscaling_limit_max_cu: 2 -> 4
+      ~ autoscaling_limit_min_cu: 0.5 -> 1
+  + postgres_endpoints/staging_read  (create)
+
+  postgres_projects (1)
+  + postgres_projects/warehouse_replica  (create)
+
+  registered_models (1)
+  - registered_models/churn_predictor  (delete)
+
+  schemas (3)
+  ~ schemas/analytics  (update)
+      ~ comment: "Analytics schema" -> "Analytics schema for production data"
+      ~ properties['environment']: "production"
+  + schemas/ml_features  (create)
+  + schemas/reporting  (create)
+
+  synced_database_tables (3)
+  + synced_database_tables/customer_360  (create)
+  + synced_database_tables/partner_metrics  (create)
+  ~ synced_database_tables/product_events  (update)
+      ~ spec.source_table_full_name: "dagshund.analytics.product_clicks" -> "dagshund.analytics.product_interactions"
+
+  volumes (2)
+  + volumes/partner_feeds  (create)
+  ~ volumes/raw_data  (update)
+      ~ comment: "Raw data volume" -> "Raw data volume for ingestion pipeline"
+
+  +14 create, -1 delete, ~7 update
+
+  Dangerous Actions:
+  ⚠ registered_models/churn_predictor will be deleted — all model versions will be lost

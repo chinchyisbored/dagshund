@@ -1,0 +1,6 @@
+dagshund plan (v2, cli 0.287.0)
+
+  jobs (1)
+  + jobs/etl_pipeline  (create)
+
+  +1 create

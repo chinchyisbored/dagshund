@@ -3,7 +3,7 @@ repo = "builtin"
 hooks = [
   { id = "check-yaml" },
   { id = "check-toml" },
-  { id = "check-json", exclude = { glob = "**/tsconfig.json" } },
+  { id = "check-json", exclude = { glob = "{**/tsconfig.json,**/broken-*.json}" } },
   { id = "end-of-file-fixer" },
   { id = "trailing-whitespace", args = ["--markdown-linebreak-ext=md"] },
   { id = "check-added-large-files", args = ["--maxkb=1024"] },

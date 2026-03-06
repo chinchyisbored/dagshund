@@ -86,8 +86,16 @@ format: format-js format-py
 # Run all typecheckers
 typecheck: typecheck-js typecheck-py
 
-# Run all quality gates (lint + typecheck + test)
-check: lint typecheck test
+# Check golden files against current output
+test-golden:
+    ./tests/golden/smoke.sh check
+
+# Regenerate golden files from current source
+update-golden:
+    ./tests/golden/smoke.sh generate
+
+# Run all quality gates (lint + typecheck + test + golden)
+check: lint typecheck test test-golden
 
 # Run pre-commit hooks on all files
 hooks-run:

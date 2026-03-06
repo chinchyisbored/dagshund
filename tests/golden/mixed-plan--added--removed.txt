@@ -1,0 +1,12 @@
+dagshund plan (v2, cli 0.288.0)
+
+  experiments (1/2)
+  + experiments/audit_analysis_final  (create)
+
+  volumes (1/2)
+  - volumes/external_imports  (delete)
+
+  +1 create, -1 delete
+
+  Dangerous Actions:
+  ⚠ volumes/external_imports will be deleted — all files in this volume will be lost

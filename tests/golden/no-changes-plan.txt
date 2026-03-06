@@ -1,0 +1,3 @@
+dagshund plan (v2, cli 0.288.0)
+
+  No changes (8 resources unchanged)
