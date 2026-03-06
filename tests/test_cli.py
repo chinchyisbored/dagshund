@@ -7,9 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from dagshund import DagshundError, __version__
+from dagshund import DagshundError, DiffState, __version__
 from dagshund.cli import _build_visible_states, _read_plan, main
-from dagshund.text import DiffState
 
 
 def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -373,3 +372,59 @@ def test_flags_compose_added_and_removed(fixtures_dir: Path) -> None:
     assert "experiments/audit_analysis_final" in result.stdout
     assert "volumes/external_imports" in result.stdout
     assert "alerts/stale_pipeline_alert" not in result.stdout
+
+
+# --- --filter ---
+
+
+def test_filter_by_type_shows_only_matching_type(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "type:alerts")
+
+    assert result.returncode == 0
+    assert "alerts/stale_pipeline_alert" in result.stdout
+    assert "jobs" not in result.stdout
+    assert "volumes" not in result.stdout
+
+
+def test_filter_by_status_shows_only_matching_state(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "status:added")
+
+    assert result.returncode == 0
+    assert "experiments/audit_analysis_final" in result.stdout
+    assert "alerts/stale_pipeline_alert" not in result.stdout
+    assert "volumes/external_imports" not in result.stdout
+
+
+def test_filter_fuzzy_matches_resource_name(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "pipeline")
+
+    assert result.returncode == 0
+    assert "etl_pipeline" in result.stdout
+    assert "data_quality_pipeline" in result.stdout
+    assert "stale_pipeline_alert" in result.stdout
+
+
+def test_filter_exact_matches_resource_name(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", '"etl_pipeline"')
+
+    assert result.returncode == 0
+    assert "etl_pipeline" in result.stdout
+    assert "data_quality_pipeline" not in result.stdout
+
+
+def test_filter_composes_with_changes_only(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-c", "-f", "type:alerts")
+
+    assert result.returncode == 0
+    assert "alerts/stale_pipeline_alert" in result.stdout
+    assert "volumes" not in result.stdout
+    assert "jobs" not in result.stdout
+
+
+def test_filter_no_matches_produces_no_output(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "type:nonexistent")
+
+    assert result.returncode == 0
+    # Header still prints, but no resource groups
+    assert "dagshund plan" in result.stdout
+    assert "nonexistent" not in result.stdout

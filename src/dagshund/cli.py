@@ -6,8 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-from dagshund import DagshundError, __version__, detect_changes, is_resource_changes, parse_plan
-from dagshund.text import DiffState
+from dagshund import DagshundError, DiffState, __version__, detect_changes, is_resource_changes, parse_plan
 
 EPILOG = """\
 examples:
@@ -16,13 +15,19 @@ examples:
   dagshund plan.json -o output.html -b        export and open in browser
   databricks bundle plan -o json | dagshund   pipe from Databricks CLI
   cat planfile.json | dagshund                pipe from existing planfile
+
+filter expressions:
+  dagshund plan.json -f 'type:jobs'           show only jobs
+  dagshund plan.json -f 'status:added'        show only new resources
+  dagshund plan.json -f '"etl_pipeline"'       exact name match
+  dagshund plan.json -f 'type:jobs pipeline'  combined: jobs matching "pipeline"
 """
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d] [-c] [-a] [-m] [-r]",
+        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d] [-c] [-a] [-m] [-r] [-f FILTER]",
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
         formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=30),
@@ -88,6 +93,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--removed",
         action="store_true",
         help="Show only removed (deleted) resources",
+    )
+    filter_group.add_argument(
+        "-f",
+        "--filter",
+        metavar="EXPR",
+        help='Filter by search expression (type:X status:X "exact" or fuzzy text)',
     )
     return parser
 
@@ -168,7 +179,7 @@ def main() -> None:
         else:
             from dagshund.text import render_text
 
-            render_text(plan, visible_states=visible_states)
+            render_text(plan, visible_states=visible_states, filter_query=args.filter)
 
         if args.detailed_exitcode:
             resources = plan.get("plan", {})

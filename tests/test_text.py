@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from dagshund import DagshundError
+from dagshund import DagshundError, DiffState, action_to_diff_state, parse_resource_key
 from dagshund.text import (
     _ACTIONS,
     _DANGEROUS_ACTIONS,
@@ -15,18 +15,15 @@ from dagshund.text import (
     RED,
     RESET,
     YELLOW,
-    DiffState,
     _action_config,
-    _action_to_diff_state,
     _ActionConfig,
     _collect_warnings,
     _colorize,
     _count_by_action,
-    _filter_by_diff_state,
+    _filter_resources,
     _format_group_header,
     _format_value,
     _group_by_resource_type,
-    _parse_resource_key,
     _print_header,
     _print_resource_groups,
     _print_summary,
@@ -124,7 +121,7 @@ def test_actions_table_covers_all_update_actions() -> None:
     assert len(update_configs) == 4
 
 
-# --- _parse_resource_key ---
+# --- parse_resource_key ---
 
 
 @pytest.mark.parametrize(
@@ -139,7 +136,7 @@ def test_actions_table_covers_all_update_actions() -> None:
     ids=["three_parts", "dotted_name", "two_parts", "one_part", "empty_string"],
 )
 def test_parse_resource_key(key: str, expected: tuple[str, str]) -> None:
-    assert _parse_resource_key(key) == expected
+    assert parse_resource_key(key) == expected
 
 
 # --- _format_value ---
@@ -623,7 +620,7 @@ def test_render_text_no_color_excludes_ansi(
     assert RESET not in out
 
 
-# --- _action_to_diff_state ---
+# --- action_to_diff_state ---
 
 
 @pytest.mark.parametrize(
@@ -642,51 +639,51 @@ def test_render_text_no_color_excludes_ansi(
     ids=["create", "delete", "update", "recreate", "resize", "update_id", "skip", "empty", "unknown"],
 )
 def test_action_to_diff_state(action: str, expected: DiffState) -> None:
-    assert _action_to_diff_state(action) == expected
+    assert action_to_diff_state(action) == expected
 
 
 def test_all_diff_states_reachable_from_actions() -> None:
     """Every defined diff state must be reachable from at least one action."""
-    reachable = {_action_to_diff_state(action) for action in _ACTIONS}
+    reachable = {action_to_diff_state(action) for action in _ACTIONS}
     assert reachable == set(DiffState)
 
 
-# --- _filter_by_diff_state ---
+# --- _filter_resources ---
 
 
-def test_filter_by_diff_state_keeps_matching() -> None:
+def test_filter_resources_by_state_keeps_matching() -> None:
     entries = {
         "resources.jobs.a": {"action": "create"},
         "resources.jobs.b": {"action": "skip"},
         "resources.jobs.c": {"action": "delete"},
     }
 
-    result = _filter_by_diff_state(entries, frozenset({DiffState.ADDED}))
+    result = _filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
 
     assert list(result.keys()) == ["resources.jobs.a"]
 
 
-def test_filter_by_diff_state_multiple_states() -> None:
+def test_filter_resources_by_state_multiple_states() -> None:
     entries = {
         "resources.jobs.a": {"action": "create"},
         "resources.jobs.b": {"action": "delete"},
         "resources.jobs.c": {"action": "skip"},
     }
 
-    result = _filter_by_diff_state(entries, frozenset({DiffState.ADDED, DiffState.REMOVED}))
+    result = _filter_resources(entries, visible_states=frozenset({DiffState.ADDED, DiffState.REMOVED}))
 
     assert set(result.keys()) == {"resources.jobs.a", "resources.jobs.b"}
 
 
-def test_filter_by_diff_state_returns_empty_when_none_match() -> None:
+def test_filter_resources_by_state_returns_empty_when_none_match() -> None:
     entries = {"resources.jobs.a": {"action": "skip"}}
 
-    result = _filter_by_diff_state(entries, frozenset({DiffState.ADDED}))
+    result = _filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
 
     assert result == {}
 
 
-def test_filter_by_diff_state_modified_includes_all_update_actions() -> None:
+def test_filter_resources_by_state_modified_includes_all_update_actions() -> None:
     entries = {
         "resources.jobs.a": {"action": "update"},
         "resources.jobs.b": {"action": "recreate"},
@@ -695,10 +692,37 @@ def test_filter_by_diff_state_modified_includes_all_update_actions() -> None:
         "resources.jobs.e": {"action": "skip"},
     }
 
-    result = _filter_by_diff_state(entries, frozenset({DiffState.MODIFIED}))
+    result = _filter_resources(entries, visible_states=frozenset({DiffState.MODIFIED}))
 
     assert len(result) == 4
     assert "resources.jobs.e" not in result
+
+
+def test_filter_resources_by_predicate_keeps_matching() -> None:
+    entries = {
+        "resources.jobs.a": {"action": "create"},
+        "resources.jobs.b": {"action": "skip"},
+    }
+
+    result = _filter_resources(entries, resource_filter=lambda k, _v: "jobs.a" in k)
+
+    assert list(result.keys()) == ["resources.jobs.a"]
+
+
+def test_filter_resources_both_filters_compose_as_and() -> None:
+    entries = {
+        "resources.jobs.a": {"action": "create"},
+        "resources.jobs.b": {"action": "create"},
+        "resources.jobs.c": {"action": "skip"},
+    }
+
+    result = _filter_resources(
+        entries,
+        visible_states=frozenset({DiffState.ADDED}),
+        resource_filter=lambda k, _v: "jobs.b" in k,
+    )
+
+    assert list(result.keys()) == ["resources.jobs.b"]
 
 
 # --- _format_group_header ---

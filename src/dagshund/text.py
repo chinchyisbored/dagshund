@@ -3,23 +3,24 @@
 import os
 import sys
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from enum import StrEnum
 from itertools import groupby
 
 from dagshund import (
     DagshundError,
+    DiffState,
     FieldChange,
     Plan,
     ResourceChange,
     ResourceChanges,
     ResourceChangesByType,
     ResourceKey,
-    ResourceName,
     ResourceType,
+    action_to_diff_state,
     detect_changes,
     is_resource_changes,
+    parse_resource_key,
 )
 
 # ANSI color codes
@@ -30,26 +31,6 @@ GREEN = "\033[32m"
 RED = "\033[31m"
 YELLOW = "\033[33m"
 _CYAN = "\033[36m"
-
-
-class DiffState(StrEnum):
-    ADDED = "added"
-    MODIFIED = "modified"
-    REMOVED = "removed"
-    UNCHANGED = "unchanged"
-
-
-def _action_to_diff_state(action: str) -> DiffState:
-    """Map a plan action string to its diff state category."""
-    match action:
-        case "create":
-            return DiffState.ADDED
-        case "delete":
-            return DiffState.REMOVED
-        case "update" | "recreate" | "resize" | "update_id":
-            return DiffState.MODIFIED
-        case _:
-            return DiffState.UNCHANGED
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,17 +90,6 @@ def _action_config(action: str) -> _ActionConfig:
     return _ACTIONS.get(action, _DEFAULT_ACTION)
 
 
-def _parse_resource_key(key: ResourceKey) -> tuple[ResourceType, ResourceName]:
-    """Extract resource type and name from a key like 'resources.jobs.etl_pipeline'."""
-    match key.split("."):
-        case [_, resource_type, name, *rest]:
-            return resource_type, ".".join([name, *rest])
-        case [resource_type, name]:
-            return resource_type, name
-        case _:
-            return "", key
-
-
 def _format_value(value: object) -> str:
     """Format a value for display, truncating long strings."""
     match value:
@@ -144,7 +114,7 @@ def _format_value(value: object) -> str:
 def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
     """Render a single field-level change, or None if unchanged."""
     action = str(change.get("action", ""))
-    if _action_to_diff_state(action) == DiffState.UNCHANGED:
+    if action_to_diff_state(action) == DiffState.UNCHANGED:
         return None
 
     field_config = _action_config(action)
@@ -170,9 +140,9 @@ def _render_resource(
     """Render a single resource entry as lines of text."""
     action = entry.get("action", "")
     action_config = _action_config(action)
-    resource_type, resource_name = _parse_resource_key(key)
+    resource_type, resource_name = parse_resource_key(key)
 
-    label = f"  ({action_config.display})" if _action_to_diff_state(action) != DiffState.UNCHANGED else ""
+    label = f"  ({action_config.display})" if action_to_diff_state(action) != DiffState.UNCHANGED else ""
     header = f"  {action_config.symbol} {resource_type}/{resource_name}{label}"
     yield _colorize(header, action_config.color, use_color=use_color)
 
@@ -207,7 +177,7 @@ def _print_header(plan: Plan, *, use_color: bool) -> None:
 
 def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType:
     """Extract the resource type from a (key, change) pair."""
-    return _parse_resource_key(entry[0])[0]
+    return parse_resource_key(entry[0])[0]
 
 
 def _group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType:
@@ -217,9 +187,19 @@ def _group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType
     return {resource_type: dict(group) for resource_type, group in grouped}
 
 
-def _filter_by_diff_state(entries: ResourceChanges, visible_states: frozenset[DiffState]) -> ResourceChanges:
-    """Return only entries whose diff state is in the visible set."""
-    return {k: v for k, v in entries.items() if _action_to_diff_state(v.get("action", "")) in visible_states}
+def _filter_resources(
+    entries: ResourceChanges,
+    *,
+    visible_states: frozenset[DiffState] | None = None,
+    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
+) -> ResourceChanges:
+    """Return entries matching both the diff state set and the resource filter predicate."""
+    result = entries
+    if visible_states is not None:
+        result = {k: v for k, v in result.items() if action_to_diff_state(v.get("action", "")) in visible_states}
+    if resource_filter is not None:
+        result = {k: v for k, v in result.items() if resource_filter(k, v)}
+    return result
 
 
 def _format_group_header(resource_type: ResourceType, total: int, visible: int) -> str:
@@ -233,10 +213,11 @@ def _print_resource_groups(
     *,
     use_color: bool,
     visible_states: frozenset[DiffState] | None = None,
+    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> None:
     """Print each resource type group with its entries."""
     for resource_type, entries in resource_groups.items():  # already sorted by _group_by_resource_type
-        visible = _filter_by_diff_state(entries, visible_states) if visible_states is not None else entries
+        visible = _filter_resources(entries, visible_states=visible_states, resource_filter=resource_filter)
         if not visible:
             continue
 
@@ -254,26 +235,37 @@ def _format_action_count(cfg: _ActionConfig, count: int, *, use_color: bool) -> 
 
 
 def _print_summary(
-    resources: ResourceChanges, *, use_color: bool, visible_states: frozenset[DiffState] | None = None
+    resources: ResourceChanges,
+    *,
+    use_color: bool,
+    visible_states: frozenset[DiffState] | None = None,
+    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> None:
     """Print the action count summary line, filtered to visible states when provided."""
-    filtered = _filter_by_diff_state(resources, visible_states) if visible_states is not None else resources
+    filtered = _filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
     sorted_counts = sorted(_count_by_action(filtered).items(), key=lambda item: item[0].display)
     parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in sorted_counts)
     if parts:
         print(f"  {parts}")
 
 
-def _collect_warnings(resources: ResourceChanges, *, visible_states: frozenset[DiffState] | None = None) -> list[str]:
+def _collect_warnings(
+    resources: ResourceChanges,
+    *,
+    visible_states: frozenset[DiffState] | None = None,
+    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
+) -> list[str]:
     """Collect warning messages for dangerous actions on stateful resources."""
     warnings: list[str] = []
     for key, entry in sorted(resources.items()):
         action = entry.get("action", "")
         if action not in _DANGEROUS_ACTIONS:
             continue
-        if visible_states is not None and _action_to_diff_state(action) not in visible_states:
+        if visible_states is not None and action_to_diff_state(action) not in visible_states:
             continue
-        resource_type, resource_name = _parse_resource_key(key)
+        if resource_filter is not None and not resource_filter(key, entry):
+            continue
+        resource_type, resource_name = parse_resource_key(key)
         risk = _STATEFUL_RESOURCE_WARNINGS.get(resource_type)
         if risk is None:
             continue
@@ -290,13 +282,24 @@ def _print_warnings(warnings: list[str], *, use_color: bool) -> None:
         print(_colorize(f"  \u26a0 {warning}", RED, use_color=use_color))
 
 
-def render_text(plan: Plan, *, visible_states: frozenset[DiffState] | None = None) -> None:
+def render_text(
+    plan: Plan,
+    *,
+    visible_states: frozenset[DiffState] | None = None,
+    filter_query: str | None = None,
+) -> None:
     """Render colored diff summary to terminal."""
     resources = plan.get("plan", {})
     if not is_resource_changes(resources):
         raise DagshundError("plan must be an object")
     if not resources:
         raise DagshundError("plan is empty")
+
+    resource_filter = None
+    if filter_query:
+        from dagshund.filter import build_query_predicate
+
+        resource_filter = build_query_predicate(filter_query)
 
     use_color = _supports_color()
     _print_header(plan, use_color=use_color)
@@ -311,9 +314,14 @@ def render_text(plan: Plan, *, visible_states: frozenset[DiffState] | None = Non
         )
         return
 
-    _print_resource_groups(_group_by_resource_type(resources), use_color=use_color, visible_states=visible_states)
-    _print_summary(resources, use_color=use_color, visible_states=visible_states)
+    _print_resource_groups(
+        _group_by_resource_type(resources),
+        use_color=use_color,
+        visible_states=visible_states,
+        resource_filter=resource_filter,
+    )
+    _print_summary(resources, use_color=use_color, visible_states=visible_states, resource_filter=resource_filter)
 
-    warnings = _collect_warnings(resources, visible_states=visible_states)
+    warnings = _collect_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
     if warnings:
         _print_warnings(warnings, use_color=use_color)

@@ -61,6 +61,18 @@ dagshund plan.json -a -r           # added and removed
 
 The filter flags (`-a`, `-m`, `-r`) compose freely. `-c` is shorthand for `-a -m -r`.
 
+Use `-f` to filter by resource type, name, or diff status with the same search DSL as the browser UI:
+
+```bash
+dagshund plan.json -f 'type:jobs'               # only jobs
+dagshund plan.json -f 'status:added'             # only new resources
+dagshund plan.json -f '"etl_pipeline"'            # exact name match
+dagshund plan.json -f 'type:jobs pipeline'       # jobs matching "pipeline"
+dagshund plan.json -c -f 'type:volumes'          # changed volumes only
+```
+
+All tokens in a filter expression AND together. `-f` composes with `-c`/`-a`/`-m`/`-r` — both must match.
+
 Use `-e` for CI-friendly exit codes (see [CI Exit Codes](#ci-exit-codes)).
 
 ## Interactive Visualization
@@ -93,7 +105,7 @@ Many resources reference each other across hierarchies, an alert might target a 
 
 ### Search
 
-The search bar filters nodes by name or type. Non-matching nodes dim so matches stand out.
+The search bar uses the same filter DSL as the CLI's `-f` flag. Non-matching nodes dim so matches stand out.
 
 - Type a name to filter: `warehouse`, `analytics`
 - Wrap in quotes for exact match: `"analytics"` finds only that node, not `analytics_pipeline`

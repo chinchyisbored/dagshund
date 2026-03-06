@@ -3,6 +3,7 @@
 import json
 
 from dagshund.types import (
+    DiffState,
     FieldChange,
     Plan,
     ResourceChange,
@@ -11,11 +12,14 @@ from dagshund.types import (
     ResourceKey,
     ResourceName,
     ResourceType,
+    action_to_diff_state,
     is_resource_changes,
+    parse_resource_key,
 )
 
 __all__ = [
     "DagshundError",
+    "DiffState",
     "FieldChange",
     "Plan",
     "ResourceChange",
@@ -24,9 +28,11 @@ __all__ = [
     "ResourceKey",
     "ResourceName",
     "ResourceType",
+    "action_to_diff_state",
     "detect_changes",
     "is_resource_changes",
     "parse_plan",
+    "parse_resource_key",
 ]
 
 __version__ = "0.2.0"
