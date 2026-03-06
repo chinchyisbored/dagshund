@@ -63,6 +63,7 @@ quality:
     # Test
     - bun test --cwd js --coverage --coverage-reporter=text
     - uv run pytest --cov=dagshund --cov-report=term-missing
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
 
 # --- Build wheel (tag push only) ---
 
