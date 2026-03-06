@@ -7,7 +7,9 @@ import pytest
 from dagshund import DagshundError
 from dagshund.text import (
     _ACTIONS,
+    _DANGEROUS_ACTIONS,
     _DEFAULT_ACTION,
+    _STATEFUL_RESOURCE_WARNINGS,
     DIM,
     GREEN,
     RED,
@@ -17,6 +19,7 @@ from dagshund.text import (
     _action_config,
     _action_to_diff_state,
     _ActionConfig,
+    _collect_warnings,
     _colorize,
     _count_by_action,
     _filter_by_diff_state,
@@ -27,6 +30,7 @@ from dagshund.text import (
     _print_header,
     _print_resource_groups,
     _print_summary,
+    _print_warnings,
     _render_resource,
     _supports_color,
     render_text,
@@ -813,3 +817,204 @@ def test_render_text_no_visible_states_shows_everything(fixtures_dir: Path, caps
     assert "jobs" in out
     assert "schemas" in out
     assert "alerts" in out
+
+
+# --- _collect_warnings ---
+
+
+def test_collect_warnings_detects_stateful_delete() -> None:
+    resources = {"resources.volumes.imports": {"action": "delete"}}
+
+    warnings = _collect_warnings(resources)
+
+    assert len(warnings) == 1
+    assert "volumes/imports" in warnings[0]
+    assert "deleted" in warnings[0]
+    assert "all files in this volume will be lost" in warnings[0]
+
+
+def test_collect_warnings_detects_stateful_recreate() -> None:
+    resources = {"resources.schemas.analytics": {"action": "recreate"}}
+
+    warnings = _collect_warnings(resources)
+
+    assert len(warnings) == 1
+    assert "schemas/analytics" in warnings[0]
+    assert "recreated" in warnings[0]
+    assert "all tables, views, and volumes in this schema will be lost" in warnings[0]
+
+
+def test_collect_warnings_ignores_non_stateful_delete() -> None:
+    resources = {"resources.jobs.etl": {"action": "delete"}}
+
+    assert _collect_warnings(resources) == []
+
+
+def test_collect_warnings_ignores_stateful_update() -> None:
+    resources = {"resources.schemas.analytics": {"action": "update"}}
+
+    assert _collect_warnings(resources) == []
+
+
+def test_collect_warnings_ignores_stateful_skip() -> None:
+    resources = {"resources.volumes.data": {"action": "skip"}}
+
+    assert _collect_warnings(resources) == []
+
+
+@pytest.mark.parametrize(
+    ("resource_type", "expected_risk"),
+    [
+        ("catalogs", "all schemas, tables, and volumes in this catalog"),
+        ("schemas", "all tables, views, and volumes in this schema"),
+        ("volumes", "all files in this volume"),
+        ("registered_models", "all model versions"),
+    ],
+    ids=["catalogs", "schemas", "volumes", "registered_models"],
+)
+def test_collect_warnings_all_stateful_types(resource_type: str, expected_risk: str) -> None:
+    resources = {f"resources.{resource_type}.x": {"action": "delete"}}
+
+    warnings = _collect_warnings(resources)
+
+    assert len(warnings) == 1
+    assert expected_risk in warnings[0]
+
+
+def test_collect_warnings_respects_visible_states_filter() -> None:
+    resources = {
+        "resources.volumes.imports": {"action": "delete"},
+        "resources.schemas.analytics": {"action": "recreate"},
+    }
+
+    warnings = _collect_warnings(resources, visible_states=frozenset({DiffState.REMOVED}))
+
+    assert len(warnings) == 1
+    assert "volumes/imports" in warnings[0]
+
+
+def test_collect_warnings_empty_when_filtered_out() -> None:
+    resources = {"resources.volumes.imports": {"action": "delete"}}
+
+    assert _collect_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
+
+
+def test_collect_warnings_multiple_sorted_by_key() -> None:
+    resources = {
+        "resources.volumes.z_data": {"action": "delete"},
+        "resources.catalogs.a_main": {"action": "delete"},
+    }
+
+    warnings = _collect_warnings(resources)
+
+    assert len(warnings) == 2
+    assert "catalogs/a_main" in warnings[0]
+    assert "volumes/z_data" in warnings[1]
+
+
+def test_collect_warnings_covers_all_dangerous_actions() -> None:
+    """Every action in _DANGEROUS_ACTIONS must trigger a warning on a stateful resource."""
+    for action in _DANGEROUS_ACTIONS:
+        resources = {"resources.schemas.test": {"action": action}}
+        assert _collect_warnings(resources), f"action '{action}' should produce a warning"
+
+
+def test_collect_warnings_covers_all_stateful_types() -> None:
+    """Every type in _STATEFUL_RESOURCE_WARNINGS must trigger a warning on delete."""
+    for resource_type in _STATEFUL_RESOURCE_WARNINGS:
+        resources = {f"resources.{resource_type}.test": {"action": "delete"}}
+        assert _collect_warnings(resources), f"resource type '{resource_type}' should produce a warning"
+
+
+# --- _print_warnings ---
+
+
+def test_print_warnings_outputs_header_and_warning_symbol(capsys: pytest.CaptureFixture[str]) -> None:
+    _print_warnings(["volumes/data will be deleted — all files in this volume will be lost"], use_color=False)
+
+    out = capsys.readouterr().out
+    assert "Dangerous Actions:" in out
+    assert "\u26a0" in out
+    assert "volumes/data" in out
+
+
+def test_print_warnings_uses_color_when_enabled(capsys: pytest.CaptureFixture[str]) -> None:
+    _print_warnings(["test warning"], use_color=True)
+
+    out = capsys.readouterr().out
+    assert RED in out
+    assert RESET in out
+
+
+def test_print_warnings_no_color_when_disabled(capsys: pytest.CaptureFixture[str]) -> None:
+    _print_warnings(["test warning"], use_color=False)
+
+    out = capsys.readouterr().out
+    assert RED not in out
+
+
+# --- render_text warnings (integration) ---
+
+
+def test_render_text_shows_warning_for_volume_delete(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "\u26a0" in out
+    assert "volumes/external_imports" in out
+    assert "deleted" in out
+
+
+def test_render_text_warning_appears_after_summary(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    summary_pos = out.index("create,")
+    warning_pos = out.index("\u26a0")
+    assert warning_pos > summary_pos
+
+
+def test_render_text_no_warnings_for_safe_plan(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = {
+        "plan_version": 2,
+        "cli_version": "0.288.0",
+        "plan": {
+            "resources.jobs.etl": {"action": "delete"},
+            "resources.alerts.old": {"action": "delete"},
+        },
+    }
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "\u26a0" not in out
+
+
+def test_render_text_warning_hidden_when_filtered_out(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+
+    render_text(plan, visible_states=frozenset({DiffState.ADDED}))
+
+    out = capsys.readouterr().out
+    assert "\u26a0" not in out
+
+
+def test_render_text_schema_recreate_warns(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = {
+        "plan_version": 2,
+        "cli_version": "0.288.0",
+        "plan": {
+            "resources.schemas.analytics": {"action": "recreate"},
+        },
+    }
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "\u26a0" in out
+    assert "schemas/analytics" in out
+    assert "recreated" in out

@@ -73,6 +73,15 @@ _ACTIONS: dict[str, _ActionConfig] = {
 
 _DEFAULT_ACTION = _ActionConfig("unknown", RESET, "?")
 
+_DANGEROUS_ACTIONS = frozenset({"delete", "recreate"})
+
+_STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
+    "catalogs": "all schemas, tables, and volumes in this catalog will be lost",
+    "schemas": "all tables, views, and volumes in this schema will be lost",
+    "volumes": "all files in this volume will be lost",
+    "registered_models": "all model versions will be lost",
+}
+
 
 def _supports_color() -> bool:
     """Check if the terminal supports color output.
@@ -255,6 +264,32 @@ def _print_summary(
         print(f"  {parts}")
 
 
+def _collect_warnings(resources: ResourceChanges, *, visible_states: frozenset[DiffState] | None = None) -> list[str]:
+    """Collect warning messages for dangerous actions on stateful resources."""
+    warnings: list[str] = []
+    for key, entry in sorted(resources.items()):
+        action = entry.get("action", "")
+        if action not in _DANGEROUS_ACTIONS:
+            continue
+        if visible_states is not None and _action_to_diff_state(action) not in visible_states:
+            continue
+        resource_type, resource_name = _parse_resource_key(key)
+        risk = _STATEFUL_RESOURCE_WARNINGS.get(resource_type)
+        if risk is None:
+            continue
+        action_display = _action_config(action).display
+        warnings.append(f"{resource_type}/{resource_name} will be {action_display}d — {risk}")
+    return warnings
+
+
+def _print_warnings(warnings: list[str], *, use_color: bool) -> None:
+    """Print data-loss warnings below the summary line."""
+    print()
+    print(_colorize("  Dangerous Actions:", RED + _BOLD, use_color=use_color))
+    for warning in warnings:
+        print(_colorize(f"  \u26a0 {warning}", RED, use_color=use_color))
+
+
 def render_text(plan: Plan, *, visible_states: frozenset[DiffState] | None = None) -> None:
     """Render colored diff summary to terminal."""
     resources = plan.get("plan", {})
@@ -278,3 +313,7 @@ def render_text(plan: Plan, *, visible_states: frozenset[DiffState] | None = Non
 
     _print_resource_groups(_group_by_resource_type(resources), use_color=use_color, visible_states=visible_states)
     _print_summary(resources, use_color=use_color, visible_states=visible_states)
+
+    warnings = _collect_warnings(resources, visible_states=visible_states)
+    if warnings:
+        _print_warnings(warnings, use_color=use_color)
