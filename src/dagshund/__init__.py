@@ -29,7 +29,7 @@ __all__ = [
     "parse_plan",
 ]
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 
 
 class DagshundError(Exception):
