@@ -25,7 +25,7 @@ def _build_parser() -> argparse.ArgumentParser:
         usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d] [-c] [-a] [-m] [-r]",
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=30),
     )
     parser.add_argument(
         "-v",
@@ -39,47 +39,51 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to plan JSON file (reads from stdin if omitted)",
     )
     parser.add_argument(
-        "-o",
-        "--output",
-        help="Export an interactive HTML visualization to this file",
-    )
-    parser.add_argument(
-        "-b",
-        "--browser",
-        action="store_true",
-        help="Open the output file in the default browser (requires -o)",
-    )
-    parser.add_argument(
         "-d",
         "--debug",
         action="store_true",
-        help="Trace function calls to stderr — may log plan data previews (also enabled by DAGSHUND_DEBUG env var)",
+        help="Trace function calls to stderr",
     )
-    parser.add_argument(
+
+    output_group = parser.add_argument_group("output")
+    output_group.add_argument(
+        "-o",
+        "--output",
+        help="Write interactive HTML visualization to this path",
+    )
+    output_group.add_argument(
+        "-b",
+        "--browser",
+        action="store_true",
+        help="Open output in default browser (requires -o)",
+    )
+    output_group.add_argument(
         "-e",
         "--detailed-exitcode",
         action="store_true",
-        help="Exit 2 if changes detected, 0 if no changes (for CI usage)",
+        help="Exit 2 if changes detected, 0 if none (for CI)",
     )
-    parser.add_argument(
+
+    filter_group = parser.add_argument_group("filters")
+    filter_group.add_argument(
         "-c",
         "--changes-only",
         action="store_true",
         help="Show only changed resources (shorthand for -a -m -r)",
     )
-    parser.add_argument(
+    filter_group.add_argument(
         "-a",
         "--added",
         action="store_true",
         help="Show only added (created) resources",
     )
-    parser.add_argument(
+    filter_group.add_argument(
         "-m",
         "--modified",
         action="store_true",
         help="Show only modified (updated/recreated/resized) resources",
     )
-    parser.add_argument(
+    filter_group.add_argument(
         "-r",
         "--removed",
         action="store_true",
