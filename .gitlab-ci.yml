@@ -38,22 +38,14 @@ secret_detection:
     - uv sync --locked
     - bun install --frozen-lockfile --cwd js
 
-# --- Quality gate (tag push only) ---
+# --- Quality gate (every push) ---
 
 quality:
   extends: .release-setup
   stage: quality
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - when: on_success
   script:
-    # Verify tag matches package version
-    - |
-      PKG_VERSION=$(grep -oP '__version__ = "\K[^"]+' src/dagshund/__init__.py)
-      TAG_VERSION=${CI_COMMIT_TAG#v}
-      if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-        echo "ERROR: Package version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
-        exit 1
-      fi
     # Lint
     - bun run --cwd js biome check src/ tests/
     - uv run ruff check src/ tests/
@@ -65,6 +57,22 @@ quality:
     - uv run pytest --cov=dagshund --cov-report=term-missing
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
 
+# --- Version check (tag push only) ---
+
+version-check:
+  extends: .release-setup
+  stage: quality
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - |
+      PKG_VERSION=$(grep -oP '__version__ = "\K[^"]+' src/dagshund/__init__.py)
+      TAG_VERSION=${CI_COMMIT_TAG#v}
+      if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+        echo "ERROR: Package version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+        exit 1
+      fi
+
 # --- Build wheel (tag push only) ---
 
 build:
@@ -74,6 +82,7 @@ build:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   needs:
     - quality
+    - version-check
   script:
     - bun run --cwd js build:template
     - uv build
