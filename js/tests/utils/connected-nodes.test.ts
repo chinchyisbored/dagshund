@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { Edge, Node } from "@xyflow/react";
-import { buildConnectedNodeIds, resolvePhantomContext } from "../../src/utils/connected-nodes.ts";
+import {
+  buildConnectedNodeIds,
+  resolveLateralContext,
+  resolvePhantomContext,
+} from "../../src/utils/connected-nodes.ts";
 
 const makeNode = (
   id: string,
@@ -199,5 +203,139 @@ describe("resolvePhantomContext", () => {
 
     // No outgoing edges (no children), and the incoming edge is not lateral
     expect(result).toBeUndefined();
+  });
+});
+
+describe("resolveLateralContext", () => {
+  test("returns undefined when no lateral edges exist", () => {
+    const result = resolveLateralContext("a", [], []);
+
+    expect(result).toBeUndefined();
+  });
+
+  test("returns undefined when edges exist but none are lateral", () => {
+    const nodes = [makeNode("a"), makeNode("b")];
+    const edges = [makeEdge("a", "b")];
+
+    const result = resolveLateralContext("a", nodes, edges);
+
+    expect(result).toBeUndefined();
+  });
+
+  test("resolves depends-on from outgoing lateral edges", () => {
+    const nodes = [
+      makeNode("a", {
+        nodeKind: "resource",
+        label: "my_job",
+        resourceKey: "resources.jobs.my_job",
+      }),
+      makeNode("b", {
+        nodeKind: "resource",
+        label: "my_schema",
+        resourceKey: "resources.schemas.my_schema",
+      }),
+    ];
+    const edges = [makeEdge("a", "b", "lateral::a→b")];
+
+    const result = resolveLateralContext("a", nodes, edges);
+
+    expect(result).toBeDefined();
+    expect(result?.dependsOn).toHaveLength(1);
+    expect(result?.dependsOn[0]?.nodeId).toBe("b");
+    expect(result?.dependsOn[0]?.label).toBe("my_schema");
+    expect(result?.dependsOn[0]?.resourceKey).toBe("resources.schemas.my_schema");
+    expect(result?.dependsOn[0]?.resourceType).toBe("schema");
+    expect(result?.dependedOnBy).toHaveLength(0);
+  });
+
+  test("resolves depended-on-by from incoming lateral edges", () => {
+    const nodes = [
+      makeNode("a", {
+        nodeKind: "resource",
+        label: "target_res",
+        resourceKey: "resources.schemas.target",
+      }),
+      makeNode("b", {
+        nodeKind: "resource",
+        label: "source_res",
+        resourceKey: "resources.jobs.source",
+      }),
+    ];
+    const edges = [makeEdge("b", "a", "lateral::b→a")];
+
+    const result = resolveLateralContext("a", nodes, edges);
+
+    expect(result).toBeDefined();
+    expect(result?.dependsOn).toHaveLength(0);
+    expect(result?.dependedOnBy).toHaveLength(1);
+    expect(result?.dependedOnBy[0]?.nodeId).toBe("b");
+    expect(result?.dependedOnBy[0]?.label).toBe("source_res");
+  });
+
+  test("resolves both directions simultaneously", () => {
+    const nodes = [
+      makeNode("a", {
+        nodeKind: "resource",
+        label: "center",
+        resourceKey: "resources.jobs.center",
+      }),
+      makeNode("dep", {
+        nodeKind: "resource",
+        label: "dependency",
+        resourceKey: "resources.schemas.dep",
+      }),
+      makeNode("rev", {
+        nodeKind: "resource",
+        label: "reverse_dep",
+        resourceKey: "resources.jobs.rev",
+      }),
+    ];
+    const edges = [makeEdge("a", "dep", "lateral::a→dep"), makeEdge("rev", "a", "lateral::rev→a")];
+
+    const result = resolveLateralContext("a", nodes, edges);
+
+    expect(result).toBeDefined();
+    expect(result?.dependsOn).toHaveLength(1);
+    expect(result?.dependsOn[0]?.nodeId).toBe("dep");
+    expect(result?.dependedOnBy).toHaveLength(1);
+    expect(result?.dependedOnBy[0]?.nodeId).toBe("rev");
+  });
+
+  test("filters out edges that reference missing nodes", () => {
+    const nodes = [
+      makeNode("a", {
+        nodeKind: "resource",
+        label: "center",
+        resourceKey: "resources.jobs.center",
+      }),
+    ];
+    // lateral edge to a node not in the nodes array
+    const edges = [makeEdge("a", "missing", "lateral::a→missing")];
+
+    const result = resolveLateralContext("a", nodes, edges);
+
+    // The edge references a missing node, so dependsOn is empty → undefined
+    expect(result).toBeUndefined();
+  });
+
+  test("includes diffState from node data", () => {
+    const nodes = [
+      makeNode("a", {
+        nodeKind: "resource",
+        label: "center",
+        resourceKey: "resources.jobs.center",
+      }),
+      makeNode("dep", {
+        nodeKind: "resource",
+        label: "added_dep",
+        resourceKey: "resources.schemas.dep",
+        diffState: "added",
+      }),
+    ];
+    const edges = [makeEdge("a", "dep", "lateral::a→dep")];
+
+    const result = resolveLateralContext("a", nodes, edges);
+
+    expect(result?.dependsOn[0]?.diffState).toBe("added");
   });
 });
