@@ -144,10 +144,11 @@ Without `-e`, dagshund always exits 0 on success.
 
 Dagshund ships as a [Claude Code plugin](https://code.claude.com/docs/en/plugins) with an agent skill that teaches AI coding agents how to use it. Once installed, your agent can answer questions like *"what's changing in my deploy?"* by running dagshund automatically.
 
-Install via the plugin marketplace:
+Install as a Claude Code plugin:
 
 ```
-/plugin install dagshund
+/plugin marketplace add https://gitlab.com/chinchy/dagshund.git
+/plugin install dagshund@chinchy-dagshund
 ```
 
 Or use the CLI to install the skill into any agent harness:
