@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "dagshund"
 dynamic = ["version"]
 description = "Diff visualizer for Databricks bundle plans — resources and job DAGs"
+authors = [{ name = "Max Lautner" }]
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"

@@ -1,11 +1,11 @@
 ---
 name: dagshund
 description: >
+  TRIGGER when: user asks about DAB deployment, bundle plan, what will change
+  in a deploy, databricks bundle changes, pending deployments, deployment diff,
+  schemas/jobs/resources being deployed, or wants to visualize a bundle plan.
   Visualizes Databricks Asset Bundle deployment plans as colored terminal diffs
-  and interactive DAG diagrams. Use when the user works with Databricks bundles,
-  asks about pending deployments, wants to see what will change in a deploy, or
-  asks to visualize a bundle plan. Relevant in projects containing
-  databricks.yml or when the user discusses databricks bundle plan output.
+  and interactive DAG diagrams.
 ---
 
 # Dagshund
@@ -25,9 +25,16 @@ Verify both tools are available before proceeding:
 
 ## Step 2: Find deployment targets
 
-Read `databricks.yml` (or `databricks.yaml`) and look for a `targets:` key.
-If no `targets:` key is found, check the `include:` block for paths to other
-YAML files and look for `targets:` there.
+Collect ALL targets from ALL config files before making any decision.
+These are small YAML files — read them directly, do not delegate to a
+subagent.
+
+1. Read `databricks.yml` (or `databricks.yaml`).
+2. Read EVERY file listed in the `include:` block. Each one may define
+   its own `targets:` key.
+3. Merge all discovered targets into a single list. Targets with the same
+   name across files are the same target.
+4. Only after reading ALL files, apply the selection logic below.
 
 **Choosing a target and confirming intent:**
 

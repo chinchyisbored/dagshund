@@ -1,0 +1,21 @@
+{
+  "name": "dagshund",
+  "description": "Diff visualizer for Databricks Asset Bundle deployment plans — colored terminal diffs and interactive DAG diagrams",
+  "version": "0.3.0",
+  "author": {
+    "name": "Max Lautner"
+  },
+  "homepage": "https://pypi.org/project/dagshund/",
+  "repository": "https://gitlab.com/chinchy/dagshund",
+  "license": "MIT",
+  "keywords": [
+    "databricks",
+    "databricks-asset-bundles",
+    "bundle-plan",
+    "deployment",
+    "diff",
+    "dag",
+    "visualization",
+    "cli"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "dagshund",
+  "owner": {
+    "name": "Max Lautner"
+  },
+  "metadata": {
+    "description": "Diff visualizer for Databricks Asset Bundle deployment plans — colored terminal diffs and interactive DAG diagrams",
+    "version": "0.3.0"
+  },
+  "plugins": [
+    {
+      "name": "dagshund",
+      "source": "./",
+      "description": "Agent skill that teaches Claude how to install and use dagshund to visualize Databricks bundle plans as terminal diffs and interactive DAGs"
+    }
+  ]
+}
