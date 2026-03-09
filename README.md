@@ -140,6 +140,24 @@ dagshund plan.json -o report.html -e
 
 Without `-e`, dagshund always exits 0 on success.
 
+## Agent Skill
+
+Dagshund ships as a [Claude Code plugin](https://code.claude.com/docs/en/plugins) with an agent skill that teaches AI coding agents how to use it. Once installed, your agent can answer questions like *"what's changing in my deploy?"* by running dagshund automatically.
+
+Install via the plugin marketplace:
+
+```
+/plugin install dagshund
+```
+
+Or use the CLI to install the skill into any agent harness:
+
+```bash
+dagshund --install-skill .claude/skills     # Claude Code
+dagshund --install-skill .cursor/skills     # Cursor
+dagshund --install-skill .agents/skills     # Codex / Gemini CLI
+```
+
 ## Contributing
 
 Dagshund is a solo project and I'm not accepting pull requests at this time. If you run into a bug or have a feature request, please open an issue, I'm happy to hear what you need.
