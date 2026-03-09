@@ -39,6 +39,11 @@ def _build_parser() -> argparse.ArgumentParser:
         version=f"%(prog)s {__version__}",
     )
     parser.add_argument(
+        "--install-skill",
+        metavar="DIR",
+        help="Install the agent skill SKILL.md into DIR/dagshund/ and exit",
+    )
+    parser.add_argument(
         "plan_file",
         nargs="?",
         help="Path to plan JSON file (reads from stdin if omitted)",
@@ -127,6 +132,17 @@ def _read_plan(plan_file: str | None) -> str:
     )
 
 
+def _install_skill(target_dir: str) -> None:
+    """Copy the bundled SKILL.md into target_dir/dagshund/SKILL.md."""
+    from importlib.resources import files
+
+    source = files("dagshund._assets").joinpath("SKILL.md")
+    dest = Path(target_dir) / "dagshund" / "SKILL.md"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    print(f"dagshund: installed skill to {dest}")
+
+
 def _build_visible_states(args: argparse.Namespace) -> frozenset[DiffState] | None:
     """Build the set of visible diff states from CLI flags, or None to show all."""
     if args.changes_only:
@@ -146,6 +162,10 @@ def _build_visible_states(args: argparse.Namespace) -> frozenset[DiffState] | No
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
+
+    if args.install_skill is not None:
+        _install_skill(args.install_skill)
+        return
 
     if args.debug or os.environ.get("DAGSHUND_DEBUG"):
         logging.basicConfig(

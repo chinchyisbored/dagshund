@@ -42,7 +42,7 @@ dev = [
 path = "src/dagshund/__init__.py"
 
 [tool.hatch.build]
-artifacts = ["src/dagshund/_assets/template.html"]
+artifacts = ["src/dagshund/_assets/template.html", "src/dagshund/_assets/SKILL.md"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dagshund"]
