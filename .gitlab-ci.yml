@@ -86,6 +86,7 @@ build:
     - version-check
   script:
     - bun run --cwd js build:template
+    - cp skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
     - uv build
     - sha256sum dist/* > dist/SHA256SUMS
   artifacts:

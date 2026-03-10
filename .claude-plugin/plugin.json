@@ -1,7 +1,6 @@
 {
   "name": "dagshund",
   "description": "Diff visualizer for Databricks Asset Bundle deployment plans — colored terminal diffs and interactive DAG diagrams",
-  "version": "0.4.0",
   "author": {
     "name": "Max Lautner"
   },
@@ -17,5 +16,6 @@
     "dag",
     "visualization",
     "cli"
-  ]
+  ],
+  "skills": "./skills/"
 }

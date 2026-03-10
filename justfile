@@ -40,6 +40,7 @@ dev-down:
 # Build JS template + Python wheel
 build:
     bun run --cwd {{js_dir}} build:template
+    cp {{root}}/skills/dagshund/SKILL.md {{py_src}}/dagshund/_assets/SKILL.md
     uv build
 
 # Run JS tests (optional filter: test file or name pattern)
