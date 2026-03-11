@@ -23,17 +23,74 @@ type LateralEdgeContext = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a reverse index mapping warehouse API ID → resource key by scanning sql_warehouses entries. */
-const buildWarehouseApiIdIndex = (
+/** Build a reverse index mapping API ID → resource key for a given resource type. */
+export const buildApiIdIndex = (
   entries: readonly (readonly [string, PlanEntry])[],
+  resourceType: string,
+  extractId: (entry: PlanEntry) => string | undefined,
 ): ReadonlyMap<string, string> => {
   const pairs: [string, string][] = [];
   for (const [key, entry] of entries) {
-    if (extractResourceType(key) !== "sql_warehouses") continue;
-    const apiId = extractStateField(entry, "id");
+    if (extractResourceType(key) !== resourceType) continue;
+    const apiId = extractId(entry);
     if (apiId !== undefined) pairs.push([apiId, key]);
   }
   return new Map(pairs);
+};
+
+/** Extract job API ID from a job entry's state, handling both number and string job_id. */
+export const extractJobApiId = (entry: PlanEntry): string | undefined => {
+  const state = extractResourceState(entry);
+  const v = state?.["job_id"];
+  return typeof v === "number" ? String(v) : typeof v === "string" ? v : undefined;
+};
+
+// ---------------------------------------------------------------------------
+// App resource reference extraction
+// ---------------------------------------------------------------------------
+
+export type AppResourceRef =
+  | { readonly kind: "job"; readonly id: string }
+  | { readonly kind: "sql_warehouse"; readonly id: string }
+  | { readonly kind: "secret_scope"; readonly name: string }
+  | { readonly kind: "serving_endpoint"; readonly name: string }
+  | { readonly kind: "experiment"; readonly id: string };
+
+/** Extract typed resource references from an app entry's nested resources[] array. */
+export const extractAppResourceReferences = (entry: PlanEntry): readonly AppResourceRef[] => {
+  const state = extractResourceState(entry);
+  if (state === undefined) return [];
+  const resources = state["resources"];
+  if (!Array.isArray(resources)) return [];
+  const refs: AppResourceRef[] = [];
+  for (const resource of resources) {
+    if (!isUnknownRecord(resource)) continue;
+    const job = resource["job"];
+    if (isUnknownRecord(job) && typeof job["id"] === "string") {
+      refs.push({ kind: "job", id: job["id"] });
+      continue;
+    }
+    const warehouse = resource["sql_warehouse"];
+    if (isUnknownRecord(warehouse) && typeof warehouse["id"] === "string") {
+      refs.push({ kind: "sql_warehouse", id: warehouse["id"] });
+      continue;
+    }
+    const secret = resource["secret"];
+    if (isUnknownRecord(secret) && typeof secret["scope"] === "string") {
+      refs.push({ kind: "secret_scope", name: secret["scope"] });
+      continue;
+    }
+    const endpoint = resource["serving_endpoint"];
+    if (isUnknownRecord(endpoint) && typeof endpoint["name"] === "string") {
+      refs.push({ kind: "serving_endpoint", name: endpoint["name"] });
+      continue;
+    }
+    const experiment = resource["experiment"];
+    if (isUnknownRecord(experiment) && typeof experiment["id"] === "string") {
+      refs.push({ kind: "experiment", id: experiment["id"] });
+    }
+  }
+  return refs;
 };
 
 // ---------------------------------------------------------------------------
@@ -164,18 +221,57 @@ const PIPELINE_TARGET_SPEC: LateralEdgeSpec = {
 };
 
 /** Factory: alert → sql_warehouse (API-ID resolution via pre-built reverse index). */
-const createWarehouseSpec = (context: LateralEdgeContext): LateralEdgeSpec => {
-  const warehouseIndex = buildWarehouseApiIdIndex(context.entries);
+const createWarehouseSpec = (warehouseIndex: ReadonlyMap<string, string>): LateralEdgeSpec => ({
+  sourceTypes: new Set(["alerts"]),
+  extractTargetIds: (entry, context) => {
+    if (warehouseIndex.size === 0) return [];
+    const apiId = extractStateField(entry, "warehouse_id");
+    if (apiId === undefined) return [];
+    const targetKey = warehouseIndex.get(apiId);
+    if (targetKey === undefined) return [];
+    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+  },
+});
+
+/** Factory: app → job/warehouse/secret/serving_endpoint/experiment (via nested resources[] array). */
+const createAppResourcesSpec = (
+  context: LateralEdgeContext,
+  warehouseIndex: ReadonlyMap<string, string>,
+): LateralEdgeSpec => {
+  const jobIndex = buildApiIdIndex(context.entries, "jobs", extractJobApiId);
+  const experimentIndex = buildApiIdIndex(context.entries, "experiments", (e) =>
+    extractStateField(e, "experiment_id"),
+  );
   return {
-    sourceTypes: new Set(["alerts"]),
+    sourceTypes: new Set(["apps"]),
     extractTargetIds: (entry, context) => {
-      if (warehouseIndex.size === 0) return [];
-      const apiId = extractStateField(entry, "warehouse_id");
-      if (apiId === undefined) return [];
-      const targetKey = warehouseIndex.get(apiId);
-      if (targetKey === undefined) return [];
-      const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-      return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+      const refs = extractAppResourceReferences(entry);
+      const targets: string[] = [];
+      for (const ref of refs) {
+        let targetKey: string | undefined;
+        switch (ref.kind) {
+          case "job":
+            targetKey = jobIndex.get(ref.id) ?? `job::${ref.id}`;
+            break;
+          case "sql_warehouse":
+            targetKey = warehouseIndex.get(ref.id) ?? `sql-warehouse::${ref.id}`;
+            break;
+          case "experiment":
+            targetKey = experimentIndex.get(ref.id) ?? `experiment::${ref.id}`;
+            break;
+          case "secret_scope":
+            targetKey = `resources.secret_scopes.${ref.name}`;
+            break;
+          case "serving_endpoint":
+            targetKey = `resources.model_serving_endpoints.${ref.name}`;
+            break;
+        }
+        if (targetKey === undefined) continue;
+        const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+        if (context.nodeIds.has(targetNodeId)) targets.push(targetNodeId);
+      }
+      return targets;
     },
   };
 };
@@ -193,6 +289,13 @@ const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
 
 /** Extract all lateral (cross-reference) edges from plan entries. */
 export const extractLateralEdges = (context: LateralEdgeContext): readonly GraphEdge[] => {
-  const allSpecs = [...LATERAL_EDGE_SPECS, createWarehouseSpec(context)];
+  const warehouseIndex = buildApiIdIndex(context.entries, "sql_warehouses", (e) =>
+    extractStateField(e, "id"),
+  );
+  const allSpecs = [
+    ...LATERAL_EDGE_SPECS,
+    createWarehouseSpec(warehouseIndex),
+    createAppResourcesSpec(context, warehouseIndex),
+  ];
   return allSpecs.flatMap((spec) => applyLateralEdgeSpec(spec, context));
 };

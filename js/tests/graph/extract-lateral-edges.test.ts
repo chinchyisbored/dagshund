@@ -534,6 +534,336 @@ describe("extractSourceTableEdges", () => {
 });
 
 // ---------------------------------------------------------------------------
+// app → resources (nested resources[] array)
+// ---------------------------------------------------------------------------
+
+describe("extractAppResourceEdges", () => {
+  test("app links to job via API ID reverse index", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [{ job: { id: "12345", permission: "CAN_MANAGE_RUN" }, name: "etl" }],
+        }),
+      ],
+      ["resources.jobs.my_job", makeEntry({ job_id: 12345 })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.jobs.my_job",
+      diffState: "unchanged",
+    });
+  });
+
+  test("app links to warehouse via API ID reverse index", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { sql_warehouse: { id: "wh-abc", permission: "CAN_USE" }, name: "warehouse" },
+          ],
+        }),
+      ],
+      ["resources.sql_warehouses.analytics", makeEntry({ id: "wh-abc", name: "analytics" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.sql_warehouses.analytics",
+    });
+  });
+
+  test("app links to secret scope via name-based key", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { secret: { scope: "my-secrets", key: "token", permission: "READ" }, name: "secrets" },
+          ],
+        }),
+      ],
+      ["resources.secret_scopes.my-secrets", makeEntry({ name: "my-secrets" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.secret_scopes.my-secrets",
+    });
+  });
+
+  test("app links to serving endpoint via name-based key", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            {
+              serving_endpoint: { name: "predictor", permission: "CAN_MANAGE" },
+              name: "endpoint",
+            },
+          ],
+        }),
+      ],
+      ["resources.model_serving_endpoints.predictor", makeEntry({ name: "predictor" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.model_serving_endpoints.predictor",
+    });
+  });
+
+  test("app links to experiment via API ID reverse index", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { experiment: { id: "exp-999", permission: "CAN_MANAGE" }, name: "tracking" },
+          ],
+        }),
+      ],
+      ["resources.experiments.my_exp", makeEntry({ experiment_id: "exp-999" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.experiments.my_exp",
+    });
+  });
+
+  test("no edge when API ID target missing and no phantom in nodeIds", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { job: { id: "99999", permission: "CAN_MANAGE_RUN" }, name: "missing_job" },
+            {
+              sql_warehouse: { id: "missing-wh", permission: "CAN_USE" },
+              name: "missing_warehouse",
+            },
+          ],
+        }),
+      ],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+
+  test("app links to phantom job when real job not in plan", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [{ job: { id: "99999", permission: "CAN_MANAGE_RUN" }, name: "etl" }],
+        }),
+      ],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.apps.my_app", "resources.apps.my_app"],
+      ["job::99999", "job::99999"],
+    ]);
+    const nodeIds = new Set(nodeIdByResourceKey.values());
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "job::99999",
+    });
+  });
+
+  test("app links to phantom warehouse when real warehouse not in plan", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { sql_warehouse: { id: "wh-abc", permission: "CAN_USE" }, name: "warehouse" },
+          ],
+        }),
+      ],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.apps.my_app", "resources.apps.my_app"],
+      ["sql-warehouse::wh-abc", "sql-warehouse::wh-abc"],
+    ]);
+    const nodeIds = new Set(nodeIdByResourceKey.values());
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "sql-warehouse::wh-abc",
+    });
+  });
+
+  test("app links to phantom experiment when real experiment not in plan", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [{ experiment: { id: "exp-42", permission: "CAN_MANAGE" }, name: "tracking" }],
+        }),
+      ],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.apps.my_app", "resources.apps.my_app"],
+      ["experiment::exp-42", "experiment::exp-42"],
+    ]);
+    const nodeIds = new Set(nodeIdByResourceKey.values());
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "experiment::exp-42",
+    });
+  });
+
+  test("app links to phantom serving endpoint when real endpoint not in plan", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { serving_endpoint: { name: "predictor", permission: "CAN_MANAGE" }, name: "ep" },
+          ],
+        }),
+      ],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.apps.my_app", "resources.apps.my_app"],
+      ["resources.model_serving_endpoints.predictor", "serving-endpoint::predictor"],
+    ]);
+    const nodeIds = new Set(nodeIdByResourceKey.values());
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "serving-endpoint::predictor",
+    });
+  });
+
+  test("empty resources array produces no edges", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.apps.my_app", makeEntry({ resources: [] })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+
+  test("multiple resource entries produce multiple edges", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { job: { id: "111", permission: "CAN_MANAGE_RUN" }, name: "job1" },
+            { job: { id: "222", permission: "CAN_MANAGE_RUN" }, name: "job2" },
+          ],
+        }),
+      ],
+      ["resources.jobs.first", makeEntry({ job_id: 111 })],
+      ["resources.jobs.second", makeEntry({ job_id: 222 })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    const appEdges = edges.filter((e) => e.source === "resources.apps.my_app");
+    expect(appEdges).toHaveLength(2);
+  });
+
+  test("deduplicates when same target referenced twice", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { job: { id: "111", permission: "CAN_MANAGE_RUN" }, name: "ref1" },
+            { job: { id: "111", permission: "CAN_MANAGE_RUN" }, name: "ref2" },
+          ],
+        }),
+      ],
+      ["resources.jobs.my_job", makeEntry({ job_id: 111 })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    const appEdges = edges.filter((e) => e.source === "resources.apps.my_app");
+    expect(appEdges).toHaveLength(1);
+  });
+
+  test("unknown resource types are silently skipped", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            { some_future_type: { id: "foo" }, name: "unknown" },
+            { job: { id: "111", permission: "CAN_MANAGE_RUN" }, name: "known" },
+          ],
+        }),
+      ],
+      ["resources.jobs.my_job", makeEntry({ job_id: 111 })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ target: "resources.jobs.my_job" });
+  });
+
+  test("job_id coerced from number to string for index lookup", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [{ job: { id: "283874357446614", permission: "CAN_MANAGE_RUN" }, name: "j" }],
+        }),
+      ],
+      ["resources.jobs.etl", makeEntry({ job_id: 283874357446614 })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.jobs.etl",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Integration: all-hierarchies-plan.json
 // ---------------------------------------------------------------------------
 
@@ -593,5 +923,76 @@ describe("all-hierarchies-plan integration", () => {
     expect(targets).toContain("source-table::dagshund.analytics.customer_profiles");
     expect(targets).toContain("source-table::dagshund.analytics.product_interactions");
     expect(targets).toContain("source-table::dagshund.integrations.partner_rollup");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Integration: apps.json
+// ---------------------------------------------------------------------------
+
+describe("apps.json integration", () => {
+  test("app links to job via API ID reverse index", async () => {
+    const plan = await loadFixture("apps.json");
+    const graph = buildResourceGraph(plan);
+
+    const appJobEdges = graph.lateralEdges.filter(
+      (e) => e.source === "resources.apps.my_test_app" && e.target === "resources.jobs.my_etl_job",
+    );
+
+    expect(appJobEdges).toHaveLength(1);
+  });
+
+  test("phantom secret-scope node created for ss-kv112", async () => {
+    const plan = await loadFixture("apps.json");
+    const graph = buildResourceGraph(plan);
+
+    const phantomNode = graph.nodes.find((n) => n.id === "secret-scope::ss-kv112");
+    expect(phantomNode).toBeDefined();
+    expect(phantomNode?.nodeKind).toBe("phantom");
+    expect(phantomNode?.label).toBe("ss-kv112");
+  });
+
+  test("app links to phantom secret scope via lateral edge", async () => {
+    const plan = await loadFixture("apps.json");
+    const graph = buildResourceGraph(plan);
+
+    const secretEdges = graph.lateralEdges.filter(
+      (e) => e.source === "resources.apps.my_test_app" && e.target === "secret-scope::ss-kv112",
+    );
+
+    expect(secretEdges).toHaveLength(1);
+  });
+
+  test("phantom warehouse node created for missing warehouse API ID", async () => {
+    const plan = await loadFixture("apps.json");
+    const graph = buildResourceGraph(plan);
+
+    const phantomNode = graph.nodes.find((n) => n.id === "sql-warehouse::88b556379679e44e");
+    expect(phantomNode).toBeDefined();
+    expect(phantomNode?.nodeKind).toBe("phantom");
+    expect(phantomNode?.label).toBe("88b556379679e44e");
+  });
+
+  test("app links to phantom warehouse via lateral edge", async () => {
+    const plan = await loadFixture("apps.json");
+    const graph = buildResourceGraph(plan);
+
+    const warehouseEdges = graph.lateralEdges.filter(
+      (e) =>
+        e.source === "resources.apps.my_test_app" && e.target === "sql-warehouse::88b556379679e44e",
+    );
+
+    expect(warehouseEdges).toHaveLength(1);
+  });
+
+  test("depends_on edge from job to app is preserved", async () => {
+    const plan = await loadFixture("apps.json");
+    const graph = buildResourceGraph(plan);
+
+    const dependsOnEdges = graph.edges.filter(
+      (e) => e.source === "resources.jobs.my_etl_job" && e.target === "resources.apps.my_test_app",
+    );
+
+    expect(dependsOnEdges).toHaveLength(1);
   });
 });

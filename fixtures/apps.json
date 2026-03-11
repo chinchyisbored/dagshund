@@ -1,0 +1,281 @@
+{
+    "plan_version": 2,
+    "cli_version": "0.292.0",
+    "lineage": "a652cb7e-2a8f-7fc4-5faf-aba296df7b4d",
+    "serial": 18,
+    "plan": {
+        "resources.apps.my_test_app": {
+            "depends_on": [
+                {
+                    "node": "resources.jobs.my_etl_job",
+                    "label": "${resources.jobs.my_etl_job.id}"
+                }
+            ],
+            "action": "skip",
+            "remote_state": {
+                "app_status": {
+                    "message": "App status is unavailable.",
+                    "state": "UNAVAILABLE"
+                },
+                "compute_size": "MEDIUM",
+                "compute_status": {
+                    "message": "Start the app compute to deploy the app.",
+                    "state": "STOPPED"
+                },
+                "create_time": "2026-03-11T20:43:23Z",
+                "creator": "beepboop@beep.com",
+                "description": "Test app exercising all lateral dependency types",
+                "id": "b99df192-881a-47f3-967e-e26c7bf484fe",
+                "name": "dagshund-lateral-test-app",
+                "oauth2_app_client_id": "2300a31b-c372-4c72-a535-9eefe29edf2b",
+                "oauth2_app_integration_id": "2300a31b-c372-4c72-a535-9eefe29edf2b",
+                "resources": [
+                    {
+                        "job": {
+                            "id": "283874357446614",
+                            "permission": "CAN_MANAGE_RUN"
+                        },
+                        "name": "etl_job"
+                    },
+                    {
+                        "name": "warehouse",
+                        "sql_warehouse": {
+                            "id": "88b556379679e44e",
+                            "permission": "CAN_USE"
+                        }
+                    },
+                    {
+                        "name": "secrets",
+                        "secret": {
+                            "key": "db-flight-relay-ip",
+                            "permission": "READ",
+                            "scope": "ss-kv112"
+                        }
+                    }
+                ],
+                "service_principal_client_id": "b99df192-881a-47f3-967e-e26c7bf484fe",
+                "service_principal_id": 144011676938854,
+                "service_principal_name": "app-2f9a3j dagshund-lateral-test-app",
+                "update_time": "2026-03-11T20:43:47Z",
+                "updater": "beepboop@beep.com",
+                "url": "https://dagshund-lateral-test-app-123123123123.azure.databricksapps.com"
+            },
+            "changes": {
+                "app_status": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": {
+                        "message": "App status is unavailable.",
+                        "state": "UNAVAILABLE"
+                    }
+                },
+                "compute_size": {
+                    "action": "skip",
+                    "reason": "backend_default",
+                    "remote": "MEDIUM"
+                },
+                "compute_status": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": {
+                        "message": "Start the app compute to deploy the app.",
+                        "state": "STOPPED"
+                    }
+                },
+                "create_time": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "2026-03-11T20:43:23Z"
+                },
+                "creator": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "beepboop@beep.com"
+                },
+                "id": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "b99df192-881a-47f3-967e-e26c7bf484fe"
+                },
+                "oauth2_app_client_id": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "2300a31b-c372-4c72-a535-9eefe29edf2b"
+                },
+                "oauth2_app_integration_id": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "2300a31b-c372-4c72-a535-9eefe29edf2b"
+                },
+                "service_principal_client_id": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "b99df192-881a-47f3-967e-e26c7bf484fe"
+                },
+                "service_principal_id": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": 144011676938854
+                },
+                "service_principal_name": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "app-2f9a3j dagshund-lateral-test-app"
+                },
+                "update_time": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "2026-03-11T20:43:47Z"
+                },
+                "updater": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "beepboop@beep.com"
+                },
+                "url": {
+                    "action": "skip",
+                    "reason": "spec:output_only",
+                    "remote": "https://dagshund-lateral-test-app-123123123123.azure.databricksapps.com"
+                }
+            }
+        },
+        "resources.experiments.my_experiment": {
+            "action": "skip",
+            "remote_state": {
+                "artifact_location": "dbfs:/databricks/mlflow-tracking/2572077360939407",
+                "creation_time": 1773261801829,
+                "experiment_id": "2572077360939407",
+                "last_update_time": 1773261801829,
+                "lifecycle_stage": "active",
+                "name": "/Users/beepboop@beep.com/dagshund-test-experiment",
+                "tags": [
+                    {
+                        "key": "mlflow.ownerId",
+                        "value": "321278561976642"
+                    },
+                    {
+                        "key": "mlflow.experiment.sourceName",
+                        "value": "/Users/beepboop@beep.com/dagshund-test-experiment"
+                    },
+                    {
+                        "key": "mlflow.ownerId",
+                        "value": "321278561976642"
+                    },
+                    {
+                        "key": "mlflow.ownerEmail",
+                        "value": "beepboop@beep.com"
+                    },
+                    {
+                        "key": "mlflow.experimentType",
+                        "value": "MLFLOW_EXPERIMENT"
+                    }
+                ]
+            },
+            "changes": {
+                "artifact_location": {
+                    "action": "skip",
+                    "reason": "backend_default",
+                    "remote": "dbfs:/databricks/mlflow-tracking/2572077360939407"
+                },
+                "tags": {
+                    "action": "skip",
+                    "reason": "terraform_compat",
+                    "remote": [
+                        {
+                            "key": "mlflow.ownerId",
+                            "value": "321278561976642"
+                        },
+                        {
+                            "key": "mlflow.experiment.sourceName",
+                            "value": "/Users/beepboop@beep.com/dagshund-test-experiment"
+                        },
+                        {
+                            "key": "mlflow.ownerId",
+                            "value": "321278561976642"
+                        },
+                        {
+                            "key": "mlflow.ownerEmail",
+                            "value": "beepboop@beep.com"
+                        },
+                        {
+                            "key": "mlflow.experimentType",
+                            "value": "MLFLOW_EXPERIMENT"
+                        }
+                    ]
+                }
+            }
+        },
+        "resources.jobs.my_etl_job": {
+            "action": "skip",
+            "remote_state": {
+                "created_time": 1773261801991,
+                "creator_user_name": "beepboop@beep.com",
+                "deployment": {
+                    "kind": "BUNDLE",
+                    "metadata_file_path": "/Workspace/Users/beepboop@beep.com/.bundle/dagshund-app-laterals-test/default/state/metadata.json"
+                },
+                "edit_mode": "UI_LOCKED",
+                "email_notifications": {},
+                "format": "MULTI_TASK",
+                "job_id": 283874357446614,
+                "max_concurrent_runs": 1,
+                "name": "dagshund-test-etl-job",
+                "queue": {
+                    "enabled": true
+                },
+                "run_as_user_name": "beepboop@beep.com",
+                "tasks": [
+                    {
+                        "email_notifications": {},
+                        "notebook_task": {
+                            "notebook_path": "/Workspace/Users/beepboop@beep.com/noop",
+                            "source": "WORKSPACE"
+                        },
+                        "run_if": "ALL_SUCCESS",
+                        "task_key": "noop",
+                        "timeout_seconds": 0
+                    }
+                ],
+                "timeout_seconds": 0,
+                "webhook_notifications": {}
+            },
+            "changes": {
+                "email_notifications": {
+                    "action": "skip",
+                    "reason": "empty",
+                    "remote": {}
+                },
+                "tasks[task_key='noop'].email_notifications": {
+                    "action": "skip",
+                    "reason": "empty",
+                    "remote": {}
+                },
+                "tasks[task_key='noop'].notebook_task.source": {
+                    "action": "skip",
+                    "reason": "backend_default",
+                    "remote": "WORKSPACE"
+                },
+                "tasks[task_key='noop'].run_if": {
+                    "action": "skip",
+                    "reason": "backend_default",
+                    "remote": "ALL_SUCCESS"
+                },
+                "tasks[task_key='noop'].timeout_seconds": {
+                    "action": "skip",
+                    "reason": "empty",
+                    "remote": 0
+                },
+                "timeout_seconds": {
+                    "action": "skip",
+                    "reason": "empty",
+                    "remote": 0
+                },
+                "webhook_notifications": {
+                    "action": "skip",
+                    "reason": "empty",
+                    "remote": {}
+                }
+            }
+        }
+    }
+}

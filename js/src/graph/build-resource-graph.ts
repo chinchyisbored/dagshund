@@ -16,7 +16,13 @@ import {
 } from "../utils/resource-key.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
-import { extractLateralEdges } from "./extract-lateral-edges.ts";
+import {
+  type AppResourceRef,
+  buildApiIdIndex,
+  extractAppResourceReferences,
+  extractJobApiId,
+  extractLateralEdges,
+} from "./extract-lateral-edges.ts";
 import {
   extractResourceState,
   extractSourceTableFullName,
@@ -635,6 +641,93 @@ const collectPhantomDatabaseInstances = (
 };
 
 // ---------------------------------------------------------------------------
+// Phantom app dependencies
+// ---------------------------------------------------------------------------
+
+type PhantomEntry = { readonly id: string; readonly label: string; readonly resourceKey: string };
+
+/** Resolve a single app resource reference to a phantom entry, or undefined if the target exists. */
+const resolveAppPhantomRef = (
+  ref: AppResourceRef,
+  existingResourceKeys: ReadonlySet<string>,
+  jobIndex: ReadonlyMap<string, string>,
+  warehouseIndex: ReadonlyMap<string, string>,
+  experimentIndex: ReadonlyMap<string, string>,
+): PhantomEntry | undefined => {
+  switch (ref.kind) {
+    case "secret_scope": {
+      const rk = `resources.secret_scopes.${ref.name}`;
+      return existingResourceKeys.has(rk)
+        ? undefined
+        : { id: `secret-scope::${ref.name}`, resourceKey: rk, label: ref.name };
+    }
+    case "serving_endpoint": {
+      const rk = `resources.model_serving_endpoints.${ref.name}`;
+      return existingResourceKeys.has(rk)
+        ? undefined
+        : { id: `serving-endpoint::${ref.name}`, resourceKey: rk, label: ref.name };
+    }
+    case "job": {
+      if (jobIndex.has(ref.id)) return undefined;
+      const id = `job::${ref.id}`;
+      return { id, resourceKey: id, label: ref.id };
+    }
+    case "sql_warehouse": {
+      if (warehouseIndex.has(ref.id)) return undefined;
+      const id = `sql-warehouse::${ref.id}`;
+      return { id, resourceKey: id, label: ref.id };
+    }
+    case "experiment": {
+      if (experimentIndex.has(ref.id)) return undefined;
+      const id = `experiment::${ref.id}`;
+      return { id, resourceKey: id, label: ref.id };
+    }
+  }
+};
+
+/** Collect phantom nodes for app resource references absent from the plan. */
+const collectPhantomAppDependencies = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  existingResourceKeys: ReadonlySet<string>,
+  parentId: string,
+): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
+  const jobIndex = buildApiIdIndex(entries, "jobs", extractJobApiId);
+  const warehouseIndex = buildApiIdIndex(entries, "sql_warehouses", (e) =>
+    extractStateField(e, "id"),
+  );
+  const experimentIndex = buildApiIdIndex(entries, "experiments", (e) =>
+    extractStateField(e, "experiment_id"),
+  );
+
+  const phantoms = new Map<string, PhantomEntry>();
+  for (const [key, entry] of entries) {
+    if (extractResourceType(key) !== "apps") continue;
+    for (const ref of extractAppResourceReferences(entry)) {
+      const phantom = resolveAppPhantomRef(
+        ref,
+        existingResourceKeys,
+        jobIndex,
+        warehouseIndex,
+        experimentIndex,
+      );
+      if (phantom !== undefined) phantoms.set(phantom.id, phantom);
+    }
+  }
+  if (phantoms.size === 0) return { nodes: [], edges: [] };
+  const nodes: PhantomGraphNode[] = [...phantoms.values()].map(({ id, label, resourceKey }) => ({
+    id,
+    label,
+    nodeKind: "phantom",
+    diffState: "unchanged",
+    resourceKey,
+    changes: undefined,
+    resourceState: undefined,
+  }));
+  const edges = filterDefinedEdges(nodes.map((node) => buildEdge(parentId, node.id)));
+  return { nodes, edges };
+};
+
+// ---------------------------------------------------------------------------
 // Main orchestrator
 // ---------------------------------------------------------------------------
 
@@ -675,7 +768,14 @@ export const buildResourceGraph = (
     workspaceGraph.flatParentId,
   );
 
-  const allNodes = [...graphNodes, ...phantomDbInstances.nodes];
+  // Create phantom nodes for app resource references (secret scopes, serving endpoints).
+  const phantomAppDeps = collectPhantomAppDependencies(
+    entries,
+    existingKeys,
+    workspaceGraph.flatParentId,
+  );
+
+  const allNodes = [...graphNodes, ...phantomDbInstances.nodes, ...phantomAppDeps.nodes];
 
   // Build lookup maps for lateral edge extraction
   const nodeIdByResourceKey = new Map<string, string>(
@@ -692,6 +792,7 @@ export const buildResourceGraph = (
       ...workspaceGraph.edges,
       ...dependsOnEdges,
       ...phantomDbInstances.edges,
+      ...phantomAppDeps.edges,
     ]),
     lateralEdges,
   };

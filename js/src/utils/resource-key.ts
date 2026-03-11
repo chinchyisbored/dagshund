@@ -14,13 +14,26 @@ export const extractPhantomBadge = (resourceKey: string): string | undefined => 
   if (resourceKey.startsWith("schema::")) return "schema";
   if (resourceKey.startsWith("source-table::")) return "table";
   if (resourceKey.startsWith("database-instance::")) return "database instance";
+  if (resourceKey.startsWith("secret-scope::")) return "secret";
+  if (resourceKey.startsWith("serving-endpoint::")) return "serving";
+  if (resourceKey.startsWith("job::")) return "job";
+  if (resourceKey.startsWith("sql-warehouse::")) return "warehouse";
+  if (resourceKey.startsWith("experiment::")) return "experiment";
   if (resourceKey.startsWith("postgres-project::")) return "postgres project";
   if (resourceKey.startsWith("postgres-branch::")) return "postgres branch";
   return extractTypeBadge(resourceKey);
 };
 
 /** Phantom leaf prefixes: inferred reference targets (not structural hierarchy). */
-const PHANTOM_LEAF_PREFIXES: readonly string[] = ["source-table::", "database-instance::"];
+const PHANTOM_LEAF_PREFIXES: readonly string[] = [
+  "source-table::",
+  "database-instance::",
+  "secret-scope::",
+  "serving-endpoint::",
+  "job::",
+  "sql-warehouse::",
+  "experiment::",
+];
 
 /** Check whether a node ID represents an inferred leaf phantom (not a hierarchy phantom).
  *  Convention: only phantom nodes use `::` prefixed IDs; real resources use `resources.type.name`. */
