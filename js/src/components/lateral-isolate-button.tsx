@@ -1,4 +1,4 @@
-import type { PointerEvent } from "react";
+import { memo, type PointerEvent } from "react";
 import { useLateralIsolation } from "../hooks/use-lateral-isolation.ts";
 
 type LateralIsolateButtonProps = {
@@ -9,7 +9,10 @@ type LateralIsolateButtonProps = {
 /** Per-node chain icon that toggles lateral-edge isolation on click.
  *  Uses onPointerDown + stopPropagation to prevent node drag initiation
  *  and avoid click event interference from d3-drag or hover re-renders. */
-export function LateralIsolateButton({ nodeId, isActive }: LateralIsolateButtonProps) {
+export const LateralIsolateButton = memo(function LateralIsolateButton({
+  nodeId,
+  isActive,
+}: LateralIsolateButtonProps) {
   const toggleIsolation = useLateralIsolation();
   if (toggleIsolation === null) return null;
 
@@ -48,4 +51,4 @@ export function LateralIsolateButton({ nodeId, isActive }: LateralIsolateButtonP
       </svg>
     </button>
   );
-}
+});

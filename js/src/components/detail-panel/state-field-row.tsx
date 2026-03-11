@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useValueFormat } from "../../hooks/use-value-format.ts";
 import { formatValue } from "../../utils/format-value.ts";
 import { PrefixedBlock } from "../structural-diff-view.tsx";
@@ -9,7 +10,7 @@ const STATE_FIELD_STYLES: Readonly<
   removed: { prefix: "-", text: "text-diff-removed" },
 };
 
-export function StateFieldRow({
+export const StateFieldRow = memo(function StateFieldRow({
   fieldKey,
   value,
   variant,
@@ -27,4 +28,4 @@ export function StateFieldRow({
       <PrefixedBlock prefix={`${style.prefix}   `} text={formatted} className={style.text} />
     </div>
   );
-}
+});

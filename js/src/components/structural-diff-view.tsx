@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useValueFormat } from "../hooks/use-value-format.ts";
 import type {
   ArrayDiff,
@@ -172,7 +173,7 @@ function ModifiedEntryView({ entry }: { readonly entry: ObjectEntry }) {
   );
 }
 
-function ObjectEntryView({ entry }: { readonly entry: ObjectEntry }) {
+const ObjectEntryView = memo(function ObjectEntryView({ entry }: { readonly entry: ObjectEntry }) {
   const format = useValueFormat();
   const style = ENTRY_STATUS_STYLES[entry.status];
 
@@ -194,7 +195,7 @@ function ObjectEntryView({ entry }: { readonly entry: ObjectEntry }) {
       />
     </div>
   );
-}
+});
 
 function ObjectDiffView({ diff }: { readonly diff: ObjectDiff }) {
   return (

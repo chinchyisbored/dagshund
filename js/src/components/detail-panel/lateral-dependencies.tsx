@@ -1,8 +1,9 @@
+import { memo } from "react";
 import type { LateralContext, LateralDependencyEntry } from "../../types/lateral-context.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { SectionDivider } from "./section-divider.tsx";
 
-function DependencyEntry({
+const DependencyEntry = memo(function DependencyEntry({
   entry,
   onNavigate,
 }: {
@@ -27,9 +28,9 @@ function DependencyEntry({
       </span>
     </button>
   );
-}
+});
 
-function DependencyList({
+const DependencyList = memo(function DependencyList({
   label,
   entries,
   onNavigate,
@@ -49,7 +50,7 @@ function DependencyList({
       </div>
     </div>
   );
-}
+});
 
 export function LateralDependencies({
   context,

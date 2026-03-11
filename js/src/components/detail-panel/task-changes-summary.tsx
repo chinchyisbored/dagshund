@@ -1,9 +1,10 @@
+import { memo } from "react";
 import type { DagNodeData, TaskChangeSummary } from "../../types/graph-types.ts";
 import { getDiffBadge, getDiffStateStyles } from "../../utils/diff-state-styles.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { SectionDivider } from "./section-divider.tsx";
 
-function TaskChangeLine({
+const TaskChangeLine = memo(function TaskChangeLine({
   taskKey,
   diffState,
 }: {
@@ -19,7 +20,7 @@ function TaskChangeLine({
       <DiffStateBadge diffState={diffState} />
     </div>
   );
-}
+});
 
 export function TaskChangesSummary({ summary }: { readonly summary: TaskChangeSummary }) {
   return (

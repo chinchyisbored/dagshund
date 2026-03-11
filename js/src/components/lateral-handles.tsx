@@ -1,4 +1,5 @@
 import { Handle, Position } from "@xyflow/react";
+import { memo } from "react";
 import {
   LATERAL_BOTTOM,
   LATERAL_BOTTOM_OUT,
@@ -12,7 +13,7 @@ type LateralHandlesProps = {
   readonly lateralHandles: ReadonlySet<string> | undefined;
 };
 
-export const LateralHandles = ({ lateralHandles }: LateralHandlesProps) => {
+export const LateralHandles = memo(({ lateralHandles }: LateralHandlesProps) => {
   const styleFor = (handleId: string) =>
     lateralHandles?.has(handleId) ? LATERAL_HANDLE_STYLE : LATERAL_HANDLE_HIDDEN_STYLE;
 
@@ -44,4 +45,4 @@ export const LateralHandles = ({ lateralHandles }: LateralHandlesProps) => {
       />
     </>
   );
-};
+});
