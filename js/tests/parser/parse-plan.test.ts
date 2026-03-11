@@ -95,7 +95,7 @@ describe("parsePlanJson", () => {
     }
   });
 
-  test("returns error for invalid action type", () => {
+  test("accepts unknown action type as empty string fallback", () => {
     const result = parsePlanJson({
       plan: {
         "some.resource": {
@@ -103,7 +103,10 @@ describe("parsePlanJson", () => {
         },
       },
     });
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.plan?.["some.resource"]?.action).toBe("");
+    }
   });
 
   test("returns error for non-object input", () => {

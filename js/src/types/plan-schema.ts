@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-const actionTypeSchema = z.enum([
+const knownActionTypes = [
   "",
   "skip",
   "resize",
@@ -9,7 +9,11 @@ const actionTypeSchema = z.enum([
   "create",
   "recreate",
   "delete",
-]);
+] as const;
+
+export type KnownActionType = (typeof knownActionTypes)[number];
+
+const actionTypeSchema = z.enum(knownActionTypes).catch("" as const);
 
 export type ActionType = z.infer<typeof actionTypeSchema>;
 
