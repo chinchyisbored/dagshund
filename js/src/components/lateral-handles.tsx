@@ -13,7 +13,9 @@ type LateralHandlesProps = {
   readonly lateralHandles: ReadonlySet<string> | undefined;
 };
 
-export const LateralHandles = memo(({ lateralHandles }: LateralHandlesProps) => {
+export const LateralHandles = memo(function LateralHandles({
+  lateralHandles,
+}: LateralHandlesProps) {
   const styleFor = (handleId: string) =>
     lateralHandles?.has(handleId) ? LATERAL_HANDLE_STYLE : LATERAL_HANDLE_HIDDEN_STYLE;
 
