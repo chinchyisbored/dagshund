@@ -9,7 +9,7 @@
 
 /** Type guard: returns true when the value is a non-null object (i.e. a record). */
 export const isUnknownRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null;
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
  * Safely read a property from an unknown value.

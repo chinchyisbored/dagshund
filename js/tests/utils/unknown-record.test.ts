@@ -22,9 +22,9 @@ describe("isUnknownRecord", () => {
     expect(isUnknownRecord(true)).toBe(false);
   });
 
-  test("returns true for arrays (arrays are objects)", () => {
-    expect(isUnknownRecord([])).toBe(true);
-    expect(isUnknownRecord([1, 2, 3])).toBe(true);
+  test("returns false for arrays", () => {
+    expect(isUnknownRecord([])).toBe(false);
+    expect(isUnknownRecord([1, 2, 3])).toBe(false);
   });
 });
 

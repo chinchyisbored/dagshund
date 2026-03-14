@@ -51,3 +51,7 @@ service-account.json
 id_rsa
 id_ecdsa
 id_ed25519
+
+# dab stuff
+.databricks
+fixtures/bases/bundle.schema.json
