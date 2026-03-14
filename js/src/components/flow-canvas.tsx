@@ -365,6 +365,10 @@ export function FlowCanvas({
     isolatedLateralIds,
   );
 
+  // Layout produces readonly arrays; React Flow requires mutable Node[]/Edge[].
+  const flowNodes = useMemo(() => [...baseNodes], [baseNodes]);
+  const flowEdges = useMemo(() => [...styledEdges], [styledEdges]);
+
   if (layoutState.status === "error") {
     return (
       <div className="flex h-full items-center justify-center text-danger">
@@ -386,8 +390,8 @@ export function FlowCanvas({
       <InteractionContext.Provider value={interactionState}>
         <LateralIsolationContext.Provider value={handleToggleLateralIsolation}>
           <FlowCanvasLayout
-            nodes={[...baseNodes]}
-            edges={[...styledEdges]}
+            nodes={flowNodes}
+            edges={flowEdges}
             nodeTypes={nodeTypes}
             onNodeClick={handleNodeClick}
             onNodeMouseEnter={handleNodeMouseEnter}
