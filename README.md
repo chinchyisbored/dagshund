@@ -2,7 +2,7 @@
 
 Colored diff summaries and interactive DAG visualizations for Databricks Asset Bundles. Requires a plan file from the [direct deployment engine](https://docs.databricks.com/aws/en/dev-tools/bundles/direct) (`databricks bundle plan -o json`). See what changed, what's new, and what's being deleted, in your terminal or in the browser.
 
-![Dagshund resource graph](docs/resources.png)
+![Dagshund resource graph](docs/pictures/resources.png)
 
 ## Install
 
@@ -27,7 +27,7 @@ By default, dagshund prints a colored text diff to the terminal:
 dagshund plan.json
 ```
 
-![Terminal output](docs/terminal.png)
+![Terminal output](docs/pictures/terminal.png)
 
 Export an interactive HTML visualization with `-o`:
 
@@ -85,23 +85,23 @@ The HTML report shows your resources as an interactive graph with diff highlight
 
 Click any node to open a detail panel with per-field structural diffs, old values in red, new values in green, unchanged fields for context.
 
-![Structural diff detail panel](docs/schem_detail.png)
+![Structural diff detail panel](docs/pictures/schem_detail.png)
 
 Jobs with task dependencies get their own DAG view. Switch between the Resources and Jobs tabs to navigate between them.
 
-![Job task DAG](docs/dag.png)
+![Job task DAG](docs/pictures/dag.png)
 
 ### Phantom Nodes
 
 If your schema references a parent catalog that isn't in your bundle, dagshund infers it and adds it to the graph as a **phantom node** (shown with a dashed border). Hierarchy phantoms like these always display because they hold the tree together. Inferred leaf nodes (like a warehouse referenced by an alert) can be toggled on or off with the **Inferred leaf nodes** button in the toolbar.
 
-![Phantom nodes](docs/phantom_node.png)
+![Phantom nodes](docs/pictures/phantom_node.png)
 
 ### Lateral Dependencies
 
 Many resources reference each other across hierarchies, an alert might target a SQL warehouse, or a serving endpoint might bind to a registered model. These relationships are hidden by default to keep the graph clean. Toggle **Lateral dependencies** in the toolbar to see how your resources connect across group boundaries.
 
-![Lateral dependencies](docs/lateral_dependencies.png)
+![Lateral dependencies](docs/pictures/lateral_dependencies.png)
 
 ### Search
 
@@ -147,7 +147,7 @@ Dagshund ships as a [Claude Code plugin](https://code.claude.com/docs/en/plugins
 Install as a Claude Code plugin:
 
 ```
-/plugin marketplace add https://gitlab.com/chinchy/dagshund.git
+/plugin marketplace add https://github.com/chinchyisbored/dagshund.git
 /plugin install dagshund@chinchy-dagshund
 ```
 

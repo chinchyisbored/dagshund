@@ -13,34 +13,45 @@ install:
     bun install --cwd {{js_dir}}
     uv run prek install
 
-# Start JS dev server in background, provided planfile has to be relative to justfile location
+# Start JS dev server in background (plan file path relative to repo root)
 dev plan_file="fixtures/complex-plan.json":
     #!/usr/bin/env bash
     bun run --cwd {{js_dir}} build:css
-    cat "{{plan_file}}" | bun run --cwd {{js_dir}} dev &>/dev/null &
-    disown
+    bunx --cwd {{js_dir}} @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch &>/dev/null &
+    tw_pid=$!
+    cat "{{plan_file}}" | bun --hot --cwd {{js_dir}} src/index.ts &>/dev/null &
+    bun_pid=$!
+    mkdir -p {{root}}/.cache
+    echo "$bun_pid $tw_pid" > {{root}}/.cache/dev-server.pid
+    disown -a
     echo "Dev server starting on http://localhost:3000 — stop with: just dev-down"
 
-# Kill the dagshund dev server on port 3000
+# Kill the dagshund dev server
 dev-down:
     #!/usr/bin/env bash
-    pid=$(fuser 3000/tcp 2>/dev/null)
-    if [ -z "$pid" ]; then
-        echo "Nothing running on port 3000"
-        exit 0
-    fi
-    cmd=$(ps -p $pid -o comm= 2>/dev/null)
-    if [ "$cmd" = "bun" ]; then
-        kill $pid
-        echo "Stopped bun (pid $pid)"
+    pidfile="{{root}}/.cache/dev-server.pid"
+    if [ -f "$pidfile" ]; then
+        for pid in $(<"$pidfile"); do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill "$pid"
+                echo "Stopped pid $pid"
+            fi
+        done
+        rm -f "$pidfile"
     else
-        echo "Port 3000 is in use by '$cmd' (pid $pid), not bun — skipping"
+        # Fallback: kill by port
+        pid=$(fuser 3000/tcp 2>/dev/null)
+        if [ -n "$pid" ]; then
+            kill "$pid" && echo "Stopped process on port 3000 (pid $pid)"
+        else
+            echo "Nothing running on port 3000"
+        fi
     fi
 
 # Build JS template + Python wheel
 build:
     bun run --cwd {{js_dir}} build:template
-    cp {{root}}/skills/dagshund/SKILL.md {{py_src}}/dagshund/_assets/SKILL.md
+    cp {{root}}/plugins/dagshund/skills/dagshund/SKILL.md {{py_src}}/dagshund/_assets/SKILL.md
     uv build
 
 # Run JS tests (optional filter: test file or name pattern)

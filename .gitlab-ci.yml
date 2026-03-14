@@ -86,7 +86,7 @@ build:
     - version-check
   script:
     - bun run --cwd js build:template
-    - cp skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
+    - cp plugins/dagshund/skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
     - uv build
     - sha256sum dist/* > dist/SHA256SUMS
   artifacts:
@@ -182,7 +182,7 @@ pages:
   script:
     - bun run --cwd js build:template
     - mkdir -p public
-    - cp pages/index.html public/index.html
+    - cp docs/pages/index.html public/index.html
     - uv run dagshund fixtures/complex-plan.json -o public/complex.html
     - uv run dagshund fixtures/all-hierarchies-plan.json -o public/all-hierarchies.html
   artifacts:

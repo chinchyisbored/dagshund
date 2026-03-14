@@ -6,6 +6,7 @@ from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from itertools import groupby
+from typing import TypeGuard
 
 from dagshund import (
     DagshundError,
@@ -22,6 +23,12 @@ from dagshund import (
     is_resource_changes,
     parse_resource_key,
 )
+
+
+def _is_field_changes(value: object) -> TypeGuard[dict[str, FieldChange]]:
+    """Narrow the untyped 'changes' value from a resource entry so iteration preserves key/value types."""
+    return isinstance(value, dict)
+
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -150,7 +157,7 @@ def _render_resource(
     yield _colorize(header, action_config.color, use_color=use_color)
 
     changes = entry.get("changes", {})
-    if isinstance(changes, dict) and changes and action_config.show_field_changes:
+    if _is_field_changes(changes) and changes and action_config.show_field_changes:
         for field_name, change in sorted(changes.items()):
             if not isinstance(change, dict):
                 continue

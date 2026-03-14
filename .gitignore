@@ -2,20 +2,16 @@
 node_modules
 
 # Build output
-out
 dist
 *.tgz
 
-# Generated CSS
+# Generated artifacts
 js/src/styles/output.css
-
-# Built JS template (generated artifact)
 src/dagshund/_assets/template.html
 src/dagshund/_assets/SKILL.md
 js/src/dagshund/
 
 # Code coverage
-coverage
 *.lcov
 
 # Caches
@@ -36,22 +32,6 @@ __pycache__/
 .env.*
 !.env.example
 
-# Private keys and certificates
-*.pem
-*.key
-*.p12
-*.pfx
-
-# Service credentials
-credentials.json
-service-account.json
-.databrickscfg
-
-# SSH keys
-id_rsa
-id_ecdsa
-id_ed25519
-
-# dab stuff
+# Databricks
 .databricks
 fixtures/bases/bundle.schema.json
