@@ -79,6 +79,19 @@ export const buildGraphEdge = (
   diffState,
 });
 
+/** Build a unique edge, returning undefined if source === target (self-loop guard). */
+export const buildEdge = (
+  source: string,
+  target: string,
+  diffState: GraphEdge["diffState"] = "unchanged",
+): GraphEdge | undefined =>
+  source === target ? undefined : buildGraphEdge(source, target, diffState);
+
+/** Filter defined edges from buildEdge results. */
+export const filterDefinedEdges = (
+  edges: readonly (GraphEdge | undefined)[],
+): readonly GraphEdge[] => edges.filter((edge): edge is GraphEdge => edge !== undefined);
+
 export type PlanGraph = {
   readonly nodes: readonly GraphNode[];
   readonly edges: readonly GraphEdge[];
