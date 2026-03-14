@@ -1,4 +1,4 @@
-import type { NodeMouseHandler, NodeTypes, ReactFlowInstance } from "@xyflow/react";
+import type { NodeMouseHandler, NodeTypes } from "@xyflow/react";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InteractionContext } from "../hooks/use-interaction-context.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
@@ -9,9 +9,9 @@ import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
 import { useTabVisibility } from "../hooks/use-tab-visibility.ts";
+import { useViewportPositioning } from "../hooks/use-viewport-positioning.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
-import { centerOnNode } from "../utils/center-on-node.ts";
 import {
   buildConnectedNodeIds,
   resolveLateralContext,
@@ -50,27 +50,7 @@ export function FlowCanvas({
   const [showPhantomLeaves, setShowPhantomLeaves] = useState(false);
   const [isolatedLateralNodeId, setIsolatedLateralNodeId] = useState<string | null>(null);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
-  const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
-  // Never reset — safe because FlowCanvas remounts when the plan changes (keyed on plan identity).
-  const hasFittedRef = useRef(false);
-  const [hasFitted, setHasFitted] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
-    const instance = rfInstanceRef.current;
-    if (instance !== null) {
-      centerOnNode(instance, node.id);
-    }
-
-    const data = getNodeData(node);
-    if (data.nodeKind === "root") {
-      setSelectedNode(null);
-      setSelectedNodeId(null);
-      return;
-    }
-    setSelectedNode(data);
-    setSelectedNodeId(node.id);
-  }, []);
 
   const handleClosePanel = useCallback(() => {
     setSelectedNode(null);
@@ -101,14 +81,6 @@ export function FlowCanvas({
       startTransition(() => setHoveredNodeId(null));
       hoverTimerRef.current = null;
     }, HOVER_DEBOUNCE_MS);
-  }, []);
-
-  const handleInit = useCallback((instance: ReactFlowInstance) => {
-    rfInstanceRef.current = instance;
-  }, []);
-
-  const handleFitView = useCallback(() => {
-    rfInstanceRef.current?.fitView();
   }, []);
 
   const handleToggleLateralEdges = useCallback(() => {
@@ -170,52 +142,6 @@ export function FlowCanvas({
     [selectedNodeId, hiddenPhantomIds],
   );
 
-  /** Fit the viewport exactly once after the layout produces nodes.
-   *  Skipped when focusNodeId is set — the focus effect handles viewport positioning instead.
-   *  Deferred until isVisible is true so tabs rendered with display:none don't fitView
-   *  against a zero-size container. Uses rAF + setTimeout so React Flow's ResizeObserver
-   *  has time to measure node dimensions — especially job group containers which need
-   *  multiple measurement passes. */
-  useEffect(() => {
-    if (rfInstanceRef.current && baseNodes.length > 0 && isVisible && !hasFittedRef.current) {
-      if (focusNodeId != null) {
-        hasFittedRef.current = true;
-        setHasFitted(true);
-        return;
-      }
-      let timerId: ReturnType<typeof setTimeout> | undefined;
-      const frameId = requestAnimationFrame(() => {
-        timerId = setTimeout(() => {
-          hasFittedRef.current = true;
-          rfInstanceRef.current?.fitView({ maxZoom: 1, padding: 0.15 });
-          setHasFitted(true);
-        }, 50);
-      });
-      return () => {
-        cancelAnimationFrame(frameId);
-        if (timerId !== undefined) clearTimeout(timerId);
-      };
-    }
-  }, [baseNodes, focusNodeId, isVisible]);
-
-  /** Pan to a specific node when focusNodeId is set (cross-tab navigation).
-   *  Waits for layout to be ready so the node exists in React Flow's internal store.
-   *  Uses setTimeout rather than rAF because the tab container transitions from
-   *  display:none to visible on navigation — React Flow's ResizeObserver needs
-   *  time to recalculate before setCenter can position correctly. */
-  useEffect(() => {
-    if (focusNodeId === null || focusNodeId === undefined) return;
-    if (layoutState.status !== "ready") return;
-    const timerId = setTimeout(() => {
-      const instance = rfInstanceRef.current;
-      if (instance === null) return;
-      if (centerOnNode(instance, focusNodeId)) {
-        onFocusComplete?.();
-      }
-    }, 50);
-    return () => clearTimeout(timerId);
-  }, [focusNodeId, onFocusComplete, layoutState.status]);
-
   const diffStateCounts = useMemo((): Readonly<Record<FilterableDiffState, number>> => {
     const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };
     for (const node of baseNodes) {
@@ -274,25 +200,34 @@ export function FlowCanvas({
     return withParents;
   }, [baseNodes, directMatchIds]);
 
-  /** Center when search narrows to a single top-level match.
-   *  Matches whose parent is also matched are collapsed (e.g. job + its tasks → job). */
-  useEffect(() => {
-    if (directMatchIds === null || directMatchIds.size === 0) return;
+  const {
+    hasFitted,
+    handleInit,
+    handleFitView,
+    centerOnNode: centerViewportOnNode,
+  } = useViewportPositioning({
+    baseNodes,
+    isVisible,
+    focusNodeId,
+    onFocusComplete,
+    isLayoutReady: layoutState.status === "ready",
+    directMatchIds,
+  });
 
-    // Collapse: remove matches whose parent is also matched.
-    const topLevel: string[] = [];
-    for (const node of baseNodes) {
-      if (!directMatchIds.has(node.id)) continue;
-      if (node.parentId !== undefined && directMatchIds.has(node.parentId)) continue;
-      topLevel.push(node.id);
-    }
-    if (topLevel.length !== 1) return;
-
-    const instance = rfInstanceRef.current;
-    const target = topLevel[0];
-    if (instance === null || target === undefined) return;
-    centerOnNode(instance, target);
-  }, [baseNodes, directMatchIds]);
+  const handleNodeClick: NodeMouseHandler = useCallback(
+    (_, node) => {
+      centerViewportOnNode(node.id);
+      const data = getNodeData(node);
+      if (data.nodeKind === "root") {
+        setSelectedNode(null);
+        setSelectedNodeId(null);
+        return;
+      }
+      setSelectedNode(data);
+      setSelectedNodeId(node.id);
+    },
+    [centerViewportOnNode],
+  );
 
   const phantomContext = useMemo(() => {
     if (
@@ -322,10 +257,9 @@ export function FlowCanvas({
       if (data.nodeKind === "root") return;
       setSelectedNode(data);
       setSelectedNodeId(nodeId);
-      const instance = rfInstanceRef.current;
-      if (instance !== null) centerOnNode(instance, nodeId);
+      centerViewportOnNode(nodeId);
     },
-    [baseNodes],
+    [baseNodes, centerViewportOnNode],
   );
 
   const interactionState = useMemo(
