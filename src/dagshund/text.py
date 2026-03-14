@@ -41,6 +41,9 @@ class _ActionConfig:
     show_field_changes: bool = False
 
 
+# Action vocabulary is duplicated in two other locations:
+# - types.py: action_to_diff_state() match statement
+# - js/src/types/plan-schema.ts: knownActionTypes (Zod schema)
 _ACTIONS: dict[str, _ActionConfig] = {
     "": _ActionConfig("unchanged", DIM, " "),
     "create": _ActionConfig("create", GREEN, "+"),
