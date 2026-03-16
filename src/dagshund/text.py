@@ -68,10 +68,16 @@ _DEFAULT_ACTION = _ActionConfig("unknown", RESET, "?")
 _DANGEROUS_ACTIONS = frozenset({"delete", "recreate"})
 
 _STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
+    # Unity Catalog
     "catalogs": "all schemas, tables, and volumes in this catalog will be lost",
     "schemas": "all tables, views, and volumes in this schema will be lost",
     "volumes": "all files in this volume will be lost",
     "registered_models": "all model versions will be lost",
+    "experiments": "all experiment runs and metrics will be lost",
+    # PostgreSQL
+    "database_instances": "all catalogs and tables on this instance will be lost",
+    "postgres_projects": "all branches and endpoints in this project will be lost",
+    "postgres_branches": "all data on this branch will be lost",
 }
 
 

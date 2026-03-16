@@ -975,8 +975,21 @@ def test_collect_warnings_ignores_stateful_skip() -> None:
         ("schemas", "all tables, views, and volumes in this schema"),
         ("volumes", "all files in this volume"),
         ("registered_models", "all model versions"),
+        ("experiments", "all experiment runs and metrics"),
+        ("database_instances", "all catalogs and tables on this instance"),
+        ("postgres_projects", "all branches and endpoints in this project"),
+        ("postgres_branches", "all data on this branch"),
     ],
-    ids=["catalogs", "schemas", "volumes", "registered_models"],
+    ids=[
+        "catalogs",
+        "schemas",
+        "volumes",
+        "registered_models",
+        "experiments",
+        "database_instances",
+        "postgres_projects",
+        "postgres_branches",
+    ],
 )
 def test_collect_warnings_all_stateful_types(resource_type: str, expected_risk: str) -> None:
     resources = {f"resources.{resource_type}.x": {"action": "delete"}}
