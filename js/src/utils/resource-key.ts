@@ -7,6 +7,19 @@ export const extractResourceName = (resourceKey: string): string => {
 /** Extract the resource type segment from a resource key (second dot-segment). */
 export const extractResourceType = (key: string): string | undefined => key.split(".")[1];
 
+/** Check whether a key represents a sub-resource (e.g. permissions, grants) rather than a top-level resource.
+ *  Sub-resources have >3 dot segments like "resources.jobs.test_job.permissions". */
+export const isSubResourceKey = (key: string): boolean => key.split(".").length > 3;
+
+/** Extract the parent resource key (first 3 dot-segments) from a sub-resource key.
+ *  "resources.jobs.test_job.permissions" → "resources.jobs.test_job" */
+export const extractParentResourceKey = (key: string): string =>
+  key.split(".").slice(0, 3).join(".");
+
+/** Extract the sub-resource suffix (segments from index 3) from a sub-resource key.
+ *  "resources.jobs.test_job.permissions" → "permissions" */
+export const extractSubResourceSuffix = (key: string): string => key.split(".").slice(3).join(".");
+
 /** Derive a type badge for phantom nodes from their ID or resource key.
  *  Checks `::` prefixed IDs first, then falls through to the standard resource type badge. */
 export const extractPhantomBadge = (resourceKey: string): string | undefined => {
@@ -56,6 +69,7 @@ const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {
   database_instances: "database instance",
   dashboards: "dashboard",
   genie_spaces: "genie",
+  alerts: "alert",
   apps: "app",
   experiments: "experiment",
   external_locations: "external location",

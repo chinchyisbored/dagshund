@@ -281,6 +281,26 @@ describe("buildPlanGraph", () => {
     });
   });
 
+  describe("sub-resources-plan.json (sub-resource merging)", () => {
+    test("creates only one job node, merging sub-resources into parent", async () => {
+      const plan = await loadFixture("sub-resources-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const jobNodes = graph.nodes.filter((n) => n.nodeKind === "job");
+      expect(jobNodes).toHaveLength(1);
+      expect(jobNodes[0]?.label).toBe("test_job");
+    });
+
+    test("does not create nodes for permissions or grants sub-resources", async () => {
+      const plan = await loadFixture("sub-resources-plan.json");
+      const graph = buildPlanGraph(plan);
+
+      const nodeIds = graph.nodes.map((n) => n.id);
+      expect(nodeIds).not.toContain("resources.jobs.test_job.permissions");
+      expect(nodeIds).not.toContain("resources.schemas.analytics.grants");
+    });
+  });
+
   describe("complex-plan.json (numeric job_id)", () => {
     test("extracts all tasks from etl_pipeline including run_job_task with numeric job_id", async () => {
       const plan = await loadFixture("complex-plan.json");

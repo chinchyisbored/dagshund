@@ -2,6 +2,7 @@
 
 import json
 
+from dagshund.merge import merge_sub_resources
 from dagshund.types import (
     DiffState,
     FieldChange,
@@ -10,10 +11,10 @@ from dagshund.types import (
     ResourceChanges,
     ResourceChangesByType,
     ResourceKey,
-    ResourceName,
     ResourceType,
     action_to_diff_state,
     is_resource_changes,
+    is_sub_resource_key,
     parse_resource_key,
 )
 
@@ -26,11 +27,12 @@ __all__ = [
     "ResourceChanges",
     "ResourceChangesByType",
     "ResourceKey",
-    "ResourceName",
     "ResourceType",
     "action_to_diff_state",
     "detect_changes",
     "is_resource_changes",
+    "is_sub_resource_key",
+    "merge_sub_resources",
     "parse_plan",
     "parse_resource_key",
 ]

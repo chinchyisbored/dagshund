@@ -6,7 +6,15 @@ import os
 import sys
 from pathlib import Path
 
-from dagshund import DagshundError, DiffState, __version__, detect_changes, is_resource_changes, parse_plan
+from dagshund import (
+    DagshundError,
+    DiffState,
+    __version__,
+    detect_changes,
+    is_resource_changes,
+    merge_sub_resources,
+    parse_plan,
+)
 
 EPILOG = """\
 examples:
@@ -203,7 +211,7 @@ def main() -> None:
 
         if args.detailed_exitcode:
             resources = plan.get("plan", {})
-            if is_resource_changes(resources) and detect_changes(resources):
+            if is_resource_changes(resources) and detect_changes(merge_sub_resources(resources)):
                 sys.exit(2)
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)

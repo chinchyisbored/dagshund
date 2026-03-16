@@ -40,6 +40,11 @@ CASES=(
   "mixed-plan.json|-f \"etl_pipeline\"|mixed-plan--filter-exact-etl.txt"
   "mixed-plan.json|-c -f type:alerts|mixed-plan--changes-only--filter-type-alerts.txt"
   "mixed-plan.json|-a -r|mixed-plan--added--removed.txt"
+  "initial-create-plan.json||initial-create-plan.txt"
+  "job-only-change-plan.json||job-only-change-plan.txt"
+  "sub-only-change-plan.json||sub-only-change-plan.txt"
+  "remove-perm-plan.json||remove-perm-plan.txt"
+  "remove-one-perm-plan.json||remove-one-perm-plan.txt"
 )
 
 run_dagshund() {

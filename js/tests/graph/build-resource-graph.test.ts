@@ -1636,3 +1636,63 @@ describe("source table phantom nodes", () => {
     expect(phantom?.nodeKind).toBe("phantom");
   });
 });
+
+describe("sub-resources-plan.json (sub-resource merging)", () => {
+  test("merges sub-resource keys into parent resource node", async () => {
+    const plan = await loadFixture("sub-resources-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("resources.jobs.test_job");
+    expect(nodeIds).not.toContain("resources.jobs.test_job.permissions");
+    expect(nodeIds).not.toContain("resources.schemas.analytics.grants");
+  });
+
+  test("includes non-sub-resource entries", async () => {
+    const plan = await loadFixture("sub-resources-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const resourceKeys = graph.nodes
+      .filter((n): n is ResourceGraphNode => n.nodeKind === "resource")
+      .map((n) => n.resourceKey);
+    expect(resourceKeys).toContain("resources.jobs.test_job");
+    expect(resourceKeys).toContain("resources.schemas.analytics");
+  });
+
+  test("no edges reference sub-resource keys", async () => {
+    const plan = await loadFixture("sub-resources-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    for (const edge of [...graph.edges, ...graph.lateralEdges]) {
+      expect(edge.source).not.toContain(".permissions");
+      expect(edge.source).not.toContain(".grants");
+      expect(edge.target).not.toContain(".permissions");
+      expect(edge.target).not.toContain(".grants");
+    }
+  });
+
+  test("parent node has merged permission state from remote_state", async () => {
+    const plan = await loadFixture("sub-resources-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const jobNode = graph.nodes.find(
+      (n): n is ResourceGraphNode =>
+        n.nodeKind === "resource" && n.resourceKey === "resources.jobs.test_job",
+    );
+    expect(jobNode).toBeDefined();
+    const state = jobNode?.resourceState as Record<string, unknown> | undefined;
+    expect(state?.["permissions"]).toBeDefined();
+  });
+
+  test("schema node has merged grants changes", async () => {
+    const plan = await loadFixture("sub-resources-plan.json");
+    const graph = buildResourceGraph(plan);
+
+    const schemaNode = graph.nodes.find(
+      (n): n is ResourceGraphNode =>
+        n.nodeKind === "resource" && n.resourceKey === "resources.schemas.analytics",
+    );
+    expect(schemaNode).toBeDefined();
+    expect(schemaNode?.changes?.["grants.grants[principal='data_team'].privileges"]).toBeDefined();
+  });
+});

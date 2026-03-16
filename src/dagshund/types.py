@@ -43,6 +43,30 @@ def action_to_diff_state(action: str) -> DiffState:
             return DiffState.UNCHANGED
 
 
+def extract_parent_resource_key(key: ResourceKey) -> ResourceKey:
+    """Extract the parent resource key (first 3 dot-segments) from a sub-resource key.
+
+    'resources.jobs.test_job.permissions' → 'resources.jobs.test_job'
+    """
+    return ".".join(key.split(".")[:3])
+
+
+def extract_sub_resource_suffix(key: ResourceKey) -> str:
+    """Extract the sub-resource suffix (segments from index 3) from a sub-resource key.
+
+    'resources.jobs.test_job.permissions' → 'permissions'
+    """
+    return ".".join(key.split(".")[3:])
+
+
+def is_sub_resource_key(key: ResourceKey) -> bool:
+    """Check whether a key represents a sub-resource (e.g. permissions, grants) rather than a top-level resource.
+
+    Sub-resources have >3 dot segments like 'resources.jobs.test_job.permissions'.
+    """
+    return len(key.split(".")) > 3
+
+
 def parse_resource_key(key: ResourceKey) -> tuple[ResourceType, ResourceName]:
     """Extract resource type and name from a key like 'resources.jobs.etl_pipeline'."""
     match key.split("."):

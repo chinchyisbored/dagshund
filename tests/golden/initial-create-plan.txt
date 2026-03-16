@@ -1,0 +1,9 @@
+dagshund plan (v2, cli 0.294.0)
+
+  jobs (1)
+  + jobs/dagshund_test_job  (create)
+
+  schemas (1)
+  + schemas/dagshund_test_schema  (create)
+
+  +2 create

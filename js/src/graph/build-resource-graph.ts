@@ -10,6 +10,7 @@ import {
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
+import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
@@ -595,7 +596,7 @@ const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => 
 export const buildResourceGraph = (
   plan: Plan,
 ): PlanGraph & { readonly lateralEdges: readonly GraphEdge[] } => {
-  const entries = Object.entries(plan.plan ?? {});
+  const entries = Object.entries(mergeSubResources(plan.plan ?? {}));
 
   if (entries.length === 0) return { nodes: [], edges: [], lateralEdges: [] };
 

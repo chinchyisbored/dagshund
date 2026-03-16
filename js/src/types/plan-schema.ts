@@ -14,21 +14,19 @@ const knownActionTypes = [
   "delete",
 ] as const;
 
-export type KnownActionType = (typeof knownActionTypes)[number];
-
 const actionTypeSchema = z.enum(knownActionTypes).catch("" as const);
 
 export type ActionType = z.infer<typeof actionTypeSchema>;
 
 const dependsOnEntrySchema = z
-  .object({
+  .looseObject({
     node: z.string(),
     label: z.string().optional(),
   })
   .readonly();
 
 const changeDescSchema = z
-  .object({
+  .looseObject({
     action: actionTypeSchema,
     reason: z.string().optional(),
     old: z.unknown().optional(),
@@ -40,7 +38,7 @@ const changeDescSchema = z
 export type ChangeDesc = z.infer<typeof changeDescSchema>;
 
 const planEntrySchema = z
-  .object({
+  .looseObject({
     id: z.string().optional(),
     depends_on: z.array(dependsOnEntrySchema).readonly().optional(),
     action: actionTypeSchema.optional(),
@@ -53,7 +51,7 @@ const planEntrySchema = z
 export type PlanEntry = z.infer<typeof planEntrySchema>;
 
 export const planSchema = z
-  .object({
+  .looseObject({
     plan_version: z.number().optional(),
     cli_version: z.string().optional(),
     lineage: z.string().optional(),

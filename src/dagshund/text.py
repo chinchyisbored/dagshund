@@ -21,6 +21,7 @@ from dagshund import (
     action_to_diff_state,
     detect_changes,
     is_resource_changes,
+    merge_sub_resources,
     parse_resource_key,
 )
 
@@ -299,9 +300,10 @@ def render_text(
     filter_query: str | None = None,
 ) -> None:
     """Render colored diff summary to terminal."""
-    resources = plan.get("plan", {})
-    if not is_resource_changes(resources):
+    raw_resources = plan.get("plan", {})
+    if not is_resource_changes(raw_resources):
         raise DagshundError("plan must be an object")
+    resources = merge_sub_resources(raw_resources)
     if not resources:
         raise DagshundError("plan is empty")
 

@@ -4,7 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from dagshund import DagshundError, DiffState, action_to_diff_state, parse_resource_key
+from dagshund import (
+    DagshundError,
+    DiffState,
+    action_to_diff_state,
+    detect_changes,
+    is_sub_resource_key,
+    merge_sub_resources,
+    parse_resource_key,
+)
 from dagshund.text import (
     _ACTIONS,
     _DANGEROUS_ACTIONS,
@@ -32,6 +40,80 @@ from dagshund.text import (
     _supports_color,
     render_text,
 )
+
+# --- is_sub_resource_key ---
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        ("resources.jobs.test_job", False),
+        ("resources.jobs.test_job.permissions", True),
+        ("resources.jobs.test_job.grants.extra", True),
+        ("resources.jobs", False),
+        ("resources", False),
+        ("", False),
+    ],
+    ids=["three_segments", "four_segments", "five_segments", "two_segments", "one_segment", "empty"],
+)
+def test_is_sub_resource_key(key: str, *, expected: bool) -> None:
+    assert is_sub_resource_key(key) == expected
+
+
+# --- render_text merges sub-resources (integration) ---
+
+
+def test_render_text_merges_sub_resources(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = {
+        "plan_version": 2,
+        "cli_version": "0.292.0",
+        "plan": {
+            "resources.jobs.test_job": {"action": "skip"},
+            "resources.jobs.test_job.permissions": {
+                "action": "update",
+                "changes": {
+                    "permissions[group_name='users'].permission_level": {
+                        "action": "update",
+                        "old": "CAN_VIEW",
+                        "new": "CAN_MANAGE",
+                    },
+                },
+            },
+        },
+    }
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "test_job" in out
+    # Parent promoted to update, so prefixed changes from permissions are visible
+    assert "permissions.permissions[group_name='users'].permission_level" in out
+    # Sub-resource keys don't appear as separate entries
+    assert "permissions/" not in out
+
+
+def test_detect_changes_true_after_merge_promotes_parent() -> None:
+    resources = {
+        "resources.jobs.my_job": {"action": "skip"},
+        "resources.jobs.my_job.permissions": {
+            "action": "update",
+            "changes": {
+                "permissions[group_name='users'].permission_level": {
+                    "action": "update",
+                    "old": "CAN_VIEW",
+                    "new": "CAN_MANAGE",
+                },
+            },
+        },
+    }
+
+    # Before merge: parent is skip, no changes detected
+    assert detect_changes({"resources.jobs.my_job": resources["resources.jobs.my_job"]}) is False
+
+    # After merge: parent promoted to update
+    merged = merge_sub_resources(resources)
+    assert detect_changes(merged) is True
+
 
 # --- _supports_color ---
 

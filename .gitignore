@@ -35,3 +35,4 @@ __pycache__/
 # Databricks
 .databricks
 fixtures/bases/bundle.schema.json
+unsanitized_fixtures

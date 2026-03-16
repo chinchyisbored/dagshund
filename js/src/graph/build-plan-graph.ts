@@ -10,6 +10,7 @@ import {
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
+import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
 import {
@@ -247,7 +248,9 @@ const buildRunJobEdges = (
 
 /** Build the complete plan graph from job entries only. */
 export const buildPlanGraph = (plan: Plan): PlanGraph => {
-  const entries = Object.entries(plan.plan ?? {}).filter(([key]) => isJobEntry(key));
+  const entries = Object.entries(mergeSubResources(plan.plan ?? {})).filter(([key]) =>
+    isJobEntry(key),
+  );
   const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry));
   return {
     nodes: graphs.flatMap((graph) => graph.nodes),
