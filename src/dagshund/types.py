@@ -23,6 +23,7 @@ class DiffState(StrEnum):
     MODIFIED = "modified"
     REMOVED = "removed"
     UNCHANGED = "unchanged"
+    UNKNOWN = "unknown"
 
 
 def action_to_diff_state(action: str) -> DiffState:
@@ -39,8 +40,10 @@ def action_to_diff_state(action: str) -> DiffState:
             return DiffState.REMOVED
         case "update" | "recreate" | "resize" | "update_id":
             return DiffState.MODIFIED
-        case _:
+        case "" | "skip":
             return DiffState.UNCHANGED
+        case _:
+            return DiffState.UNKNOWN
 
 
 def extract_parent_resource_key(key: ResourceKey) -> ResourceKey:

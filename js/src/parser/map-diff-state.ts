@@ -10,6 +10,7 @@ const ACTION_TO_DIFF_STATE: Readonly<Record<ActionType, DiffState>> = {
   resize: "modified",
   recreate: "modified",
   update_id: "modified",
+  unknown: "unknown",
 };
 
 export const mapActionToDiffState = (action: ActionType | undefined): DiffState =>

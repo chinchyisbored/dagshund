@@ -41,8 +41,17 @@ describe("getDiffStateStyles", () => {
     expect(styles.opacity).toBe("opacity-100");
   });
 
+  test("unknown returns themed diff classes with dashed border", () => {
+    const styles = getDiffStateStyles("unknown");
+    expect(styles.border).toBe("border-diff-unknown");
+    expect(styles.borderStyle).toBe("border-dashed");
+    expect(styles.background).toBe("bg-diff-unknown-soft");
+    expect(styles.text).toBe("text-diff-unknown");
+    expect(styles.opacity).toBe("opacity-100");
+  });
+
   test("every DiffState returns all six style properties", () => {
-    const states: readonly DiffState[] = ["added", "removed", "modified", "unchanged"];
+    const states: readonly DiffState[] = ["added", "removed", "modified", "unchanged", "unknown"];
     for (const state of states) {
       const styles = getDiffStateStyles(state);
       expect(styles).toHaveProperty("border");
@@ -70,6 +79,10 @@ describe("getDiffBadge", () => {
 
   test("returns = for unchanged", () => {
     expect(getDiffBadge("unchanged")).toBe("=");
+  });
+
+  test("returns ? for unknown", () => {
+    expect(getDiffBadge("unknown")).toBe("?");
   });
 });
 

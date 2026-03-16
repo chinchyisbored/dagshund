@@ -34,6 +34,10 @@ describe("mapActionToDiffState", () => {
     expect(mapActionToDiffState("")).toBe("unchanged");
   });
 
+  test("maps 'unknown' to 'unknown'", () => {
+    expect(mapActionToDiffState("unknown")).toBe("unknown");
+  });
+
   test("maps undefined to 'unchanged'", () => {
     expect(mapActionToDiffState(undefined)).toBe("unchanged");
   });

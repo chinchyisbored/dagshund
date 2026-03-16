@@ -44,6 +44,14 @@ const STYLES: Readonly<Record<DiffState, DiffStateStyles>> = {
     opacity: "opacity-100",
     hoverGlow: "var(--diff-unchanged-border)",
   },
+  unknown: {
+    border: "border-diff-unknown",
+    borderStyle: "border-dashed",
+    background: "bg-diff-unknown-soft",
+    text: "text-diff-unknown",
+    opacity: "opacity-100",
+    hoverGlow: "var(--diff-unknown)",
+  },
 };
 
 /** Get Tailwind class bundles for a given diff state. */
@@ -55,6 +63,7 @@ const DIFF_BADGES: Readonly<Record<DiffState, string>> = {
   removed: "\u2212",
   modified: "~",
   unchanged: "=",
+  unknown: "?",
 };
 
 export const getDiffBadge = (diffState: DiffState): string => DIFF_BADGES[diffState];

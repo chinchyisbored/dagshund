@@ -12,9 +12,10 @@ const knownActionTypes = [
   "create",
   "recreate",
   "delete",
+  "unknown", // catch-all for unrecognized CLI action types — not sent by the CLI itself
 ] as const;
 
-const actionTypeSchema = z.enum(knownActionTypes).catch("" as const);
+const actionTypeSchema = z.enum(knownActionTypes).catch("unknown" as const);
 
 export type ActionType = z.infer<typeof actionTypeSchema>;
 

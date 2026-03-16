@@ -154,7 +154,7 @@ def _install_skill(target_dir: str) -> None:
 def _build_visible_states(args: argparse.Namespace) -> frozenset[DiffState] | None:
     """Build the set of visible diff states from CLI flags, or None to show all."""
     if args.changes_only:
-        return frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
+        return frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED, DiffState.UNKNOWN})
 
     states: set[DiffState] = set()
     if args.added:

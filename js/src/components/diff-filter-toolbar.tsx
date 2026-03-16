@@ -6,6 +6,7 @@ const FILTERABLE_STATES: ReadonlySet<string> = new Set<FilterableDiffState>([
   "added",
   "modified",
   "removed",
+  "unknown",
 ]);
 
 /** Runtime type guard for FilterableDiffState (DiffState minus "unchanged"). */
@@ -40,6 +41,13 @@ const FILTER_BUTTONS: readonly FilterButton[] = [
     activeClasses: "bg-diff-removed-soft border-diff-removed text-diff-removed",
     inactiveClasses:
       "border-outline text-ink-muted hover:border-diff-removed/50 hover:text-diff-removed",
+  },
+  {
+    state: "unknown",
+    label: "Unknown",
+    activeClasses: "bg-diff-unknown-soft border-diff-unknown text-diff-unknown",
+    inactiveClasses:
+      "border-outline text-ink-muted hover:border-diff-unknown/50 hover:text-diff-unknown",
   },
 ];
 

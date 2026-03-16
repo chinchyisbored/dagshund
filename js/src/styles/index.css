@@ -27,6 +27,8 @@
   --diff-unchanged-border: #b4b5b9;
   --diff-unchanged-bg: #c4c8da;
   --diff-unchanged-text: #6172b0;
+  --diff-unknown: #7847bd;
+  --diff-unknown-soft: rgba(120, 71, 189, 0.16);
   --edge-added: #587539;
   --edge-removed: #f52a65;
   --edge-unchanged: #a8aecb;
@@ -77,6 +79,8 @@
   --diff-unchanged-border: #545c7e;
   --diff-unchanged-bg: #292e42;
   --diff-unchanged-text: #a9b1d6;
+  --diff-unknown: #bb9af7;
+  --diff-unknown-soft: rgba(187, 154, 247, 0.12);
   --edge-added: #9ece6a;
   --edge-removed: #f7768e;
   --edge-unchanged: #3b4261;
@@ -127,6 +131,8 @@
   --diff-unchanged-border: #ffffff;
   --diff-unchanged-bg: #1a1a1a;
   --diff-unchanged-text: #e0e0e0;
+  --diff-unknown: #ff00ff;
+  --diff-unknown-soft: #330033;
   --edge-added: #00ff41;
   --edge-removed: #ff3333;
   --edge-unchanged: #666666;
@@ -177,6 +183,8 @@
   --color-diff-unchanged-border: var(--diff-unchanged-border);
   --color-diff-unchanged-bg: var(--diff-unchanged-bg);
   --color-diff-unchanged-text: var(--diff-unchanged-text);
+  --color-diff-unknown: var(--diff-unknown);
+  --color-diff-unknown-soft: var(--diff-unknown-soft);
   --color-handle: var(--handle);
   --color-badge-bg: var(--badge-bg);
   --color-badge-text: var(--badge-text);

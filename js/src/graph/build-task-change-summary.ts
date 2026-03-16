@@ -35,7 +35,8 @@ const DIFF_STATE_ORDER: Readonly<Record<DiffState, number>> = {
   added: 0,
   removed: 1,
   modified: 2,
-  unchanged: 3,
+  unknown: 3,
+  unchanged: 4,
 };
 
 /**

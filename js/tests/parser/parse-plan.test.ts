@@ -95,7 +95,7 @@ describe("parsePlanJson", () => {
     }
   });
 
-  test("accepts unknown action type as empty string fallback", () => {
+  test("coerces unknown action type to 'unknown'", () => {
     const result = parsePlanJson({
       plan: {
         "some.resource": {
@@ -105,7 +105,7 @@ describe("parsePlanJson", () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.plan?.["some.resource"]?.action).toBe("");
+      expect(result.data.plan?.["some.resource"]?.action).toBe("unknown");
     }
   });
 

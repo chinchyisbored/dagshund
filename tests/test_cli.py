@@ -306,7 +306,8 @@ def test_build_visible_states_no_flags_returns_none() -> None:
 
 def test_build_visible_states_changes_only_returns_all_three() -> None:
     args = argparse.Namespace(changes_only=True, added=False, modified=False, removed=False)
-    assert _build_visible_states(args) == frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
+    expected = frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED, DiffState.UNKNOWN})
+    assert _build_visible_states(args) == expected
 
 
 def test_build_visible_states_individual_flags_compose() -> None:
@@ -321,7 +322,8 @@ def test_build_visible_states_single_flag() -> None:
 
 def test_build_visible_states_changes_only_overrides_individual() -> None:
     args = argparse.Namespace(changes_only=True, added=True, modified=False, removed=False)
-    assert _build_visible_states(args) == frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
+    expected = frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED, DiffState.UNKNOWN})
+    assert _build_visible_states(args) == expected
 
 
 # --- diff state filter flags ---

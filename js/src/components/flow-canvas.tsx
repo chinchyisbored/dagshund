@@ -143,7 +143,12 @@ export function FlowCanvas({
   );
 
   const diffStateCounts = useMemo((): Readonly<Record<FilterableDiffState, number>> => {
-    const counts: Record<FilterableDiffState, number> = { added: 0, modified: 0, removed: 0 };
+    const counts: Record<FilterableDiffState, number> = {
+      added: 0,
+      modified: 0,
+      removed: 0,
+      unknown: 0,
+    };
     for (const node of baseNodes) {
       const state = getNodeData(node).diffState;
       if (isFilterableDiffState(state)) counts[state]++;

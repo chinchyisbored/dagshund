@@ -716,7 +716,7 @@ def test_render_text_no_color_excludes_ansi(
         ("update_id", DiffState.MODIFIED),
         ("skip", DiffState.UNCHANGED),
         ("", DiffState.UNCHANGED),
-        ("unknown_action", DiffState.UNCHANGED),
+        ("unknown_action", DiffState.UNKNOWN),
     ],
     ids=["create", "delete", "update", "recreate", "resize", "update_id", "skip", "empty", "unknown"],
 )
@@ -725,9 +725,9 @@ def test_action_to_diff_state(action: str, expected: DiffState) -> None:
 
 
 def test_all_diff_states_reachable_from_actions() -> None:
-    """Every defined diff state must be reachable from at least one action."""
+    """Every defined diff state except UNKNOWN must be reachable from a known action."""
     reachable = {action_to_diff_state(action) for action in _ACTIONS}
-    assert reachable == set(DiffState)
+    assert reachable == set(DiffState) - {DiffState.UNKNOWN}
 
 
 # --- _filter_resources ---

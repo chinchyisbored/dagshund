@@ -1,1 +1,1 @@
-export type DiffState = "added" | "removed" | "modified" | "unchanged";
+export type DiffState = "added" | "removed" | "modified" | "unchanged" | "unknown";

@@ -161,7 +161,7 @@ export function DetailPanel({
             <ModifiedBody data={data} meaningfulChanges={meaningfulChanges} />
           )}
 
-          {data.diffState === "unchanged" && (
+          {(data.diffState === "unchanged" || data.diffState === "unknown") && (
             <ResourceStateView resourceState={data.resourceState ?? {}} />
           )}
 

@@ -19,8 +19,18 @@ describe("toEdgeDiffState", () => {
     expect(toEdgeDiffState("unchanged")).toBe("unchanged");
   });
 
+  test("maps unknown to unchanged", () => {
+    expect(toEdgeDiffState("unknown")).toBe("unchanged");
+  });
+
   test("covers all DiffState values", () => {
-    const allStates: readonly DiffState[] = ["added", "removed", "modified", "unchanged"];
+    const allStates: readonly DiffState[] = [
+      "added",
+      "removed",
+      "modified",
+      "unchanged",
+      "unknown",
+    ];
 
     for (const state of allStates) {
       const result = toEdgeDiffState(state);
