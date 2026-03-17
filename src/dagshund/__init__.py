@@ -37,7 +37,7 @@ __all__ = [
     "parse_resource_key",
 ]
 
-__version__ = "0.5.2"
+__version__ = "0.6.0"
 
 
 class DagshundError(Exception):
