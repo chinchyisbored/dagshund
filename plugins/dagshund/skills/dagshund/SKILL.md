@@ -4,8 +4,8 @@ description: >
   TRIGGER when: user asks about DAB deployment, bundle plan, what will change
   in a deploy, databricks bundle changes, pending deployments, deployment diff,
   schemas/jobs/resources being deployed, or wants to visualize a bundle plan.
-  Visualizes Databricks Asset Bundle deployment plans as colored terminal diffs
-  and interactive DAG diagrams.
+  Visualizes Declarative Automation Bundle (formerly Databricks Asset Bundle)
+  deployment plans as colored terminal diffs and interactive DAG diagrams.
 ---
 
 # Dagshund

@@ -1,7 +1,7 @@
 {
 "name": "chinchy-dagshund",
   "version": "0.5.2",
-  "description": "Diff visualizer for Databricks Asset Bundle deployment plans — colored terminal diffs and interactive DAG diagrams",
+  "description": "Diff visualizer for Declarative Automation Bundle (formerly Databricks Asset Bundle) deployment plans — colored terminal diffs and interactive DAG diagrams",
   "owner": {
     "name": "Max Lautner"
   },

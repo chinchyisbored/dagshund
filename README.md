@@ -1,6 +1,6 @@
 # Dagshund
 
-Colored diff summaries and interactive DAG visualizations for Databricks Asset Bundles. Requires a plan file from the [direct deployment engine](https://docs.databricks.com/aws/en/dev-tools/bundles/direct) (`databricks bundle plan -o json`). See what changed, what's new, and what's being deleted, in your terminal or in the browser.
+Colored diff summaries and interactive DAG visualizations for Declarative Automation Bundles (formerly Databricks Asset Bundles). Requires a plan file from the [direct deployment engine](https://docs.databricks.com/aws/en/dev-tools/bundles/direct) (`databricks bundle plan -o json`). See what changed, what's new, and what's being deleted, in your terminal or in the browser.
 
 ![Dagshund resource graph](docs/pictures/resources.png)
 

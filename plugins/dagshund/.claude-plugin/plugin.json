@@ -1,6 +1,6 @@
 {
   "name": "dagshund",
-  "description": "Diff visualizer for Databricks Asset Bundle deployment plans — colored terminal diffs and interactive DAG diagrams",
+  "description": "Diff visualizer for Declarative Automation Bundle (formerly Databricks Asset Bundle) deployment plans — colored terminal diffs and interactive DAG diagrams",
   "version": "0.5.2",
   "author": {
     "name": "Max Lautner",
@@ -11,6 +11,7 @@
   "homepage": "https://pypi.org/project/dagshund/",
   "keywords": [
     "databricks",
+    "declarative-automation-bundles",
     "databricks-asset-bundles",
     "bundle-plan",
     "deployment",

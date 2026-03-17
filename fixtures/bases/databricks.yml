@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=bundle.schema.json
-# Databricks Asset Bundle — "after" state for generating plan diffs.
+# Declarative Automation Bundle — "after" state for generating plan diffs.
 #
 # This file represents the desired state. After deploying databricks.yml (the "before" state),
 # copy this file over databricks.yml and run `databricks bundle plan -o json` to capture the diff.
