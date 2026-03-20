@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
   "cli_version": "0.288.0",
-  "lineage": "ceaa767d-0fa0-47ac-8680-2bb6ec48866b",
+  "lineage": "00000000-0000-0000-0000-000000000000",
   "serial": 8,
   "plan": {
     "resources.alerts.stale_pipeline_alert": {
@@ -10,7 +10,7 @@
         "create_time": "2026-02-21T18:36:59Z",
         "display_name": "Stale Pipeline Alert",
         "effective_run_as": {
-          "user_name": "databricks.squiggly592@passfwd.com"
+          "user_name": "user@example.com"
         },
         "evaluation": {
           "comparison_operator": "GREATER_THAN",
@@ -25,8 +25,8 @@
         },
         "id": "1564530164888240",
         "lifecycle_state": "ACTIVE",
-        "owner_user_name": "databricks.squiggly592@passfwd.com",
-        "parent_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/resources",
+        "owner_user_name": "user@example.com",
+        "parent_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/resources",
         "query_text": "SELECT TIMESTAMPDIFF(HOUR, MAX(end_time), CURRENT_TIMESTAMP()) AS hours_since_last_run FROM system.lakeflow.job_run_timeline WHERE job_name = 'etl_pipeline'",
         "schedule": {
           "quartz_cron_schedule": "0 0 * * * ?",
@@ -45,7 +45,7 @@
           "action": "skip",
           "reason": "spec:output_only",
           "remote": {
-            "user_name": "databricks.squiggly592@passfwd.com"
+            "user_name": "user@example.com"
           }
         },
         "id": {
@@ -61,7 +61,7 @@
         "owner_user_name": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "databricks.squiggly592@passfwd.com"
+          "remote": "user@example.com"
         },
         "update_time": {
           "action": "skip",
@@ -78,7 +78,7 @@
         "experiment_id": "1564530164888239",
         "last_update_time": 1771699019207,
         "lifecycle_stage": "active",
-        "name": "/Users/databricks.squiggly592@passfwd.com/audit_analysis",
+        "name": "/Users/user@example.com/audit_analysis",
         "tags": [
           {
             "key": "mlflow.ownerId",
@@ -86,7 +86,7 @@
           },
           {
             "key": "mlflow.experiment.sourceName",
-            "value": "/Users/databricks.squiggly592@passfwd.com/audit_analysis"
+            "value": "/Users/user@example.com/audit_analysis"
           },
           {
             "key": "mlflow.ownerId",
@@ -94,7 +94,7 @@
           },
           {
             "key": "mlflow.ownerEmail",
-            "value": "databricks.squiggly592@passfwd.com"
+            "value": "user@example.com"
           },
           {
             "key": "mlflow.experimentType",
@@ -118,7 +118,7 @@
             },
             {
               "key": "mlflow.experiment.sourceName",
-              "value": "/Users/databricks.squiggly592@passfwd.com/audit_analysis"
+              "value": "/Users/user@example.com/audit_analysis"
             },
             {
               "key": "mlflow.ownerId",
@@ -126,7 +126,7 @@
             },
             {
               "key": "mlflow.ownerEmail",
-              "value": "databricks.squiggly592@passfwd.com"
+              "value": "user@example.com"
             },
             {
               "key": "mlflow.experimentType",
@@ -139,11 +139,11 @@
     "resources.jobs.data_quality_pipeline": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1770495329572,
-        "creator_user_name": "databricks.squiggly592@passfwd.com",
+        "created_time": 1700000000000,
+        "creator_user_name": "user@example.com",
         "deployment": {
           "kind": "BUNDLE",
-          "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+          "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
         },
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
@@ -162,7 +162,7 @@
         "queue": {
           "enabled": true
         },
-        "run_as_user_name": "databricks.squiggly592@passfwd.com",
+        "run_as_user_name": "user@example.com",
         "tasks": [
           {
             "depends_on": [
@@ -529,11 +529,11 @@
       ],
       "action": "skip",
       "remote_state": {
-        "created_time": 1770407353832,
-        "creator_user_name": "databricks.squiggly592@passfwd.com",
+        "created_time": 1700000000000,
+        "creator_user_name": "user@example.com",
         "deployment": {
           "kind": "BUNDLE",
-          "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+          "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
         },
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
@@ -552,7 +552,7 @@
         "queue": {
           "enabled": true
         },
-        "run_as_user_name": "databricks.squiggly592@passfwd.com",
+        "run_as_user_name": "user@example.com",
         "tasks": [
           {
             "depends_on": [
@@ -752,7 +752,7 @@
         "catalog_type": "MANAGED_CATALOG",
         "comment": "Analytics schema for production data",
         "created_at": 1770495329473,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
           "inherited_from_type": "METASTORE",
@@ -762,14 +762,14 @@
         "full_name": "dagshund.analytics",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "properties": {
           "environment": "production",
           "owner": "data-engineering"
         },
         "schema_id": "9f69fd10-c061-492f-a0ef-e977573b7906",
         "updated_at": 1771699019288,
-        "updated_by": "databricks.squiggly592@passfwd.com"
+        "updated_by": "user@example.com"
       }
     },
     "resources.schemas.analytics_staging": {
@@ -780,7 +780,7 @@
         "catalog_type": "MANAGED_CATALOG",
         "comment": "Staging schema for analytics data",
         "created_at": 1771699019273,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
           "inherited_from_type": "METASTORE",
@@ -790,14 +790,14 @@
         "full_name": "dagshund.analytics_staging",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics_staging",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "properties": {
           "environment": "staging",
           "owner": "data-engineering"
         },
         "schema_id": "ee219833-fb60-4f6c-bf0d-1c0da7704e29",
         "updated_at": 1771699019273,
-        "updated_by": "databricks.squiggly592@passfwd.com"
+        "updated_by": "user@example.com"
       }
     },
     "resources.volumes.external_imports": {
@@ -806,16 +806,16 @@
         "catalog_name": "dagshund",
         "comment": "Import volume for external data feeds",
         "created_at": 1771699047615,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "encryption_details": {},
         "full_name": "dagshund.dagshund_no_dabs.external_imports",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "external_imports",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "schema_name": "dagshund_no_dabs",
         "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/9a89410d-26dd-4053-9243-b0a2ee36e748/volumes/38c69d85-ba6f-4ace-91b2-7e5294a9a3de",
         "updated_at": 1771699047615,
-        "updated_by": "databricks.squiggly592@passfwd.com",
+        "updated_by": "user@example.com",
         "volume_id": "38c69d85-ba6f-4ace-91b2-7e5294a9a3de",
         "volume_type": "MANAGED"
       },
@@ -839,16 +839,16 @@
         "catalog_name": "dagshund",
         "comment": "Raw data volume for ingestion pipeline",
         "created_at": 1770495330103,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics.raw_data",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "raw_data",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "schema_name": "analytics",
         "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/9a89410d-26dd-4053-9243-b0a2ee36e748/volumes/f47b40ff-8995-47c2-95d8-8d8f97cc2571",
         "updated_at": 1771699019468,
-        "updated_by": "databricks.squiggly592@passfwd.com",
+        "updated_by": "user@example.com",
         "volume_id": "f47b40ff-8995-47c2-95d8-8d8f97cc2571",
         "volume_type": "MANAGED"
       },

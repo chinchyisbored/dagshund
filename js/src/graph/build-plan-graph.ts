@@ -15,6 +15,7 @@ import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts"
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
 import {
   extractDeletedTaskEntries,
+  extractTaskEntriesFromRemoteState,
   extractTaskState,
   resolveAllTaskEntries,
   resolveTaskEntries,
@@ -65,17 +66,14 @@ const filterTaskChanges = (
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
-/** Extract task_key values from a depends_on array (typed as unknown from changes). */
-const extractDependsOnKeys = (dependsOn: unknown): ReadonlySet<string> => {
-  if (!Array.isArray(dependsOn)) return new Set();
-  const keys = new Set<string>();
-  for (const entry of dependsOn) {
-    if (typeof entry === "object" && entry !== null && "task_key" in entry) {
-      const { task_key: taskKey } = entry;
-      if (typeof taskKey === "string") keys.add(taskKey);
-    }
-  }
-  return keys;
+/** Build a map from task_key to its old dependency keys from remote_state. */
+const buildRemoteDependsOnMap = (
+  remoteState: unknown,
+): ReadonlyMap<string, ReadonlySet<string>> => {
+  const tasks = extractTaskEntriesFromRemoteState(remoteState);
+  return new Map(
+    tasks.map((t) => [t.task_key, new Set((t.depends_on ?? []).map((d) => d.task_key))]),
+  );
 };
 
 /** Resolve edge diff state for a single dependency given the depends_on change. */
@@ -116,11 +114,13 @@ const buildDepEdge = (
   );
 
 /** Build edges with diff states for a single task's dependencies.
- *  Handles create/delete at the resource and task levels, depends_on changes, and unchanged deps. */
+ *  Handles create/delete at the resource and task levels, then compares
+ *  old (remote_state) vs new depends_on to detect added/removed edges. */
 const buildEdgesForTask = (
   resourceKey: string,
   taskKey: string,
   currentDependsOn: readonly { readonly task_key: string }[],
+  oldDependsOnKeys: ReadonlySet<string>,
   resourceDiffState: EdgeDiffState,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
 ): readonly GraphEdge[] => {
@@ -139,26 +139,15 @@ const buildEdgesForTask = (
     );
   }
 
-  const dependsOnChangeKey = `${buildTaskKeyPrefix(taskKey)}.depends_on`;
-  const dependsOnChange = changes?.[dependsOnChangeKey];
-
-  // No depends_on change: all edges are unchanged
-  if (dependsOnChange === undefined) {
-    return currentDependsOn.map((dep) =>
-      buildDepEdge(resourceKey, dep.task_key, taskKey, "unchanged"),
-    );
-  }
-
-  // Compare old vs new depends_on arrays
-  const oldKeys = extractDependsOnKeys(dependsOnChange.old);
-  const newKeys = extractDependsOnKeys(dependsOnChange.new);
-  const allDepKeys = new Set([...oldKeys, ...newKeys]);
+  // Compare old (remote_state) vs new depends_on directly
+  const newKeys = new Set(currentDependsOn.map((d) => d.task_key));
+  const allDepKeys = new Set([...oldDependsOnKeys, ...newKeys]);
   return [...allDepKeys].map((depTaskKey) =>
     buildDepEdge(
       resourceKey,
       depTaskKey,
       taskKey,
-      resolveDepEdgeDiffState(depTaskKey, oldKeys, newKeys),
+      resolveDepEdgeDiffState(depTaskKey, oldDependsOnKeys, newKeys),
     ),
   );
 };
@@ -170,12 +159,15 @@ const buildDiffEdges = (
   entry: PlanEntry,
 ): readonly GraphEdge[] => {
   const edgeDiffState = toEdgeDiffState(mapActionToDiffState(entry.action));
+  const remoteDepsMap = buildRemoteDependsOnMap(entry.remote_state);
+  const emptySet: ReadonlySet<string> = new Set();
 
   return allTasks.flatMap((task) =>
     buildEdgesForTask(
       resourceKey,
       task.task_key,
       task.depends_on ?? [],
+      remoteDepsMap.get(task.task_key) ?? emptySet,
       edgeDiffState,
       entry.changes,
     ),

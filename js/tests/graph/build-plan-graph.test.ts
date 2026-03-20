@@ -334,4 +334,177 @@ describe("buildPlanGraph", () => {
       expect(crossJobEdge?.diffState).toBe("added");
     });
   });
+
+  describe("dependency-changes-plan.json (golden fixture — 18 depends_on scenarios)", () => {
+    const etl = "resources.jobs.etl_pipeline";
+    const data = "resources.jobs.data_pipeline";
+
+    const findEdge = (graph: ReturnType<typeof buildPlanGraph>, source: string, target: string) =>
+      graph.edges.find((e) => e.source === source && e.target === target);
+
+    // --- Job 1: conditional scenarios ---
+
+    test("#1 unchanged root: extract has no edges", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const extractEdges = graph.edges.filter(
+        (e) => e.source === `${etl}::extract` || e.target === `${etl}::extract`,
+      );
+      const incomingUnchanged = extractEdges.filter(
+        (e) => e.target === `${etl}::extract` && e.diffState === "unchanged",
+      );
+      expect(incomingUnchanged).toHaveLength(0);
+    });
+
+    test("#2 unchanged with deps: transform→load edges are unchanged", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edge1 = findEdge(graph, `${etl}::extract`, `${etl}::transform`);
+      const edge2 = findEdge(graph, `${etl}::transform`, `${etl}::load`);
+      expect(edge1?.diffState).toBe("unchanged");
+      expect(edge2?.diffState).toBe("unchanged");
+    });
+
+    test("#6 1→1 swap with outcome removal: full_validation has removed edge from check_row_count and added edge from load", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const removed = findEdge(graph, `${etl}::check_row_count`, `${etl}::full_validation`);
+      const added = findEdge(graph, `${etl}::load`, `${etl}::full_validation`);
+      expect(removed?.diffState).toBe("removed");
+      expect(added?.diffState).toBe("added");
+    });
+
+    test("#8 2→1 shrink: publish keeps full_validation edge, loses skip_validation edge", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const kept = findEdge(graph, `${etl}::full_validation`, `${etl}::publish`);
+      const removed = findEdge(graph, `${etl}::skip_validation`, `${etl}::publish`);
+      expect(kept?.diffState).toBe("unchanged");
+      expect(removed?.diffState).toBe("removed");
+    });
+
+    test("#15 removed with deps: check_row_count has removed edge from load", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edge = findEdge(graph, `${etl}::load`, `${etl}::check_row_count`);
+      expect(edge?.diffState).toBe("removed");
+    });
+
+    test("#15 removed with deps: skip_validation has removed edge from check_row_count", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edge = findEdge(graph, `${etl}::check_row_count`, `${etl}::skip_validation`);
+      expect(edge?.diffState).toBe("removed");
+    });
+
+    test("#16 removed task was depended on: check_row_count has removed edges to both branches", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const toFull = findEdge(graph, `${etl}::check_row_count`, `${etl}::full_validation`);
+      const toSkip = findEdge(graph, `${etl}::check_row_count`, `${etl}::skip_validation`);
+      expect(toFull?.diffState).toBe("removed");
+      expect(toSkip?.diffState).toBe("removed");
+    });
+
+    // --- Job 2: non-conditional scenarios ---
+
+    test("#3 0→1 add first dep: monitor gains added edge from ingest", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edge = findEdge(graph, `${data}::ingest`, `${data}::monitor`);
+      expect(edge?.diffState).toBe("added");
+    });
+
+    test("#4 1→0 remove all deps: normalize loses edge from ingest", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edge = findEdge(graph, `${data}::ingest`, `${data}::normalize`);
+      expect(edge?.diffState).toBe("removed");
+    });
+
+    test("#5 1→1 swap: clean swaps dep from normalize to ingest", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const removed = findEdge(graph, `${data}::normalize`, `${data}::clean`);
+      const added = findEdge(graph, `${data}::ingest`, `${data}::clean`);
+      expect(removed?.diffState).toBe("removed");
+      expect(added?.diffState).toBe("added");
+    });
+
+    test("#7 1→2 grow: enrich keeps validate edge, gains clean edge", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const kept = findEdge(graph, `${data}::validate`, `${data}::enrich`);
+      const added = findEdge(graph, `${data}::clean`, `${data}::enrich`);
+      expect(kept?.diffState).toBe("unchanged");
+      expect(added?.diffState).toBe("added");
+    });
+
+    test("#9 2→2 swap one: process_a keeps clean edge, swaps filter for validate", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const kept = findEdge(graph, `${data}::clean`, `${data}::process_a`);
+      const removed = findEdge(graph, `${data}::filter`, `${data}::process_a`);
+      const added = findEdge(graph, `${data}::validate`, `${data}::process_a`);
+      expect(kept?.diffState).toBe("unchanged");
+      expect(removed?.diffState).toBe("removed");
+      expect(added?.diffState).toBe("added");
+    });
+
+    test("#10 2→2 swap both: process_b swaps clean→ingest and filter→validate", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const removedClean = findEdge(graph, `${data}::clean`, `${data}::process_b`);
+      const removedFilter = findEdge(graph, `${data}::filter`, `${data}::process_b`);
+      const addedIngest = findEdge(graph, `${data}::ingest`, `${data}::process_b`);
+      const addedValidate = findEdge(graph, `${data}::validate`, `${data}::process_b`);
+      expect(removedClean?.diffState).toBe("removed");
+      expect(removedFilter?.diffState).toBe("removed");
+      expect(addedIngest?.diffState).toBe("added");
+      expect(addedValidate?.diffState).toBe("added");
+    });
+
+    test("#11 2→2 reorder: combine edges are unchanged (set-based comparison)", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edgeA = findEdge(graph, `${data}::process_a`, `${data}::combine`);
+      const edgeB = findEdge(graph, `${data}::process_b`, `${data}::combine`);
+      expect(edgeA?.diffState).toBe("unchanged");
+      expect(edgeB?.diffState).toBe("unchanged");
+    });
+
+    test("#12 new task no deps: audit node exists with added state", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const node = graph.nodes.find((n) => n.nodeKind === "task" && n.id === `${data}::audit`);
+      expect(node?.diffState).toBe("added");
+      const edges = graph.edges.filter(
+        (e) => e.source === `${data}::audit` || e.target === `${data}::audit`,
+      );
+      expect(edges).toHaveLength(0);
+    });
+
+    test("#13 new task with deps: clean_v2 has added edge from clean", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edge = findEdge(graph, `${data}::clean`, `${data}::clean_v2`);
+      expect(edge?.diffState).toBe("added");
+    });
+
+    test("#14 removed task no deps: standby node exists with removed state and no edges", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const node = graph.nodes.find((n) => n.nodeKind === "task" && n.id === `${data}::standby`);
+      expect(node?.diffState).toBe("removed");
+      const ownEdges = graph.edges.filter(
+        (e) => e.source === `${data}::standby` && e.target === `${data}::standby`,
+      );
+      expect(ownEdges).toHaveLength(0);
+    });
+
+    test("#17 swap to newly added task: validate swaps dep from clean to clean_v2", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const removed = findEdge(graph, `${data}::clean`, `${data}::validate`);
+      const added = findEdge(graph, `${data}::clean_v2`, `${data}::validate`);
+      expect(removed?.diffState).toBe("removed");
+      expect(added?.diffState).toBe("added");
+    });
+
+    test("#18 dep on removed task replaced: filter swaps dep from standby to ingest", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const removed = findEdge(graph, `${data}::standby`, `${data}::filter`);
+      const added = findEdge(graph, `${data}::ingest`, `${data}::filter`);
+      expect(removed?.diffState).toBe("removed");
+      expect(added?.diffState).toBe("added");
+    });
+
+    test("#2 unchanged with deps (data_pipeline): output→combine edge unchanged", async () => {
+      const graph = buildPlanGraph(await loadFixture("dependency-changes-plan.json"));
+      const edge = findEdge(graph, `${data}::combine`, `${data}::output`);
+      expect(edge?.diffState).toBe("unchanged");
+    });
+  });
 });

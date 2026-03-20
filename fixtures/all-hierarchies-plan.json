@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
   "cli_version": "0.290.0",
-  "lineage": "f7a21c3e-9b84-4d1f-ae72-6cc8e4f15d2a",
+  "lineage": "00000000-0000-0000-0000-000000000000",
   "serial": 12,
   "plan": {
     "resources.catalogs.production": {
@@ -20,16 +20,16 @@
         "catalog_type": "MANAGED_CATALOG",
         "comment": "Production catalog",
         "created_at": 1770495329200,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "full_name": "production",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "production",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "properties": {
           "managed_by": "databricks-asset-bundles"
         },
         "updated_at": 1770495329200,
-        "updated_by": "databricks.squiggly592@passfwd.com"
+        "updated_by": "user@example.com"
       },
       "changes": {
         "comment": {
@@ -44,7 +44,6 @@
         }
       }
     },
-
     "resources.schemas.reporting": {
       "action": "create",
       "new_state": {
@@ -59,7 +58,6 @@
         }
       }
     },
-
     "resources.database_catalogs.lakebase_analytics": {
       "action": "create",
       "new_state": {
@@ -71,7 +69,6 @@
         }
       }
     },
-
     "resources.schemas.analytics": {
       "action": "update",
       "new_state": {
@@ -91,17 +88,17 @@
         "catalog_type": "MANAGED_CATALOG",
         "comment": "Analytics schema",
         "created_at": 1770495329473,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "full_name": "dagshund.analytics",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "properties": {
           "owner": "data-engineering"
         },
         "schema_id": "9f69fd10-c061-492f-a0ef-e977573b7906",
         "updated_at": 1770495329473,
-        "updated_by": "databricks.squiggly592@passfwd.com"
+        "updated_by": "user@example.com"
       },
       "changes": {
         "comment": {
@@ -116,7 +113,6 @@
         }
       }
     },
-
     "resources.schemas.ml_features": {
       "action": "create",
       "new_state": {
@@ -131,7 +127,6 @@
         }
       }
     },
-
     "resources.volumes.raw_data": {
       "depends_on": [
         {
@@ -153,15 +148,15 @@
         "catalog_name": "dagshund",
         "comment": "Raw data volume",
         "created_at": 1770495330103,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "full_name": "dagshund.analytics.raw_data",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "raw_data",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "schema_name": "analytics",
         "storage_location": "s3://dbstorage-prod-xkkgg/uc/volumes/f47b40ff-8995-47c2-95d8-8d8f97cc2571",
         "updated_at": 1770495330103,
-        "updated_by": "databricks.squiggly592@passfwd.com",
+        "updated_by": "user@example.com",
         "volume_id": "f47b40ff-8995-47c2-95d8-8d8f97cc2571",
         "volume_type": "MANAGED"
       },
@@ -174,7 +169,6 @@
         }
       }
     },
-
     "resources.volumes.partner_feeds": {
       "action": "create",
       "new_state": {
@@ -187,95 +181,127 @@
         }
       }
     },
-
     "resources.registered_models.churn_predictor": {
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
         "comment": "Customer churn prediction model",
         "created_at": 1770495395934,
-        "created_by": "databricks.squiggly592@passfwd.com",
+        "created_by": "user@example.com",
         "full_name": "dagshund.analytics.churn_predictor",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "churn_predictor",
-        "owner": "databricks.squiggly592@passfwd.com",
+        "owner": "user@example.com",
         "schema_name": "analytics",
         "storage_location": "s3://dbstorage-prod-xkkgg/uc/models/22aff09a-5da0-4833-a557-009275305dc4",
         "updated_at": 1770495395934,
-        "updated_by": "databricks.squiggly592@passfwd.com"
+        "updated_by": "user@example.com"
       }
     },
-
-
     "resources.jobs.etl_pipeline": {
       "action": "update",
       "new_state": {
         "value": {
           "deployment": {
             "kind": "BUNDLE",
-            "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+            "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
           },
           "edit_mode": "UI_LOCKED",
           "format": "MULTI_TASK",
           "max_concurrent_runs": 1,
           "name": "etl_pipeline",
-          "queue": { "enabled": true },
+          "queue": {
+            "enabled": true
+          },
           "tasks": [
             {
               "environment_key": "default",
-              "notebook_task": { "notebook_path": "/Workspace/etl/extract" },
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/extract"
+              },
               "task_key": "extract"
             },
             {
-              "depends_on": [{ "task_key": "extract" }],
+              "depends_on": [
+                {
+                  "task_key": "extract"
+                }
+              ],
               "environment_key": "default",
-              "notebook_task": { "notebook_path": "/Workspace/etl/transform_v3" },
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/transform_v3"
+              },
               "task_key": "transform"
             },
             {
-              "depends_on": [{ "task_key": "transform" }],
+              "depends_on": [
+                {
+                  "task_key": "transform"
+                }
+              ],
               "environment_key": "default",
-              "notebook_task": { "notebook_path": "/Workspace/etl/load" },
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/load"
+              },
               "task_key": "load"
             }
           ]
         }
       },
       "remote_state": {
-        "created_time": 1770407353832,
-        "creator_user_name": "databricks.squiggly592@passfwd.com",
+        "created_time": 1700000000000,
+        "creator_user_name": "user@example.com",
         "job_id": 1117023947429700,
-        "run_as_user_name": "databricks.squiggly592@passfwd.com",
+        "run_as_user_name": "user@example.com",
         "settings": {
           "deployment": {
             "kind": "BUNDLE",
-            "metadata_file_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+            "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
           },
           "edit_mode": "UI_LOCKED",
           "format": "MULTI_TASK",
           "max_concurrent_runs": 1,
           "name": "etl_pipeline",
-          "queue": { "enabled": true },
+          "queue": {
+            "enabled": true
+          },
           "tasks": [
             {
               "environment_key": "default",
-              "notebook_task": { "notebook_path": "/Workspace/etl/extract", "source": "WORKSPACE" },
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/extract",
+                "source": "WORKSPACE"
+              },
               "run_if": "ALL_SUCCESS",
               "task_key": "extract",
               "timeout_seconds": 0
             },
             {
-              "depends_on": [{ "task_key": "extract" }],
+              "depends_on": [
+                {
+                  "task_key": "extract"
+                }
+              ],
               "environment_key": "default",
-              "notebook_task": { "notebook_path": "/Workspace/etl/transform_v2", "source": "WORKSPACE" },
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/transform_v2",
+                "source": "WORKSPACE"
+              },
               "run_if": "ALL_SUCCESS",
               "task_key": "transform",
               "timeout_seconds": 0
             },
             {
-              "depends_on": [{ "task_key": "transform" }],
+              "depends_on": [
+                {
+                  "task_key": "transform"
+                }
+              ],
               "environment_key": "default",
-              "notebook_task": { "notebook_path": "/Workspace/etl/load", "source": "WORKSPACE" },
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/load",
+                "source": "WORKSPACE"
+              },
               "run_if": "ALL_SUCCESS",
               "task_key": "load",
               "timeout_seconds": 0
@@ -293,7 +319,6 @@
         }
       }
     },
-
     "resources.alerts.data_freshness": {
       "action": "create",
       "new_state": {
@@ -301,10 +326,16 @@
           "display_name": "Data Freshness Alert",
           "evaluation": {
             "comparison_operator": "GREATER_THAN",
-            "source": { "name": "hours_since_refresh" },
-            "threshold": { "value": { "double_value": 12 } }
+            "source": {
+              "name": "hours_since_refresh"
+            },
+            "threshold": {
+              "value": {
+                "double_value": 12
+              }
+            }
           },
-          "parent_path": "/Workspace/Users/databricks.squiggly592@passfwd.com/.bundle/dagshund-test-bundle/default/resources",
+          "parent_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/resources",
           "query_text": "SELECT TIMESTAMPDIFF(HOUR, MAX(updated_at), CURRENT_TIMESTAMP()) AS hours_since_refresh FROM dagshund.analytics.data_quality_log",
           "schedule": {
             "quartz_cron_schedule": "0 0 */4 * * ?",
@@ -314,16 +345,14 @@
         }
       }
     },
-
     "resources.experiments.ab_test_v2": {
       "action": "create",
       "new_state": {
         "value": {
-          "name": "/Users/databricks.squiggly592@passfwd.com/ab_test_v2"
+          "name": "/Users/user@example.com/ab_test_v2"
         }
       }
     },
-
     "resources.external_locations.raw_landing_zone": {
       "action": "create",
       "new_state": {
@@ -336,8 +365,6 @@
         }
       }
     },
-
-
     "resources.postgres_projects.warehouse_replica": {
       "action": "create",
       "new_state": {
@@ -348,7 +375,6 @@
         }
       }
     },
-
     "resources.postgres_branches.staging": {
       "action": "create",
       "new_state": {
@@ -359,7 +385,6 @@
         }
       }
     },
-
     "resources.postgres_branches.production": {
       "action": "update",
       "new_state": {
@@ -385,7 +410,6 @@
         }
       }
     },
-
     "resources.postgres_endpoints.staging_read": {
       "action": "create",
       "new_state": {
@@ -399,7 +423,6 @@
         }
       }
     },
-
     "resources.postgres_endpoints.production_rw": {
       "action": "update",
       "new_state": {
@@ -435,7 +458,6 @@
         }
       }
     },
-
     "resources.postgres_endpoints.legacy_reader": {
       "action": "create",
       "new_state": {
@@ -449,8 +471,6 @@
         }
       }
     },
-
-
     "resources.database_instances.analytics_db": {
       "action": "create",
       "new_state": {
@@ -462,7 +482,6 @@
         }
       }
     },
-
     "resources.synced_database_tables.customer_360": {
       "action": "create",
       "new_state": {
@@ -473,12 +492,13 @@
           "spec": {
             "source_table_full_name": "dagshund.analytics.customer_profiles",
             "scheduling_policy": "CONTINUOUS",
-            "primary_key_columns": ["customer_id"]
+            "primary_key_columns": [
+              "customer_id"
+            ]
           }
         }
       }
     },
-
     "resources.synced_database_tables.product_events": {
       "action": "update",
       "new_state": {
@@ -489,7 +509,9 @@
           "spec": {
             "source_table_full_name": "dagshund.analytics.product_interactions",
             "scheduling_policy": "SNAPSHOT",
-            "primary_key_columns": ["event_id"]
+            "primary_key_columns": [
+              "event_id"
+            ]
           }
         }
       },
@@ -500,7 +522,9 @@
         "spec": {
           "source_table_full_name": "dagshund.analytics.product_clicks",
           "scheduling_policy": "SNAPSHOT",
-          "primary_key_columns": ["event_id"]
+          "primary_key_columns": [
+            "event_id"
+          ]
         }
       },
       "changes": {
@@ -512,7 +536,6 @@
         }
       }
     },
-
     "resources.synced_database_tables.partner_metrics": {
       "action": "create",
       "new_state": {
@@ -523,7 +546,10 @@
           "spec": {
             "source_table_full_name": "dagshund.integrations.partner_rollup",
             "scheduling_policy": "SNAPSHOT",
-            "primary_key_columns": ["partner_id", "metric_date"],
+            "primary_key_columns": [
+              "partner_id",
+              "metric_date"
+            ],
             "create_database_objects_if_missing": true,
             "new_pipeline_spec": {
               "storage_catalog": "dagshund",
