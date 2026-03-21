@@ -1,7 +1,7 @@
 {
   "name": "dagshund",
   "description": "Diff visualizer for Declarative Automation Bundle (formerly Databricks Asset Bundle) deployment plans — colored terminal diffs and interactive DAG diagrams",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "author": {
     "name": "Max Lautner",
     "url": "https://gitlab.com/chinchy"
