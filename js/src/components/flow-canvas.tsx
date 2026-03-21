@@ -1,5 +1,5 @@
 import type { NodeMouseHandler, NodeTypes } from "@xyflow/react";
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { InteractionContext } from "../hooks/use-interaction-context.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
 import { LateralIsolationContext } from "../hooks/use-lateral-isolation.ts";
@@ -30,6 +30,60 @@ type FlowCanvasProps = {
   readonly emptyLabel?: string;
 };
 
+type SelectedNode = { readonly id: string; readonly data: DagNodeData };
+
+type CanvasState = {
+  readonly selected: SelectedNode | null;
+  readonly hoveredNodeId: string | null;
+  readonly filterDiffState: DiffState | null;
+  readonly showLateralEdges: boolean;
+  readonly showPhantomLeaves: boolean;
+  readonly isolatedLateralNodeId: string | null;
+};
+
+type CanvasAction =
+  | { type: "SELECT_NODE"; id: string; data: DagNodeData }
+  | { type: "CLEAR_SELECTION" }
+  | { type: "HOVER_NODE"; id: string | null }
+  | { type: "SET_FILTER"; diffState: DiffState | null }
+  | { type: "TOGGLE_LATERAL_EDGES" }
+  | { type: "TOGGLE_PHANTOM_LEAVES" }
+  | { type: "TOGGLE_LATERAL_ISOLATION"; id: string }
+  | { type: "CLICK_PANE" };
+
+const INITIAL_CANVAS_STATE: CanvasState = {
+  selected: null,
+  hoveredNodeId: null,
+  filterDiffState: null,
+  showLateralEdges: false,
+  showPhantomLeaves: false,
+  isolatedLateralNodeId: null,
+};
+
+function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
+  switch (action.type) {
+    case "SELECT_NODE":
+      return { ...state, selected: { id: action.id, data: action.data } };
+    case "CLEAR_SELECTION":
+      return { ...state, selected: null };
+    case "HOVER_NODE":
+      return { ...state, hoveredNodeId: action.id };
+    case "SET_FILTER":
+      return { ...state, filterDiffState: action.diffState };
+    case "TOGGLE_LATERAL_EDGES":
+      return { ...state, showLateralEdges: !state.showLateralEdges };
+    case "TOGGLE_PHANTOM_LEAVES":
+      return { ...state, showPhantomLeaves: !state.showPhantomLeaves };
+    case "TOGGLE_LATERAL_ISOLATION":
+      return {
+        ...state,
+        isolatedLateralNodeId: state.isolatedLateralNodeId === action.id ? null : action.id,
+      };
+    case "CLICK_PANE":
+      return { ...state, selected: null, isolatedLateralNodeId: null };
+  }
+}
+
 const EMPTY_NODES: readonly never[] = [];
 const EMPTY_EDGES: readonly never[] = [];
 const HOVER_DEBOUNCE_MS = 50;
@@ -42,35 +96,23 @@ export function FlowCanvas({
   emptyLabel,
 }: FlowCanvasProps) {
   const isVisible = useTabVisibility();
-  const [selectedNode, setSelectedNode] = useState<DagNodeData | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [filterDiffState, setFilterDiffState] = useState<DiffState | null>(null);
-  const [showLateralEdges, setShowLateralEdges] = useState(false);
-  const [showPhantomLeaves, setShowPhantomLeaves] = useState(false);
-  const [isolatedLateralNodeId, setIsolatedLateralNodeId] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(canvasReducer, INITIAL_CANVAS_STATE);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleClosePanel = useCallback(() => {
-    setSelectedNode(null);
-    setSelectedNodeId(null);
-  }, []);
+  const handleClosePanel = useCallback(() => dispatch({ type: "CLEAR_SELECTION" }), []);
 
-  const handleToggleLateralIsolation = useCallback((nodeId: string) => {
-    setIsolatedLateralNodeId((prev) => (prev === nodeId ? null : nodeId));
-  }, []);
+  const handleToggleLateralIsolation = useCallback(
+    (nodeId: string) => dispatch({ type: "TOGGLE_LATERAL_ISOLATION", id: nodeId }),
+    [],
+  );
 
-  const handlePaneClick = useCallback(() => {
-    setSelectedNode(null);
-    setSelectedNodeId(null);
-    setIsolatedLateralNodeId(null);
-  }, []);
+  const handlePaneClick = useCallback(() => dispatch({ type: "CLICK_PANE" }), []);
 
   const handleNodeMouseEnter: NodeMouseHandler = useCallback((_, node) => {
     if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => {
-      startTransition(() => setHoveredNodeId(node.id));
+      startTransition(() => dispatch({ type: "HOVER_NODE", id: node.id }));
       hoverTimerRef.current = null;
     }, HOVER_DEBOUNCE_MS);
   }, []);
@@ -78,18 +120,20 @@ export function FlowCanvas({
   const handleNodeMouseLeave: NodeMouseHandler = useCallback(() => {
     if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => {
-      startTransition(() => setHoveredNodeId(null));
+      startTransition(() => dispatch({ type: "HOVER_NODE", id: null }));
       hoverTimerRef.current = null;
     }, HOVER_DEBOUNCE_MS);
   }, []);
 
-  const handleToggleLateralEdges = useCallback(() => {
-    setShowLateralEdges((prev) => !prev);
-  }, []);
+  const handleToggleLateralEdges = useCallback(
+    () => dispatch({ type: "TOGGLE_LATERAL_EDGES" }),
+    [],
+  );
 
-  const handleTogglePhantomLeaves = useCallback(() => {
-    setShowPhantomLeaves((prev) => !prev);
-  }, []);
+  const handleTogglePhantomLeaves = useCallback(
+    () => dispatch({ type: "TOGGLE_PHANTOM_LEAVES" }),
+    [],
+  );
 
   useEffect(() => {
     return () => {
@@ -109,7 +153,7 @@ export function FlowCanvas({
     visibleEdges: baseEdges,
     phantomLeafCount,
     hiddenPhantomIds,
-  } = usePhantomLeafState(rawNodes, rawEdges, showPhantomLeaves);
+  } = usePhantomLeafState(rawNodes, rawEdges, state.showPhantomLeaves);
 
   const lateralEdges = useMemo(
     () =>
@@ -122,7 +166,7 @@ export function FlowCanvas({
   );
 
   const { lateralNodeIds, activeLateralEdges, isolatedLateralIds, lateralHandlesByNode } =
-    useLateralEdgeState(lateralEdges, showLateralEdges, isolatedLateralNodeId);
+    useLateralEdgeState(lateralEdges, state.showLateralEdges, state.isolatedLateralNodeId);
 
   const { setSearchQuery, searchMatchedIds } = useNodeSearch(baseNodes);
 
@@ -133,13 +177,10 @@ export function FlowCanvas({
 
   /** Synchronously clear selection when the selected node is hidden by the phantom toggle.
    *  Derived via useMemo (not an effect) to avoid a one-frame flash of the detail panel. */
-  const effectiveSelectedNode = useMemo(
-    () => (selectedNodeId !== null && hiddenPhantomIds.has(selectedNodeId) ? null : selectedNode),
-    [selectedNode, selectedNodeId, hiddenPhantomIds],
-  );
-  const effectiveSelectedNodeId = useMemo(
-    () => (selectedNodeId !== null && hiddenPhantomIds.has(selectedNodeId) ? null : selectedNodeId),
-    [selectedNodeId, hiddenPhantomIds],
+  const effectiveSelected = useMemo(
+    () =>
+      state.selected !== null && hiddenPhantomIds.has(state.selected.id) ? null : state.selected,
+    [state.selected, hiddenPhantomIds],
   );
 
   const diffStateCounts = useMemo((): Readonly<Record<FilterableDiffState, number>> => {
@@ -150,37 +191,39 @@ export function FlowCanvas({
       unknown: 0,
     };
     for (const node of baseNodes) {
-      const state = getNodeData(node).diffState;
-      if (isFilterableDiffState(state)) counts[state]++;
+      const ds = getNodeData(node).diffState;
+      if (isFilterableDiffState(ds)) counts[ds]++;
     }
     return counts;
   }, [baseNodes]);
 
   const connectedIds = useMemo(
     () =>
-      hoveredNodeId !== null ? buildConnectedNodeIds(baseNodes, visibleEdges, hoveredNodeId) : null,
-    [baseNodes, visibleEdges, hoveredNodeId],
+      state.hoveredNodeId !== null
+        ? buildConnectedNodeIds(baseNodes, visibleEdges, state.hoveredNodeId)
+        : null,
+    [baseNodes, visibleEdges, state.hoveredNodeId],
   );
 
   const selectedConnectedIds = useMemo(
     () =>
-      effectiveSelectedNodeId !== null
-        ? buildConnectedNodeIds(baseNodes, visibleEdges, effectiveSelectedNodeId)
+      effectiveSelected !== null
+        ? buildConnectedNodeIds(baseNodes, visibleEdges, effectiveSelected.id)
         : null,
-    [baseNodes, visibleEdges, effectiveSelectedNodeId],
+    [baseNodes, visibleEdges, effectiveSelected],
   );
 
   const filterMatchedIds = useMemo((): ReadonlySet<string> | null => {
-    if (filterDiffState === null) return null;
+    if (state.filterDiffState === null) return null;
     const matched = new Set<string>();
     for (const node of baseNodes) {
       const data = getNodeData(node);
-      if (data.diffState === filterDiffState) {
+      if (data.diffState === state.filterDiffState) {
         matched.add(node.id);
       }
     }
     return matched;
-  }, [baseNodes, filterDiffState]);
+  }, [baseNodes, state.filterDiffState]);
 
   /** Direct matches — used for centering and match count (excludes parent containers). */
   const directMatchIds = useMemo((): ReadonlySet<string> | null => {
@@ -224,35 +267,29 @@ export function FlowCanvas({
       centerViewportOnNode(node.id);
       const data = getNodeData(node);
       if (data.nodeKind === "root") {
-        setSelectedNode(null);
-        setSelectedNodeId(null);
+        dispatch({ type: "CLEAR_SELECTION" });
         return;
       }
-      setSelectedNode(data);
-      setSelectedNodeId(node.id);
+      dispatch({ type: "SELECT_NODE", id: node.id, data });
     },
     [centerViewportOnNode],
   );
 
   const phantomContext = useMemo(() => {
-    if (
-      effectiveSelectedNode === null ||
-      effectiveSelectedNode.nodeKind !== "phantom" ||
-      effectiveSelectedNodeId === null
-    )
+    if (effectiveSelected === null || effectiveSelected.data.nodeKind !== "phantom")
       return undefined;
     // Include lateral edges regardless of toggle — phantom context should always
     // show inference sources even when lateral edges aren't displayed on the canvas.
     const allEdges = [...baseEdges, ...lateralEdges];
-    return resolvePhantomContext(effectiveSelectedNodeId, baseNodes, allEdges);
-  }, [effectiveSelectedNode, effectiveSelectedNodeId, baseNodes, baseEdges, lateralEdges]);
+    return resolvePhantomContext(effectiveSelected.id, baseNodes, allEdges);
+  }, [effectiveSelected, baseNodes, baseEdges, lateralEdges]);
 
   const lateralContext = useMemo(() => {
-    if (effectiveSelectedNodeId === null) return undefined;
+    if (effectiveSelected === null) return undefined;
     // Include all lateral edges regardless of toggle — dependency info should
     // always be visible in the detail panel even when lateral edges are hidden.
-    return resolveLateralContext(effectiveSelectedNodeId, baseNodes, lateralEdges);
-  }, [effectiveSelectedNodeId, baseNodes, lateralEdges]);
+    return resolveLateralContext(effectiveSelected.id, baseNodes, lateralEdges);
+  }, [effectiveSelected, baseNodes, lateralEdges]);
 
   const handleNavigateToNode = useCallback(
     (nodeId: string) => {
@@ -260,44 +297,48 @@ export function FlowCanvas({
       if (targetNode === undefined) return;
       const data = getNodeData(targetNode);
       if (data.nodeKind === "root") return;
-      setSelectedNode(data);
-      setSelectedNodeId(nodeId);
+      dispatch({ type: "SELECT_NODE", id: nodeId, data });
       centerViewportOnNode(nodeId);
     },
     [baseNodes, centerViewportOnNode],
   );
 
+  const handleFilterChange = useCallback(
+    (diffState: DiffState | null) => dispatch({ type: "SET_FILTER", diffState }),
+    [],
+  );
+
   const interactionState = useMemo(
     () => ({
-      hoveredNodeId,
-      selectedNodeId: effectiveSelectedNodeId,
+      hoveredNodeId: state.hoveredNodeId,
+      selectedNodeId: effectiveSelected?.id ?? null,
       connectedIds,
       selectedConnectedIds,
       filterMatchedIds: effectiveFilterIds,
       lateralHandlesByNode,
       isolatedLateralIds,
       lateralNodeIds,
-      isolatedLateralNodeId,
-      showLateralEdges,
+      isolatedLateralNodeId: state.isolatedLateralNodeId,
+      showLateralEdges: state.showLateralEdges,
     }),
     [
-      hoveredNodeId,
-      effectiveSelectedNodeId,
+      state.hoveredNodeId,
+      effectiveSelected,
       connectedIds,
       selectedConnectedIds,
       effectiveFilterIds,
       lateralHandlesByNode,
       isolatedLateralIds,
       lateralNodeIds,
-      isolatedLateralNodeId,
-      showLateralEdges,
+      state.isolatedLateralNodeId,
+      state.showLateralEdges,
     ],
   );
 
   const styledEdges = useStyledEdges(
     visibleEdges,
-    hoveredNodeId,
-    effectiveSelectedNodeId,
+    state.hoveredNodeId,
+    effectiveSelected?.id ?? null,
     connectedIds,
     selectedConnectedIds,
     effectiveFilterIds,
@@ -340,20 +381,20 @@ export function FlowCanvas({
             isLoading={layoutState.status === "loading"}
             onSearch={setSearchQuery}
             matchCount={directMatchIds?.size ?? 0}
-            activeFilter={filterDiffState}
-            onFilterChange={setFilterDiffState}
+            activeFilter={state.filterDiffState}
+            onFilterChange={handleFilterChange}
             diffStateCounts={diffStateCounts}
             lateralEdgeCount={lateralEdges.length}
-            showLateralEdges={showLateralEdges}
+            showLateralEdges={state.showLateralEdges}
             onToggleLateralEdges={handleToggleLateralEdges}
             phantomLeafCount={phantomLeafCount}
-            showPhantomLeaves={showPhantomLeaves}
+            showPhantomLeaves={state.showPhantomLeaves}
             onTogglePhantomLeaves={handleTogglePhantomLeaves}
             onFitView={handleFitView}
           />
         </LateralIsolationContext.Provider>
       </InteractionContext.Provider>
-      {effectiveSelectedNode !== null && (
+      {effectiveSelected !== null && (
         <>
           <div
             className="flex w-2 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-accent/40"
@@ -372,8 +413,8 @@ export function FlowCanvas({
             </svg>
           </div>
           <DetailPanel
-            key={effectiveSelectedNode.resourceKey}
-            data={effectiveSelectedNode}
+            key={effectiveSelected.data.resourceKey}
+            data={effectiveSelected.data}
             onClose={handleClosePanel}
             width={panelWidth}
             phantomContext={phantomContext}
