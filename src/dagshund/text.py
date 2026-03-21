@@ -18,6 +18,7 @@ from dagshund import (
     ResourceChangesByType,
     ResourceKey,
     ResourceType,
+    _has_drifted_field,
     action_to_diff_state,
     detect_changes,
     is_resource_changes,
@@ -156,20 +157,9 @@ def _detect_drift_fields(changes: Mapping[str, FieldChange] | None) -> list[str]
     """
     if not changes:
         return []
-    drifted: list[str] = []
-    for field_name, change in sorted(changes.items()):
-        if not isinstance(change, dict):
-            continue
-        action = str(change.get("action", ""))
-        if action in ("skip", ""):
-            continue
-        if "old" not in change or "new" not in change:
-            continue
-        if change["old"] != change["new"]:
-            continue
-        if "remote" not in change or change["remote"] != change["old"]:
-            drifted.append(field_name)
-    return drifted
+    return sorted(
+        field_name for field_name, change in changes.items() if isinstance(change, dict) and _has_drifted_field(change)
+    )
 
 
 def _render_resource(

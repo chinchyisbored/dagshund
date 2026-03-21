@@ -233,6 +233,12 @@ def test_detailed_exitcode_error_exits_one() -> None:
     assert result.returncode == 1
 
 
+def test_detailed_exitcode_with_manual_edits_exits_three(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "drift-plan.json"), "--detailed-exitcode")
+
+    assert result.returncode == 3
+
+
 def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
 

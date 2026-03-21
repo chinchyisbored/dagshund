@@ -136,11 +136,15 @@ dagshund plan.json -e
 | 0 | Plan parsed, no changes detected |
 | 1 | Error (bad input, missing file, etc.) |
 | 2 | Plan parsed, changes detected |
+| 3 | Plan parsed, changes detected AND manual edits present |
 
 ```bash
 # Check for drift
 dagshund plan.json -e
-if [ $? -eq 2 ]; then echo "Drift detected"; fi
+case $? in
+  2) echo "Changes detected" ;;
+  3) echo "Changes detected (manual edits will be overwritten)" ;;
+esac
 
 # Generate report AND get exit code
 dagshund plan.json -o report.html -e

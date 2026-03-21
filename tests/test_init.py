@@ -2,7 +2,7 @@
 
 import pytest
 
-from dagshund import DagshundError, detect_changes, parse_plan
+from dagshund import DagshundError, _has_drifted_field, detect_changes, detect_manual_edits, parse_plan
 
 # --- parse_plan ---
 
@@ -64,3 +64,94 @@ def test_detect_changes_with_create_returns_true() -> None:
 
 def test_detect_changes_empty_dict_returns_false() -> None:
     assert detect_changes({}) is False
+
+
+# --- _has_drifted_field ---
+
+
+def test_has_drifted_field_old_equals_new_remote_differs_returns_true() -> None:
+    assert _has_drifted_field({"action": "update", "old": "A", "new": "A", "remote": "B"}) is True
+
+
+def test_has_drifted_field_old_equals_new_remote_absent_returns_true() -> None:
+    assert _has_drifted_field({"action": "update", "old": "A", "new": "A"}) is True
+
+
+def test_has_drifted_field_old_equals_new_remote_equals_old_returns_false() -> None:
+    assert _has_drifted_field({"action": "update", "old": "A", "new": "A", "remote": "A"}) is False
+
+
+def test_has_drifted_field_old_differs_from_new_returns_false() -> None:
+    assert _has_drifted_field({"action": "update", "old": "A", "new": "B", "remote": "C"}) is False
+
+
+def test_has_drifted_field_skip_action_returns_false() -> None:
+    assert _has_drifted_field({"action": "skip", "old": "A", "new": "A", "remote": "B"}) is False
+
+
+def test_has_drifted_field_empty_action_returns_false() -> None:
+    assert _has_drifted_field({"action": "", "old": "A", "new": "A", "remote": "B"}) is False
+
+
+def test_has_drifted_field_missing_old_returns_false() -> None:
+    assert _has_drifted_field({"action": "update", "new": "A", "remote": "B"}) is False
+
+
+def test_has_drifted_field_missing_new_returns_false() -> None:
+    assert _has_drifted_field({"action": "update", "old": "A", "remote": "B"}) is False
+
+
+# --- detect_manual_edits ---
+
+
+def test_detect_manual_edits_with_drifted_field_returns_true() -> None:
+    resources = {
+        "resources.jobs.my_job": {
+            "action": "update",
+            "changes": {
+                "edit_mode": {"action": "update", "old": "LOCKED", "new": "LOCKED", "remote": "EDITABLE"},
+            },
+        }
+    }
+    assert detect_manual_edits(resources) is True
+
+
+def test_detect_manual_edits_no_drift_returns_false() -> None:
+    resources = {
+        "resources.jobs.my_job": {
+            "action": "update",
+            "changes": {
+                "name": {"action": "update", "old": "A", "new": "B"},
+            },
+        }
+    }
+    assert detect_manual_edits(resources) is False
+
+
+def test_detect_manual_edits_empty_changes_returns_false() -> None:
+    resources = {"resources.jobs.my_job": {"action": "update", "changes": {}}}
+    assert detect_manual_edits(resources) is False
+
+
+def test_detect_manual_edits_no_changes_key_returns_false() -> None:
+    resources = {"resources.jobs.my_job": {"action": "update"}}
+    assert detect_manual_edits(resources) is False
+
+
+def test_detect_manual_edits_non_dict_changes_returns_false() -> None:
+    resources = {"resources.jobs.my_job": {"action": "update", "changes": "not a dict"}}
+    assert detect_manual_edits(resources) is False
+
+
+def test_detect_manual_edits_non_dict_field_change_skipped() -> None:
+    resources = {
+        "resources.jobs.my_job": {
+            "action": "update",
+            "changes": {"weird_field": "just a string"},
+        }
+    }
+    assert detect_manual_edits(resources) is False
+
+
+def test_detect_manual_edits_empty_resources_returns_false() -> None:
+    assert detect_manual_edits({}) is False
