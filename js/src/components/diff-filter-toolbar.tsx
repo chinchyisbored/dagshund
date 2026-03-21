@@ -66,21 +66,16 @@ export function DiffFilterToolbar({
     <div className="flex gap-1.5">
       {FILTER_BUTTONS.map((button) => {
         const count = diffStateCounts[button.state];
+        if (count === 0) return null;
         const isActive = activeFilter === button.state;
-        const isDisabled = count === 0;
         return (
           <button
             key={button.state}
             type="button"
             aria-pressed={isActive}
-            disabled={isDisabled}
             onClick={() => onFilterChange(isActive ? null : button.state)}
             className={`rounded-md border bg-surface-raised px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-              isDisabled
-                ? "cursor-default border-outline text-ink-muted opacity-40"
-                : isActive
-                  ? button.activeClasses
-                  : button.inactiveClasses
+              isActive ? button.activeClasses : button.inactiveClasses
             }`}
           >
             {button.label} ({count})
