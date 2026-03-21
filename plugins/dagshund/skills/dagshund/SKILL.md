@@ -17,6 +17,7 @@ Verify both tools are available before proceeding:
 1. `which databricks` — if missing, tell the user to install the Databricks
    CLI first and stop here.
 2. Check for dagshund. Choose the first match:
+   - `uv run dagshund --version` succeeds → use `uv run dagshund` (available as project dependency)
    - `which uvx` succeeds → use `uvx dagshund` (ephemeral, no permanent install)
    - `which pipx` succeeds → use `pipx run dagshund`
    - `which pip` succeeds → `pip install dagshund`
@@ -49,13 +50,12 @@ intent into one question so the user only confirms once.
 - Once a target is known, remember it for the rest of the session.
   Do not ask again unless the user brings up a different target.
 
-**Security rules — strictly enforced:**
+**Security rules — apply while running this skill unless the user explicitly asks otherwise:**
 
-- NEVER read `~/.databrickscfg` — it contains credentials and tokens.
-- NEVER read or inspect environment variables for auth tokens.
-- NEVER attempt to configure or debug authentication.
-- Authentication is handled entirely by the Databricks CLI. If auth fails,
-  tell the user to fix their Databricks CLI auth setup. Do not investigate.
+- Do not read `~/.databrickscfg` or inspect environment variables for auth
+  tokens — authentication is handled entirely by the Databricks CLI.
+- If auth fails, tell the user to check their Databricks CLI auth setup.
+  Do not investigate credentials on your own initiative.
 
 ## Step 3: Run dagshund
 
@@ -103,7 +103,7 @@ dagshund plan.json -o report.html -b
 
 ```bash
 databricks bundle plan -t <target> -o json | dagshund -e
-# Exit 0 = no changes, 2 = changes detected, 1 = error
+# Exit 0 = no changes, 2 = changes, 3 = changes + manual edits, 1 = error
 ```
 
 ## Interpreting the output
