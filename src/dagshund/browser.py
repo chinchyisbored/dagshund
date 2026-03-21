@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from dagshund import DagshundError, Plan
+from dagshund.types import DagshundError, Plan
 
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
 

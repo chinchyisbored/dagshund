@@ -13,7 +13,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from dagshund import ResourceChange, ResourceKey, action_to_diff_state, parse_resource_key
+from dagshund.plan import action_to_diff_state
+from dagshund.types import ResourceChange, ResourceKey, parse_resource_key
 
 
 @dataclass(frozen=True, slots=True)

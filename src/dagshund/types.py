@@ -1,8 +1,8 @@
-"""Type aliases and domain logic for dagshund plan data."""
+"""Type aliases, enums, and domain primitives for dagshund plan data."""
 
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import Any, TypeGuard
+from typing import Any
 
 type ResourceKey = str
 type ResourceType = str
@@ -14,9 +14,8 @@ type ResourceChangesByType = dict[ResourceType, ResourceChanges]
 type Plan = dict[str, Any]
 
 
-def is_resource_changes(value: object) -> TypeGuard[ResourceChanges]:
-    """Runtime check that narrows Any to ResourceChanges for the type checker."""
-    return isinstance(value, dict) and all(isinstance(v, dict) for v in value.values())
+class DagshundError(Exception):
+    """Raised for any user-facing error (bad input, missing files, etc.)."""
 
 
 class DiffState(StrEnum):
@@ -25,26 +24,6 @@ class DiffState(StrEnum):
     REMOVED = "removed"
     UNCHANGED = "unchanged"
     UNKNOWN = "unknown"
-
-
-def action_to_diff_state(action: str) -> DiffState:
-    """Map a plan action string to its diff state category.
-
-    Action vocabulary is duplicated in two other locations:
-    - text.py: _ACTIONS dict (display config per action)
-    - js/src/types/plan-schema.ts: knownActionTypes (Zod schema)
-    """
-    match action:
-        case "create":
-            return DiffState.ADDED
-        case "delete":
-            return DiffState.REMOVED
-        case "update" | "recreate" | "resize" | "update_id":
-            return DiffState.MODIFIED
-        case "" | "skip":
-            return DiffState.UNCHANGED
-        case _:
-            return DiffState.UNKNOWN
 
 
 def extract_parent_resource_key(key: ResourceKey) -> ResourceKey:

@@ -8,7 +8,14 @@ from dataclasses import dataclass
 from itertools import groupby
 from typing import TypeGuard
 
-from dagshund import (
+from dagshund.merge import merge_sub_resources
+from dagshund.plan import (
+    action_to_diff_state,
+    detect_changes,
+    has_drifted_field,
+    is_resource_changes,
+)
+from dagshund.types import (
     DagshundError,
     DiffState,
     FieldChange,
@@ -18,11 +25,6 @@ from dagshund import (
     ResourceChangesByType,
     ResourceKey,
     ResourceType,
-    _has_drifted_field,
-    action_to_diff_state,
-    detect_changes,
-    is_resource_changes,
-    merge_sub_resources,
     parse_resource_key,
 )
 
@@ -51,7 +53,7 @@ class _ActionConfig:
 
 
 # Action vocabulary is duplicated in two other locations:
-# - types.py: action_to_diff_state() match statement
+# - plan.py: action_to_diff_state() match statement
 # - js/src/types/plan-schema.ts: knownActionTypes (Zod schema)
 _ACTIONS: dict[str, _ActionConfig] = {
     "": _ActionConfig("unchanged", DIM, " "),
@@ -158,7 +160,7 @@ def _detect_drift_fields(changes: Mapping[str, FieldChange] | None) -> list[str]
     if not changes:
         return []
     return sorted(
-        field_name for field_name, change in changes.items() if isinstance(change, dict) and _has_drifted_field(change)
+        field_name for field_name, change in changes.items() if isinstance(change, dict) and has_drifted_field(change)
     )
 
 

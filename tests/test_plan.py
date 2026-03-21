@@ -1,8 +1,8 @@
-"""Tests for dagshund package-level exports."""
+"""Tests for plan parsing, change detection, and drift predicates."""
 
 import pytest
 
-from dagshund import DagshundError, _has_drifted_field, detect_changes, detect_manual_edits, parse_plan
+from dagshund import DagshundError, detect_changes, detect_manual_edits, has_drifted_field, parse_plan
 
 # --- parse_plan ---
 
@@ -66,39 +66,39 @@ def test_detect_changes_empty_dict_returns_false() -> None:
     assert detect_changes({}) is False
 
 
-# --- _has_drifted_field ---
+# --- has_drifted_field ---
 
 
 def test_has_drifted_field_old_equals_new_remote_differs_returns_true() -> None:
-    assert _has_drifted_field({"action": "update", "old": "A", "new": "A", "remote": "B"}) is True
+    assert has_drifted_field({"action": "update", "old": "A", "new": "A", "remote": "B"}) is True
 
 
 def test_has_drifted_field_old_equals_new_remote_absent_returns_true() -> None:
-    assert _has_drifted_field({"action": "update", "old": "A", "new": "A"}) is True
+    assert has_drifted_field({"action": "update", "old": "A", "new": "A"}) is True
 
 
 def test_has_drifted_field_old_equals_new_remote_equals_old_returns_false() -> None:
-    assert _has_drifted_field({"action": "update", "old": "A", "new": "A", "remote": "A"}) is False
+    assert has_drifted_field({"action": "update", "old": "A", "new": "A", "remote": "A"}) is False
 
 
 def test_has_drifted_field_old_differs_from_new_returns_false() -> None:
-    assert _has_drifted_field({"action": "update", "old": "A", "new": "B", "remote": "C"}) is False
+    assert has_drifted_field({"action": "update", "old": "A", "new": "B", "remote": "C"}) is False
 
 
 def test_has_drifted_field_skip_action_returns_false() -> None:
-    assert _has_drifted_field({"action": "skip", "old": "A", "new": "A", "remote": "B"}) is False
+    assert has_drifted_field({"action": "skip", "old": "A", "new": "A", "remote": "B"}) is False
 
 
 def test_has_drifted_field_empty_action_returns_false() -> None:
-    assert _has_drifted_field({"action": "", "old": "A", "new": "A", "remote": "B"}) is False
+    assert has_drifted_field({"action": "", "old": "A", "new": "A", "remote": "B"}) is False
 
 
 def test_has_drifted_field_missing_old_returns_false() -> None:
-    assert _has_drifted_field({"action": "update", "new": "A", "remote": "B"}) is False
+    assert has_drifted_field({"action": "update", "new": "A", "remote": "B"}) is False
 
 
 def test_has_drifted_field_missing_new_returns_false() -> None:
-    assert _has_drifted_field({"action": "update", "old": "A", "remote": "B"}) is False
+    assert has_drifted_field({"action": "update", "old": "A", "remote": "B"}) is False
 
 
 # --- detect_manual_edits ---
