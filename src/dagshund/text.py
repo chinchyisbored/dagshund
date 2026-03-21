@@ -3,7 +3,7 @@
 import os
 import sys
 from collections import Counter
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from itertools import groupby
 from typing import TypeGuard
@@ -148,6 +148,30 @@ def _render_field_change(field_name: str, change: FieldChange, *, use_color: boo
     return _colorize(f"{prefix}{suffix}", field_config.color, use_color=use_color)
 
 
+def _detect_drift_fields(changes: Mapping[str, FieldChange] | None) -> list[str]:
+    """Detect fields where the server state diverged from the bundle's expectation.
+
+    A field has drifted when old and new are both defined and equal (bundle didn't
+    intend to change it), but remote differs or is absent (server was edited).
+    """
+    if not changes:
+        return []
+    drifted: list[str] = []
+    for field_name, change in sorted(changes.items()):
+        if not isinstance(change, dict):
+            continue
+        action = str(change.get("action", ""))
+        if action in ("skip", ""):
+            continue
+        if "old" not in change or "new" not in change:
+            continue
+        if change["old"] != change["new"]:
+            continue
+        if "remote" not in change or change["remote"] != change["old"]:
+            drifted.append(field_name)
+    return drifted
+
+
 def _render_resource(
     key: ResourceKey,
     entry: ResourceChange,
@@ -164,6 +188,9 @@ def _render_resource(
     yield _colorize(header, action_config.color, use_color=use_color)
 
     changes = entry.get("changes", {})
+    if _is_field_changes(changes) and action_config.show_field_changes and _detect_drift_fields(changes):
+        yield _colorize("      \u26a0 manually edited outside bundle", YELLOW, use_color=use_color)
+
     if _is_field_changes(changes) and changes and action_config.show_field_changes:
         for field_name, change in sorted(changes.items()):
             if not isinstance(change, dict):
@@ -211,12 +238,13 @@ def _filter_resources(
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> ResourceChanges:
     """Return entries matching both the diff state set and the resource filter predicate."""
-    result = entries
-    if visible_states is not None:
-        result = {k: v for k, v in result.items() if action_to_diff_state(v.get("action", "")) in visible_states}
-    if resource_filter is not None:
-        result = {k: v for k, v in result.items() if resource_filter(k, v)}
-    return result
+    return dict(
+        _iter_visible_resources(
+            entries,
+            visible_states=visible_states,
+            resource_filter=resource_filter,
+        )
+    )
 
 
 def _format_group_header(resource_type: ResourceType, total: int, visible: int) -> str:
@@ -266,6 +294,21 @@ def _print_summary(
         print(f"  {parts}")
 
 
+def _iter_visible_resources(
+    resources: ResourceChanges,
+    *,
+    visible_states: frozenset[DiffState] | None = None,
+    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
+) -> Iterator[tuple[ResourceKey, ResourceChange]]:
+    """Yield (key, entry) pairs matching the visibility filters."""
+    for key, entry in sorted(resources.items()):
+        if visible_states is not None and action_to_diff_state(entry.get("action", "")) not in visible_states:
+            continue
+        if resource_filter is not None and not resource_filter(key, entry):
+            continue
+        yield key, entry
+
+
 def _collect_warnings(
     resources: ResourceChanges,
     *,
@@ -274,13 +317,13 @@ def _collect_warnings(
 ) -> list[str]:
     """Collect warning messages for dangerous actions on stateful resources."""
     warnings: list[str] = []
-    for key, entry in sorted(resources.items()):
+    for key, entry in _iter_visible_resources(
+        resources,
+        visible_states=visible_states,
+        resource_filter=resource_filter,
+    ):
         action = entry.get("action", "")
         if action not in _DANGEROUS_ACTIONS:
-            continue
-        if visible_states is not None and action_to_diff_state(action) not in visible_states:
-            continue
-        if resource_filter is not None and not resource_filter(key, entry):
             continue
         resource_type, resource_name = parse_resource_key(key)
         risk = _STATEFUL_RESOURCE_WARNINGS.get(resource_type)
@@ -297,6 +340,41 @@ def _print_warnings(warnings: list[str], *, use_color: bool) -> None:
     print(_colorize("  Dangerous Actions:", RED + _BOLD, use_color=use_color))
     for warning in warnings:
         print(_colorize(f"  \u26a0 {warning}", RED, use_color=use_color))
+
+
+def _collect_drift_warnings(
+    resources: ResourceChanges,
+    *,
+    visible_states: frozenset[DiffState] | None = None,
+    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
+) -> list[str]:
+    """Collect warnings for resources that were manually edited outside the bundle."""
+    warnings: list[str] = []
+    for key, entry in _iter_visible_resources(
+        resources,
+        visible_states=visible_states,
+        resource_filter=resource_filter,
+    ):
+        changes = entry.get("changes", {})
+        if not _is_field_changes(changes):
+            continue
+        drifted = _detect_drift_fields(changes)
+        if not drifted:
+            continue
+        resource_type, resource_name = parse_resource_key(key)
+        count = len(drifted)
+        noun = "field" if count == 1 else "fields"
+        msg = f"{resource_type}/{resource_name} was edited outside the bundle ({count} {noun} will be overwritten)"
+        warnings.append(msg)
+    return warnings
+
+
+def _print_drift_warnings(warnings: list[str], *, use_color: bool) -> None:
+    """Print drift warnings below the summary line."""
+    print()
+    print(_colorize("  Manual Edits Detected:", YELLOW + _BOLD, use_color=use_color))
+    for warning in warnings:
+        print(_colorize(f"  \u26a0 {warning}", YELLOW, use_color=use_color))
 
 
 def render_text(
@@ -343,3 +421,7 @@ def render_text(
     warnings = _collect_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
     if warnings:
         _print_warnings(warnings, use_color=use_color)
+
+    drift_warnings = _collect_drift_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
+    if drift_warnings:
+        _print_drift_warnings(drift_warnings, use_color=use_color)

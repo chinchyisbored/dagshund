@@ -1,0 +1,15 @@
+dagshund plan (v2, cli 0.294.0)
+
+  jobs (1)
+  ~ jobs/drift_pipeline  (update)
+      ⚠ manually edited outside bundle
+      ~ edit_mode: "UI_LOCKED" -> "UI_LOCKED"
+      ~ email_notifications
+      ~ performance_target
+      ~ tasks[task_key='publish'].depends_on[0].task_key: "transform" -> "transform"
+      ~ tasks[task_key='transform']: {3 fields} -> {3 fields}
+
+  ~1 update
+
+  Manual Edits Detected:
+  ⚠ jobs/drift_pipeline was edited outside the bundle (3 fields will be overwritten)

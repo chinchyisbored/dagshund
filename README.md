@@ -115,6 +115,14 @@ The search bar uses the same filter DSL as the CLI's `-f` flag. Non-matching nod
 
 The diff filter buttons (**Added**, **Modified**, **Removed**) compose with search, when both are active, only nodes matching both criteria stay highlighted. When exactly one node matches, the viewport auto-centers on it.
 
+## Manual Edit Detection
+
+When someone edits a job directly in the Databricks UI (break glass), the bundle doesn't know about it. On the next deploy, those manual changes will be silently overwritten. Dagshund detects this by comparing the plan's expected state against the actual server state, and warns you when they diverge.
+
+![Manual edit detection](docs/pictures/drift.png)
+
+The warning appears both inline (per resource) and in a summary section at the bottom. No configuration needed — dagshund checks automatically whenever `old` and `remote` states differ in the plan.
+
 ## CI Exit Codes
 
 Use `--detailed-exitcode` (or `-e`) for machine-readable exit codes in CI pipelines:

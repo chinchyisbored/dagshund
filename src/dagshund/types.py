@@ -1,12 +1,13 @@
 """Type aliases and domain logic for dagshund plan data."""
 
+from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, TypeGuard
 
 type ResourceKey = str
 type ResourceType = str
 type ResourceName = str
-type FieldChange = dict[str, object]
+type FieldChange = Mapping[str, object]
 type ResourceChange = dict[str, Any]
 type ResourceChanges = dict[ResourceKey, ResourceChange]
 type ResourceChangesByType = dict[ResourceType, ResourceChanges]

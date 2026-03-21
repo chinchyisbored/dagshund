@@ -45,6 +45,7 @@ CASES=(
   "sub-only-change-plan.json||sub-only-change-plan.txt"
   "remove-perm-plan.json||remove-perm-plan.txt"
   "remove-one-perm-plan.json||remove-one-perm-plan.txt"
+  "drift-plan.json||drift-plan.txt"
 )
 
 run_dagshund() {

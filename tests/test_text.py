@@ -25,9 +25,11 @@ from dagshund.text import (
     YELLOW,
     _action_config,
     _ActionConfig,
+    _collect_drift_warnings,
     _collect_warnings,
     _colorize,
     _count_by_action,
+    _detect_drift_fields,
     _filter_resources,
     _format_group_header,
     _format_value,
@@ -372,8 +374,9 @@ def test_render_resource_field_change_both_null_shows_transition() -> None:
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
-    assert len(lines) == 2
-    assert "null -> null" in lines[1]
+    assert len(lines) == 3
+    assert "manually edited outside bundle" in lines[1]
+    assert "null -> null" in lines[2]
 
 
 def test_render_resource_with_color_includes_ansi() -> None:
@@ -1137,3 +1140,200 @@ def test_render_text_schema_recreate_warns(capsys: pytest.CaptureFixture[str]) -
     assert "\u26a0" in out
     assert "schemas/analytics" in out
     assert "recreated" in out
+
+
+# --- _detect_drift_fields ---
+
+
+def test_detect_drift_fields_returns_empty_for_no_changes() -> None:
+    assert _detect_drift_fields(None) == []
+    assert _detect_drift_fields({}) == []
+
+
+def test_detect_drift_fields_returns_empty_when_old_differs_from_new() -> None:
+    changes = {"field": {"action": "update", "old": "a", "new": "b", "remote": "c"}}
+    assert _detect_drift_fields(changes) == []
+
+
+def test_detect_drift_fields_returns_empty_when_old_equals_remote() -> None:
+    changes = {"field": {"action": "update", "old": "a", "new": "a", "remote": "a"}}
+    assert _detect_drift_fields(changes) == []
+
+
+def test_detect_drift_fields_detects_remote_differs_from_old() -> None:
+    changes = {"edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"}}
+    assert _detect_drift_fields(changes) == ["edit_mode"]
+
+
+def test_detect_drift_fields_detects_remote_absent() -> None:
+    changes = {"task": {"action": "update", "old": {"task_key": "x"}, "new": {"task_key": "x"}}}
+    assert _detect_drift_fields(changes) == ["task"]
+
+
+def test_detect_drift_fields_skips_skip_action() -> None:
+    changes = {"field": {"action": "skip", "old": "a", "new": "a", "remote": "b"}}
+    assert _detect_drift_fields(changes) == []
+
+
+def test_detect_drift_fields_skips_empty_action() -> None:
+    changes = {"field": {"action": "", "old": "a", "new": "a", "remote": "b"}}
+    assert _detect_drift_fields(changes) == []
+
+
+def test_detect_drift_fields_skips_entries_without_old() -> None:
+    changes = {"field": {"action": "update", "new": "a", "remote": "b"}}
+    assert _detect_drift_fields(changes) == []
+
+
+def test_detect_drift_fields_skips_entries_without_new() -> None:
+    changes = {"field": {"action": "update", "old": "a", "remote": "b"}}
+    assert _detect_drift_fields(changes) == []
+
+
+def test_detect_drift_fields_returns_multiple_sorted() -> None:
+    changes = {
+        "z_field": {"action": "update", "old": 1, "new": 1, "remote": 2},
+        "a_field": {"action": "update", "old": "x", "new": "x"},
+    }
+    assert _detect_drift_fields(changes) == ["a_field", "z_field"]
+
+
+# --- _render_resource with drift ---
+
+
+def test_render_resource_shows_drift_warning_when_drift_detected() -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    assert any("manually edited outside bundle" in line for line in lines)
+
+
+def test_render_resource_no_drift_warning_for_create_action() -> None:
+    entry = {
+        "action": "create",
+        "changes": {
+            "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    assert not any("manually edited" in line for line in lines)
+
+
+def test_render_resource_no_drift_warning_for_delete_action() -> None:
+    entry = {
+        "action": "delete",
+        "changes": {
+            "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    assert not any("manually edited" in line for line in lines)
+
+
+def test_render_resource_no_drift_warning_when_no_drift() -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            "max_concurrent_runs": {"action": "update", "old": 1, "new": 5},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    assert not any("manually edited" in line for line in lines)
+
+
+# --- _collect_drift_warnings ---
+
+
+def test_collect_drift_warnings_detects_drifted_resource() -> None:
+    resources = {
+        "resources.jobs.pipeline": {
+            "action": "update",
+            "changes": {
+                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                "field_b": {"action": "update", "old": 1, "new": 1},
+            },
+        },
+    }
+    warnings = _collect_drift_warnings(resources)
+    assert len(warnings) == 1
+    assert "jobs/pipeline" in warnings[0]
+    assert "2 fields" in warnings[0]
+    assert "overwritten" in warnings[0]
+
+
+def test_collect_drift_warnings_returns_empty_for_no_drift() -> None:
+    resources = {
+        "resources.jobs.pipeline": {
+            "action": "update",
+            "changes": {
+                "max_concurrent_runs": {"action": "update", "old": 1, "new": 5},
+            },
+        },
+    }
+    assert _collect_drift_warnings(resources) == []
+
+
+def test_collect_drift_warnings_respects_visible_states() -> None:
+    resources = {
+        "resources.jobs.pipeline": {
+            "action": "update",
+            "changes": {
+                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+            },
+        },
+    }
+    assert _collect_drift_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
+
+
+def test_collect_drift_warnings_respects_resource_filter() -> None:
+    resources = {
+        "resources.jobs.pipeline": {
+            "action": "update",
+            "changes": {
+                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+            },
+        },
+    }
+    assert _collect_drift_warnings(resources, resource_filter=lambda k, _: "other" in k) == []
+
+
+def test_collect_drift_warnings_singular_field() -> None:
+    resources = {
+        "resources.jobs.pipeline": {
+            "action": "update",
+            "changes": {
+                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+            },
+        },
+    }
+    warnings = _collect_drift_warnings(resources)
+    assert "1 field" in warnings[0]
+
+
+# --- render_text drift integration ---
+
+
+def test_render_text_shows_drift_section(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("dagshund.text._supports_color", lambda: False)
+    plan = {
+        "plan": {
+            "resources.jobs.drift_pipeline": {
+                "action": "update",
+                "changes": {
+                    "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                },
+            },
+        },
+    }
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "Manual Edits Detected:" in out
+    assert "jobs/drift_pipeline" in out
+    assert "edited outside the bundle" in out
+    assert "manually edited outside bundle" in out
