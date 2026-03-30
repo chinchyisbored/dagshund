@@ -12,6 +12,7 @@ import {
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
+import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
 import {
   extractDeletedTaskEntries,
@@ -207,12 +208,27 @@ const buildJobIdMap = (
     const remoteState = entry.remote_state;
     if (typeof remoteState === "object" && remoteState !== null && "job_id" in remoteState) {
       const { job_id: jobId } = remoteState;
-      if (typeof jobId === "number") {
+      if (typeof jobId === "number" && jobId !== 0) {
         map.set(jobId, resourceKey);
       }
     }
   }
   return map;
+};
+
+/** Resolve a run_job_task target via new_state.vars interpolation references.
+ *  Handles placeholder job_id=0 for newly created target jobs. */
+const resolveRunJobTargetFromVars = (newState: unknown, taskKey: string): string | undefined => {
+  const vars = getUnknownProp(newState, "vars");
+  if (!isUnknownRecord(vars)) return undefined;
+  const value = getUnknownProp(newState, "value");
+  if (!isUnknownRecord(value)) return undefined;
+  const tasks = value["tasks"];
+  if (!Array.isArray(tasks)) return undefined;
+  const taskIndex = tasks.findIndex((t) => isUnknownRecord(t) && t["task_key"] === taskKey);
+  if (taskIndex < 0) return undefined;
+  const interpolation = vars[`tasks[${taskIndex}].run_job_task.job_id`];
+  return typeof interpolation === "string" ? parseResourceReference(interpolation) : undefined;
 };
 
 /** Create edges from tasks with run_job_task to the target job.
@@ -226,10 +242,12 @@ const buildRunJobEdges = (
     return allTasks.flatMap((task) => {
       const jobId = task.run_job_task?.job_id;
       if (jobId === undefined) return [];
-      const targetResourceKey =
-        typeof jobId === "string" ? parseResourceReference(jobId) : jobIdMap.get(jobId);
-      if (targetResourceKey === undefined) return [];
       const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
+      const targetResourceKey =
+        typeof jobId === "string"
+          ? parseResourceReference(jobId)
+          : (jobIdMap.get(jobId) ?? resolveRunJobTargetFromVars(entry.new_state, task.task_key));
+      if (targetResourceKey === undefined) return [];
       const diffState = toEdgeDiffState(
         resolveTaskDiffState(task.task_key, entry.action, entry.changes),
       );

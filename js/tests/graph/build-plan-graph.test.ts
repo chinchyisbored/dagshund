@@ -281,6 +281,213 @@ describe("buildPlanGraph", () => {
     });
   });
 
+  describe("cross-job edges via new_state.vars", () => {
+    test("resolves new target job via vars when job_id is 0", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.orchestrator": {
+            action: "update" as const,
+            new_state: {
+              value: {
+                tasks: [
+                  { task_key: "extract" },
+                  { task_key: "trigger_worker", run_job_task: { job_id: 0 } },
+                ],
+              },
+              vars: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                "tasks[1].run_job_task.job_id": "${resources.jobs.worker_job.id}",
+              },
+            },
+            remote_state: {
+              job_id: 100,
+              tasks: [{ task_key: "extract" }],
+            },
+          },
+          "resources.jobs.worker_job": {
+            action: "create" as const,
+            new_state: {
+              value: { tasks: [{ task_key: "run" }] },
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+
+      const crossJobEdge = graph.edges.find(
+        (e) =>
+          e.source === "resources.jobs.orchestrator::trigger_worker" &&
+          e.target === "resources.jobs.worker_job",
+      );
+      expect(crossJobEdge).toBeDefined();
+    });
+
+    test("both jobs new: edge has 'added' diffState", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "create" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "trigger_b", run_job_task: { job_id: 0 } }],
+              },
+              vars: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                "tasks[0].run_job_task.job_id": "${resources.jobs.pipeline_b.id}",
+              },
+            },
+          },
+          "resources.jobs.pipeline_b": {
+            action: "create" as const,
+            new_state: {
+              value: { tasks: [{ task_key: "ingest" }] },
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+
+      const crossJobEdge = graph.edges.find(
+        (e) =>
+          e.source === "resources.jobs.pipeline_a::trigger_b" &&
+          e.target === "resources.jobs.pipeline_b",
+      );
+      expect(crossJobEdge).toBeDefined();
+      expect(crossJobEdge?.diffState).toBe("added");
+    });
+
+    test("numeric lookup wins over vars when target job has remote_state", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "update" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "trigger_b", run_job_task: { job_id: 200 } }],
+              },
+              vars: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                "tasks[0].run_job_task.job_id": "${resources.jobs.pipeline_b.id}",
+              },
+            },
+            remote_state: { job_id: 100, tasks: [] },
+          },
+          "resources.jobs.pipeline_b": {
+            action: "skip" as const,
+            remote_state: {
+              job_id: 200,
+              tasks: [{ task_key: "ingest" }],
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+
+      const crossJobEdge = graph.edges.find(
+        (e) =>
+          e.source === "resources.jobs.pipeline_a::trigger_b" &&
+          e.target === "resources.jobs.pipeline_b",
+      );
+      expect(crossJobEdge).toBeDefined();
+    });
+
+    test("no vars field: job_id 0 produces no edge", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "update" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "trigger_b", run_job_task: { job_id: 0 } }],
+              },
+            },
+            remote_state: { job_id: 100, tasks: [] },
+          },
+          "resources.jobs.pipeline_b": {
+            action: "create" as const,
+            new_state: { value: { tasks: [{ task_key: "ingest" }] } },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+
+      const crossJobEdge = graph.edges.find(
+        (e) => e.source === "resources.jobs.pipeline_a::trigger_b",
+      );
+      expect(crossJobEdge).toBeUndefined();
+    });
+
+    test("task_key not in new_state tasks array produces no edge", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "update" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "extract" }],
+              },
+              vars: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                "tasks[0].run_job_task.job_id": "${resources.jobs.pipeline_b.id}",
+              },
+            },
+            remote_state: {
+              job_id: 100,
+              tasks: [
+                { task_key: "extract" },
+                { task_key: "trigger_b", run_job_task: { job_id: 0 } },
+              ],
+            },
+            changes: {
+              "tasks[task_key='trigger_b']": {
+                action: "delete" as const,
+                old: { task_key: "trigger_b", run_job_task: { job_id: 0 } },
+              },
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+
+      // trigger_b is deleted — it won't be in new_state.value.tasks,
+      // so vars resolution cannot find its index
+      const crossJobEdge = graph.edges.find(
+        (e) => e.source === "resources.jobs.pipeline_a::trigger_b",
+      );
+      expect(crossJobEdge).toBeUndefined();
+    });
+
+    test("non-parseable interpolation in vars produces no edge", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "create" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "trigger_b", run_job_task: { job_id: 0 } }],
+              },
+              vars: {
+                "tasks[0].run_job_task.job_id": "not-an-interpolation",
+              },
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+
+      const crossJobEdge = graph.edges.find(
+        (e) => e.source === "resources.jobs.pipeline_a::trigger_b",
+      );
+      expect(crossJobEdge).toBeUndefined();
+    });
+  });
+
   describe("sub-resources-plan.json (sub-resource merging)", () => {
     test("creates only one job node, merging sub-resources into parent", async () => {
       const plan = await loadFixture("sub-resources-plan.json");
