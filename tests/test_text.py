@@ -34,10 +34,12 @@ from dagshund.text import (
     _format_group_header,
     _format_value,
     _group_by_resource_type,
+    _is_long_string,
     _print_header,
     _print_resource_groups,
     _print_summary,
     _print_warnings,
+    _render_field_change,
     _render_resource,
     _supports_color,
     render_text,
@@ -246,21 +248,141 @@ def test_format_value(value: object, expected: str) -> None:
     assert _format_value(value) == expected
 
 
-def test_format_value_boundary_40_chars_not_truncated() -> None:
-    result = _format_value("a" * 40)
+def test_format_value_long_string_not_truncated() -> None:
+    """_format_value no longer truncates — _is_long_string guards in the caller instead."""
+    result = _format_value("a" * 100)
 
-    assert result == f'"{"a" * 40}"'
-
-
-def test_format_value_boundary_41_chars_truncated() -> None:
-    result = _format_value("a" * 41)
-
-    assert result == f'"...{"a" * 40}"'
+    assert result == f'"{"a" * 100}"'
 
 
 def test_format_value_unknown_type_uses_repr() -> None:
     result = _format_value(object())
     assert result.startswith("<")
+
+
+# --- _is_long_string ---
+
+
+def test_is_long_string_boundary_40_not_long() -> None:
+    assert _is_long_string("a" * 40) is False
+
+
+def test_is_long_string_boundary_41_is_long() -> None:
+    assert _is_long_string("a" * 41) is True
+
+
+def test_is_long_string_empty_string() -> None:
+    assert _is_long_string("") is False
+
+
+def test_is_long_string_non_string_types() -> None:
+    assert _is_long_string(None) is False
+    assert _is_long_string(42) is False
+    assert _is_long_string(True) is False
+    assert _is_long_string({"key": "value"}) is False
+    assert _is_long_string([1, 2, 3]) is False
+
+
+# --- _render_field_change ---
+
+
+def test_render_field_change_long_old_and_new_shows_ellipsis() -> None:
+    change = {"action": "update", "old": "a" * 50, "new": "b" * 50}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert "... -> ..." in result
+
+
+def test_render_field_change_long_new_short_old_preserves_short() -> None:
+    change = {"action": "update", "old": None, "new": "a" * 50}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert "null -> ..." in result
+
+
+def test_render_field_change_long_old_short_new_preserves_short() -> None:
+    change = {"action": "update", "old": "a" * 50, "new": 42}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert "... -> 42" in result
+
+
+def test_render_field_change_short_string_old_long_new_preserves_short() -> None:
+    change = {"action": "update", "old": "short text", "new": "a" * 50}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert '"short text" -> ...' in result
+
+
+def test_render_field_change_long_old_null_new_preserves_null() -> None:
+    change = {"action": "update", "old": "a" * 50, "new": None}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert "... -> null" in result
+
+
+def test_render_field_change_long_new_only_shows_ellipsis() -> None:
+    change = {"action": "create", "new": "a" * 50}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert ": ..." in result
+
+
+def test_render_field_change_short_values_show_inline() -> None:
+    change = {"action": "update", "old": "short", "new": "also short"}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert '"short" -> "also short"' in result
+
+
+def test_render_field_change_long_old_missing_new_shows_ellipsis() -> None:
+    change = {"action": "delete", "old": "a" * 50}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert ": ..." in result
+    assert "->" not in result
+
+
+def test_render_field_change_dict_old_long_new_preserves_dict() -> None:
+    change = {"action": "update", "old": {"a": 1}, "new": "b" * 50}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert "{1 fields} -> ..." in result
+
+
+def test_render_field_change_no_old_no_new_shows_field_only() -> None:
+    change = {"action": "update"}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert result.strip() == "~ field"
+
+
+def test_render_field_change_unchanged_returns_none() -> None:
+    change = {"action": "skip"}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is None
 
 
 # --- _render_resource ---

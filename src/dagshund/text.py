@@ -111,14 +111,13 @@ def _action_config(action: str) -> _ActionConfig:
 
 
 def _format_value(value: object) -> str:
-    """Format a value for display, truncating long strings."""
+    """Format a value for human-readable display."""
     match value:
         case None:
             return "null"
-        case str() if len(value) > 40:
-            return f'"...{value[-40:]}"'
         case str():
             return f'"{value}"'
+        # bool must precede int — isinstance(True, int) is True in Python
         case bool():
             return "true" if value else "false"
         case int() | float():
@@ -131,6 +130,11 @@ def _format_value(value: object) -> str:
             return repr(value)
 
 
+def _is_long_string(value: object) -> bool:
+    """Check if a value is a string too long to display inline."""
+    return isinstance(value, str) and len(value) > 40
+
+
 def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
     """Render a single field-level change, or None if unchanged."""
     action = str(change.get("action", ""))
@@ -139,15 +143,26 @@ def _render_field_change(field_name: str, change: FieldChange, *, use_color: boo
 
     field_config = _action_config(action)
     prefix = f"      {field_config.symbol} {field_name}"
-    match ("old" in change, "new" in change):
-        case (True, True):
-            suffix = f": {_format_value(change['old'])} -> {_format_value(change['new'])}"
-        case (False, True):
-            suffix = f": {_format_value(change['new'])}"
-        case (True, False):
-            suffix = f": {_format_value(change['old'])}"
-        case _:
-            suffix = ""
+    old, new = change.get("old"), change.get("new")
+    has_old, has_new = "old" in change, "new" in change
+    if (has_old and _is_long_string(old)) or (has_new and _is_long_string(new)):
+        old_part = "..." if _is_long_string(old) else _format_value(old) if has_old else None
+        new_part = "..." if _is_long_string(new) else _format_value(new) if has_new else None
+        if old_part is not None and new_part is not None:
+            suffix = f": {old_part} -> {new_part}"
+        elif new_part is not None:
+            suffix = f": {new_part}"
+        else:
+            # old_part is guaranteed not None — the guard ensures at least one side is long
+            suffix = f": {old_part}"
+    elif has_old and has_new:
+        suffix = f": {_format_value(old)} -> {_format_value(new)}"
+    elif has_new:
+        suffix = f": {_format_value(new)}"
+    elif has_old:
+        suffix = f": {_format_value(old)}"
+    else:
+        suffix = ""
     return _colorize(f"{prefix}{suffix}", field_config.color, use_color=use_color)
 
 
