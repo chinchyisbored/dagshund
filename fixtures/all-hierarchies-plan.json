@@ -253,62 +253,60 @@
         "creator_user_name": "user@example.com",
         "job_id": 1117023947429700,
         "run_as_user_name": "user@example.com",
-        "settings": {
-          "deployment": {
-            "kind": "BUNDLE",
-            "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
-          },
-          "edit_mode": "UI_LOCKED",
-          "format": "MULTI_TASK",
-          "max_concurrent_runs": 1,
-          "name": "etl_pipeline",
-          "queue": {
-            "enabled": true
-          },
-          "tasks": [
-            {
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/etl/extract",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "extract",
-              "timeout_seconds": 0
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "format": "MULTI_TASK",
+        "max_concurrent_runs": 1,
+        "name": "etl_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "tasks": [
+          {
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/extract",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "extract"
-                }
-              ],
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/etl/transform_v2",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "transform",
-              "timeout_seconds": 0
+            "run_if": "ALL_SUCCESS",
+            "task_key": "extract",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "extract"
+              }
+            ],
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/transform_v2",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "transform"
-                }
-              ],
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/etl/load",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "load",
-              "timeout_seconds": 0
-            }
-          ],
-          "timeout_seconds": 0
-        }
+            "run_if": "ALL_SUCCESS",
+            "task_key": "transform",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "transform"
+              }
+            ],
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/load",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "load",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0
       },
       "changes": {
         "tasks[task_key='transform'].notebook_task.notebook_path": {

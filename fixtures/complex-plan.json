@@ -194,147 +194,145 @@
         "creator_user_name": "user@example.com",
         "job_id": 949076684616381,
         "run_as_user_name": "user@example.com",
-        "settings": {
-          "deployment": {
-            "kind": "BUNDLE",
-            "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
-          },
-          "edit_mode": "UI_LOCKED",
-          "email_notifications": {},
-          "environments": [
-            {
-              "environment_key": "default",
-              "spec": {
-                "environment_version": "2"
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "environments": [
+          {
+            "environment_key": "default",
+            "spec": {
+              "environment_version": "2"
+            }
+          }
+        ],
+        "format": "MULTI_TASK",
+        "max_concurrent_runs": 1,
+        "name": "data_quality_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "check_nulls"
               }
-            }
-          ],
-          "format": "MULTI_TASK",
-          "max_concurrent_runs": 1,
-          "name": "data_quality_pipeline",
-          "queue": {
-            "enabled": true
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/aggregate_results",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "aggregate_results",
+            "timeout_seconds": 0
           },
-          "tasks": [
-            {
-              "depends_on": [
-                {
-                  "task_key": "check_nulls"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/quality/aggregate_results",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "aggregate_results",
-              "timeout_seconds": 0
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_schema"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/check_nulls",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "validate_schema"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/quality/check_nulls",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "check_nulls",
-              "timeout_seconds": 0
+            "run_if": "ALL_SUCCESS",
+            "task_key": "check_nulls",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "check_nulls"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "python_wheel_task": {
+              "entry_point": "compute_statistics",
+              "package_name": "quality_metrics",
+              "parameters": [
+                "--output",
+                "/dbfs/quality/stats"
+              ]
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "check_nulls"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "python_wheel_task": {
-                "entry_point": "compute_statistics",
-                "package_name": "quality_metrics",
-                "parameters": [
-                  "--output",
-                  "/dbfs/quality/stats"
-                ]
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "compute_statistics",
-              "timeout_seconds": 0
+            "run_if": "ALL_SUCCESS",
+            "task_key": "compute_statistics",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "aggregate_results"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/generate_report",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "aggregate_results"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/quality/generate_report",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "generate_report",
-              "timeout_seconds": 0
+            "run_if": "ALL_SUCCESS",
+            "task_key": "generate_report",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "generate_report"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/notify_stakeholders",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "generate_report"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/quality/notify_stakeholders",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "notify_stakeholders",
-              "timeout_seconds": 0
+            "run_if": "ALL_SUCCESS",
+            "task_key": "notify_stakeholders",
+            "timeout_seconds": 0
+          },
+          {
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/setup_env",
+              "source": "WORKSPACE"
             },
-            {
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/quality/setup_env",
-                "source": "WORKSPACE"
+            "run_if": "ALL_SUCCESS",
+            "task_key": "setup_env",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "setup_env"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "base_parameters": {
+                "sample_size": "1000",
+                "strict_mode": "false"
               },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "setup_env",
-              "timeout_seconds": 0
+              "notebook_path": "/Workspace/quality/validate_schema",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "setup_env"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "base_parameters": {
-                  "sample_size": "1000",
-                  "strict_mode": "false"
-                },
-                "notebook_path": "/Workspace/quality/validate_schema",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "validate_schema",
-              "timeout_seconds": 0
-            }
-          ],
-          "timeout_seconds": 0,
-          "webhook_notifications": {}
-        }
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate_schema",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
       },
       "changes": {
         "email_notifications": {
@@ -715,91 +713,89 @@
         "creator_user_name": "user@example.com",
         "job_id": 1117023947429700,
         "run_as_user_name": "user@example.com",
-        "settings": {
-          "deployment": {
-            "kind": "BUNDLE",
-            "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user@example.com/.bundle/dagshund-test-bundle/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "environments": [
+          {
+            "environment_key": "default",
+            "spec": {
+              "environment_version": "2"
+            }
+          }
+        ],
+        "format": "MULTI_TASK",
+        "max_concurrent_runs": 1,
+        "name": "etl_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "tasks": [
+          {
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/extract",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "extract",
+            "timeout_seconds": 0
           },
-          "edit_mode": "UI_LOCKED",
-          "email_notifications": {},
-          "environments": [
-            {
-              "environment_key": "default",
-              "spec": {
-                "environment_version": "2"
+          {
+            "depends_on": [
+              {
+                "task_key": "transform"
               }
-            }
-          ],
-          "format": "MULTI_TASK",
-          "max_concurrent_runs": 1,
-          "name": "etl_pipeline",
-          "queue": {
-            "enabled": true
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/load",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "load",
+            "timeout_seconds": 0
           },
-          "tasks": [
-            {
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/etl/extract",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "extract",
-              "timeout_seconds": 0
+          {
+            "depends_on": [
+              {
+                "task_key": "extract"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/transform",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "transform"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/etl/load",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "load",
-              "timeout_seconds": 0
+            "run_if": "ALL_SUCCESS",
+            "task_key": "transform",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "load"
+              }
+            ],
+            "email_notifications": {},
+            "environment_key": "default",
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/validate",
+              "source": "WORKSPACE"
             },
-            {
-              "depends_on": [
-                {
-                  "task_key": "extract"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/etl/transform",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "transform",
-              "timeout_seconds": 0
-            },
-            {
-              "depends_on": [
-                {
-                  "task_key": "load"
-                }
-              ],
-              "email_notifications": {},
-              "environment_key": "default",
-              "notebook_task": {
-                "notebook_path": "/Workspace/etl/validate",
-                "source": "WORKSPACE"
-              },
-              "run_if": "ALL_SUCCESS",
-              "task_key": "validate",
-              "timeout_seconds": 0
-            }
-          ],
-          "timeout_seconds": 0,
-          "webhook_notifications": {}
-        }
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
       },
       "changes": {
         "email_notifications": {
