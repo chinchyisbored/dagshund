@@ -246,16 +246,16 @@ def test_format_value(value: object, expected: str) -> None:
     assert _format_value(value) == expected
 
 
-def test_format_value_boundary_80_chars_not_truncated() -> None:
-    result = _format_value("a" * 80)
+def test_format_value_boundary_40_chars_not_truncated() -> None:
+    result = _format_value("a" * 40)
 
-    assert result == f'"{"a" * 80}"'
+    assert result == f'"{"a" * 40}"'
 
 
-def test_format_value_boundary_81_chars_truncated() -> None:
-    result = _format_value("a" * 81)
+def test_format_value_boundary_41_chars_truncated() -> None:
+    result = _format_value("a" * 41)
 
-    assert result == f'"{"a" * 77}..."'
+    assert result == f'"...{"a" * 40}"'
 
 
 def test_format_value_unknown_type_uses_repr() -> None:

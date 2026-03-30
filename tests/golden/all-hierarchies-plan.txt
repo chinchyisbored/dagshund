@@ -5,7 +5,7 @@ dagshund plan (v2, cli 0.290.0)
 
   catalogs (1)
   ~ catalogs/production  (update)
-      ~ comment: "Production catalog" -> "Production catalog for all customer-facing data"
+      ~ comment: "Production catalog" -> "...ion catalog for all customer-facing data"
       ~ properties['environment']: "production"
 
   database_catalogs (1)

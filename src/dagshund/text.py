@@ -115,8 +115,8 @@ def _format_value(value: object) -> str:
     match value:
         case None:
             return "null"
-        case str() if len(value) > 80:
-            return f'"{value[:77]}..."'
+        case str() if len(value) > 40:
+            return f'"...{value[-40:]}"'
         case str():
             return f'"{value}"'
         case bool():
