@@ -1,82 +1,13 @@
 import type { DagNodeData } from "../../types/graph-types.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
-import { ChangeEntry, stripTaskPrefix } from "./change-entry.tsx";
+import {
+  extractRelativeChangePath,
+  stripChangedArrayEntries,
+  topLevelFieldName,
+} from "../../utils/change-path.ts";
+import { ChangeEntry } from "./change-entry.tsx";
 import { ResourceStateView } from "./resource-state-view.tsx";
 import { SectionDivider } from "./section-divider.tsx";
-
-/** Extract the top-level field name from a change path (e.g. `notebook_task.notebook_path` → `notebook_task`). */
-const topLevelFieldName = (path: string): string => {
-  const stripped = stripTaskPrefix(path);
-  const dotIndex = stripped.indexOf(".");
-  return dotIndex === -1 ? stripped : stripped.slice(0, dotIndex);
-};
-
-/** Extract the path relative to the top-level field name, or undefined for direct field changes. */
-const extractRelativeChangePath = (path: string): string | undefined => {
-  const stripped = stripTaskPrefix(path);
-  const dotIndex = stripped.indexOf(".");
-  return dotIndex === -1 ? undefined : stripped.slice(dotIndex + 1);
-};
-
-/** Parse bracket expressions like `[field='value']` from a path segment. */
-const BRACKET_PATTERN = /\[(\w+)='([^']+)'\]/g;
-
-const parseBracketFilters = (
-  segment: string,
-): readonly { readonly field: string; readonly value: string }[] => {
-  const filters: { field: string; value: string }[] = [];
-  for (const match of segment.matchAll(BRACKET_PATTERN)) {
-    if (match[1] !== undefined && match[2] !== undefined) {
-      filters.push({ field: match[1], value: match[2] });
-    }
-  }
-  return filters;
-};
-
-/** Check if a record matches all bracket filters. */
-const matchesAllFilters = (
-  record: unknown,
-  filters: readonly { readonly field: string; readonly value: string }[],
-): boolean => {
-  if (typeof record !== "object" || record === null) return false;
-  // narrowed by typeof+null guard above — record is an untyped JSON object
-  const obj = record as Record<string, unknown>;
-  return filters.every((f) => String(obj[f.field]) === f.value);
-};
-
-/** Remove array entries referenced by bracket expressions in change paths.
- *  For a state value like `{ permissions: [{ group_name: 'users', ... }, { ... }] }` and a change
- *  path like `permissions[group_name='users'].permission_level`, removes the matching array entry. */
-const stripChangedArrayEntries = (
-  stateValue: unknown,
-  relativePaths: readonly string[],
-): unknown => {
-  if (typeof stateValue !== "object" || stateValue === null || Array.isArray(stateValue)) {
-    return stateValue;
-  }
-
-  // narrowed by typeof+null+isArray guards above — stateValue is a plain JSON object
-  const record = stateValue as Record<string, unknown>;
-  const result = { ...record };
-
-  for (const path of relativePaths) {
-    const dotIndex = path.indexOf(".");
-    const firstSegment = dotIndex === -1 ? path : path.slice(0, dotIndex);
-    const bracketStart = firstSegment.indexOf("[");
-    if (bracketStart === -1) continue;
-
-    const fieldName = firstSegment.slice(0, bracketStart);
-    const filters = parseBracketFilters(firstSegment);
-    if (filters.length === 0) continue;
-
-    const arr = result[fieldName];
-    if (!Array.isArray(arr)) continue;
-
-    result[fieldName] = arr.filter((entry) => !matchesAllFilters(entry, filters));
-  }
-
-  return result;
-};
 
 /** Categorize changes by top-level field: direct (exact match) vs sub-field (dotted path). */
 const categorizeChangedFields = (

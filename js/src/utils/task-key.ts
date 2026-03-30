@@ -9,6 +9,10 @@ export const TASK_KEY_PATTERN = /^tasks\[task_key='([^']+)'\]/;
 /** Match `tasks[task_key='...'].` prefix — for stripping display prefixes. */
 export const TASK_KEY_DOT_PREFIX_PATTERN = /^tasks\[task_key='[^']*'\]\./;
 
+/** Strip the `tasks[task_key='...'].` prefix from a change key for display. */
+export const stripTaskPrefix = (key: string): string =>
+  key.replace(TASK_KEY_DOT_PREFIX_PATTERN, "");
+
 /** Filter changes to only include job-level (non-task) entries. */
 export const filterJobLevelChanges = (
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
