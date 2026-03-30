@@ -7,6 +7,7 @@ import type {
   ObjectEntryStatus,
   StructuralDiffResult,
 } from "../types/structural-diff.ts";
+import { isUnknownRecord } from "./unknown-record.ts";
 
 /** Key-order-independent deep equality check. */
 const deepEqual = (a: unknown, b: unknown): boolean => {
@@ -16,17 +17,13 @@ const deepEqual = (a: unknown, b: unknown): boolean => {
     if (!Array.isArray(b) || a.length !== b.length) return false;
     return a.every((item, i) => deepEqual(item, b[i]));
   }
-  if (isPlainObject(a) && isPlainObject(b)) {
+  if (isUnknownRecord(a) && isUnknownRecord(b)) {
     const aKeys = Object.keys(a);
     if (aKeys.length !== Object.keys(b).length) return false;
     return aKeys.every((key) => key in b && deepEqual(a[key], b[key]));
   }
   return false;
 };
-
-/** Check whether a value is a plain object (not null, not array). */
-const isPlainObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
  * Check whether a candidate key has unique string values within an array of objects.
@@ -60,8 +57,8 @@ export const findIdentityKey = (
   oldArr: readonly unknown[],
   newArr: readonly unknown[],
 ): string | undefined => {
-  const oldObjects = oldArr.filter(isPlainObject);
-  const newObjects = newArr.filter(isPlainObject);
+  const oldObjects = oldArr.filter(isUnknownRecord);
+  const newObjects = newArr.filter(isUnknownRecord);
   if (oldObjects.length + newObjects.length < 2) return undefined;
 
   // Gather all candidate keys (string-valued keys across all objects)
@@ -102,7 +99,7 @@ export const diffArrays = (oldArr: readonly unknown[], newArr: readonly unknown[
 
   const getIdentity = (item: unknown): string | undefined => {
     if (identityKey === undefined) return undefined;
-    if (!isPlainObject(item)) return undefined;
+    if (!isUnknownRecord(item)) return undefined;
     const value = item[identityKey];
     return typeof value === "string" ? value : undefined;
   };
@@ -267,7 +264,7 @@ export const computeStructuralDiff = (change: ChangeDesc): StructuralDiffResult 
   }
 
   // Both plain objects → object diff
-  if (isPlainObject(baseline) && isPlainObject(current)) {
+  if (isUnknownRecord(baseline) && isUnknownRecord(current)) {
     return { diff: diffObjects(baseline, current), baselineLabel };
   }
 

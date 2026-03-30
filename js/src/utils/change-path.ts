@@ -1,5 +1,6 @@
 import { findIdentityKey } from "./structural-diff.ts";
 import { stripTaskPrefix } from "./task-key.ts";
+import { isUnknownRecord } from "./unknown-record.ts";
 
 /** Find the earliest non-negative index, or -1 if both are absent. */
 const earliestIndex = (a: number, b: number): number => {
@@ -53,10 +54,6 @@ export const matchesAllFilters = (
   return filters.every((f) => String(obj[f.field]) === f.value);
 };
 
-/** Check whether a value is a plain object (not null, not array). */
-const isPlainObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 /** Recursively strip fields from a plain object along dotted paths.
  *  Fields in `preserve` are never stripped (used to keep identity keys like `job_cluster_key`).
  *  e.g. stripping `["job_cluster_key", "new_cluster.num_workers"]` with preserve={"job_cluster_key"}
@@ -89,7 +86,7 @@ const stripFieldsFromObject = (
   for (const [key, value] of Object.entries(obj)) {
     if (directRemove.has(key) && !preserve.has(key)) continue;
     const nested = nestedPaths.get(key);
-    if (nested !== undefined && isPlainObject(value)) {
+    if (nested !== undefined && isUnknownRecord(value)) {
       result[key] = stripFieldsFromObject(value, nested, preserve);
     } else {
       result[key] = value;
@@ -167,13 +164,12 @@ const stripChangedEntriesFromArray = (
   const result: unknown[] = [];
   for (let i = 0; i < arr.length; i++) {
     if (indicesToRemove.has(i)) continue;
+    const element = arr[i];
     const fieldPaths = fieldPathsByIndex.get(i);
-    if (fieldPaths !== undefined && isPlainObject(arr[i])) {
-      result.push(
-        stripFieldsFromObject(arr[i] as Readonly<Record<string, unknown>>, fieldPaths, preserve),
-      );
+    if (fieldPaths !== undefined && isUnknownRecord(element)) {
+      result.push(stripFieldsFromObject(element, fieldPaths, preserve));
     } else {
-      result.push(arr[i]);
+      result.push(element);
     }
   }
   return result;
@@ -219,17 +215,13 @@ export const stripChangedArrayEntries = (
   stateValue: unknown,
   relativePaths: readonly string[],
 ): unknown => {
-  if (typeof stateValue !== "object" || stateValue === null) {
-    return stateValue;
-  }
-
   if (Array.isArray(stateValue)) {
     return stripChangedEntriesFromArray(stateValue, relativePaths);
   }
 
-  return stripChangedEntriesFromRecord(
-    // narrowed by typeof+null+isArray guards above
-    stateValue as Record<string, unknown>,
-    relativePaths,
-  );
+  if (isUnknownRecord(stateValue)) {
+    return stripChangedEntriesFromRecord(stateValue, relativePaths);
+  }
+
+  return stateValue;
 };
