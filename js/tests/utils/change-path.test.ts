@@ -109,6 +109,13 @@ describe("parseBracketFilters", () => {
   test("returns empty for no brackets", () => {
     expect(parseBracketFilters("notebook_task")).toEqual([]);
   });
+
+  test("parses multiple bracket filters in one segment", () => {
+    expect(parseBracketFilters("[group_name='users'][level='CAN_VIEW']")).toEqual([
+      { field: "group_name", value: "users" },
+      { field: "level", value: "CAN_VIEW" },
+    ]);
+  });
 });
 
 describe("matchesAllFilters", () => {
@@ -127,6 +134,35 @@ describe("matchesAllFilters", () => {
   test("rejects non-objects", () => {
     expect(matchesAllFilters(null, [{ field: "x", value: "y" }])).toBe(false);
     expect(matchesAllFilters("string", [{ field: "x", value: "y" }])).toBe(false);
+  });
+
+  test("rejects when one of multiple filters fails", () => {
+    expect(
+      matchesAllFilters({ group_name: "users", level: "CAN_MANAGE" }, [
+        { field: "group_name", value: "users" },
+        { field: "level", value: "CAN_VIEW" },
+      ]),
+    ).toBe(false);
+  });
+
+  test("matches when all of multiple filters pass", () => {
+    expect(
+      matchesAllFilters({ group_name: "users", level: "CAN_VIEW" }, [
+        { field: "group_name", value: "users" },
+        { field: "level", value: "CAN_VIEW" },
+      ]),
+    ).toBe(true);
+  });
+
+  test("coerces missing field to 'undefined' string", () => {
+    expect(matchesAllFilters({ other: "val" }, [{ field: "missing", value: "undefined" }])).toBe(
+      true,
+    );
+    expect(matchesAllFilters({ other: "val" }, [{ field: "missing", value: "x" }])).toBe(false);
+  });
+
+  test("returns true for empty filters array (vacuous truth)", () => {
+    expect(matchesAllFilters({ any: "thing" }, [])).toBe(true);
   });
 });
 
@@ -245,6 +281,11 @@ describe("stripChangedArrayEntries", () => {
     const result = stripChangedArrayEntries(obj, ["items[name='z'].field"]);
 
     expect(result).toEqual({ items: [{ name: "a" }] });
+  });
+
+  test("returns empty array unchanged", () => {
+    const arr: unknown[] = [];
+    expect(stripChangedArrayEntries(arr, ["[0]"])).toEqual([]);
   });
 
   test("handles malformed bracket syntax gracefully", () => {
