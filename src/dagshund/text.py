@@ -135,14 +135,21 @@ def _is_long_string(value: object) -> bool:
     return isinstance(value, str) and len(value) > 40
 
 
-def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
-    """Render a single field-level change, or None if unchanged/no-op."""
-    action = str(change.get("action", ""))
-    if action_to_diff_state(action) == DiffState.UNCHANGED:
-        return None
+def _format_transition(old: object, new: object) -> str:
+    """Format an old -> new value transition, truncating long strings."""
+    old_part = "..." if _is_long_string(old) else _format_value(old)
+    new_part = "..." if _is_long_string(new) else _format_value(new)
+    return f": {old_part} -> {new_part}"
 
-    field_config = _action_config(action)
-    prefix = f"      {field_config.symbol} {field_name}"
+
+def _format_single_value(value: object) -> str:
+    """Format a single value suffix, truncating long strings."""
+    part = "..." if _is_long_string(value) else _format_value(value)
+    return f": {part}"
+
+
+def _format_field_suffix(change: FieldChange) -> str | None:
+    """Compute the display suffix for a field change, or None to suppress."""
     old, new = change.get("old"), change.get("new")
     has_old, has_new = "old" in change, "new" in change
     remote = change.get("remote")
@@ -150,36 +157,37 @@ def _render_field_change(field_name: str, change: FieldChange, *, use_color: boo
 
     # Drift: old == new but remote differs — show what the deploy will overwrite
     if has_old and has_new and old == new and has_remote and remote != old:
-        suffix = f": {_format_value(remote)} -> {_format_value(new)} (drift)"
-        return _colorize(f"{prefix}{suffix}", field_config.color, use_color=use_color)
+        return f": {_format_value(remote)} -> {_format_value(new)} (drift)"
 
     # No-op: old == new with no meaningful remote difference — suppress
     if has_old and has_new and old == new:
         return None
 
-    # Remote-only: server has a value the bundle doesn't manage — show it
+    # Remote-only: server has a value the bundle doesn't manage
     if not has_old and not has_new and has_remote:
-        suffix = f": {_format_value(remote)} (remote)"
-        return _colorize(f"{prefix}{suffix}", field_config.color, use_color=use_color)
+        return f": {_format_value(remote)} (remote)"
 
-    if (has_old and _is_long_string(old)) or (has_new and _is_long_string(new)):
-        old_part = "..." if _is_long_string(old) else _format_value(old) if has_old else None
-        new_part = "..." if _is_long_string(new) else _format_value(new) if has_new else None
-        if old_part is not None and new_part is not None:
-            suffix = f": {old_part} -> {new_part}"
-        elif new_part is not None:
-            suffix = f": {new_part}"
-        else:
-            # old_part is guaranteed not None — the guard ensures at least one side is long
-            suffix = f": {old_part}"
-    elif has_old and has_new:
-        suffix = f": {_format_value(old)} -> {_format_value(new)}"
-    elif has_new:
-        suffix = f": {_format_value(new)}"
-    elif has_old:
-        suffix = f": {_format_value(old)}"
-    else:
-        suffix = ""
+    if has_old and has_new:
+        return _format_transition(old, new)
+    if has_new:
+        return _format_single_value(new)
+    if has_old:
+        return _format_single_value(old)
+    return ""
+
+
+def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
+    """Render a single field-level change, or None if unchanged/no-op."""
+    action = str(change.get("action", ""))
+    if action_to_diff_state(action) == DiffState.UNCHANGED:
+        return None
+
+    suffix = _format_field_suffix(change)
+    if suffix is None:
+        return None
+
+    field_config = _action_config(action)
+    prefix = f"      {field_config.symbol} {field_name}"
     return _colorize(f"{prefix}{suffix}", field_config.color, use_color=use_color)
 
 
