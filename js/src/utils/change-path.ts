@@ -1,4 +1,3 @@
-import { findIdentityKey } from "./structural-diff.ts";
 import { stripTaskPrefix } from "./task-key.ts";
 import { isUnknownRecord } from "./unknown-record.ts";
 
@@ -54,45 +53,18 @@ export const matchesAllFilters = (
   return filters.every((f) => String(obj[f.field]) === f.value);
 };
 
-/** Recursively strip fields from a plain object along dotted paths.
- *  Fields in `preserve` are never stripped (used to keep identity keys like `job_cluster_key`).
- *  e.g. stripping `["job_cluster_key", "new_cluster.num_workers"]` with preserve={"job_cluster_key"}
- *  removes only `new_cluster.num_workers` and keeps everything else including the identity key. */
-const stripFieldsFromObject = (
-  obj: Readonly<Record<string, unknown>>,
-  fieldPaths: readonly string[],
-  preserve: ReadonlySet<string> = new Set(),
-): Readonly<Record<string, unknown>> => {
-  const directRemove = new Set<string>();
-  const nestedPaths = new Map<string, string[]>();
+/** Parse a dict-key bracket like `['sample_size']` at the start of a path.
+ *  Returns the key and the remaining path after `]`, or undefined if not a dict-key bracket.
+ *  Does not match numeric indices (`[0]`) or named filters (`[field='value']`). */
+const DICT_KEY_PATTERN = /^\['([^']+)'\]/;
 
-  for (const path of fieldPaths) {
-    const dotIndex = path.indexOf(".");
-    if (dotIndex === -1) {
-      directRemove.add(path);
-    } else {
-      const key = path.slice(0, dotIndex);
-      const rest = path.slice(dotIndex + 1);
-      const existing = nestedPaths.get(key);
-      if (existing !== undefined) {
-        existing.push(rest);
-      } else {
-        nestedPaths.set(key, [rest]);
-      }
-    }
-  }
-
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (directRemove.has(key) && !preserve.has(key)) continue;
-    const nested = nestedPaths.get(key);
-    if (nested !== undefined && isUnknownRecord(value)) {
-      result[key] = stripFieldsFromObject(value, nested, preserve);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
+export const parseDictKeyBracket = (
+  path: string,
+): { readonly key: string; readonly rest: string } | undefined => {
+  const match = DICT_KEY_PATTERN.exec(path);
+  if (match?.[1] === undefined) return undefined;
+  const rest = path.slice(match[0].length);
+  return { key: match[1], rest: rest.startsWith(".") ? rest.slice(1) : rest };
 };
 
 /** Parse a numeric array index from the start of a path like `[0].task_key`. */
@@ -127,16 +99,24 @@ const resolveArrayIndex = (path: string, arr: readonly unknown[]): number | unde
   return arr.findIndex((item) => matchesAllFilters(item, filters));
 };
 
-/** Strip changed fields from array elements, preserving unchanged fields.
- *  Paths with sub-fields (e.g. `[0].job_cluster_key`) strip only that field from the element.
+/** Check if a stripped value is empty (no remaining content worth showing). */
+export const isEmptyValue = (value: unknown): boolean => {
+  if (isUnknownRecord(value)) return Object.keys(value).length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+};
+
+/** Strip changed fields from array elements.
+ *  Paths with sub-fields (e.g. `[0].job_cluster_key`) strip that field from the element
+ *  by delegating to the dispatcher for full dot/bracket/dict-key support.
  *  Paths without sub-fields (e.g. `[0]`) remove the whole element.
- *  Identity fields (e.g. `job_cluster_key`) are never stripped so elements remain identifiable. */
+ *  Elements that become empty after stripping are also removed. */
 const stripChangedEntriesFromArray = (
   arr: readonly unknown[],
   relativePaths: readonly string[],
 ): readonly unknown[] => {
   const indicesToRemove = new Set<number>();
-  const fieldPathsByIndex = new Map<number, string[]>();
+  const subPathsByIndex = new Map<number, string[]>();
 
   for (const path of relativePaths) {
     const index = resolveArrayIndex(path, arr);
@@ -146,28 +126,25 @@ const stripChangedEntriesFromArray = (
     if (subPath === undefined) {
       indicesToRemove.add(index);
     } else {
-      const existing = fieldPathsByIndex.get(index);
+      const existing = subPathsByIndex.get(index);
       if (existing !== undefined) {
         existing.push(subPath);
       } else {
-        fieldPathsByIndex.set(index, [subPath]);
+        subPathsByIndex.set(index, [subPath]);
       }
     }
   }
 
-  if (indicesToRemove.size === 0 && fieldPathsByIndex.size === 0) return arr;
+  if (indicesToRemove.size === 0 && subPathsByIndex.size === 0) return arr;
 
-  const identityKey = findIdentityKey(arr, arr);
-  const preserve = identityKey !== undefined ? new Set([identityKey]) : new Set<string>();
-
-  // Single pass: process each element by its original index before any filtering
   const result: unknown[] = [];
   for (let i = 0; i < arr.length; i++) {
     if (indicesToRemove.has(i)) continue;
     const element = arr[i];
-    const fieldPaths = fieldPathsByIndex.get(i);
-    if (fieldPaths !== undefined && isUnknownRecord(element)) {
-      result.push(stripFieldsFromObject(element, fieldPaths, preserve));
+    const subPaths = subPathsByIndex.get(i);
+    if (subPaths !== undefined) {
+      const stripped = stripChangedFields(element, subPaths);
+      if (!isEmptyValue(stripped)) result.push(stripped);
     } else {
       result.push(element);
     }
@@ -175,43 +152,76 @@ const stripChangedEntriesFromArray = (
   return result;
 };
 
-/** Strip changed entries from a plain object's nested arrays via bracket paths.
- *  Groups paths by field name and delegates to the array handler. */
+/** Strip changed entries from a plain object by traversing nested paths.
+ *  Splits each path at the first delimiter (dot or bracket), groups by the first key segment,
+ *  and recurses via stripChangedFields to handle both nested objects and arrays.
+ *  Dict-key brackets at position 0 (e.g. `['key']`) are parsed as direct field access. */
 const stripChangedEntriesFromRecord = (
   record: Readonly<Record<string, unknown>>,
   relativePaths: readonly string[],
 ): Readonly<Record<string, unknown>> => {
+  const directRemove = new Set<string>();
   const pathsByField = new Map<string, string[]>();
 
   for (const path of relativePaths) {
-    const bracketStart = path.indexOf("[");
-    if (bracketStart === -1) continue;
-    const fieldName = path.slice(0, bracketStart);
-    const bracketPath = path.slice(bracketStart);
+    const dotIndex = path.indexOf(".");
+    const bracketIndex = path.indexOf("[");
+    const splitAt = earliestIndex(dotIndex, bracketIndex);
+
+    if (splitAt === -1) {
+      directRemove.add(path);
+      continue;
+    }
+
+    let fieldName: string;
+    let remaining: string;
+
+    if (splitAt === 0) {
+      // Bracket at position 0 — try dict-key bracket (e.g. ['sample_size'])
+      const dictKey = parseDictKeyBracket(path);
+      if (dictKey === undefined) continue; // Unrecognized bracket syntax — skip
+      fieldName = dictKey.key;
+      remaining = dictKey.rest;
+    } else {
+      fieldName = path.slice(0, splitAt);
+      remaining = path[splitAt] === "." ? path.slice(splitAt + 1) : path.slice(splitAt);
+    }
+
+    if (remaining === "") {
+      directRemove.add(fieldName);
+      continue;
+    }
+
     const existing = pathsByField.get(fieldName);
     if (existing !== undefined) {
-      existing.push(bracketPath);
+      existing.push(remaining);
     } else {
-      pathsByField.set(fieldName, [bracketPath]);
+      pathsByField.set(fieldName, [remaining]);
     }
   }
 
-  if (pathsByField.size === 0) return record;
+  if (directRemove.size === 0 && pathsByField.size === 0) return record;
 
-  const result = { ...record };
-  for (const [fieldName, paths] of pathsByField) {
-    const arr = result[fieldName];
-    if (!Array.isArray(arr)) continue;
-    result[fieldName] = stripChangedEntriesFromArray(arr, paths);
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (directRemove.has(key)) continue;
+    const nested = pathsByField.get(key);
+    if (nested !== undefined) {
+      const stripped = stripChangedFields(value, nested);
+      if (!isEmptyValue(stripped)) result[key] = stripped;
+    } else {
+      result[key] = value;
+    }
   }
 
   return result;
 };
 
-/** Remove array entries referenced by bracket expressions in change paths.
- *  Handles both direct array values (paths start with `[N]` or `[field='value']`)
- *  and plain objects containing nested arrays (paths like `field[filter].rest`). */
-export const stripChangedArrayEntries = (
+/** Strip changed entries from a value by dispatching to the appropriate handler.
+ *  Arrays: strip/remove elements via bracket paths.
+ *  Records: traverse nested objects/arrays via dot and bracket paths.
+ *  Primitives: returned unchanged. */
+export const stripChangedFields = (
   stateValue: unknown,
   relativePaths: readonly string[],
 ): unknown => {

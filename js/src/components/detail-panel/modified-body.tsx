@@ -2,7 +2,8 @@ import type { DagNodeData } from "../../types/graph-types.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
 import {
   extractRelativeChangePath,
-  stripChangedArrayEntries,
+  isEmptyValue,
+  stripChangedFields,
   topLevelFieldName,
 } from "../../utils/change-path.ts";
 import { ChangeEntry } from "./change-entry.tsx";
@@ -51,7 +52,8 @@ const filterUnmodifiedState = (
 
     const relativePaths = subFieldPaths.get(key);
     if (relativePaths !== undefined) {
-      result[key] = stripChangedArrayEntries(value, relativePaths);
+      const stripped = stripChangedFields(value, relativePaths);
+      if (!isEmptyValue(stripped)) result[key] = stripped;
     } else {
       result[key] = value;
     }

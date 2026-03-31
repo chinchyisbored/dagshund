@@ -3,7 +3,8 @@ import {
   extractRelativeChangePath,
   matchesAllFilters,
   parseBracketFilters,
-  stripChangedArrayEntries,
+  parseDictKeyBracket,
+  stripChangedFields,
   topLevelFieldName,
 } from "../../src/utils/change-path.ts";
 
@@ -166,41 +167,46 @@ describe("matchesAllFilters", () => {
   });
 });
 
-describe("stripChangedArrayEntries", () => {
+describe("stripChangedFields", () => {
   test("returns primitives unchanged", () => {
-    expect(stripChangedArrayEntries(null, ["[0]"])).toBeNull();
-    expect(stripChangedArrayEntries(42, ["[0]"])).toBe(42);
-    expect(stripChangedArrayEntries("hello", ["[0]"])).toBe("hello");
+    expect(stripChangedFields(null, ["[0]"])).toBeNull();
+    expect(stripChangedFields(42, ["[0]"])).toBe(42);
+    expect(stripChangedFields("hello", ["[0]"])).toBe("hello");
   });
 
-  test("strips only changed fields from array elements, preserving identity key", () => {
+  test("strips changed fields from array elements", () => {
     const arr = [
       { task_key: "a", other: "keep" },
       { task_key: "b", other: "keep" },
     ];
 
-    const result = stripChangedArrayEntries(arr, ["[0].other"]);
+    const result = stripChangedFields(arr, ["[0].other"]);
 
     expect(result).toEqual([{ task_key: "a" }, { task_key: "b", other: "keep" }]);
   });
 
-  test("preserves identity key even when it appears in changed fields", () => {
+  test("strips all targeted fields from array element including identity-like keys", () => {
     const arr = [
       { job_cluster_key: "raw", new_cluster: { num_workers: 2, spark_version: "18.1" } },
     ];
 
-    const result = stripChangedArrayEntries(arr, [
-      "[0].job_cluster_key",
-      "[0].new_cluster.num_workers",
-    ]);
+    const result = stripChangedFields(arr, ["[0].job_cluster_key", "[0].new_cluster.num_workers"]);
 
-    expect(result).toEqual([{ job_cluster_key: "raw", new_cluster: { spark_version: "18.1" } }]);
+    expect(result).toEqual([{ new_cluster: { spark_version: "18.1" } }]);
+  });
+
+  test("removes array element entirely when stripping leaves it empty", () => {
+    const arr = [{ whl: "/path/to/lib.whl" }];
+
+    const result = stripChangedFields(arr, ["[0].whl"]);
+
+    expect(result).toEqual([]);
   });
 
   test("removes whole element when path has no sub-fields", () => {
     const arr = [{ task_key: "a" }, { task_key: "b" }];
 
-    const result = stripChangedArrayEntries(arr, ["[0]"]);
+    const result = stripChangedFields(arr, ["[0]"]);
 
     expect(result).toEqual([{ task_key: "b" }]);
   });
@@ -208,7 +214,7 @@ describe("stripChangedArrayEntries", () => {
   test("deduplicates when multiple paths reference same index", () => {
     const arr = [{ task_key: "a", outcome: "x", other: "keep" }, { task_key: "b" }];
 
-    const result = stripChangedArrayEntries(arr, ["[0].outcome", "[0].other"]);
+    const result = stripChangedFields(arr, ["[0].outcome", "[0].other"]);
 
     expect(result).toEqual([{ task_key: "a" }, { task_key: "b" }]);
   });
@@ -219,7 +225,7 @@ describe("stripChangedArrayEntries", () => {
       { group_name: "admins", level: "CAN_MANAGE" },
     ];
 
-    const result = stripChangedArrayEntries(arr, ["[group_name='users'].level"]);
+    const result = stripChangedFields(arr, ["[group_name='users'].level"]);
 
     expect(result).toEqual([
       { group_name: "users", extra: "keep" },
@@ -233,7 +239,7 @@ describe("stripChangedArrayEntries", () => {
       { group_name: "admins", level: "CAN_MANAGE" },
     ];
 
-    const result = stripChangedArrayEntries(arr, ["[group_name='users']"]);
+    const result = stripChangedFields(arr, ["[group_name='users']"]);
 
     expect(result).toEqual([{ group_name: "admins", level: "CAN_MANAGE" }]);
   });
@@ -245,7 +251,7 @@ describe("stripChangedArrayEntries", () => {
       { id: "c", name: "strip-me" },
     ];
 
-    const result = stripChangedArrayEntries(arr, ["[0]", "[2].name"]);
+    const result = stripChangedFields(arr, ["[0]", "[2].name"]);
 
     expect(result).toEqual([{ id: "b", name: "keep-b" }, { id: "c" }]);
   });
@@ -253,7 +259,7 @@ describe("stripChangedArrayEntries", () => {
   test("returns array unchanged when no paths match", () => {
     const arr = [{ task_key: "a" }];
 
-    const result = stripChangedArrayEntries(arr, ["['environment']"]);
+    const result = stripChangedFields(arr, ["['environment']"]);
 
     expect(result).toBe(arr);
   });
@@ -267,7 +273,7 @@ describe("stripChangedArrayEntries", () => {
       object_id: "123",
     };
 
-    const result = stripChangedArrayEntries(obj, ["permissions[group_name='users'].level"]);
+    const result = stripChangedFields(obj, ["permissions[group_name='users'].level"]);
 
     expect(result).toEqual({
       permissions: [{ group_name: "users" }, { group_name: "admins", level: "CAN_MANAGE" }],
@@ -278,21 +284,160 @@ describe("stripChangedArrayEntries", () => {
   test("returns plain object unchanged when bracket filters do not match", () => {
     const obj = { items: [{ name: "a" }] };
 
-    const result = stripChangedArrayEntries(obj, ["items[name='z'].field"]);
+    const result = stripChangedFields(obj, ["items[name='z'].field"]);
 
     expect(result).toEqual({ items: [{ name: "a" }] });
   });
 
   test("returns empty array unchanged", () => {
     const arr: unknown[] = [];
-    expect(stripChangedArrayEntries(arr, ["[0]"])).toEqual([]);
+    expect(stripChangedFields(arr, ["[0]"])).toEqual([]);
   });
 
   test("handles malformed bracket syntax gracefully", () => {
     const arr = [{ id: "a" }];
 
-    const result = stripChangedArrayEntries(arr, ["[", "no-bracket", "[bad"]);
+    const result = stripChangedFields(arr, ["[", "no-bracket", "[bad"]);
 
     expect(result).toBe(arr);
+  });
+
+  test("strips field via dot-then-bracket traversal through nested objects", () => {
+    const obj = {
+      task: {
+        items: [
+          { id: "a", value: "strip-me" },
+          { id: "b", value: "keep" },
+        ],
+        other: "keep",
+      },
+    };
+
+    const result = stripChangedFields(obj, ["task.items[0].value"]);
+
+    expect(result).toEqual({
+      task: {
+        items: [{ id: "a" }, { id: "b", value: "keep" }],
+        other: "keep",
+      },
+    });
+  });
+
+  test("strips field via pure dotted path on nested record", () => {
+    const obj = { task: { concurrency: 20, inputs: "keep" } };
+
+    const result = stripChangedFields(obj, ["task.concurrency"]);
+
+    expect(result).toEqual({ task: { inputs: "keep" } });
+  });
+
+  test("strips field through multiple nesting levels", () => {
+    const obj = { a: { b: { c: [{ id: "x", rm: "y" }] } } };
+
+    const result = stripChangedFields(obj, ["a.b.c[0].rm"]);
+
+    expect(result).toEqual({ a: { b: { c: [{ id: "x" }] } } });
+  });
+
+  test("strips mixed direct and nested paths on same record", () => {
+    const obj = {
+      concurrency: 20,
+      task: {
+        items: [
+          { id: "a", value: "strip" },
+          { id: "b", value: "keep" },
+        ],
+        other: "keep",
+      },
+    };
+
+    const result = stripChangedFields(obj, ["concurrency", "task.items[0].value"]);
+
+    expect(result).toEqual({
+      task: {
+        items: [{ id: "a" }, { id: "b", value: "keep" }],
+        other: "keep",
+      },
+    });
+  });
+
+  test("preserves non-traversable intermediate values unchanged", () => {
+    const obj = { a: "string-value", b: "keep" };
+
+    const result = stripChangedFields(obj, ["a.b"]);
+
+    expect(result).toEqual({ a: "string-value", b: "keep" });
+  });
+
+  test("strips field via dict-key bracket on record", () => {
+    const obj = {
+      base_parameters: { sample_size: "100", other: "keep" },
+    };
+
+    const result = stripChangedFields(obj, ["base_parameters['sample_size']"]);
+
+    expect(result).toEqual({
+      base_parameters: { other: "keep" },
+    });
+  });
+
+  test("strips field via dict-key bracket after dot traversal", () => {
+    const obj = {
+      notebook_task: { base_parameters: { sample_size: "100", other: "keep" } },
+    };
+
+    const result = stripChangedFields(obj, ["notebook_task.base_parameters['sample_size']"]);
+
+    expect(result).toEqual({
+      notebook_task: { base_parameters: { other: "keep" } },
+    });
+  });
+
+  test("strips field via dict-key bracket in array element sub-path", () => {
+    const arr = [{ params: { sample_size: "100", other: "keep" } }];
+
+    const result = stripChangedFields(arr, ["[0].params['sample_size']"]);
+
+    expect(result).toEqual([{ params: { other: "keep" } }]);
+  });
+
+  test("preserves primitive target when dict-key bracket cannot traverse", () => {
+    const obj = { props: "just-a-string" };
+
+    const result = stripChangedFields(obj, ["props['key']"]);
+
+    expect(result).toEqual({ props: "just-a-string" });
+  });
+
+  test("strips field through multiple consecutive dict-key brackets", () => {
+    const obj = { config: { section: { key: "val", other: "keep" } } };
+
+    const result = stripChangedFields(obj, ["config['section']['key']"]);
+
+    expect(result).toEqual({ config: { section: { other: "keep" } } });
+  });
+});
+
+describe("parseDictKeyBracket", () => {
+  test("parses valid dict-key bracket", () => {
+    expect(parseDictKeyBracket("['sample_size']")).toEqual({
+      key: "sample_size",
+      rest: "",
+    });
+  });
+
+  test("parses dict-key bracket with remaining dot path", () => {
+    expect(parseDictKeyBracket("['sample_size'].more")).toEqual({
+      key: "sample_size",
+      rest: "more",
+    });
+  });
+
+  test("returns undefined for numeric index", () => {
+    expect(parseDictKeyBracket("[0].whl")).toBeUndefined();
+  });
+
+  test("returns undefined for named filter bracket", () => {
+    expect(parseDictKeyBracket("[group_name='users']")).toBeUndefined();
   });
 });
