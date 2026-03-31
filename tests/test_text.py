@@ -385,6 +385,52 @@ def test_render_field_change_unchanged_returns_none() -> None:
     assert result is None
 
 
+def test_render_field_change_drift_shows_remote_to_new() -> None:
+    change = {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"}
+
+    result = _render_field_change("edit_mode", change, use_color=False)
+
+    assert result is not None
+    assert '"EDITABLE" -> "UI_LOCKED"' in result
+    assert "(drift)" in result
+
+
+def test_render_field_change_noop_old_equals_new_no_remote_suppressed() -> None:
+    change = {"action": "update", "old": {"key": "val"}, "new": {"key": "val"}}
+
+    result = _render_field_change("task", change, use_color=False)
+
+    assert result is None
+
+
+def test_render_field_change_noop_old_equals_new_equals_remote_suppressed() -> None:
+    change = {"action": "update", "old": "A", "new": "A", "remote": "A"}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is None
+
+
+def test_render_field_change_remote_only_shows_remote_value() -> None:
+    change = {"action": "update", "remote": {"no_alert": False}}
+
+    result = _render_field_change("email_notifications", change, use_color=False)
+
+    assert result is not None
+    assert "{1 fields}" in result
+    assert "(remote)" in result
+
+
+def test_render_field_change_remote_only_scalar_shows_value() -> None:
+    change = {"action": "update", "remote": "PERFORMANCE_OPTIMIZED"}
+
+    result = _render_field_change("performance_target", change, use_color=False)
+
+    assert result is not None
+    assert '"PERFORMANCE_OPTIMIZED"' in result
+    assert "(remote)" in result
+
+
 # --- _render_resource ---
 
 
@@ -488,7 +534,7 @@ def test_render_resource_field_change_null_new_shows_transition() -> None:
     assert "null" in lines[1]
 
 
-def test_render_resource_field_change_both_null_shows_transition() -> None:
+def test_render_resource_field_change_both_null_suppressed_as_noop() -> None:
     entry = {
         "action": "update",
         "changes": {"field": {"action": "update", "old": None, "new": None}},
@@ -496,9 +542,8 @@ def test_render_resource_field_change_both_null_shows_transition() -> None:
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
-    assert len(lines) == 3
-    assert "manually edited outside bundle" in lines[1]
-    assert "null -> null" in lines[2]
+    assert len(lines) == 1  # header only — no-op field suppressed
+    assert "pipeline" in lines[0]
 
 
 def test_render_resource_with_color_includes_ansi() -> None:
@@ -1287,9 +1332,9 @@ def test_detect_drift_fields_detects_remote_differs_from_old() -> None:
     assert _detect_drift_fields(changes) == ["edit_mode"]
 
 
-def test_detect_drift_fields_detects_remote_absent() -> None:
+def test_detect_drift_fields_remote_absent_not_drift() -> None:
     changes = {"task": {"action": "update", "old": {"task_key": "x"}, "new": {"task_key": "x"}}}
-    assert _detect_drift_fields(changes) == ["task"]
+    assert _detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_skip_action() -> None:
@@ -1315,7 +1360,7 @@ def test_detect_drift_fields_skips_entries_without_new() -> None:
 def test_detect_drift_fields_returns_multiple_sorted() -> None:
     changes = {
         "z_field": {"action": "update", "old": 1, "new": 1, "remote": 2},
-        "a_field": {"action": "update", "old": "x", "new": "x"},
+        "a_field": {"action": "update", "old": "x", "new": "x", "remote": "y"},
     }
     assert _detect_drift_fields(changes) == ["a_field", "z_field"]
 
@@ -1376,7 +1421,7 @@ def test_collect_drift_warnings_detects_drifted_resource() -> None:
             "action": "update",
             "changes": {
                 "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
-                "field_b": {"action": "update", "old": 1, "new": 1},
+                "field_b": {"action": "update", "old": 1, "new": 1, "remote": 2},
             },
         },
     }

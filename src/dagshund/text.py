@@ -136,7 +136,7 @@ def _is_long_string(value: object) -> bool:
 
 
 def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
-    """Render a single field-level change, or None if unchanged."""
+    """Render a single field-level change, or None if unchanged/no-op."""
     action = str(change.get("action", ""))
     if action_to_diff_state(action) == DiffState.UNCHANGED:
         return None
@@ -145,6 +145,23 @@ def _render_field_change(field_name: str, change: FieldChange, *, use_color: boo
     prefix = f"      {field_config.symbol} {field_name}"
     old, new = change.get("old"), change.get("new")
     has_old, has_new = "old" in change, "new" in change
+    remote = change.get("remote")
+    has_remote = "remote" in change
+
+    # Drift: old == new but remote differs — show what the deploy will overwrite
+    if has_old and has_new and old == new and has_remote and remote != old:
+        suffix = f": {_format_value(remote)} -> {_format_value(new)} (drift)"
+        return _colorize(f"{prefix}{suffix}", field_config.color, use_color=use_color)
+
+    # No-op: old == new with no meaningful remote difference — suppress
+    if has_old and has_new and old == new:
+        return None
+
+    # Remote-only: server has a value the bundle doesn't manage — show it
+    if not has_old and not has_new and has_remote:
+        suffix = f": {_format_value(remote)} (remote)"
+        return _colorize(f"{prefix}{suffix}", field_config.color, use_color=use_color)
+
     if (has_old and _is_long_string(old)) or (has_new and _is_long_string(new)):
         old_part = "..." if _is_long_string(old) else _format_value(old) if has_old else None
         new_part = "..." if _is_long_string(new) else _format_value(new) if has_new else None
@@ -170,7 +187,7 @@ def _detect_drift_fields(changes: Mapping[str, FieldChange] | None) -> list[str]
     """Detect fields where the server state diverged from the bundle's expectation.
 
     A field has drifted when old and new are both defined and equal (bundle didn't
-    intend to change it), but remote differs or is absent (server was edited).
+    intend to change it), and remote is present with a different value (server was edited).
     """
     if not changes:
         return []

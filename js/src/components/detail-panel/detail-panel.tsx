@@ -6,6 +6,7 @@ import type { LateralContext } from "../../types/lateral-context.ts";
 import type { PhantomContext } from "../../types/phantom-context.ts";
 import type { ChangeDesc } from "../../types/plan-schema.ts";
 import type { ValueFormat } from "../../utils/format-value.ts";
+import { deepEqual } from "../../utils/structural-diff.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { FormatToggle, NEXT_FORMAT } from "./format-toggle.tsx";
 import { LateralDependencies } from "./lateral-dependencies.tsx";
@@ -26,11 +27,22 @@ type DetailPanelProps = {
 
 const NOISE_ACTIONS: ReadonlySet<string> = new Set(["skip", ""]);
 
+/** Detect no-op changes where old == new with no meaningful remote difference. */
+const isNoOpChange = (change: ChangeDesc): boolean => {
+  if (change.old === undefined || change.new === undefined) return false;
+  if (!deepEqual(change.old, change.new)) return false;
+  // Drift (remote differs) is meaningful — keep it
+  if (change.remote !== undefined && !deepEqual(change.remote, change.old)) return false;
+  return true;
+};
+
 function filterMeaningfulChanges(
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
 ): readonly (readonly [string, ChangeDesc])[] {
   if (changes === undefined) return [];
-  return Object.entries(changes).filter(([, change]) => !NOISE_ACTIONS.has(change.action));
+  return Object.entries(changes).filter(
+    ([, change]) => !NOISE_ACTIONS.has(change.action) && !isNoOpChange(change),
+  );
 }
 
 function ViewInJobsTabButton({ resourceKey }: { readonly resourceKey: string }) {

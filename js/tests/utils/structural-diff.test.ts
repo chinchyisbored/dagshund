@@ -313,4 +313,59 @@ describe("computeStructuralDiff", () => {
       expect(result.diff.value).toBe("remote-val");
     }
   });
+
+  test("drift: swaps baseline to remote when old == new and remote differs", () => {
+    const change: ChangeDesc = {
+      action: "update",
+      old: "UI_LOCKED",
+      new: "UI_LOCKED",
+      remote: "EDITABLE",
+    };
+    const result = computeStructuralDiff(change);
+    expect(result.baselineLabel).toBe("remote");
+    expect(result.diff.kind).toBe("scalar");
+    if (result.diff.kind === "scalar") {
+      expect(result.diff.old).toBe("EDITABLE");
+      expect(result.diff.new).toBe("UI_LOCKED");
+    }
+  });
+
+  test("drift: swaps baseline to remote for object values", () => {
+    const change: ChangeDesc = {
+      action: "update",
+      old: { a: 1, b: 2 },
+      new: { a: 1, b: 2 },
+      remote: { a: 1, b: 99 },
+    };
+    const result = computeStructuralDiff(change);
+    expect(result.baselineLabel).toBe("remote");
+    expect(result.diff.kind).toBe("object");
+  });
+
+  test("no drift swap when old != new (genuine change)", () => {
+    const change: ChangeDesc = {
+      action: "update",
+      old: "before",
+      new: "after",
+      remote: "something",
+    };
+    const result = computeStructuralDiff(change);
+    expect(result.baselineLabel).toBe("old");
+    if (result.diff.kind === "scalar") {
+      expect(result.diff.old).toBe("before");
+      expect(result.diff.new).toBe("after");
+    }
+  });
+
+  test("no drift swap when old == new == remote (all identical)", () => {
+    const change: ChangeDesc = {
+      action: "update",
+      old: "same",
+      new: "same",
+      remote: "same",
+    };
+    const result = computeStructuralDiff(change);
+    // No swap — falls through to normal old-based diff
+    expect(result.baselineLabel).toBe("old");
+  });
 });

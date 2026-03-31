@@ -73,8 +73,8 @@ def test_has_drifted_field_old_equals_new_remote_differs_returns_true() -> None:
     assert has_drifted_field({"action": "update", "old": "A", "new": "A", "remote": "B"}) is True
 
 
-def test_has_drifted_field_old_equals_new_remote_absent_returns_true() -> None:
-    assert has_drifted_field({"action": "update", "old": "A", "new": "A"}) is True
+def test_has_drifted_field_old_equals_new_remote_absent_returns_false() -> None:
+    assert has_drifted_field({"action": "update", "old": "A", "new": "A"}) is False
 
 
 def test_has_drifted_field_old_equals_new_remote_equals_old_returns_false() -> None:

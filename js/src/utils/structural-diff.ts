@@ -10,7 +10,7 @@ import type {
 import { isUnknownRecord } from "./unknown-record.ts";
 
 /** Key-order-independent deep equality check. */
-const deepEqual = (a: unknown, b: unknown): boolean => {
+export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
   if (typeof a !== typeof b || a === null || b === null) return false;
   if (Array.isArray(a)) {
@@ -233,6 +233,29 @@ export const computeStructuralDiff = (change: ChangeDesc): StructuralDiffResult 
     return {
       diff: { kind: "delete-only", value: change.old ?? change.remote },
       baselineLabel: change.old !== undefined ? "old" : "remote",
+    };
+  }
+
+  // Drift detection: when old == new, swap baseline to remote if it differs
+  if (
+    change.old !== undefined &&
+    change.new !== undefined &&
+    deepEqual(change.old, change.new) &&
+    change.remote !== undefined &&
+    !deepEqual(change.remote, change.old)
+  ) {
+    const baseline = change.remote;
+    const current = change.new;
+
+    if (Array.isArray(baseline) && Array.isArray(current)) {
+      return { diff: diffArrays(baseline, current), baselineLabel: "remote" };
+    }
+    if (isUnknownRecord(baseline) && isUnknownRecord(current)) {
+      return { diff: diffObjects(baseline, current), baselineLabel: "remote" };
+    }
+    return {
+      diff: { kind: "scalar", old: baseline, new: current },
+      baselineLabel: "remote",
     };
   }
 

@@ -46,8 +46,8 @@ def has_drifted_field(change: FieldChange) -> bool:
     """Check whether a single field change represents manual drift.
 
     A field has drifted when old and new are both defined and equal (the bundle
-    didn't intend to change it), but remote differs or is absent (someone edited
-    the server state directly).
+    didn't intend to change it), and remote is present with a different value
+    (someone edited the server state directly).
 
     Assumes the caller has already narrowed the type with ``isinstance(change, dict)``.
     """
@@ -58,7 +58,7 @@ def has_drifted_field(change: FieldChange) -> bool:
         return False
     if change["old"] != change["new"]:
         return False
-    return "remote" not in change or change["remote"] != change["old"]
+    return "remote" in change and change["remote"] != change["old"]
 
 
 def detect_manual_edits(resources: ResourceChanges) -> bool:
