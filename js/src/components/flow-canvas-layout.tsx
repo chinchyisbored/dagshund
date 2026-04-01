@@ -94,6 +94,7 @@ export function FlowCanvasLayout({
         nodeTypes={nodeTypes}
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         nodesConnectable={false}
+        maxZoom={16}
         nodeClickDistance={5}
         paneClickDistance={5}
         proOptions={{ hideAttribution: true }}
