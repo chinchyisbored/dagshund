@@ -11,6 +11,7 @@ import {
 } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
+import { extractResourceName } from "../utils/resource-key.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
@@ -45,17 +46,31 @@ const buildTaskNodes = (
   resourceKey: string,
   entry: PlanEntry,
   tasks: readonly TaskEntry[],
+  jobIdMap: ReadonlyMap<number, string>,
 ): readonly TaskGraphNode[] =>
-  tasks.map((task) => ({
-    id: buildTaskNodeId(resourceKey, task.task_key),
-    label: task.task_key,
-    nodeKind: "task" as const,
-    diffState: resolveTaskDiffState(task.task_key, entry.action, entry.changes),
-    resourceKey,
-    taskKey: task.task_key,
-    changes: filterTaskChanges(task.task_key, entry.changes),
-    resourceState: extractTaskState(task),
-  }));
+  tasks.map((task) => {
+    const rawState = extractTaskState(task);
+    const jobId = task.run_job_task?.job_id;
+    const targetKey =
+      jobId !== undefined
+        ? resolveRunJobTarget(jobId, jobIdMap, entry.new_state, task.task_key)
+        : undefined;
+    const resourceState =
+      targetKey !== undefined
+        ? annotateRunJobTaskState(rawState, extractResourceName(targetKey))
+        : rawState;
+
+    return {
+      id: buildTaskNodeId(resourceKey, task.task_key),
+      label: task.task_key,
+      nodeKind: "task" as const,
+      diffState: resolveTaskDiffState(task.task_key, entry.action, entry.changes),
+      resourceKey,
+      taskKey: task.task_key,
+      changes: filterTaskChanges(task.task_key, entry.changes),
+      resourceState,
+    };
+  });
 
 /** Filter changes to only include entries for a specific task. */
 const filterTaskChanges = (
@@ -179,6 +194,7 @@ const buildDiffEdges = (
 const buildEntryGraph = (
   resourceKey: string,
   entry: PlanEntry,
+  jobIdMap: ReadonlyMap<number, string>,
 ): { readonly nodes: readonly GraphNode[]; readonly edges: readonly GraphEdge[] } => {
   const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
   const deletedTasks = extractDeletedTaskEntries(entry.changes);
@@ -187,7 +203,7 @@ const buildEntryGraph = (
   return {
     nodes: [
       buildJobNode(resourceKey, entry, tasks),
-      ...buildTaskNodes(resourceKey, entry, allTasks),
+      ...buildTaskNodes(resourceKey, entry, allTasks, jobIdMap),
     ],
     edges: buildDiffEdges(resourceKey, allTasks, entry),
   };
@@ -231,39 +247,67 @@ const resolveRunJobTargetFromVars = (newState: unknown, taskKey: string): string
   return typeof interpolation === "string" ? parseResourceReference(interpolation) : undefined;
 };
 
+/** Resolve a run_job_task's job_id to the target resource key. */
+const resolveRunJobTarget = (
+  jobId: string | number,
+  jobIdMap: ReadonlyMap<number, string>,
+  newState: unknown,
+  taskKey: string,
+): string | undefined =>
+  typeof jobId === "string"
+    ? parseResourceReference(jobId)
+    : (jobIdMap.get(jobId) ?? resolveRunJobTargetFromVars(newState, taskKey));
+
+/** Replace run_job_task.job_id with an annotated string showing the resolved target name. */
+const annotateRunJobTaskState = (
+  resourceState: Readonly<Record<string, unknown>>,
+  targetName: string,
+): Readonly<Record<string, unknown>> => {
+  const runJobTask = resourceState["run_job_task"];
+  if (!isUnknownRecord(runJobTask)) return resourceState;
+  const jobId = runJobTask["job_id"];
+  if (jobId === undefined) return resourceState;
+  return {
+    ...resourceState,
+    run_job_task: { ...runJobTask, job_id: `${jobId} (${targetName})` },
+  };
+};
+
 /** Create edges from tasks with run_job_task to the target job.
  *  Includes deleted tasks so that removed cross-job edges are visible in the graph. */
 const buildRunJobEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
-): readonly GraphEdge[] => {
-  const jobIdMap = buildJobIdMap(entries);
-  return entries.flatMap(([resourceKey, entry]) => {
+  jobIdMap: ReadonlyMap<number, string>,
+): readonly GraphEdge[] =>
+  entries.flatMap(([resourceKey, entry]) => {
     const allTasks = resolveAllTaskEntries(entry.new_state, entry.remote_state, entry.changes);
     return allTasks.flatMap((task) => {
       const jobId = task.run_job_task?.job_id;
       if (jobId === undefined) return [];
-      const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
-      const targetResourceKey =
-        typeof jobId === "string"
-          ? parseResourceReference(jobId)
-          : (jobIdMap.get(jobId) ?? resolveRunJobTargetFromVars(entry.new_state, task.task_key));
+      const targetResourceKey = resolveRunJobTarget(
+        jobId,
+        jobIdMap,
+        entry.new_state,
+        task.task_key,
+      );
       if (targetResourceKey === undefined) return [];
+      const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
       const diffState = toEdgeDiffState(
         resolveTaskDiffState(task.task_key, entry.action, entry.changes),
       );
       return [buildGraphEdge(sourceNodeId, targetResourceKey, diffState)];
     });
   });
-};
 
 /** Build the complete plan graph from job entries only. */
 export const buildPlanGraph = (plan: Plan): PlanGraph => {
   const entries = Object.entries(mergeSubResources(plan.plan ?? {})).filter(([key]) =>
     isJobEntry(key),
   );
-  const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry));
+  const jobIdMap = buildJobIdMap(entries);
+  const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry, jobIdMap));
   return {
     nodes: graphs.flatMap((graph) => graph.nodes),
-    edges: [...graphs.flatMap((graph) => graph.edges), ...buildRunJobEdges(entries)],
+    edges: [...graphs.flatMap((graph) => graph.edges), ...buildRunJobEdges(entries, jobIdMap)],
   };
 };

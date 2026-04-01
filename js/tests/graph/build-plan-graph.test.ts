@@ -714,4 +714,247 @@ describe("buildPlanGraph", () => {
       expect(edge?.diffState).toBe("unchanged");
     });
   });
+
+  describe("run_job_task job_id annotation", () => {
+    const findTaskNode = (graph: ReturnType<typeof buildPlanGraph>, taskKey: string) =>
+      graph.nodes.find((n): n is TaskGraphNode => n.nodeKind === "task" && n.taskKey === taskKey);
+
+    const runJobTaskJobId = (node: TaskGraphNode | undefined) => {
+      const rjt = node?.resourceState?.["run_job_task"];
+      return typeof rjt === "object" && rjt !== null && "job_id" in rjt ? rjt.job_id : undefined;
+    };
+
+    test("job_id 0 with vars is annotated with target name", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.orchestrator": {
+            action: "create" as const,
+            new_state: {
+              value: {
+                tasks: [
+                  { task_key: "extract" },
+                  { task_key: "trigger_worker", run_job_task: { job_id: 0 } },
+                ],
+              },
+              vars: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                "tasks[1].run_job_task.job_id": "${resources.jobs.worker_job.id}",
+              },
+            },
+          },
+          "resources.jobs.worker_job": {
+            action: "create" as const,
+            new_state: { value: { tasks: [{ task_key: "run" }] } },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "trigger_worker");
+      expect(runJobTaskJobId(node)).toBe("0 (worker_job)");
+    });
+
+    test("numeric job_id with remote_state lookup is annotated", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "update" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "trigger_b", run_job_task: { job_id: 200 } }],
+              },
+              vars: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                "tasks[0].run_job_task.job_id": "${resources.jobs.pipeline_b.id}",
+              },
+            },
+            remote_state: { job_id: 100, tasks: [] },
+          },
+          "resources.jobs.pipeline_b": {
+            action: "skip" as const,
+            remote_state: { job_id: 200, tasks: [{ task_key: "ingest" }] },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "trigger_b");
+      expect(runJobTaskJobId(node)).toBe("200 (pipeline_b)");
+    });
+
+    test("string interpolation job_id is annotated", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "update" as const,
+            new_state: {
+              value: {
+                tasks: [
+                  {
+                    task_key: "trigger_b",
+                    // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                    run_job_task: { job_id: "${resources.jobs.pipeline_b.id}" },
+                  },
+                ],
+              },
+            },
+            remote_state: { job_id: 100, tasks: [] },
+          },
+          "resources.jobs.pipeline_b": {
+            action: "skip" as const,
+            remote_state: { job_id: 200, tasks: [{ task_key: "ingest" }] },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "trigger_b");
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+      expect(runJobTaskJobId(node)).toBe("${resources.jobs.pipeline_b.id} (pipeline_b)");
+    });
+
+    test("unresolvable job_id 0 (no vars) stays as raw number", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.pipeline_a": {
+            action: "create" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "trigger_b", run_job_task: { job_id: 0 } }],
+              },
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "trigger_b");
+      expect(runJobTaskJobId(node)).toBe(0);
+    });
+
+    test("task without run_job_task is unchanged", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.orchestrator": {
+            action: "create" as const,
+            new_state: {
+              value: {
+                tasks: [{ task_key: "extract", notebook_task: { notebook_path: "/foo" } }],
+              },
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "extract");
+      expect(node?.resourceState?.["run_job_task"]).toBeUndefined();
+      expect(node?.resourceState?.["notebook_task"]).toEqual({ notebook_path: "/foo" });
+    });
+
+    test("other run_job_task fields are preserved", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.orchestrator": {
+            action: "create" as const,
+            new_state: {
+              value: {
+                tasks: [
+                  {
+                    task_key: "trigger_worker",
+                    run_job_task: {
+                      job_id: 0,
+                      job_parameters: { env: "prod" },
+                    },
+                  },
+                ],
+              },
+              vars: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
+                "tasks[0].run_job_task.job_id": "${resources.jobs.worker_job.id}",
+              },
+            },
+          },
+          "resources.jobs.worker_job": {
+            action: "create" as const,
+            new_state: { value: { tasks: [{ task_key: "run" }] } },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "trigger_worker");
+      // resourceState values are opaque `unknown` — cast to access individual fields
+      const rjt = node?.resourceState?.["run_job_task"] as Record<string, unknown>;
+      expect(rjt["job_id"]).toBe("0 (worker_job)");
+      expect(rjt["job_parameters"]).toEqual({ env: "prod" });
+    });
+
+    test("deleted task with run_job_task: numeric lookup still annotates", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.orchestrator": {
+            action: "update" as const,
+            new_state: {
+              value: { tasks: [{ task_key: "extract" }] },
+            },
+            remote_state: {
+              job_id: 100,
+              tasks: [
+                { task_key: "extract" },
+                { task_key: "trigger_old", run_job_task: { job_id: 200 } },
+              ],
+            },
+            changes: {
+              "tasks[task_key='trigger_old']": {
+                action: "delete" as const,
+                old: { task_key: "trigger_old", run_job_task: { job_id: 200 } },
+              },
+            },
+          },
+          "resources.jobs.old_target": {
+            action: "skip" as const,
+            remote_state: { job_id: 200, tasks: [{ task_key: "work" }] },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "trigger_old");
+      // Deleted tasks resolve via jobIdMap (numeric lookup), not vars.
+      // The target job still exists in the plan, so annotation works.
+      expect(runJobTaskJobId(node)).toBe("200 (old_target)");
+    });
+
+    test("deleted task with job_id 0 and no vars is not annotated", () => {
+      const plan = {
+        plan: {
+          "resources.jobs.orchestrator": {
+            action: "update" as const,
+            new_state: {
+              value: { tasks: [{ task_key: "extract" }] },
+            },
+            remote_state: {
+              job_id: 100,
+              tasks: [
+                { task_key: "extract" },
+                { task_key: "trigger_old", run_job_task: { job_id: 0 } },
+              ],
+            },
+            changes: {
+              "tasks[task_key='trigger_old']": {
+                action: "delete" as const,
+                old: { task_key: "trigger_old", run_job_task: { job_id: 0 } },
+              },
+            },
+          },
+        },
+      };
+
+      const graph = buildPlanGraph(plan);
+      const node = findTaskNode(graph, "trigger_old");
+      // job_id=0 with no vars and no jobIdMap match: unresolvable, stays raw.
+      expect(runJobTaskJobId(node)).toBe(0);
+    });
+  });
 });
