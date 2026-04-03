@@ -124,6 +124,16 @@ Use `model: "opus"` and `subagent_type: "Explore"`. The subagent receives:
 
 One agent reads the files once and runs all 3 passes over the same context. No fixes, no scripts, just observations.
 
+**Devil's advocate check — required before filing any finding:**
+
+Before proposing a change, the reviewer must argue *against* their own finding:
+- "Why might the current code be intentionally written this way?"
+- For "consistency" findings: is the inconsistency intentional because the cases are semantically different?
+- For "simplification" findings: does the current approach handle edge cases (concurrent mode, timing, error recovery) that the simpler version wouldn't?
+- For "missing pattern" findings: does the context actually benefit from the pattern, or is it cargo-culting from a different context?
+
+Include the devil's advocate argument with every finding. The human decides whether it holds — the reviewer does not filter.
+
 **Pass 1 — Functional Correctness:**
 - Does the code do what the issue described?
 - Edge cases handled? Data flow end-to-end? Errors explicit?
@@ -140,12 +150,12 @@ One agent reads the files once and runs all 3 passes over the same context. No f
 
 ### Step 3: Present findings to human
 
-Present findings organized by pass. For each finding, suggest one of:
+Present findings organized by pass. Each finding includes its devil's advocate counter-argument. For each finding, suggest one of:
 - **Fix** — should be addressed now
 - **Bead** — file as an issue for later
 - **Skip** — already a won't-fix or not worth changing
 
-**Wait for the human to decide.** Do not fix anything until the human approves.
+**Do not fix or file anything until the human approves.** Beads are only created after the human says so.
 
 ## Session Close
 
