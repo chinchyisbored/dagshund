@@ -2,7 +2,15 @@
 
 import pytest
 
-from dagshund import DagshundError, detect_changes, detect_manual_edits, has_drifted_field, parse_plan
+from dagshund import (
+    DagshundError,
+    detect_changes,
+    detect_dangerous_actions,
+    detect_manual_edits,
+    has_drifted_field,
+    parse_plan,
+)
+from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES
 
 # --- parse_plan ---
 
@@ -155,3 +163,53 @@ def test_detect_manual_edits_non_dict_field_change_skipped() -> None:
 
 def test_detect_manual_edits_empty_resources_returns_false() -> None:
     assert detect_manual_edits({}) is False
+
+
+# --- detect_dangerous_actions ---
+
+
+def test_detect_dangerous_actions_non_stateful_type_returns_false() -> None:
+    resources = {"resources.jobs.etl_pipeline": {"action": "delete"}}
+    assert detect_dangerous_actions(resources) is False
+
+
+@pytest.mark.parametrize("action", ["update", "create", "skip"])
+def test_detect_dangerous_actions_safe_action_on_stateful_returns_false(action: str) -> None:
+    resources = {"resources.schemas.analytics": {"action": action}}
+    assert detect_dangerous_actions(resources) is False
+
+
+def test_detect_dangerous_actions_empty_resources_returns_false() -> None:
+    assert detect_dangerous_actions({}) is False
+
+
+def test_detect_dangerous_actions_missing_action_key_returns_false() -> None:
+    resources = {"resources.volumes.data": {}}
+    assert detect_dangerous_actions(resources) is False
+
+
+def test_detect_dangerous_actions_mixed_safe_and_dangerous_returns_true() -> None:
+    resources = {
+        "resources.jobs.etl_pipeline": {"action": "update"},
+        "resources.schemas.analytics": {"action": "delete"},
+    }
+    assert detect_dangerous_actions(resources) is True
+
+
+def test_detect_dangerous_actions_sub_resource_key_returns_true() -> None:
+    resources = {"resources.schemas.analytics.permissions": {"action": "delete"}}
+    assert detect_dangerous_actions(resources) is True
+
+
+@pytest.mark.parametrize("action", sorted(DANGEROUS_ACTIONS))
+def test_detect_dangerous_actions_all_dangerous_actions(action: str) -> None:
+    """Every action in DANGEROUS_ACTIONS triggers on a stateful resource."""
+    resources = {"resources.schemas.test": {"action": action}}
+    assert detect_dangerous_actions(resources) is True
+
+
+@pytest.mark.parametrize("resource_type", sorted(STATEFUL_RESOURCE_TYPES))
+def test_detect_dangerous_actions_all_stateful_types(resource_type: str) -> None:
+    """Every type in STATEFUL_RESOURCE_TYPES triggers on delete."""
+    resources = {f"resources.{resource_type}.test": {"action": "delete"}}
+    assert detect_dangerous_actions(resources) is True

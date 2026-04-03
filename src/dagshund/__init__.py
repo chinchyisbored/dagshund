@@ -4,6 +4,7 @@ from dagshund.merge import merge_sub_resources
 from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
+    detect_dangerous_actions,
     detect_manual_edits,
     has_drifted_field,
     is_resource_changes,
@@ -35,6 +36,7 @@ __all__ = [
     "ResourceType",
     "action_to_diff_state",
     "detect_changes",
+    "detect_dangerous_actions",
     "detect_manual_edits",
     "has_drifted_field",
     "is_resource_changes",

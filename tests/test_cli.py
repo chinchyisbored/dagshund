@@ -221,10 +221,16 @@ def test_detailed_exitcode_no_changes_exits_zero(fixtures_dir: Path) -> None:
     assert result.returncode == 0
 
 
-def test_detailed_exitcode_with_changes_exits_two(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--detailed-exitcode")
+def test_detailed_exitcode_with_safe_changes_exits_two(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "job-only-change-plan.json"), "--detailed-exitcode")
 
     assert result.returncode == 2
+
+
+def test_detailed_exitcode_with_dangerous_action_exits_three(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--detailed-exitcode")
+
+    assert result.returncode == 3
 
 
 def test_detailed_exitcode_error_exits_one() -> None:

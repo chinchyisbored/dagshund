@@ -11,6 +11,7 @@ from dagshund import (
     DiffState,
     __version__,
     detect_changes,
+    detect_dangerous_actions,
     detect_manual_edits,
     is_resource_changes,
     merge_sub_resources,
@@ -80,7 +81,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-e",
         "--detailed-exitcode",
         action="store_true",
-        help="Exit 2 if changes detected, 3 if manual edits present, 0 if none (for CI)",
+        help="Exit 2 if safe changes, 3 if dangerous actions or drift, 0 if none (for CI)",
     )
 
     filter_group = parser.add_argument_group("filters")
@@ -215,7 +216,8 @@ def main() -> None:
             if is_resource_changes(resources):
                 merged = merge_sub_resources(resources)
                 if detect_changes(merged):
-                    sys.exit(3 if detect_manual_edits(merged) else 2)
+                    needs_attention = detect_manual_edits(merged) or detect_dangerous_actions(merged)
+                    sys.exit(3 if needs_attention else 2)
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)
         sys.exit(1)

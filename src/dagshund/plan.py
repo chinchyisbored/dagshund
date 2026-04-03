@@ -9,7 +9,25 @@ from dagshund.types import (
     FieldChange,
     Plan,
     ResourceChanges,
+    parse_resource_key,
 )
+
+DANGEROUS_ACTIONS: frozenset[str] = frozenset({"delete", "recreate"})
+
+STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
+    # Unity Catalog
+    "catalogs": "all schemas, tables, and volumes in this catalog will be lost",
+    "schemas": "all tables, views, and volumes in this schema will be lost",
+    "volumes": "all files in this volume will be lost",
+    "registered_models": "all model versions will be lost",
+    "experiments": "all experiment runs and metrics will be lost",
+    # PostgreSQL
+    "database_instances": "all catalogs and tables on this instance will be lost",
+    "postgres_projects": "all branches and endpoints in this project will be lost",
+    "postgres_branches": "all data on this branch will be lost",
+}
+
+STATEFUL_RESOURCE_TYPES: frozenset[str] = frozenset(STATEFUL_RESOURCE_WARNINGS)
 
 
 def action_to_diff_state(action: str) -> DiffState:
@@ -73,6 +91,14 @@ def detect_manual_edits(resources: ResourceChanges) -> bool:
             if has_drifted_field(change):
                 return True
     return False
+
+
+def detect_dangerous_actions(resources: ResourceChanges) -> bool:
+    """Check whether any stateful resource has a dangerous action (delete or recreate)."""
+    return any(
+        entry.get("action") in DANGEROUS_ACTIONS and parse_resource_key(key)[0] in STATEFUL_RESOURCE_TYPES
+        for key, entry in resources.items()
+    )
 
 
 def parse_plan(raw: str) -> Plan:

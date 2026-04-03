@@ -13,11 +13,10 @@ from dagshund import (
     merge_sub_resources,
     parse_resource_key,
 )
+from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES
 from dagshund.text import (
     _ACTIONS,
-    _DANGEROUS_ACTIONS,
     _DEFAULT_ACTION,
-    _STATEFUL_RESOURCE_WARNINGS,
     DIM,
     GREEN,
     RED,
@@ -1202,15 +1201,15 @@ def test_collect_warnings_multiple_sorted_by_key() -> None:
 
 
 def test_collect_warnings_covers_all_dangerous_actions() -> None:
-    """Every action in _DANGEROUS_ACTIONS must trigger a warning on a stateful resource."""
-    for action in _DANGEROUS_ACTIONS:
+    """Every action in DANGEROUS_ACTIONS must trigger a warning on a stateful resource."""
+    for action in DANGEROUS_ACTIONS:
         resources = {"resources.schemas.test": {"action": action}}
         assert _collect_warnings(resources), f"action '{action}' should produce a warning"
 
 
 def test_collect_warnings_covers_all_stateful_types() -> None:
-    """Every type in _STATEFUL_RESOURCE_WARNINGS must trigger a warning on delete."""
-    for resource_type in _STATEFUL_RESOURCE_WARNINGS:
+    """Every type in STATEFUL_RESOURCE_TYPES must trigger a warning on delete."""
+    for resource_type in STATEFUL_RESOURCE_TYPES:
         resources = {f"resources.{resource_type}.test": {"action": "delete"}}
         assert _collect_warnings(resources), f"resource type '{resource_type}' should produce a warning"
 
