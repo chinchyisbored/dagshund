@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { usePlan } from "../../hooks/use-plan-context.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import {
@@ -6,20 +6,61 @@ import {
   type RawPlanSlice,
   type RawTaskSlice,
 } from "../../utils/extract-raw-plan-entry.ts";
+import { formatJsonBlockLabel } from "../../utils/format-json-block-label.ts";
+import { CopyButton } from "./copy-button.tsx";
+import { ExpandIcon } from "./json-block-icons.tsx";
+import { JsonExpandModal } from "./json-expand-modal.tsx";
 
 const PRE_CLASSES =
-  "mt-2 max-h-[400px] overflow-auto rounded border border-outline-subtle bg-code-bg p-3 font-mono text-xs text-ink-muted";
+  "mt-2 max-h-[400px] overflow-auto rounded border border-outline-subtle bg-code-bg p-3 pr-10 font-mono text-xs text-ink-muted";
 
-function JsonBlock({ data }: { readonly data: unknown }) {
-  return <pre className={PRE_CLASSES}>{JSON.stringify(data, null, 2)}</pre>;
+const TOOLBAR_CLASSES =
+  "absolute right-2 top-4 flex gap-1 rounded bg-code-bg/80 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100";
+
+const TOOLBAR_BUTTON_CLASSES =
+  "rounded p-1 text-ink-muted hover:bg-surface-hover hover:text-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+
+function JsonBlock({ data, label }: { readonly data: unknown; readonly label: string }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
+
+  const json = useMemo(() => JSON.stringify(data, null, 2), [data]);
+  const getText = useCallback(() => json, [json]);
+  const displayLabel = formatJsonBlockLabel(label);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    expandButtonRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="group relative">
+      <pre className={PRE_CLASSES}>{json}</pre>
+      <div className={TOOLBAR_CLASSES}>
+        <CopyButton getText={getText} className={TOOLBAR_BUTTON_CLASSES} />
+        <button
+          ref={expandButtonRef}
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className={TOOLBAR_BUTTON_CLASSES}
+          aria-label="Expand JSON"
+        >
+          <ExpandIcon />
+        </button>
+      </div>
+      {isModalOpen && (
+        <JsonExpandModal title={displayLabel} json={json} onClose={handleCloseModal} />
+      )}
+    </div>
+  );
 }
 
 function SliceHeading({ label }: { readonly label: string }) {
   return <p className="mt-3 mb-1 font-mono text-xs text-ink-faint">{label}</p>;
 }
 
-function EntryView({ data }: { readonly data: unknown }) {
-  return <JsonBlock data={data} />;
+function EntryView({ data, label }: { readonly data: unknown; readonly label: string }) {
+  return <JsonBlock data={data} label={label} />;
 }
 
 function EntryWithSubsView({ entries }: { readonly entries: ReadonlyMap<string, unknown> }) {
@@ -28,7 +69,7 @@ function EntryWithSubsView({ entries }: { readonly entries: ReadonlyMap<string, 
       {[...entries].map(([key, value]) => (
         <div key={key}>
           <SliceHeading label={key} />
-          <JsonBlock data={value} />
+          <JsonBlock data={value} label={key} />
         </div>
       ))}
     </>
@@ -41,17 +82,23 @@ function TaskSlicesView({ slices }: { readonly slices: readonly RawTaskSlice[] }
       {slices.map((slice) => (
         <div key={slice.label}>
           <SliceHeading label={slice.label} />
-          <JsonBlock data={slice.data} />
+          <JsonBlock data={slice.data} label={slice.label} />
         </div>
       ))}
     </>
   );
 }
 
-function SliceContent({ slice }: { readonly slice: RawPlanSlice }) {
+function SliceContent({
+  slice,
+  resourceKey,
+}: {
+  readonly slice: RawPlanSlice;
+  readonly resourceKey: string;
+}) {
   switch (slice.kind) {
     case "entry":
-      return <EntryView data={slice.data} />;
+      return <EntryView data={slice.data} label={resourceKey} />;
     case "entry-with-subs":
       return <EntryWithSubsView entries={slice.entries} />;
     case "task-slices":
@@ -96,7 +143,9 @@ export function RawJsonDisclosure({ data }: { readonly data: DagNodeData }) {
         </svg>
         Raw JSON
       </button>
-      {isOpen && slice !== undefined && <SliceContent slice={slice} />}
+      {isOpen && slice !== undefined && (
+        <SliceContent slice={slice} resourceKey={data.resourceKey} />
+      )}
     </div>
   );
 }
