@@ -10,6 +10,7 @@ import { TabBar } from "./components/tab-bar.tsx";
 import { TaskNode } from "./components/task-node.tsx";
 import { ThemeToggle } from "./components/theme-toggle.tsx";
 import { JobNavigationContext } from "./hooks/use-job-navigation.ts";
+import { PlanContext } from "./hooks/use-plan-context.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
 import { TabVisibilityContext } from "./hooks/use-tab-visibility.ts";
@@ -95,27 +96,36 @@ function PlanView({ plan }: { readonly plan: Plan }) {
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} counts={tabCounts} />
-      <div className="min-h-0 flex-1">
-        <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
-          <ErrorBoundary>
-            <TabVisibilityContext.Provider value={activeTab === "jobs"}>
-              <DagView plan={plan} focusNodeId={focusJobId} onFocusComplete={handleFocusComplete} />
-            </TabVisibilityContext.Provider>
-          </ErrorBoundary>
-        </div>
-        <div className="h-full" style={activeTab !== "resources" ? { display: "none" } : undefined}>
-          <ErrorBoundary>
-            <TabVisibilityContext.Provider value={activeTab === "resources"}>
-              <JobNavigationContext.Provider value={handleNavigateToJob}>
-                <ResourcesView plan={plan} />
-              </JobNavigationContext.Provider>
-            </TabVisibilityContext.Provider>
-          </ErrorBoundary>
+    <PlanContext.Provider value={plan}>
+      <div className="flex h-full flex-col">
+        <TabBar activeTab={activeTab} onTabChange={setActiveTab} counts={tabCounts} />
+        <div className="min-h-0 flex-1">
+          <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
+            <ErrorBoundary>
+              <TabVisibilityContext.Provider value={activeTab === "jobs"}>
+                <DagView
+                  plan={plan}
+                  focusNodeId={focusJobId}
+                  onFocusComplete={handleFocusComplete}
+                />
+              </TabVisibilityContext.Provider>
+            </ErrorBoundary>
+          </div>
+          <div
+            className="h-full"
+            style={activeTab !== "resources" ? { display: "none" } : undefined}
+          >
+            <ErrorBoundary>
+              <TabVisibilityContext.Provider value={activeTab === "resources"}>
+                <JobNavigationContext.Provider value={handleNavigateToJob}>
+                  <ResourcesView plan={plan} />
+                </JobNavigationContext.Provider>
+              </TabVisibilityContext.Provider>
+            </ErrorBoundary>
+          </div>
         </div>
       </div>
-    </div>
+    </PlanContext.Provider>
   );
 }
 

@@ -1,20 +1,78 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { usePlan } from "../../hooks/use-plan-context.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
+import {
+  extractRawPlanSlice,
+  type RawPlanSlice,
+  type RawTaskSlice,
+} from "../../utils/extract-raw-plan-entry.ts";
 
-/** Build the raw data object for the disclosure section. */
-const buildRawData = (data: DagNodeData): Readonly<Record<string, unknown>> | undefined => {
-  const parts: Record<string, unknown> = {};
-  if (data.resourceState !== undefined) parts["resourceState"] = data.resourceState;
-  if (data.changes !== undefined) parts["changes"] = data.changes;
-  if (Object.keys(parts).length === 0) return undefined;
-  return parts;
-};
+const PRE_CLASSES =
+  "mt-2 max-h-[400px] overflow-auto rounded border border-outline-subtle bg-code-bg p-3 font-mono text-xs text-ink-muted";
+
+function JsonBlock({ data }: { readonly data: unknown }) {
+  return <pre className={PRE_CLASSES}>{JSON.stringify(data, null, 2)}</pre>;
+}
+
+function SliceHeading({ label }: { readonly label: string }) {
+  return <p className="mt-3 mb-1 font-mono text-xs text-ink-faint">{label}</p>;
+}
+
+function EntryView({ data }: { readonly data: unknown }) {
+  return <JsonBlock data={data} />;
+}
+
+function EntryWithSubsView({ entries }: { readonly entries: ReadonlyMap<string, unknown> }) {
+  return (
+    <>
+      {[...entries].map(([key, value]) => (
+        <div key={key}>
+          <SliceHeading label={key} />
+          <JsonBlock data={value} />
+        </div>
+      ))}
+    </>
+  );
+}
+
+function TaskSlicesView({ slices }: { readonly slices: readonly RawTaskSlice[] }) {
+  return (
+    <>
+      {slices.map((slice) => (
+        <div key={slice.label}>
+          <SliceHeading label={slice.label} />
+          <JsonBlock data={slice.data} />
+        </div>
+      ))}
+    </>
+  );
+}
+
+function SliceContent({ slice }: { readonly slice: RawPlanSlice }) {
+  switch (slice.kind) {
+    case "entry":
+      return <EntryView data={slice.data} />;
+    case "entry-with-subs":
+      return <EntryWithSubsView entries={slice.entries} />;
+    case "task-slices":
+      return <TaskSlicesView slices={slice.slices} />;
+    default: {
+      const _exhaustive: never = slice;
+      return _exhaustive;
+    }
+  }
+}
 
 export function RawJsonDisclosure({ data }: { readonly data: DagNodeData }) {
   const [isOpen, setIsOpen] = useState(false);
-  const rawData = buildRawData(data);
+  const plan = usePlan();
 
-  if (rawData === undefined) return null;
+  const slice = useMemo(() => {
+    if (!isOpen || plan === undefined) return undefined;
+    return extractRawPlanSlice(plan, data);
+  }, [isOpen, plan, data]);
+
+  if (plan === undefined || data.nodeKind === "root" || data.nodeKind === "phantom") return null;
 
   return (
     <div className="mt-4 border-t border-outline-subtle pt-3">
@@ -38,11 +96,7 @@ export function RawJsonDisclosure({ data }: { readonly data: DagNodeData }) {
         </svg>
         Raw JSON
       </button>
-      {isOpen && (
-        <pre className="mt-2 max-h-[400px] overflow-auto rounded border border-outline-subtle bg-code-bg p-3 font-mono text-xs text-ink-muted">
-          {JSON.stringify(rawData, null, 2)}
-        </pre>
-      )}
+      {isOpen && slice !== undefined && <SliceContent slice={slice} />}
     </div>
   );
 }
