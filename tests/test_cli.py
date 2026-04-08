@@ -542,8 +542,14 @@ def test_quiet_with_output_writes_html_only(require_template: None, fixtures_dir
     assert "exported to" in result.stderr
 
 
-def test_quiet_with_format_errors(fixtures_dir: Path) -> None:
+def test_quiet_with_format_md_errors(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "--format", "md")
+
+    assert result.returncode == 2  # argparse error code
+
+
+def test_quiet_with_format_term_errors(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "--format", "term")
 
     assert result.returncode == 2  # argparse error code
 

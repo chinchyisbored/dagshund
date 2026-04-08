@@ -26,6 +26,7 @@ examples:
   dagshund plan.json -o output.html -b            HTML + browser + terminal output
   dagshund plan.json -o out.html --format md      HTML file + markdown to stdout
   dagshund plan.json -q -o out.html -e            HTML + exit code, no terminal output
+  dagshund plan.json -o r.html --format md -e > s.md  CI: HTML + markdown + exit code
   databricks bundle plan -o json | dagshund       pipe from Databricks CLI
   cat planfile.json | dagshund                    pipe from existing planfile
 
@@ -95,7 +96,7 @@ def _build_parser() -> argparse.ArgumentParser:
     output_group.add_argument(
         "--format",
         choices=["term", "md"],
-        default="term",
+        default=None,
         help="stdout format (default: term)",
     )
 
@@ -154,7 +155,7 @@ def _read_plan(plan_file: str | None) -> str:
         "Usage: dagshund <plan.json>\n"
         "       dagshund <plan.json> -o output.html\n"
         "       cat plan.json | dagshund\n"
-        "       dagshund <plan.json> --format term"
+        "       dagshund <plan.json> --format md"
     )
 
 
@@ -207,8 +208,11 @@ def main() -> None:
     if args.browser and not args.output:
         parser.error("--browser requires --output")
 
-    if args.quiet and args.format != "term":
+    if args.quiet and args.format is not None:
         parser.error("--quiet and --format are mutually exclusive")
+
+    if args.format is None:
+        args.format = "term"
 
     visible_states = _build_visible_states(args)
 

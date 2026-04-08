@@ -91,6 +91,12 @@ databricks bundle plan -t <target> -o json | dagshund -c -f 'type:jobs'
 databricks bundle plan -t <target> -o json | dagshund -f '"exact_name"'
 ```
 
+### Quiet mode (suppress terminal output)
+
+```bash
+databricks bundle plan -t <target> -o json | dagshund -q -o report.html -e
+```
+
 ### Save plan for later
 
 ```bash
@@ -103,7 +109,7 @@ dagshund plan.json -o report.html -b
 
 ```bash
 databricks bundle plan -t <target> -o json | dagshund -e
-# Exit 0 = no changes, 2 = changes, 3 = changes + manual edits, 1 = error
+# Exit 0 = no changes, 2 = changes, 3 = dangerous actions or manual edits, 1 = error
 
 # HTML report + markdown for PR comment + exit code
 databricks bundle plan -t <target> -o json | dagshund -o report.html --format md -e > summary.md
