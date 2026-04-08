@@ -2,20 +2,48 @@ dagshund plan (v2, cli 0.287.0)
 
   jobs (2)
   ~ jobs/data_quality_pipeline  (update)
-      ~ tasks[task_key='aggregate_results'].depends_on: [1 items] -> [3 items]
-      ~ tasks[task_key='anomaly_detection']: {4 fields}
-      ~ tasks[task_key='check_duplicates']: {4 fields}
-      ~ tasks[task_key='check_referential_integrity']: {4 fields}
-      ~ tasks[task_key='compute_statistics'].depends_on: [1 items] -> [2 items]
-      ~ tasks[task_key='generate_report'].depends_on: [1 items] -> [2 items]
-      ~ tasks[task_key='notify_stakeholders']: {4 fields}
+      ~ tasks[task_key='aggregate_results'].depends_on: [{task_key: "check_nulls"}] -> [{task_key: "check_nulls"}, {task_key: "check_duplicates"}, {task_key: "check_referential_integrity"}]
+      ~ tasks[task_key='anomaly_detection']:
+          depends_on: [{task_key: "compute_statistics"}]
+          environment_key: "default"
+          notebook_task: {notebook_path: "/Workspace/quality/anomaly_detection"}
+          task_key: "anomaly_detection"
+      ~ tasks[task_key='check_duplicates']:
+          depends_on: [{task_key: "validate_schema"}]
+          environment_key: "default"
+          notebook_task: {notebook_path: "/Workspace/quality/check_duplicates"}
+          task_key: "check_duplicates"
+      ~ tasks[task_key='check_referential_integrity']:
+          depends_on: [{task_key: "validate_schema"}]
+          environment_key: "default"
+          notebook_task:
+            notebook_path: "/Workspace/quality/check_referential_integrity"
+          task_key: "check_referential_integrity"
+      ~ tasks[task_key='compute_statistics'].depends_on: [{task_key: "check_nulls"}] -> [{task_key: "check_nulls"}, {task_key: "check_duplicates"}]
+      ~ tasks[task_key='generate_report'].depends_on: [{task_key: "aggregate_results"}] -> [{task_key: "aggregate_results"}, {task_key: "anomaly_detection"}]
+      ~ tasks[task_key='notify_stakeholders']:
+          depends_on: [{task_key: "generate_report"}]
+          environment_key: "default"
+          notebook_task: {notebook_path: "/Workspace/quality/notify_stakeholders"}
+          task_key: "notify_stakeholders"
       ~ tasks[task_key='validate_schema'].notebook_task.base_parameters['sample_size']: "1000" -> "10000"
       ~ tasks[task_key='validate_schema'].notebook_task.base_parameters['strict_mode']: "false" -> "true"
   ~ jobs/etl_pipeline  (update)
-      ~ tasks[task_key='aggregate']: {4 fields}
+      ~ tasks[task_key='aggregate']:
+          depends_on: [{task_key: "load"}]
+          environment_key: "default"
+          notebook_task: {notebook_path: "/Workspace/etl/aggregate"}
+          task_key: "aggregate"
       ~ tasks[task_key='transform'].notebook_task.notebook_path: "/Workspace/etl/transform" -> "/Workspace/etl/transform_v2"
-      ~ tasks[task_key='trigger_quality_check']: {3 fields}
-      ~ tasks[task_key='validate']: {4 fields}
+      ~ tasks[task_key='trigger_quality_check']:
+          depends_on: [{task_key: "aggregate"}]
+          run_job_task: {job_id: 949076684616381}
+          task_key: "trigger_quality_check"
+      ~ tasks[task_key='validate']:
+          depends_on: [{task_key: "load"}]
+          environment_key: "default"
+          notebook_task: {notebook_path: "/Workspace/etl/validate"}
+          task_key: "validate"
 
   schemas (1/2)
   ~ schemas/analytics  (update)

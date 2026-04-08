@@ -35,6 +35,8 @@ from dagshund.types import (
     parse_resource_key,
 )
 
+_BLOCK_INDENT = 10  # 6 (field indent) + 4 (content offset for multiline blocks)
+
 # ANSI color codes
 RESET = "\033[0m"
 _BOLD = "\033[1m"
@@ -89,7 +91,7 @@ def _render_field_change(field_name: str, change: FieldChange, *, use_color: boo
     if action_to_diff_state(action) == DiffState.UNCHANGED:
         return None
 
-    suffix = format_field_suffix(change)
+    suffix = format_field_suffix(change, block_indent=_BLOCK_INDENT)
     if suffix is None:
         return None
 

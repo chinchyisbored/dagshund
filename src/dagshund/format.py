@@ -60,6 +60,61 @@ def action_config(action: str) -> ActionConfig:
 # --- Value formatting ---
 
 
+_INLINE_LIMIT = 60  # collections exceeding this inline length render as multiline blocks
+
+
+def _format_collection_inline(value: object) -> str:
+    """Render a dict or list in human-readable form (unquoted keys, spaces).
+
+    Caller guarantees value is a dict or list (from format_value's match).
+    """
+    if isinstance(value, dict):
+        parts = [f"{k}: {format_value(v)}" for k, v in value.items()]
+        return "{" + ", ".join(parts) + "}"
+    if isinstance(value, list):
+        return "[" + ", ".join(format_value(item) for item in value) + "]"
+    return repr(value)
+
+
+def _format_dict_block(value: object, indent: int) -> str:
+    """Render a dict as indented key-value lines."""
+    pad = " " * indent
+    lines: list[str] = []
+    if isinstance(value, dict):
+        for k, v in value.items():
+            inline_v = format_value(v)
+            if isinstance(v, (dict, list)) and len(inline_v) > _INLINE_LIMIT:
+                lines.append(f"{pad}{k}:")
+                lines.append(_format_value_block(v, indent + 2))
+            else:
+                lines.append(f"{pad}{k}: {inline_v}")
+    return "\n".join(lines)
+
+
+def _format_list_block(value: object, indent: int) -> str:
+    """Render a list as indented items with dash prefixes."""
+    pad = " " * indent
+    lines: list[str] = []
+    if isinstance(value, list):
+        for item in value:
+            inline_item = format_value(item)
+            if isinstance(item, (dict, list)) and len(inline_item) > _INLINE_LIMIT:
+                lines.append(f"{pad}-")
+                lines.append(_format_value_block(item, indent + 2))
+            else:
+                lines.append(f"{pad}- {inline_item}")
+    return "\n".join(lines)
+
+
+def _format_value_block(value: object, indent: int) -> str:
+    """Render a value as an indented multiline block. Dispatches to dict/list helpers."""
+    if isinstance(value, dict):
+        return _format_dict_block(value, indent)
+    if isinstance(value, list):
+        return _format_list_block(value, indent)
+    return f"{' ' * indent}{format_value(value)}"
+
+
 def format_value(value: object) -> str:
     """Format a value for human-readable display."""
     match value:
@@ -72,10 +127,8 @@ def format_value(value: object) -> str:
             return "true" if value else "false"
         case int() | float():
             return str(value)
-        case dict():
-            return f"{{{len(value)} fields}}"
-        case list():
-            return f"[{len(value)} items]"
+        case dict() | list():
+            return _format_collection_inline(value)
         case _:
             return repr(value)
 
@@ -92,13 +145,17 @@ def format_transition(old: object, new: object) -> str:
     return f": {old_part} -> {new_part}"
 
 
-def format_single_value(value: object) -> str:
+def format_single_value(value: object, *, block_indent: int | None = None) -> str:
     """Format a single value suffix, truncating long strings."""
-    part = "..." if is_long_string(value) else format_value(value)
-    return f": {part}"
+    if is_long_string(value):
+        return ": ..."
+    inline = format_value(value)
+    if block_indent is not None and isinstance(value, (dict, list)) and len(inline) > _INLINE_LIMIT:
+        return ":\n" + _format_value_block(value, block_indent)
+    return f": {inline}"
 
 
-def format_field_suffix(change: FieldChange) -> str | None:
+def format_field_suffix(change: FieldChange, *, block_indent: int | None = None) -> str | None:
     """Compute the display suffix for a field change, or None to suppress."""
     old, new = change.get("old"), change.get("new")
     has_old, has_new = "old" in change, "new" in change
@@ -120,9 +177,9 @@ def format_field_suffix(change: FieldChange) -> str | None:
     if has_old and has_new:
         return format_transition(old, new)
     if has_new:
-        return format_single_value(new)
+        return format_single_value(new, block_indent=block_indent)
     if has_old:
-        return format_single_value(old)
+        return format_single_value(old, block_indent=block_indent)
     return ""
 
 

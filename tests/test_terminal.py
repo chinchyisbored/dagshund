@@ -17,6 +17,9 @@ from dagshund.format import (
     ACTIONS,
     DEFAULT_ACTION,
     ActionConfig,
+    _format_dict_block,
+    _format_list_block,
+    _format_value_block,
     action_config,
     collect_drift_warnings,
     collect_warnings,
@@ -24,6 +27,7 @@ from dagshund.format import (
     detect_drift_fields,
     filter_resources,
     format_group_header,
+    format_transition,
     format_value,
     group_by_resource_type,
     is_long_string,
@@ -236,10 +240,10 @@ def test_parse_resource_key(key: str, expected: tuple[str, str]) -> None:
         (False, "false"),
         (42, "42"),
         (3.14, "3.14"),
-        ({"a": 1, "b": 2}, "{2 fields}"),
-        ({}, "{0 fields}"),
-        ([1, 2, 3], "[3 items]"),
-        ([], "[0 items]"),
+        ({"a": 1, "b": 2}, "{a: 1, b: 2}"),
+        ({}, "{}"),
+        ([1, 2, 3], "[1, 2, 3]"),
+        ([], "[]"),
     ],
     ids=["none", "string", "true", "false", "int", "float", "dict", "empty_dict", "list", "empty_list"],
 )
@@ -257,6 +261,17 @@ def test_format_value_long_string_not_truncated() -> None:
 def test_format_value_unknown_type_uses_repr() -> None:
     result = format_value(object())
     assert result.startswith("<")
+
+
+# --- format_transition ---
+
+
+def test_format_transition_large_dict_stays_inline() -> None:
+    big = {"a": "x" * 30, "b": "y" * 30}
+
+    result = format_transition(big, big)
+
+    assert "\n" not in result
 
 
 # --- is_long_string ---
@@ -280,6 +295,92 @@ def test_is_long_string_non_string_types() -> None:
     assert is_long_string(True) is False
     assert is_long_string({"key": "value"}) is False
     assert is_long_string([1, 2, 3]) is False
+
+
+# --- _format_value_block ---
+
+
+def test_format_dict_block_renders_key_value_lines() -> None:
+    value = {"task_key": "audit", "depends_on": "gate"}
+
+    result = _format_dict_block(value, indent=10)
+
+    assert result == '          task_key: "audit"\n          depends_on: "gate"'
+
+
+def test_format_dict_block_nested_large_dict_recurses() -> None:
+    inner = {"a": "x" * 30, "b": "y" * 30, "c": "z"}
+    value = {"outer_key": inner}
+
+    result = _format_dict_block(value, indent=4)
+
+    # inner exceeds 60-char inline limit, so it should expand
+    assert "outer_key:" in result
+    assert '      a: "' in result  # indent + 2
+    assert '      b: "' in result
+
+
+def test_format_dict_block_nested_small_dict_stays_inline() -> None:
+    value = {"config": {"a": 1}}
+
+    result = _format_dict_block(value, indent=4)
+
+    assert result == "    config: {a: 1}"
+
+
+def test_format_list_block_renders_items_with_dashes() -> None:
+    value = ["alpha", "beta", "gamma"]
+
+    result = _format_list_block(value, indent=6)
+
+    assert result == '      - "alpha"\n      - "beta"\n      - "gamma"'
+
+
+def test_format_list_block_large_dict_item_expands() -> None:
+    item = {"key_a": "x" * 30, "key_b": "y" * 30}
+    value = [item]
+
+    result = _format_list_block(value, indent=4)
+
+    assert result.startswith("    -\n")
+    assert '      key_a: "' in result
+
+
+def test_format_value_block_scalar_returns_indented_value() -> None:
+    result = _format_value_block("hello", indent=8)
+
+    assert result == '        "hello"'
+
+
+def test_format_value_block_dispatches_to_dict() -> None:
+    result = _format_value_block({"k": "v"}, indent=4)
+
+    assert result == '    k: "v"'
+
+
+def test_format_value_block_dispatches_to_list() -> None:
+    result = _format_value_block([1, 2], indent=4)
+
+    assert result == "    - 1\n    - 2"
+
+
+def test_render_field_change_large_dict_renders_multiline() -> None:
+    """Large dict in a field add triggers multiline block rendering."""
+    large_dict = {
+        "job_id": 0,
+        "job_parameters": {
+            "job_id": "{{job.parameters.job_id}}",
+            "job_run_id": "{{job.parameters.job_run_id}}",
+        },
+    }
+    change = {"action": "create", "new": large_dict}
+
+    result = _render_field_change("run_job_task", change, use_color=False)
+
+    assert result is not None
+    assert "\n" in result  # multiline
+    assert "job_id: 0" in result
+    assert "job_parameters:" in result
 
 
 # --- _render_field_change ---
@@ -364,7 +465,7 @@ def test_render_field_change_dict_old_long_new_preserves_dict() -> None:
     result = _render_field_change("field", change, use_color=False)
 
     assert result is not None
-    assert "{1 fields} -> ..." in result
+    assert "{a: 1} -> ..." in result
 
 
 def test_render_field_change_no_old_no_new_shows_field_only() -> None:
@@ -416,7 +517,7 @@ def test_render_field_change_remote_only_shows_remote_value() -> None:
     result = _render_field_change("email_notifications", change, use_color=False)
 
     assert result is not None
-    assert "{1 fields}" in result
+    assert "{no_alert: false}" in result
     assert "(remote)" in result
 
 

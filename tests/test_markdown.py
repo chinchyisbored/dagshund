@@ -54,7 +54,7 @@ def test_render_field_change_remote_only_shows_remote_value() -> None:
     result = _render_field_change("email_notifications", change)
 
     assert result is not None
-    assert "{1 fields}" in result
+    assert "{no_alert: false}" in result
     assert "(remote)" in result
 
 
@@ -66,6 +66,24 @@ def test_render_field_change_create_shows_new_value() -> None:
     assert result is not None
     assert "`+` `field`" in result
     assert '"value"' in result
+
+
+def test_render_field_change_large_dict_renders_multiline() -> None:
+    large_dict = {
+        "job_id": 0,
+        "job_parameters": {
+            "job_id": "{{job.parameters.job_id}}",
+            "job_run_id": "{{job.parameters.job_run_id}}",
+        },
+    }
+    change = {"action": "create", "new": large_dict}
+
+    result = _render_field_change("run_job_task", change)
+
+    assert result is not None
+    assert "\n" in result
+    assert "job_id: 0" in result
+    assert "job_parameters:" in result
 
 
 def test_render_field_change_no_old_no_new_shows_field_only() -> None:
