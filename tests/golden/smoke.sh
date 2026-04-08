@@ -46,6 +46,11 @@ CASES=(
   "remove-perm-plan.json||remove-perm-plan.txt"
   "remove-one-perm-plan.json||remove-one-perm-plan.txt"
   "drift-plan.json||drift-plan.txt"
+  "complex-plan.json|--format md|complex-plan.md"
+  "drift-plan.json|--format md|drift-plan.md"
+  "no-changes-plan.json|--format md|no-changes-plan.md"
+  "mixed-plan.json|--format md|mixed-plan.md"
+  "mixed-plan.json|-c --format md|mixed-plan--changes-only.md"
 )
 
 run_dagshund() {

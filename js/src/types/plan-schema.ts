@@ -2,7 +2,7 @@ import { z } from "zod/v4";
 
 // Action vocabulary is duplicated in two other locations:
 // - Python types.py: action_to_diff_state() match statement
-// - Python text.py: _ACTIONS dict (display config per action)
+// - Python format.py: ACTIONS dict (display config per action)
 const knownActionTypes = [
   "",
   "skip",

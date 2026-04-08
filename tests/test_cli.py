@@ -128,7 +128,7 @@ def test_main_output_flag_writes_html(
     main()
 
     assert output.exists()
-    assert "exported to" in capsys.readouterr().out
+    assert "exported to" in capsys.readouterr().err
 
 
 def test_main_browser_flag_opens_browser(
@@ -209,7 +209,7 @@ def test_main_stdin_with_output_flag_writes_html(
     main()
 
     assert output.exists()
-    assert "exported to" in capsys.readouterr().out
+    assert "exported to" in capsys.readouterr().err
 
 
 # --- --detailed-exitcode ---
@@ -305,7 +305,7 @@ def test_subprocess_output_flag_writes_html(require_template: None, fixtures_dir
 
     assert result.returncode == 0
     assert output.exists()
-    assert "exported to" in result.stdout
+    assert "exported to" in result.stderr
 
 
 # --- _build_visible_states ---
@@ -442,3 +442,64 @@ def test_filter_no_matches_produces_no_output(fixtures_dir: Path) -> None:
     # Header still prints, but no resource groups
     assert "dagshund plan" in result.stdout
     assert "nonexistent" not in result.stdout
+
+
+# --- --format md ---
+
+
+def test_format_md_produces_markdown(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "md")
+
+    assert result.returncode == 0
+    assert "### dagshund plan" in result.stdout
+    assert "`jobs/etl_pipeline`" in result.stdout
+    assert "#### jobs" in result.stdout
+
+
+def test_format_md_no_changes(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "no-changes-plan.json"), "--format", "md")
+
+    assert result.returncode == 0
+    assert "No changes" in result.stdout
+
+
+def test_format_md_with_output_produces_both(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
+    output = tmp_path / "out.html"
+
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-o", str(output), "--format", "md")
+
+    assert result.returncode == 0
+    assert output.exists()
+    assert "### dagshund plan" in result.stdout
+    assert "exported to" in result.stderr
+
+
+def test_format_md_with_detailed_exitcode(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "md", "-e")
+
+    assert result.returncode == 3  # dangerous actions present
+    assert "### dagshund plan" in result.stdout
+
+
+def test_format_md_with_changes_only(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "--format", "md", "-c")
+
+    assert result.returncode == 0
+    assert "#### alerts" in result.stdout
+    # Unchanged groups hidden
+    assert "#### jobs" not in result.stdout
+
+
+def test_format_md_with_filter(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "--format", "md", "-f", "type:alerts")
+
+    assert result.returncode == 0
+    assert "#### alerts" in result.stdout
+    assert "#### volumes" not in result.stdout
+
+
+def test_format_text_explicit_is_default(fixtures_dir: Path) -> None:
+    default = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
+    explicit = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "text")
+
+    assert default.stdout == explicit.stdout

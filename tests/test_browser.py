@@ -123,7 +123,7 @@ def test_render_browser_prints_success_message(
 
     render_browser({"plan": {}}, output_path=str(output))
 
-    assert "exported to" in capsys.readouterr().out
+    assert "exported to" in capsys.readouterr().err
 
 
 def test_render_browser_overwrites_existing_file(require_template: None, tmp_path: Path) -> None:

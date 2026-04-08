@@ -13,27 +13,27 @@ from dagshund import (
     merge_sub_resources,
     parse_resource_key,
 )
+from dagshund.format import (
+    ACTIONS,
+    DEFAULT_ACTION,
+    ActionConfig,
+    action_config,
+    collect_drift_warnings,
+    collect_warnings,
+    count_by_action,
+    detect_drift_fields,
+    filter_resources,
+    format_group_header,
+    format_value,
+    group_by_resource_type,
+    is_long_string,
+)
 from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES
-from dagshund.text import (
-    _ACTIONS,
-    _DEFAULT_ACTION,
-    DIM,
+from dagshund.terminal import (
     GREEN,
     RED,
     RESET,
-    YELLOW,
-    _action_config,
-    _ActionConfig,
-    _collect_drift_warnings,
-    _collect_warnings,
     _colorize,
-    _count_by_action,
-    _detect_drift_fields,
-    _filter_resources,
-    _format_group_header,
-    _format_value,
-    _group_by_resource_type,
-    _is_long_string,
     _print_header,
     _print_resource_groups,
     _print_summary,
@@ -169,21 +169,21 @@ def test_colorize_returns_plain_when_disabled() -> None:
     assert _colorize("hello", GREEN, use_color=False) == "hello"
 
 
-# --- _action_config ---
+# --- action_config ---
 
 
 @pytest.mark.parametrize(
     ("action", "expected"),
     [
-        ("create", _ActionConfig("create", GREEN, "+")),
-        ("delete", _ActionConfig("delete", RED, "-")),
-        ("update", _ActionConfig("update", YELLOW, "~", show_field_changes=True)),
-        ("recreate", _ActionConfig("recreate", YELLOW, "~", show_field_changes=True)),
-        ("resize", _ActionConfig("resize", YELLOW, "~", show_field_changes=True)),
-        ("update_id", _ActionConfig("update_id", YELLOW, "~", show_field_changes=True)),
-        ("skip", _ActionConfig("unchanged", DIM, " ")),
-        ("", _ActionConfig("unchanged", DIM, " ")),
-        ("unknown_action", _DEFAULT_ACTION),
+        ("create", ActionConfig("create", "+")),
+        ("delete", ActionConfig("delete", "-")),
+        ("update", ActionConfig("update", "~", show_field_changes=True)),
+        ("recreate", ActionConfig("recreate", "~", show_field_changes=True)),
+        ("resize", ActionConfig("resize", "~", show_field_changes=True)),
+        ("update_id", ActionConfig("update_id", "~", show_field_changes=True)),
+        ("skip", ActionConfig("unchanged", " ")),
+        ("", ActionConfig("unchanged", " ")),
+        ("unknown_action", DEFAULT_ACTION),
     ],
     ids=[
         "create",
@@ -197,12 +197,12 @@ def test_colorize_returns_plain_when_disabled() -> None:
         "unknown",
     ],
 )
-def test_action_config(action: str, expected: _ActionConfig) -> None:
-    assert _action_config(action) == expected
+def test_action_config(action: str, expected: ActionConfig) -> None:
+    assert action_config(action) == expected
 
 
 def test_actions_table_covers_all_update_actions() -> None:
-    update_configs = [cfg for cfg in _ACTIONS.values() if cfg.show_field_changes]
+    update_configs = [cfg for cfg in ACTIONS.values() if cfg.show_field_changes]
     assert len(update_configs) == 4
 
 
@@ -224,7 +224,7 @@ def test_parse_resource_key(key: str, expected: tuple[str, str]) -> None:
     assert parse_resource_key(key) == expected
 
 
-# --- _format_value ---
+# --- format_value ---
 
 
 @pytest.mark.parametrize(
@@ -244,42 +244,42 @@ def test_parse_resource_key(key: str, expected: tuple[str, str]) -> None:
     ids=["none", "string", "true", "false", "int", "float", "dict", "empty_dict", "list", "empty_list"],
 )
 def test_format_value(value: object, expected: str) -> None:
-    assert _format_value(value) == expected
+    assert format_value(value) == expected
 
 
 def test_format_value_long_string_not_truncated() -> None:
-    """_format_value no longer truncates — _is_long_string guards in the caller instead."""
-    result = _format_value("a" * 100)
+    """format_value no longer truncates — is_long_string guards in the caller instead."""
+    result = format_value("a" * 100)
 
     assert result == f'"{"a" * 100}"'
 
 
 def test_format_value_unknown_type_uses_repr() -> None:
-    result = _format_value(object())
+    result = format_value(object())
     assert result.startswith("<")
 
 
-# --- _is_long_string ---
+# --- is_long_string ---
 
 
 def test_is_long_string_boundary_40_not_long() -> None:
-    assert _is_long_string("a" * 40) is False
+    assert is_long_string("a" * 40) is False
 
 
 def test_is_long_string_boundary_41_is_long() -> None:
-    assert _is_long_string("a" * 41) is True
+    assert is_long_string("a" * 41) is True
 
 
 def test_is_long_string_empty_string() -> None:
-    assert _is_long_string("") is False
+    assert is_long_string("") is False
 
 
 def test_is_long_string_non_string_types() -> None:
-    assert _is_long_string(None) is False
-    assert _is_long_string(42) is False
-    assert _is_long_string(True) is False
-    assert _is_long_string({"key": "value"}) is False
-    assert _is_long_string([1, 2, 3]) is False
+    assert is_long_string(None) is False
+    assert is_long_string(42) is False
+    assert is_long_string(True) is False
+    assert is_long_string({"key": "value"}) is False
+    assert is_long_string([1, 2, 3]) is False
 
 
 # --- _render_field_change ---
@@ -623,7 +623,7 @@ def test_render_resource_non_dict_change_entry_skips_that_field() -> None:
     assert "bad_field" not in lines[1]
 
 
-# --- _count_by_action ---
+# --- count_by_action ---
 
 
 def test_count_by_action_mixed() -> None:
@@ -634,25 +634,25 @@ def test_count_by_action_mixed() -> None:
         "d": {"action": "update"},
     }
 
-    assert _count_by_action(entries) == {
-        _action_config("create"): 2,
-        _action_config("delete"): 1,
-        _action_config("update"): 1,
+    assert count_by_action(entries) == {
+        action_config("create"): 2,
+        action_config("delete"): 1,
+        action_config("update"): 1,
     }
 
 
 def test_count_by_action_skip_becomes_unchanged() -> None:
     entries = {"a": {"action": "skip"}, "b": {"action": "skip"}}
-    assert _count_by_action(entries) == {_action_config("skip"): 2}
+    assert count_by_action(entries) == {action_config("skip"): 2}
 
 
 def test_count_by_action_empty_becomes_unchanged() -> None:
     entries = {"a": {"action": ""}, "b": {}}
-    assert _count_by_action(entries) == {_action_config(""): 2}
+    assert count_by_action(entries) == {action_config(""): 2}
 
 
 def test_count_by_action_empty_input() -> None:
-    assert _count_by_action({}) == {}
+    assert count_by_action({}) == {}
 
 
 # --- _print_header ---
@@ -674,7 +674,7 @@ def test_print_header_defaults_when_missing(capsys: pytest.CaptureFixture[str]) 
     assert "?" in out
 
 
-# --- _group_by_resource_type ---
+# --- group_by_resource_type ---
 
 
 def test_group_by_resource_type_groups_correctly() -> None:
@@ -684,7 +684,7 @@ def test_group_by_resource_type_groups_correctly() -> None:
         "resources.schemas.c": {"action": "update"},
     }
 
-    result = _group_by_resource_type(plan)
+    result = group_by_resource_type(plan)
 
     assert set(result.keys()) == {"jobs", "schemas"}
     assert len(result["jobs"]) == 2
@@ -692,7 +692,7 @@ def test_group_by_resource_type_groups_correctly() -> None:
 
 
 def test_group_by_resource_type_empty_plan() -> None:
-    assert _group_by_resource_type({}) == {}
+    assert group_by_resource_type({}) == {}
 
 
 # --- _print_resource_groups ---
@@ -895,11 +895,11 @@ def test_action_to_diff_state(action: str, expected: DiffState) -> None:
 
 def test_all_diff_states_reachable_from_actions() -> None:
     """Every defined diff state except UNKNOWN must be reachable from a known action."""
-    reachable = {action_to_diff_state(action) for action in _ACTIONS}
+    reachable = {action_to_diff_state(action) for action in ACTIONS}
     assert reachable == set(DiffState) - {DiffState.UNKNOWN}
 
 
-# --- _filter_resources ---
+# --- filter_resources ---
 
 
 def test_filter_resources_by_state_keeps_matching() -> None:
@@ -909,7 +909,7 @@ def test_filter_resources_by_state_keeps_matching() -> None:
         "resources.jobs.c": {"action": "delete"},
     }
 
-    result = _filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
+    result = filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
 
     assert list(result.keys()) == ["resources.jobs.a"]
 
@@ -921,7 +921,7 @@ def test_filter_resources_by_state_multiple_states() -> None:
         "resources.jobs.c": {"action": "skip"},
     }
 
-    result = _filter_resources(entries, visible_states=frozenset({DiffState.ADDED, DiffState.REMOVED}))
+    result = filter_resources(entries, visible_states=frozenset({DiffState.ADDED, DiffState.REMOVED}))
 
     assert set(result.keys()) == {"resources.jobs.a", "resources.jobs.b"}
 
@@ -929,7 +929,7 @@ def test_filter_resources_by_state_multiple_states() -> None:
 def test_filter_resources_by_state_returns_empty_when_none_match() -> None:
     entries = {"resources.jobs.a": {"action": "skip"}}
 
-    result = _filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
+    result = filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
 
     assert result == {}
 
@@ -943,7 +943,7 @@ def test_filter_resources_by_state_modified_includes_all_update_actions() -> Non
         "resources.jobs.e": {"action": "skip"},
     }
 
-    result = _filter_resources(entries, visible_states=frozenset({DiffState.MODIFIED}))
+    result = filter_resources(entries, visible_states=frozenset({DiffState.MODIFIED}))
 
     assert len(result) == 4
     assert "resources.jobs.e" not in result
@@ -955,7 +955,7 @@ def test_filter_resources_by_predicate_keeps_matching() -> None:
         "resources.jobs.b": {"action": "skip"},
     }
 
-    result = _filter_resources(entries, resource_filter=lambda k, _v: "jobs.a" in k)
+    result = filter_resources(entries, resource_filter=lambda k, _v: "jobs.a" in k)
 
     assert list(result.keys()) == ["resources.jobs.a"]
 
@@ -967,7 +967,7 @@ def test_filter_resources_both_filters_compose_as_and() -> None:
         "resources.jobs.c": {"action": "skip"},
     }
 
-    result = _filter_resources(
+    result = filter_resources(
         entries,
         visible_states=frozenset({DiffState.ADDED}),
         resource_filter=lambda k, _v: "jobs.b" in k,
@@ -976,15 +976,15 @@ def test_filter_resources_both_filters_compose_as_and() -> None:
     assert list(result.keys()) == ["resources.jobs.b"]
 
 
-# --- _format_group_header ---
+# --- format_group_header ---
 
 
 def test_format_group_header_all_visible() -> None:
-    assert _format_group_header("jobs", 3, 3) == "  jobs (3)"
+    assert format_group_header("jobs", 3, 3) == "jobs (3)"
 
 
 def test_format_group_header_partial_visible() -> None:
-    assert _format_group_header("experiments", 3, 1) == "  experiments (1/3)"
+    assert format_group_header("experiments", 3, 1) == "experiments (1/3)"
 
 
 # --- _print_resource_groups with visible_states ---
@@ -1094,13 +1094,13 @@ def test_render_text_no_visible_states_shows_everything(fixtures_dir: Path, caps
     assert "alerts" in out
 
 
-# --- _collect_warnings ---
+# --- collect_warnings ---
 
 
 def test_collect_warnings_detects_stateful_delete() -> None:
     resources = {"resources.volumes.imports": {"action": "delete"}}
 
-    warnings = _collect_warnings(resources)
+    warnings = collect_warnings(resources)
 
     assert len(warnings) == 1
     assert "volumes/imports" in warnings[0]
@@ -1111,7 +1111,7 @@ def test_collect_warnings_detects_stateful_delete() -> None:
 def test_collect_warnings_detects_stateful_recreate() -> None:
     resources = {"resources.schemas.analytics": {"action": "recreate"}}
 
-    warnings = _collect_warnings(resources)
+    warnings = collect_warnings(resources)
 
     assert len(warnings) == 1
     assert "schemas/analytics" in warnings[0]
@@ -1122,19 +1122,19 @@ def test_collect_warnings_detects_stateful_recreate() -> None:
 def test_collect_warnings_ignores_non_stateful_delete() -> None:
     resources = {"resources.jobs.etl": {"action": "delete"}}
 
-    assert _collect_warnings(resources) == []
+    assert collect_warnings(resources) == []
 
 
 def test_collect_warnings_ignores_stateful_update() -> None:
     resources = {"resources.schemas.analytics": {"action": "update"}}
 
-    assert _collect_warnings(resources) == []
+    assert collect_warnings(resources) == []
 
 
 def test_collect_warnings_ignores_stateful_skip() -> None:
     resources = {"resources.volumes.data": {"action": "skip"}}
 
-    assert _collect_warnings(resources) == []
+    assert collect_warnings(resources) == []
 
 
 @pytest.mark.parametrize(
@@ -1163,7 +1163,7 @@ def test_collect_warnings_ignores_stateful_skip() -> None:
 def test_collect_warnings_all_stateful_types(resource_type: str, expected_risk: str) -> None:
     resources = {f"resources.{resource_type}.x": {"action": "delete"}}
 
-    warnings = _collect_warnings(resources)
+    warnings = collect_warnings(resources)
 
     assert len(warnings) == 1
     assert expected_risk in warnings[0]
@@ -1175,7 +1175,7 @@ def test_collect_warnings_respects_visible_states_filter() -> None:
         "resources.schemas.analytics": {"action": "recreate"},
     }
 
-    warnings = _collect_warnings(resources, visible_states=frozenset({DiffState.REMOVED}))
+    warnings = collect_warnings(resources, visible_states=frozenset({DiffState.REMOVED}))
 
     assert len(warnings) == 1
     assert "volumes/imports" in warnings[0]
@@ -1184,7 +1184,7 @@ def test_collect_warnings_respects_visible_states_filter() -> None:
 def test_collect_warnings_empty_when_filtered_out() -> None:
     resources = {"resources.volumes.imports": {"action": "delete"}}
 
-    assert _collect_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
+    assert collect_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
 
 
 def test_collect_warnings_multiple_sorted_by_key() -> None:
@@ -1193,7 +1193,7 @@ def test_collect_warnings_multiple_sorted_by_key() -> None:
         "resources.catalogs.a_main": {"action": "delete"},
     }
 
-    warnings = _collect_warnings(resources)
+    warnings = collect_warnings(resources)
 
     assert len(warnings) == 2
     assert "catalogs/a_main" in warnings[0]
@@ -1204,14 +1204,14 @@ def test_collect_warnings_covers_all_dangerous_actions() -> None:
     """Every action in DANGEROUS_ACTIONS must trigger a warning on a stateful resource."""
     for action in DANGEROUS_ACTIONS:
         resources = {"resources.schemas.test": {"action": action}}
-        assert _collect_warnings(resources), f"action '{action}' should produce a warning"
+        assert collect_warnings(resources), f"action '{action}' should produce a warning"
 
 
 def test_collect_warnings_covers_all_stateful_types() -> None:
     """Every type in STATEFUL_RESOURCE_TYPES must trigger a warning on delete."""
     for resource_type in STATEFUL_RESOURCE_TYPES:
         resources = {f"resources.{resource_type}.test": {"action": "delete"}}
-        assert _collect_warnings(resources), f"resource type '{resource_type}' should produce a warning"
+        assert collect_warnings(resources), f"resource type '{resource_type}' should produce a warning"
 
 
 # --- _print_warnings ---
@@ -1308,52 +1308,52 @@ def test_render_text_schema_recreate_warns(capsys: pytest.CaptureFixture[str]) -
     assert "recreated" in out
 
 
-# --- _detect_drift_fields ---
+# --- detect_drift_fields ---
 
 
 def test_detect_drift_fields_returns_empty_for_no_changes() -> None:
-    assert _detect_drift_fields(None) == []
-    assert _detect_drift_fields({}) == []
+    assert detect_drift_fields(None) == []
+    assert detect_drift_fields({}) == []
 
 
 def test_detect_drift_fields_returns_empty_when_old_differs_from_new() -> None:
     changes = {"field": {"action": "update", "old": "a", "new": "b", "remote": "c"}}
-    assert _detect_drift_fields(changes) == []
+    assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_returns_empty_when_old_equals_remote() -> None:
     changes = {"field": {"action": "update", "old": "a", "new": "a", "remote": "a"}}
-    assert _detect_drift_fields(changes) == []
+    assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_detects_remote_differs_from_old() -> None:
     changes = {"edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"}}
-    assert _detect_drift_fields(changes) == ["edit_mode"]
+    assert detect_drift_fields(changes) == ["edit_mode"]
 
 
 def test_detect_drift_fields_remote_absent_not_drift() -> None:
     changes = {"task": {"action": "update", "old": {"task_key": "x"}, "new": {"task_key": "x"}}}
-    assert _detect_drift_fields(changes) == []
+    assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_skip_action() -> None:
     changes = {"field": {"action": "skip", "old": "a", "new": "a", "remote": "b"}}
-    assert _detect_drift_fields(changes) == []
+    assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_empty_action() -> None:
     changes = {"field": {"action": "", "old": "a", "new": "a", "remote": "b"}}
-    assert _detect_drift_fields(changes) == []
+    assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_entries_without_old() -> None:
     changes = {"field": {"action": "update", "new": "a", "remote": "b"}}
-    assert _detect_drift_fields(changes) == []
+    assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_entries_without_new() -> None:
     changes = {"field": {"action": "update", "old": "a", "remote": "b"}}
-    assert _detect_drift_fields(changes) == []
+    assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_returns_multiple_sorted() -> None:
@@ -1361,7 +1361,7 @@ def test_detect_drift_fields_returns_multiple_sorted() -> None:
         "z_field": {"action": "update", "old": 1, "new": 1, "remote": 2},
         "a_field": {"action": "update", "old": "x", "new": "x", "remote": "y"},
     }
-    assert _detect_drift_fields(changes) == ["a_field", "z_field"]
+    assert detect_drift_fields(changes) == ["a_field", "z_field"]
 
 
 # --- _render_resource with drift ---
@@ -1411,7 +1411,7 @@ def test_render_resource_no_drift_warning_when_no_drift() -> None:
     assert not any("manually edited" in line for line in lines)
 
 
-# --- _collect_drift_warnings ---
+# --- collect_drift_warnings ---
 
 
 def test_collect_drift_warnings_detects_drifted_resource() -> None:
@@ -1424,7 +1424,7 @@ def test_collect_drift_warnings_detects_drifted_resource() -> None:
             },
         },
     }
-    warnings = _collect_drift_warnings(resources)
+    warnings = collect_drift_warnings(resources)
     assert len(warnings) == 1
     assert "jobs/pipeline" in warnings[0]
     assert "2 fields" in warnings[0]
@@ -1440,7 +1440,7 @@ def test_collect_drift_warnings_returns_empty_for_no_drift() -> None:
             },
         },
     }
-    assert _collect_drift_warnings(resources) == []
+    assert collect_drift_warnings(resources) == []
 
 
 def test_collect_drift_warnings_respects_visible_states() -> None:
@@ -1452,7 +1452,7 @@ def test_collect_drift_warnings_respects_visible_states() -> None:
             },
         },
     }
-    assert _collect_drift_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
+    assert collect_drift_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
 
 
 def test_collect_drift_warnings_respects_resource_filter() -> None:
@@ -1464,7 +1464,7 @@ def test_collect_drift_warnings_respects_resource_filter() -> None:
             },
         },
     }
-    assert _collect_drift_warnings(resources, resource_filter=lambda k, _: "other" in k) == []
+    assert collect_drift_warnings(resources, resource_filter=lambda k, _: "other" in k) == []
 
 
 def test_collect_drift_warnings_singular_field() -> None:
@@ -1476,7 +1476,7 @@ def test_collect_drift_warnings_singular_field() -> None:
             },
         },
     }
-    warnings = _collect_drift_warnings(resources)
+    warnings = collect_drift_warnings(resources)
     assert "1 field" in warnings[0]
 
 
@@ -1484,7 +1484,7 @@ def test_collect_drift_warnings_singular_field() -> None:
 
 
 def test_render_text_shows_drift_section(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("dagshund.text._supports_color", lambda: False)
+    monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
     plan = {
         "plan": {
             "resources.jobs.drift_pipeline": {

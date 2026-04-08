@@ -1,6 +1,7 @@
 """Browser-based HTML visualization."""
 
 import json
+import sys
 from pathlib import Path
 
 from dagshund.types import DagshundError, Plan
@@ -70,4 +71,4 @@ def render_browser(plan: Plan, *, output_path: str) -> None:
     except OSError as exc:
         raise DagshundError(f"could not write output file: {exc}") from exc
 
-    print(f"dagshund: exported to {output_path}")
+    print(f"dagshund: exported to {output_path}", file=sys.stderr)

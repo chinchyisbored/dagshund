@@ -21,8 +21,10 @@ from dagshund import (
 EPILOG = """\
 examples:
   dagshund plan.json                          text diff summary
+  dagshund plan.json --format md              markdown diff summary
   dagshund plan.json -o output.html           export interactive HTML
   dagshund plan.json -o output.html -b        export and open in browser
+  dagshund plan.json -o out.html --format md  HTML file + markdown to stdout
   databricks bundle plan -o json | dagshund   pipe from Databricks CLI
   cat planfile.json | dagshund                pipe from existing planfile
 
@@ -37,7 +39,7 @@ filter expressions:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        usage="dagshund [plan_file] [-o OUTPUT] [-b] [-e] [-d] [-c] [-a] [-m] [-r] [-f FILTER]",
+        usage="dagshund [plan_file] [-o OUTPUT] [--format FORMAT] [-b] [-e] [-d] [-c] [-a] [-m] [-r] [-f FILTER]",
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
         formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=30),
@@ -82,6 +84,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--detailed-exitcode",
         action="store_true",
         help="Exit 2 if safe changes, 3 if dangerous actions or drift, 0 if none (for CI)",
+    )
+    output_group.add_argument(
+        "--format",
+        choices=["text", "md"],
+        default="text",
+        help="stdout format (default: text)",
     )
 
     filter_group = parser.add_argument_group("filters")
@@ -206,8 +214,13 @@ def main() -> None:
                 import webbrowser
 
                 webbrowser.open(Path(args.output).resolve().as_uri())
-        else:
-            from dagshund.text import render_text
+
+        if args.format == "md":
+            from dagshund.markdown import render_markdown
+
+            print(render_markdown(plan, visible_states=visible_states, filter_query=args.filter))
+        elif not args.output:
+            from dagshund.terminal import render_text
 
             render_text(plan, visible_states=visible_states, filter_query=args.filter)
 

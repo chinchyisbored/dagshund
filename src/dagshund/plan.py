@@ -34,7 +34,7 @@ def action_to_diff_state(action: str) -> DiffState:
     """Map a plan action string to its diff state category.
 
     Action vocabulary is duplicated in two other locations:
-    - text.py: _ACTIONS dict (display config per action)
+    - format.py: ACTIONS dict (display config per action)
     - js/src/types/plan-schema.ts: knownActionTypes (Zod schema)
     """
     match action:
