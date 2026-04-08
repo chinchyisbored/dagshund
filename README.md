@@ -21,7 +21,7 @@ pip install dagshund
 
 ## Usage
 
-By default, dagshund prints a colored text diff to the terminal:
+By default, dagshund prints a colored diff to the terminal (`--format term`):
 
 ```bash
 dagshund plan.json
@@ -29,16 +29,17 @@ dagshund plan.json
 
 ![Terminal output](docs/pictures/terminal.png)
 
-Export an interactive HTML visualization with `-o`:
+Export an interactive HTML visualization with `-o` (terminal output is included by default):
 
 ```bash
 dagshund plan.json -o report.html
+dagshund plan.json -o report.html -b    # also open in browser
 ```
 
-Open it in the browser automatically with `-b`:
+Suppress terminal output with `-q` when you only need the file:
 
 ```bash
-dagshund plan.json -o report.html -b
+dagshund plan.json -q -o report.html
 ```
 
 Reads from stdin, so you can pipe directly from the Databricks CLI:
@@ -72,6 +73,13 @@ dagshund plan.json -c -f 'type:volumes'          # changed volumes only
 ```
 
 All tokens in a filter expression AND together. `-f` composes with `-c`/`-a`/`-m`/`-r` — both must match.
+
+Use `--format md` for markdown output, suitable for PR/MR comments:
+
+```bash
+dagshund plan.json --format md
+dagshund plan.json -o report.html --format md -e > summary.md   # CI: HTML + markdown + exit code
+```
 
 Use `-e` for CI-friendly exit codes (see [CI Exit Codes](#ci-exit-codes)).
 
@@ -146,8 +154,8 @@ case $? in
   3) echo "Changes detected (manual edits will be overwritten)" ;;
 esac
 
-# Generate report AND get exit code
-dagshund plan.json -o report.html -e
+# Generate report AND get exit code (quiet suppresses terminal output)
+dagshund plan.json -q -o report.html -e
 ```
 
 Without `-e`, dagshund always exits 0 on success.

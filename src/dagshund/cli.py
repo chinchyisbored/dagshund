@@ -20,26 +20,27 @@ from dagshund import (
 
 EPILOG = """\
 examples:
-  dagshund plan.json                          text diff summary
-  dagshund plan.json --format md              markdown diff summary
-  dagshund plan.json -o output.html           export interactive HTML
-  dagshund plan.json -o output.html -b        export and open in browser
-  dagshund plan.json -o out.html --format md  HTML file + markdown to stdout
-  databricks bundle plan -o json | dagshund   pipe from Databricks CLI
-  cat planfile.json | dagshund                pipe from existing planfile
+  dagshund plan.json                              terminal diff summary (default)
+  dagshund plan.json --format md                  markdown diff summary
+  dagshund plan.json -o output.html               HTML + terminal output
+  dagshund plan.json -o output.html -b            HTML + browser + terminal output
+  dagshund plan.json -o out.html --format md      HTML file + markdown to stdout
+  dagshund plan.json -q -o out.html -e            HTML + exit code, no terminal output
+  databricks bundle plan -o json | dagshund       pipe from Databricks CLI
+  cat planfile.json | dagshund                    pipe from existing planfile
 
 filter expressions:
-  dagshund plan.json -f 'type:jobs'           show only jobs
-  dagshund plan.json -f 'status:added'        show only new resources
-  dagshund plan.json -f '"etl_pipeline"'       exact name match
-  dagshund plan.json -f 'type:jobs pipeline'  combined: jobs matching "pipeline"
+  dagshund plan.json -f 'type:jobs'               show only jobs
+  dagshund plan.json -f 'status:added'            show only new resources
+  dagshund plan.json -f '"etl_pipeline"'           exact name match
+  dagshund plan.json -f 'type:jobs pipeline'      combined: jobs matching "pipeline"
 """
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        usage="dagshund [plan_file] [-o OUTPUT] [--format FORMAT] [-b] [-e] [-d] [-c] [-a] [-m] [-r] [-f FILTER]",
+        usage="dagshund [plan_file] [-o OUTPUT] [--format FORMAT] [-q] [-b] [-e] [-d] [-c] [-a] [-m] [-r] [-f FILTER]",
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
         formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=30),
@@ -80,6 +81,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Open output in default browser (requires -o)",
     )
     output_group.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress stdout output",
+    )
+    output_group.add_argument(
         "-e",
         "--detailed-exitcode",
         action="store_true",
@@ -87,9 +94,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     output_group.add_argument(
         "--format",
-        choices=["text", "md"],
-        default="text",
-        help="stdout format (default: text)",
+        choices=["term", "md"],
+        default="term",
+        help="stdout format (default: term)",
     )
 
     filter_group = parser.add_argument_group("filters")
@@ -146,7 +153,8 @@ def _read_plan(plan_file: str | None) -> str:
         "no input file specified and stdin is a TTY\n"
         "Usage: dagshund <plan.json>\n"
         "       dagshund <plan.json> -o output.html\n"
-        "       cat plan.json | dagshund"
+        "       cat plan.json | dagshund\n"
+        "       dagshund <plan.json> --format term"
     )
 
 
@@ -199,6 +207,9 @@ def main() -> None:
     if args.browser and not args.output:
         parser.error("--browser requires --output")
 
+    if args.quiet and args.format != "term":
+        parser.error("--quiet and --format are mutually exclusive")
+
     visible_states = _build_visible_states(args)
 
     try:
@@ -215,14 +226,15 @@ def main() -> None:
 
                 webbrowser.open(Path(args.output).resolve().as_uri())
 
-        if args.format == "md":
-            from dagshund.markdown import render_markdown
+        if not args.quiet:
+            if args.format == "term":
+                from dagshund.terminal import render_text
 
-            print(render_markdown(plan, visible_states=visible_states, filter_query=args.filter))
-        elif not args.output:
-            from dagshund.terminal import render_text
+                render_text(plan, visible_states=visible_states, filter_query=args.filter)
+            elif args.format == "md":
+                from dagshund.markdown import render_markdown
 
-            render_text(plan, visible_states=visible_states, filter_query=args.filter)
+                print(render_markdown(plan, visible_states=visible_states, filter_query=args.filter))
 
         if args.detailed_exitcode:
             resources = plan.get("plan", {})

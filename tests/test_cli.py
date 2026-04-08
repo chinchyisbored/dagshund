@@ -128,7 +128,9 @@ def test_main_output_flag_writes_html(
     main()
 
     assert output.exists()
-    assert "exported to" in capsys.readouterr().err
+    captured = capsys.readouterr()
+    assert "exported to" in captured.err
+    assert "etl_pipeline" in captured.out
 
 
 def test_main_browser_flag_opens_browser(
@@ -209,7 +211,9 @@ def test_main_stdin_with_output_flag_writes_html(
     main()
 
     assert output.exists()
-    assert "exported to" in capsys.readouterr().err
+    captured = capsys.readouterr()
+    assert "exported to" in captured.err
+    assert "etl_pipeline" in captured.out
 
 
 # --- --detailed-exitcode ---
@@ -306,6 +310,7 @@ def test_subprocess_output_flag_writes_html(require_template: None, fixtures_dir
     assert result.returncode == 0
     assert output.exists()
     assert "exported to" in result.stderr
+    assert "etl_pipeline" in result.stdout
 
 
 # --- _build_visible_states ---
@@ -498,8 +503,53 @@ def test_format_md_with_filter(fixtures_dir: Path) -> None:
     assert "#### volumes" not in result.stdout
 
 
-def test_format_text_explicit_is_default(fixtures_dir: Path) -> None:
+def test_format_term_explicit_is_default(fixtures_dir: Path) -> None:
     default = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
-    explicit = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "text")
+    explicit = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "term")
 
     assert default.stdout == explicit.stdout
+
+
+def test_format_term_with_output_produces_both(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
+    output = tmp_path / "out.html"
+
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "term", "-o", str(output))
+
+    assert result.returncode == 0
+    assert output.exists()
+    assert "etl_pipeline" in result.stdout
+    assert "exported to" in result.stderr
+
+
+# --- --quiet ---
+
+
+def test_quiet_suppresses_stdout(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q")
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_quiet_with_output_writes_html_only(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
+    output = tmp_path / "out.html"
+
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "-o", str(output))
+
+    assert result.returncode == 0
+    assert output.exists()
+    assert result.stdout == ""
+    assert "exported to" in result.stderr
+
+
+def test_quiet_with_format_errors(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "--format", "md")
+
+    assert result.returncode == 2  # argparse error code
+
+
+def test_quiet_with_detailed_exitcode(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "-e")
+
+    assert result.returncode == 3  # dangerous actions present
+    assert result.stdout == ""

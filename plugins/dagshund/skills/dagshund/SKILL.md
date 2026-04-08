@@ -104,6 +104,9 @@ dagshund plan.json -o report.html -b
 ```bash
 databricks bundle plan -t <target> -o json | dagshund -e
 # Exit 0 = no changes, 2 = changes, 3 = changes + manual edits, 1 = error
+
+# HTML report + markdown for PR comment + exit code
+databricks bundle plan -t <target> -o json | dagshund -o report.html --format md -e > summary.md
 ```
 
 ## Interpreting the output
