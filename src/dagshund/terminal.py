@@ -2,6 +2,7 @@
 
 import os
 import sys
+import textwrap
 from collections.abc import Callable, Iterator
 
 from dagshund.format import (
@@ -12,8 +13,10 @@ from dagshund.format import (
     count_by_action,
     detect_drift_fields,
     filter_resources,
+    format_display_value,
     format_field_suffix,
     format_group_header,
+    format_value,
     group_by_resource_type,
     is_field_changes,
 )
@@ -35,7 +38,11 @@ from dagshund.types import (
     parse_resource_key,
 )
 
-_BLOCK_INDENT = 10  # 6 (field indent) + 4 (content offset for multiline blocks)
+_BLOCK_INDENT = 10  # 6 (field indent) + 4 (content offset for wrapped continuation lines)
+
+# Minimum terminal width for smart wrapping. Below this, let the terminal handle wrapping.
+# Unrelated to format._INLINE_LIMIT (which controls inline-vs-block for collection values).
+_MIN_WRAP_WIDTH = 60
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -85,19 +92,78 @@ def _colorize(text: str, color: str, *, use_color: bool) -> str:
     return f"{color}{text}{RESET}"
 
 
-def _render_field_change(field_name: str, change: FieldChange, *, use_color: bool) -> str | None:
+def _detect_terminal_width() -> int:
+    """Detect the terminal width in columns, falling back to 80 when not connected to a tty."""
+    try:
+        return os.get_terminal_size().columns
+    except (ValueError, OSError):
+        return 80
+
+
+def _wrap_transition(prefix: str, change: FieldChange) -> str | None:
+    """Build a two-line wrapped transition from the change dict, breaking at ->.
+
+    Returns None if the change is not a wrappable transition (single value, no-op, etc.).
+    Uses format_display_value/format_value directly — no string parsing.
+    """
+    old, new = change.get("old"), change.get("new")
+    has_old, has_new = "old" in change, "new" in change
+
+    if not has_old or not has_new:
+        return None
+
+    remote = change.get("remote")
+
+    # Drift: old == new but remote differs — show remote -> new (drift)
+    # Uses format_value (no truncation) to match format_field_suffix drift path
+    if old == new and "remote" in change and remote != old:
+        left = format_value(remote)
+        right = format_value(new)
+        first = f"{prefix}: {left}"
+        cont = f"{' ' * _BLOCK_INDENT}-> {right} (drift)"
+        return f"{first}\n{cont}"
+
+    # No-op: old == new — nothing to wrap
+    if old == new:
+        return None
+
+    # Normal transition: old -> new
+    left = format_display_value(old)
+    right = format_display_value(new)
+    first = f"{prefix}: {left}"
+    cont = f"{' ' * _BLOCK_INDENT}-> {right}"
+    return f"{first}\n{cont}"
+
+
+def _wrap_warning_line(line: str, width: int) -> str:
+    """Wrap a warning line to fit within width, with 4-space continuation indent."""
+    if len(line) <= width:
+        return line
+    return textwrap.fill(line, width=width, subsequent_indent="    ")
+
+
+def _render_field_change(
+    field_name: str, change: FieldChange, *, use_color: bool, width: int | None = None
+) -> str | None:
     """Render a single field-level change, or None if unchanged/no-op."""
     action = str(change.get("action", ""))
     if action_to_diff_state(action) == DiffState.UNCHANGED:
         return None
 
-    suffix = format_field_suffix(change, block_indent=_BLOCK_INDENT)
+    suffix = format_field_suffix(change)
     if suffix is None:
         return None
 
     field_config = action_config(action)
     prefix = f"      {field_config.symbol} {field_name}"
-    return _colorize(f"{prefix}{suffix}", _action_color(field_config), use_color=use_color)
+    line = f"{prefix}{suffix}"
+
+    if width is not None and width >= _MIN_WRAP_WIDTH and len(line) > width and "\n" not in suffix:
+        wrapped = _wrap_transition(prefix, change)
+        if wrapped is not None:
+            line = wrapped
+
+    return _colorize(line, _action_color(field_config), use_color=use_color)
 
 
 def _render_resource(
@@ -105,6 +171,7 @@ def _render_resource(
     entry: ResourceChange,
     *,
     use_color: bool,
+    width: int | None = None,
 ) -> Iterator[str]:
     """Render a single resource entry as lines of text."""
     action = entry.get("action", "")
@@ -123,7 +190,7 @@ def _render_resource(
         for field_name, change in sorted(changes.items()):
             if not isinstance(change, dict):
                 continue
-            rendered = _render_field_change(field_name, change, use_color=use_color)
+            rendered = _render_field_change(field_name, change, use_color=use_color, width=width)
             if rendered is not None:
                 yield rendered
 
@@ -148,6 +215,7 @@ def _print_resource_groups(
     use_color: bool,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
+    width: int | None = None,
 ) -> None:
     """Print each resource type group with its entries."""
     for resource_type, entries in resource_groups.items():  # already sorted by group_by_resource_type
@@ -158,7 +226,7 @@ def _print_resource_groups(
         header = f"  {format_group_header(resource_type, len(entries), len(visible))}"
         print(_colorize(header, _CYAN + _BOLD, use_color=use_color))
         for key, entry in sorted(visible.items()):
-            for line in _render_resource(key, entry, use_color=use_color):
+            for line in _render_resource(key, entry, use_color=use_color, width=width):
                 print(line)
         print()
 
@@ -183,20 +251,26 @@ def _print_summary(
         print(f"  {parts}")
 
 
-def _print_warnings(warnings: list[str], *, use_color: bool) -> None:
+def _print_warnings(warnings: list[str], *, use_color: bool, width: int | None = None) -> None:
     """Print data-loss warnings below the summary line."""
     print()
     print(_colorize("  Dangerous Actions:", RED + _BOLD, use_color=use_color))
     for warning in warnings:
-        print(_colorize(f"  \u26a0 {warning}", RED, use_color=use_color))
+        line = f"  \u26a0 {warning}"
+        if width is not None and width >= _MIN_WRAP_WIDTH:
+            line = _wrap_warning_line(line, width)
+        print(_colorize(line, RED, use_color=use_color))
 
 
-def _print_drift_warnings(warnings: list[str], *, use_color: bool) -> None:
+def _print_drift_warnings(warnings: list[str], *, use_color: bool, width: int | None = None) -> None:
     """Print drift warnings below the summary line."""
     print()
     print(_colorize("  Manual Edits Detected:", YELLOW + _BOLD, use_color=use_color))
     for warning in warnings:
-        print(_colorize(f"  \u26a0 {warning}", YELLOW, use_color=use_color))
+        line = f"  \u26a0 {warning}"
+        if width is not None and width >= _MIN_WRAP_WIDTH:
+            line = _wrap_warning_line(line, width)
+        print(_colorize(line, YELLOW, use_color=use_color))
 
 
 def render_text(
@@ -220,6 +294,7 @@ def render_text(
         resource_filter = build_query_predicate(filter_query)
 
     use_color = _supports_color()
+    width = _detect_terminal_width()
     _print_header(plan, use_color=use_color)
 
     if not detect_changes(resources):
@@ -237,13 +312,14 @@ def render_text(
         use_color=use_color,
         visible_states=visible_states,
         resource_filter=resource_filter,
+        width=width,
     )
     _print_summary(resources, use_color=use_color, visible_states=visible_states, resource_filter=resource_filter)
 
     warnings = collect_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
     if warnings:
-        _print_warnings(warnings, use_color=use_color)
+        _print_warnings(warnings, use_color=use_color, width=width)
 
     drift_warnings = collect_drift_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
     if drift_warnings:
-        _print_drift_warnings(drift_warnings, use_color=use_color)
+        _print_drift_warnings(drift_warnings, use_color=use_color, width=width)

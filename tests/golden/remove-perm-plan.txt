@@ -2,13 +2,7 @@ dagshund plan (v2, cli 0.294.0)
 
   jobs (1)
   ~ jobs/dagshund_test_job  (update)
-      - permissions:
-          object_id: "/jobs/360205349474169"
-          permissions:
-            -
-              permission_level: "IS_OWNER"
-              user_name: "user@example.com"
-            - {group_name: "users", permission_level: "CAN_MANAGE"}
+      - permissions: {2 fields}
 
   schemas (1)
     schemas/dagshund_test_schema

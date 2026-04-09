@@ -13,4 +13,5 @@ dagshund plan (v2, cli 0.288.0)
   +1 create, -1 delete, ~1 update
 
   Dangerous Actions:
-  ⚠ volumes/external_imports will be deleted — all files in this volume will be lost
+  ⚠ volumes/external_imports will be deleted — all files in this volume will be
+    lost

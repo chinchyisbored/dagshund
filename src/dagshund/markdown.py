@@ -32,8 +32,6 @@ from dagshund.types import (
     parse_resource_key,
 )
 
-_BLOCK_INDENT = 6  # 2 (list indent) + 4 (content offset for multiline blocks)
-
 
 def _render_field_change(field_name: str, change: FieldChange) -> str | None:
     """Render a single field-level change as a markdown list item, or None if unchanged/no-op."""
@@ -41,7 +39,7 @@ def _render_field_change(field_name: str, change: FieldChange) -> str | None:
     if action_to_diff_state(action) == DiffState.UNCHANGED:
         return None
 
-    suffix = format_field_suffix(change, block_indent=_BLOCK_INDENT)
+    suffix = format_field_suffix(change)
     if suffix is None:
         return None
 

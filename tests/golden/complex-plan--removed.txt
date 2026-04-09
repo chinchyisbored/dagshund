@@ -6,4 +6,5 @@ dagshund plan (v2, cli 0.287.0)
   -1 delete
 
   Dangerous Actions:
-  ⚠ registered_models/quality_metrics will be deleted — all model versions will be lost
+  ⚠ registered_models/quality_metrics will be deleted — all model versions will
+    be lost

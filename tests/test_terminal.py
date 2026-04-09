@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,15 +18,13 @@ from dagshund.format import (
     ACTIONS,
     DEFAULT_ACTION,
     ActionConfig,
-    _format_dict_block,
-    _format_list_block,
-    _format_value_block,
     action_config,
     collect_drift_warnings,
     collect_warnings,
     count_by_action,
     detect_drift_fields,
     filter_resources,
+    format_display_value,
     format_group_header,
     format_transition,
     format_value,
@@ -38,6 +37,7 @@ from dagshund.terminal import (
     RED,
     RESET,
     _colorize,
+    _detect_terminal_width,
     _print_header,
     _print_resource_groups,
     _print_summary,
@@ -45,6 +45,8 @@ from dagshund.terminal import (
     _render_field_change,
     _render_resource,
     _supports_color,
+    _wrap_transition,
+    _wrap_warning_line,
     render_text,
 )
 
@@ -297,75 +299,8 @@ def test_is_long_string_non_string_types() -> None:
     assert is_long_string([1, 2, 3]) is False
 
 
-# --- _format_value_block ---
-
-
-def test_format_dict_block_renders_key_value_lines() -> None:
-    value = {"task_key": "audit", "depends_on": "gate"}
-
-    result = _format_dict_block(value, indent=10)
-
-    assert result == '          task_key: "audit"\n          depends_on: "gate"'
-
-
-def test_format_dict_block_nested_large_dict_recurses() -> None:
-    inner = {"a": "x" * 30, "b": "y" * 30, "c": "z"}
-    value = {"outer_key": inner}
-
-    result = _format_dict_block(value, indent=4)
-
-    # inner exceeds 60-char inline limit, so it should expand
-    assert "outer_key:" in result
-    assert '      a: "' in result  # indent + 2
-    assert '      b: "' in result
-
-
-def test_format_dict_block_nested_small_dict_stays_inline() -> None:
-    value = {"config": {"a": 1}}
-
-    result = _format_dict_block(value, indent=4)
-
-    assert result == "    config: {a: 1}"
-
-
-def test_format_list_block_renders_items_with_dashes() -> None:
-    value = ["alpha", "beta", "gamma"]
-
-    result = _format_list_block(value, indent=6)
-
-    assert result == '      - "alpha"\n      - "beta"\n      - "gamma"'
-
-
-def test_format_list_block_large_dict_item_expands() -> None:
-    item = {"key_a": "x" * 30, "key_b": "y" * 30}
-    value = [item]
-
-    result = _format_list_block(value, indent=4)
-
-    assert result.startswith("    -\n")
-    assert '      key_a: "' in result
-
-
-def test_format_value_block_scalar_returns_indented_value() -> None:
-    result = _format_value_block("hello", indent=8)
-
-    assert result == '        "hello"'
-
-
-def test_format_value_block_dispatches_to_dict() -> None:
-    result = _format_value_block({"k": "v"}, indent=4)
-
-    assert result == '    k: "v"'
-
-
-def test_format_value_block_dispatches_to_list() -> None:
-    result = _format_value_block([1, 2], indent=4)
-
-    assert result == "    - 1\n    - 2"
-
-
-def test_render_field_change_large_dict_renders_multiline() -> None:
-    """Large dict in a field add triggers multiline block rendering."""
+def test_render_field_change_large_dict_shows_summary() -> None:
+    """Large dict in a field add shows a summary instead of full content."""
     large_dict = {
         "job_id": 0,
         "job_parameters": {
@@ -378,9 +313,8 @@ def test_render_field_change_large_dict_renders_multiline() -> None:
     result = _render_field_change("run_job_task", change, use_color=False)
 
     assert result is not None
-    assert "\n" in result  # multiline
-    assert "job_id: 0" in result
-    assert "job_parameters:" in result
+    assert "{2 fields}" in result
+    assert "\n" not in result
 
 
 # --- _render_field_change ---
@@ -1604,3 +1538,277 @@ def test_render_text_shows_drift_section(capsys: pytest.CaptureFixture[str], mon
     assert "jobs/drift_pipeline" in out
     assert "edited outside the bundle" in out
     assert "manually edited outside bundle" in out
+
+
+# --- format_display_value ---
+
+
+def test_format_display_value_short_string_shows_quoted() -> None:
+    assert format_display_value("hello") == '"hello"'
+
+
+def test_format_display_value_long_string_shows_ellipsis() -> None:
+    assert format_display_value("a" * 50) == "..."
+
+
+def test_format_display_value_number_shows_inline() -> None:
+    assert format_display_value(42) == "42"
+
+
+def test_format_display_value_dict_shows_inline() -> None:
+    assert format_display_value({"a": 1}) == "{a: 1}"
+
+
+# --- _detect_terminal_width ---
+
+
+def test_detect_terminal_width_returns_columns(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(os, "get_terminal_size", lambda: os.terminal_size((100, 24)))
+
+    assert _detect_terminal_width() == 100
+
+
+def test_detect_terminal_width_fallback_80_on_oserror(monkeypatch: pytest.MonkeyPatch) -> None:
+    def raise_oserror() -> os.terminal_size:
+        raise OSError("not a terminal")
+
+    monkeypatch.setattr(os, "get_terminal_size", raise_oserror)
+
+    assert _detect_terminal_width() == 80
+
+
+def test_detect_terminal_width_fallback_80_on_value_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def raise_value_error() -> os.terminal_size:
+        raise ValueError("bad fd")
+
+    monkeypatch.setattr(os, "get_terminal_size", raise_value_error)
+
+    assert _detect_terminal_width() == 80
+
+
+# --- _wrap_transition ---
+
+
+def test_wrap_transition_normal_splits_at_arrow() -> None:
+    prefix = "      ~ config"
+    change = {"action": "update", "old": {"a": 1, "b": 2}, "new": {"a": 1, "b": 3}}
+
+    result = _wrap_transition(prefix, change)
+
+    assert result is not None
+    lines = result.split("\n")
+    assert len(lines) == 2
+    assert lines[0] == "      ~ config: {a: 1, b: 2}"
+    assert lines[1] == "          -> {a: 1, b: 3}"
+
+
+def test_wrap_transition_drift_includes_annotation() -> None:
+    prefix = "      ~ edit_mode"
+    change = {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"}
+
+    result = _wrap_transition(prefix, change)
+
+    assert result is not None
+    lines = result.split("\n")
+    assert len(lines) == 2
+    assert '"EDITABLE"' in lines[0]
+    assert '-> "UI_LOCKED" (drift)' in lines[1]
+
+
+def test_wrap_transition_returns_none_for_single_value() -> None:
+    prefix = "      + field"
+    change = {"action": "create", "new": "value"}
+
+    assert _wrap_transition(prefix, change) is None
+
+
+def test_wrap_transition_returns_none_for_noop() -> None:
+    prefix = "      ~ field"
+    change = {"action": "update", "old": "same", "new": "same"}
+
+    assert _wrap_transition(prefix, change) is None
+
+
+def test_wrap_transition_truncates_long_strings() -> None:
+    prefix = "      ~ field"
+    change = {"action": "update", "old": "a" * 50, "new": "b" * 50}
+
+    result = _wrap_transition(prefix, change)
+
+    assert result is not None
+    lines = result.split("\n")
+    assert lines[0] == "      ~ field: ..."
+    assert lines[1] == "          -> ..."
+
+
+# --- _wrap_warning_line ---
+
+
+def test_wrap_warning_line_short_unchanged() -> None:
+    line = "  \u26a0 short warning"
+
+    assert _wrap_warning_line(line, 80) == line
+
+
+def test_wrap_warning_line_long_wraps_at_word_boundary() -> None:
+    line = (
+        "  \u26a0 schemas/production will be deleted \u2014 all tables, views, and volumes in this schema will be lost"
+    )
+
+    result = _wrap_warning_line(line, 60)
+
+    assert "\n" in result
+    for output_line in result.split("\n"):
+        assert len(output_line) <= 60
+    # Continuation lines use 4-space indent
+    continuation = result.split("\n")[1]
+    assert continuation.startswith("    ")
+
+
+# --- _render_field_change with width ---
+
+
+def test_render_field_change_wraps_transition_at_narrow_width() -> None:
+    change = {
+        "action": "update",
+        "old": {"key1": "value1", "key2": "value2"},
+        "new": {"key1": "value1", "key2": "changed"},
+    }
+
+    result = _render_field_change("configuration", change, use_color=False, width=60)
+
+    assert result is not None
+    assert "\n" in result
+    assert "-> " in result
+
+
+def test_render_field_change_no_wrap_when_line_fits() -> None:
+    change = {"action": "update", "old": 1, "new": 2}
+
+    result = _render_field_change("x", change, use_color=False, width=80)
+
+    assert result is not None
+    assert "\n" not in result
+
+
+def test_render_field_change_no_wrap_below_min_width() -> None:
+    """Width below _MIN_WRAP_WIDTH (60) disables smart wrapping."""
+    change = {
+        "action": "update",
+        "old": {"key1": "value1", "key2": "value2"},
+        "new": {"key1": "value1", "key2": "changed"},
+    }
+
+    result = _render_field_change("configuration", change, use_color=False, width=40)
+
+    assert result is not None
+    # Should be single line (no smart wrapping at narrow width)
+    assert "\n" not in result
+
+
+def test_render_field_change_no_wrap_at_exact_boundary() -> None:
+    """Line that exactly equals width should not wrap."""
+    change = {"action": "update", "old": "a", "new": "b"}
+
+    result = _render_field_change("f", change, use_color=False, width=None)
+    assert result is not None
+    line_len = len(result)
+
+    # Now render at exact width — should not wrap
+    result_exact = _render_field_change("f", change, use_color=False, width=line_len)
+
+    assert result_exact is not None
+    assert "\n" not in result_exact
+
+
+def test_render_field_change_color_spans_wrapped_newline() -> None:
+    change = {
+        "action": "update",
+        "old": {"key1": "value1", "key2": "value2"},
+        "new": {"key1": "value1", "key2": "changed"},
+    }
+
+    result = _render_field_change("configuration", change, use_color=True, width=60)
+
+    assert result is not None
+    assert "\n" in result
+    # ANSI color at start, RESET at end — spans the newline
+    assert RESET in result
+    lines = result.split("\n")
+    # First line should start with color code, last line should end with RESET
+    assert "\033[" in lines[0]
+    assert lines[-1].endswith(RESET)
+
+
+def test_render_field_change_width_none_no_wrapping() -> None:
+    """Default width=None produces same output as original behavior."""
+    change = {
+        "action": "update",
+        "old": {"key1": "value1", "key2": "value2"},
+        "new": {"key1": "value1", "key2": "changed"},
+    }
+
+    result = _render_field_change("configuration", change, use_color=False, width=None)
+
+    assert result is not None
+    assert "\n" not in result
+
+
+# --- render_text width integration ---
+
+
+def test_render_text_default_width_matches_original(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """render_text with width detection disabled should produce identical output to the original."""
+    monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
+    monkeypatch.setattr("dagshund.terminal._detect_terminal_width", lambda: 200)
+    plan = {
+        "plan": {
+            "resources.jobs.etl_pipeline": {
+                "action": "update",
+                "changes": {
+                    "owner": {"action": "update", "old": "alice@example.com", "new": "bob@example.com"},
+                    "timeout": {"action": "update", "old": 3600, "new": 7200},
+                },
+            },
+        },
+    }
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    # At width=200, no wrapping should occur — all lines are single
+    for line in out.strip().split("\n"):
+        if line.strip():
+            assert "\n" not in line  # each line in output is a single line
+
+
+def test_render_text_narrow_width_wraps_transitions(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
+    monkeypatch.setattr("dagshund.terminal._detect_terminal_width", lambda: 65)
+    plan = {
+        "plan": {
+            "resources.jobs.etl_pipeline": {
+                "action": "update",
+                "changes": {
+                    "config": {
+                        "action": "update",
+                        "old": {"key1": "value1", "key2": "value2"},
+                        "new": {"key1": "changed1", "key2": "changed2"},
+                    },
+                },
+            },
+        },
+    }
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "-> " in out
+    # The transition should be split across lines
+    lines = out.strip().split("\n")
+    transition_lines = [line for line in lines if "-> " in line]
+    assert len(transition_lines) >= 1

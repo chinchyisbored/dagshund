@@ -2,7 +2,8 @@ dagshund plan (v2, cli 0.294.0)
 
   jobs (1)
   ~ jobs/dagshund_test_job  (update)
-      ~ permissions.permissions[group_name='users'].permission_level: "CAN_VIEW" -> "CAN_MANAGE"
+      ~ permissions.permissions[group_name='users'].permission_level: "CAN_VIEW"
+          -> "CAN_MANAGE"
 
   schemas (1)
     schemas/dagshund_test_schema

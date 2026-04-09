@@ -68,7 +68,7 @@ def test_render_field_change_create_shows_new_value() -> None:
     assert '"value"' in result
 
 
-def test_render_field_change_large_dict_renders_multiline() -> None:
+def test_render_field_change_large_dict_shows_summary() -> None:
     large_dict = {
         "job_id": 0,
         "job_parameters": {
@@ -81,9 +81,8 @@ def test_render_field_change_large_dict_renders_multiline() -> None:
     result = _render_field_change("run_job_task", change)
 
     assert result is not None
-    assert "\n" in result
-    assert "job_id: 0" in result
-    assert "job_parameters:" in result
+    assert "{2 fields}" in result
+    assert "\n" not in result
 
 
 def test_render_field_change_no_old_no_new_shows_field_only() -> None:

@@ -22,7 +22,8 @@ dagshund plan (v2, cli 0.290.0)
 
   jobs (1)
   ~ jobs/etl_pipeline  (update)
-      ~ tasks[task_key='transform'].notebook_task.notebook_path: "/Workspace/etl/transform_v2" -> "/Workspace/etl/transform_v3"
+      ~ tasks[task_key='transform'].notebook_task.notebook_path: "/Workspace/etl/transform_v2"
+          -> "/Workspace/etl/transform_v3"
 
   postgres_branches (2)
   ~ postgres_branches/production  (update)
@@ -53,7 +54,8 @@ dagshund plan (v2, cli 0.290.0)
   + synced_database_tables/customer_360  (create)
   + synced_database_tables/partner_metrics  (create)
   ~ synced_database_tables/product_events  (update)
-      ~ spec.source_table_full_name: "dagshund.analytics.product_clicks" -> "dagshund.analytics.product_interactions"
+      ~ spec.source_table_full_name: "dagshund.analytics.product_clicks"
+          -> "dagshund.analytics.product_interactions"
 
   volumes (2)
   + volumes/partner_feeds  (create)
@@ -63,4 +65,5 @@ dagshund plan (v2, cli 0.290.0)
   +14 create, -1 delete, ~7 update
 
   Dangerous Actions:
-  ⚠ registered_models/churn_predictor will be deleted — all model versions will be lost
+  ⚠ registered_models/churn_predictor will be deleted — all model versions will
+    be lost
