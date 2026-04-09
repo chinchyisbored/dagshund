@@ -4,8 +4,8 @@
 - `~` `jobs/drift_pipeline` — update
   - :warning: manually edited outside bundle
   - `~` `edit_mode`: "EDITABLE" -> "UI_LOCKED" (drift)
-  - `~` `email_notifications`: {no_alert_for_skipped_runs: false} (remote)
-  - `~` `performance_target`: "PERFORMANCE_OPTIMIZED" (remote)
+  - `=` `email_notifications`: {no_alert_for_skipped_runs: false} (remote)
+  - `=` `performance_target`: "PERFORMANCE_OPTIMIZED" (remote)
   - `~` `tasks[task_key='publish'].depends_on[0].task_key`: "ingest" -> "transform" (drift)
 
 **~1** update

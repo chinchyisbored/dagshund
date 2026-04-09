@@ -465,6 +465,46 @@ def test_render_field_change_remote_only_scalar_shows_value() -> None:
     assert "(remote)" in result
 
 
+def test_render_field_change_remote_only_shows_remote_symbol() -> None:
+    """Field with action='update' but only 'remote' should show '=' not '~'."""
+    change = {"action": "update", "remote": "PERFORMANCE_OPTIMIZED"}
+
+    result = _render_field_change("performance_target", change, use_color=False)
+
+    assert result is not None
+    assert result.strip().startswith("=")
+
+
+def test_render_field_change_update_new_only_shows_create_symbol() -> None:
+    """Field with action='update' but only 'new' should show '+' not '~'."""
+    change = {"action": "update", "new": {"job_id": 0, "task_key": "my_task"}}
+
+    result = _render_field_change("tasks[task_key='my_task']", change, use_color=False)
+
+    assert result is not None
+    assert result.strip().startswith("+")
+
+
+def test_render_field_change_update_old_only_shows_delete_symbol() -> None:
+    """Field with action='update' but only 'old' should show '-' not '~'."""
+    change = {"action": "update", "old": "removed_value"}
+
+    result = _render_field_change("deprecated_field", change, use_color=False)
+
+    assert result is not None
+    assert result.strip().startswith("-")
+
+
+def test_render_field_change_update_both_old_and_new_shows_update_symbol() -> None:
+    """Field with action='update' and both 'old' and 'new' keeps '~'."""
+    change = {"action": "update", "old": "before", "new": "after"}
+
+    result = _render_field_change("field", change, use_color=False)
+
+    assert result is not None
+    assert result.strip().startswith("~")
+
+
 # --- _render_resource ---
 
 

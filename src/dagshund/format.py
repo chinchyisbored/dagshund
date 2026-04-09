@@ -49,12 +49,38 @@ ACTIONS: dict[str, ActionConfig] = {
     "skip": ActionConfig("unchanged", " "),
 }
 
+REMOTE_ONLY_ACTION = ActionConfig("remote", "=")
 DEFAULT_ACTION = ActionConfig("unknown", "?")
 
 
 def action_config(action: str) -> ActionConfig:
     """Return the display config for an action string."""
     return ACTIONS.get(action, DEFAULT_ACTION)
+
+
+def field_action_config(change: FieldChange) -> ActionConfig:
+    """Derive the display config for a field change from data presence, not the action label.
+
+    The Databricks CLI reports 'update' for fields within an updated resource even when
+    the field itself is new (only 'new', no 'old') or removed (only 'old', no 'new').
+    Derive the effective action from the data shape: new-only → create, old-only → delete,
+    both → update.
+    """
+    action = str(change.get("action", ""))
+    base = ACTIONS.get(action, DEFAULT_ACTION)
+
+    # Only override for actions that show field changes — resource-level symbols are fine
+    if not base.show_field_changes:
+        return base
+
+    has_old, has_new = "old" in change, "new" in change
+    if has_new and not has_old:
+        return ACTIONS["create"]
+    if has_old and not has_new:
+        return ACTIONS["delete"]
+    if not has_old and not has_new and "remote" in change:
+        return REMOTE_ONLY_ACTION
+    return base
 
 
 # --- Value formatting ---

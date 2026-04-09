@@ -58,6 +58,17 @@ def test_render_field_change_remote_only_shows_remote_value() -> None:
     assert "(remote)" in result
 
 
+def test_render_field_change_remote_only_shows_remote_symbol() -> None:
+    """Field with action='update' but only 'remote' should show '=' not '~'."""
+    change = {"action": "update", "remote": "PERFORMANCE_OPTIMIZED"}
+
+    result = _render_field_change("performance_target", change)
+
+    assert result is not None
+    assert "`=`" in result
+    assert "`~`" not in result
+
+
 def test_render_field_change_create_shows_new_value() -> None:
     change = {"action": "create", "new": "value"}
 
@@ -92,6 +103,28 @@ def test_render_field_change_no_old_no_new_shows_field_only() -> None:
 
     assert result is not None
     assert "`~` `field`" in result
+
+
+def test_render_field_change_update_new_only_shows_create_symbol() -> None:
+    """Field with action='update' but only 'new' should show '+' not '~'."""
+    change = {"action": "update", "new": {"job_id": 0, "task_key": "my_task"}}
+
+    result = _render_field_change("tasks[task_key='my_task']", change)
+
+    assert result is not None
+    assert "`+`" in result
+    assert "`~`" not in result
+
+
+def test_render_field_change_update_old_only_shows_delete_symbol() -> None:
+    """Field with action='update' but only 'old' should show '-' not '~'."""
+    change = {"action": "update", "old": "removed_value"}
+
+    result = _render_field_change("deprecated_field", change)
+
+    assert result is not None
+    assert "`-`" in result
+    assert "`~`" not in result
 
 
 def test_render_field_change_long_strings_truncated() -> None:

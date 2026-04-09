@@ -8,6 +8,7 @@ from dagshund.format import (
     collect_warnings,
     count_by_action,
     detect_drift_fields,
+    field_action_config,
     filter_resources,
     format_field_suffix,
     format_group_header,
@@ -43,7 +44,7 @@ def _render_field_change(field_name: str, change: FieldChange) -> str | None:
     if suffix is None:
         return None
 
-    cfg = action_config(action)
+    cfg = field_action_config(change)
     return f"  - `{cfg.symbol}` `{field_name}`{suffix}"
 
 

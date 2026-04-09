@@ -12,6 +12,7 @@ from dagshund.format import (
     collect_warnings,
     count_by_action,
     detect_drift_fields,
+    field_action_config,
     filter_resources,
     format_display_value,
     format_field_suffix,
@@ -61,6 +62,7 @@ _DISPLAY_COLORS: dict[str, str] = {
     "recreate": YELLOW,
     "resize": YELLOW,
     "update_id": YELLOW,
+    "remote": DIM,
     "unchanged": DIM,
     "unknown": RESET,
 }
@@ -154,7 +156,7 @@ def _render_field_change(
     if suffix is None:
         return None
 
-    field_config = action_config(action)
+    field_config = field_action_config(change)
     prefix = f"      {field_config.symbol} {field_name}"
     line = f"{prefix}{suffix}"
 
