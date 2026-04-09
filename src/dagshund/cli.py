@@ -20,22 +20,22 @@ from dagshund import (
 
 EPILOG = """\
 examples:
-  dagshund plan.json                              terminal diff summary (default)
-  dagshund plan.json --format md                  markdown diff summary
-  dagshund plan.json -o output.html               HTML + terminal output
-  dagshund plan.json -o output.html -b            HTML + browser + terminal output
-  dagshund plan.json -o out.html --format md      HTML file + markdown to stdout
-  dagshund plan.json -q -o out.html -e            HTML + exit code, no terminal output
+  dagshund plan.json                                  terminal diff summary (default)
+  dagshund plan.json --format md                      markdown diff summary
+  dagshund plan.json -o output.html                   HTML + terminal output
+  dagshund plan.json -o output.html -b                HTML + browser + terminal output
+  dagshund plan.json -o out.html --format md          HTML file + markdown to stdout
+  dagshund plan.json -q -o out.html -e                HTML + exit code, no terminal output
   dagshund plan.json -o r.html --format md -e > s.md  CI: HTML + markdown + exit code
-  databricks bundle plan -o json | dagshund       pipe from Databricks CLI
-  cat planfile.json | dagshund                    pipe from existing planfile
+  databricks bundle plan -o json | dagshund           pipe from Databricks CLI
+  cat planfile.json | dagshund                        pipe from existing planfile
 
 filter expressions:
-  dagshund plan.json -f 'type:jobs'               show only jobs
-  dagshund plan.json -f 'status:added'            show only new resources
-  dagshund plan.json -f '"etl_pipeline"'           exact name match
-  dagshund plan.json -f 'type:jobs pipeline'      combined: jobs matching "pipeline"
-  dagshund plan.json -f 'field:email'             match field change keys (e.g. task keys)
+  dagshund plan.json -f 'type:jobs'                   show only jobs
+  dagshund plan.json -f 'status:added'                show only new resources
+  dagshund plan.json -f '"etl_pipeline"'              exact name match
+  dagshund plan.json -f 'type:jobs pipeline'          combined: jobs matching "pipeline"
+  dagshund plan.json -f 'field:email'                 match field change keys (e.g. task keys)
 """
 
 
@@ -106,7 +106,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-c",
         "--changes-only",
         action="store_true",
-        help="Show only changed resources (shorthand for -a -m -r)",
+        help="Show only changed resources (combines -a -m -r)",
     )
     filter_group.add_argument(
         "-a",
@@ -130,7 +130,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-f",
         "--filter",
         metavar="EXPR",
-        help='Filter by search expression (type:X status:X field:X "exact" or fuzzy text)',
+        help="Filter by search expression ('type:X status:X', 'field:X', '\"exact\"', fuzzy)",
     )
     return parser
 
