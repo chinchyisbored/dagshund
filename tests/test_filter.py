@@ -3,6 +3,7 @@ import pytest
 from dagshund.filter import (
     _classify_token,
     _ExactToken,
+    _FieldToken,
     _FuzzyToken,
     _match_token,
     _parse_filter_query,
@@ -64,6 +65,14 @@ def test_classify_empty_type_value_returns_none() -> None:
 
 def test_classify_empty_status_value_returns_none() -> None:
     assert _classify_token("status:") is None
+
+
+def test_classify_field_token() -> None:
+    assert _classify_token("field:tasks") == _FieldToken(value="tasks")
+
+
+def test_classify_empty_field_value_returns_none() -> None:
+    assert _classify_token("field:") is None
 
 
 def test_classify_empty_quoted_string_returns_fuzzy() -> None:
@@ -138,6 +147,52 @@ def test_match_fuzzy_token_no_match() -> None:
     assert not _match_token(_FuzzyToken(value="xyz"), "resources.jobs.etl_pipeline", {"action": "create"})
 
 
+def test_match_fuzzy_token_does_not_search_field_keys() -> None:
+    """Fuzzy tokens only match resource names, not field change keys."""
+    entry: dict = {
+        "action": "update",
+        "changes": {
+            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": {"action": "update", "old": "a", "new": "b"},
+        },
+    }
+    assert not _match_token(_FuzzyToken(value="sysdata"), "resources.jobs.ibmi_job", entry)
+
+
+def test_match_field_token_substring_match() -> None:
+    entry: dict = {
+        "action": "update",
+        "changes": {
+            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": {"action": "update", "old": "a", "new": "b"},
+        },
+    }
+    assert _match_token(_FieldToken(value="sysdata"), "resources.jobs.ibmi_job", entry)
+
+
+def test_match_field_token_no_match() -> None:
+    entry: dict = {
+        "action": "update",
+        "changes": {
+            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": {"action": "update", "old": "a", "new": "b"},
+        },
+    }
+    assert not _match_token(_FieldToken(value="carbtr"), "resources.jobs.ibmi_job", entry)
+
+
+def test_match_field_token_no_changes_dict() -> None:
+    """No crash when entry has no changes dict."""
+    assert not _match_token(_FieldToken(value="task"), "resources.jobs.new_job", {"action": "create"})
+
+
+def test_match_field_token_matches_top_level_field() -> None:
+    entry: dict = {
+        "action": "update",
+        "changes": {
+            "email_notifications": {"action": "update", "old": {}, "new": {"on_failure": ["a@b.com"]}},
+        },
+    }
+    assert _match_token(_FieldToken(value="email"), "resources.jobs.my_job", entry)
+
+
 def test_match_fuzzy_token_case_insensitive() -> None:
     assert _match_token(_FuzzyToken(value="pipeline"), "resources.jobs.ETL_Pipeline", {"action": "create"})
 
@@ -207,3 +262,20 @@ def test_build_query_predicate_fuzzy_match() -> None:
     assert predicate("resources.jobs.etl_pipeline", {"action": "create"})
     assert predicate("resources.jobs.data_pipeline", {"action": "create"})
     assert not predicate("resources.jobs.etl_job", {"action": "create"})
+
+
+def test_build_query_predicate_field_token_composes_with_type() -> None:
+    predicate = build_query_predicate("type:jobs field:email")
+    entry_with_email: dict = {
+        "action": "update",
+        "changes": {"email_notifications": {"action": "update", "old": {}, "new": {"on_failure": ["a@b.com"]}}},
+    }
+    entry_without_email: dict = {
+        "action": "update",
+        "changes": {"storage_location": {"action": "update", "old": "/a", "new": "/b"}},
+    }
+
+    assert predicate is not None
+    assert predicate("resources.jobs.my_job", entry_with_email)
+    assert not predicate("resources.jobs.my_job", entry_without_email)
+    assert not predicate("resources.volumes.raw_data", entry_with_email)

@@ -35,6 +35,7 @@ filter expressions:
   dagshund plan.json -f 'status:added'            show only new resources
   dagshund plan.json -f '"etl_pipeline"'           exact name match
   dagshund plan.json -f 'type:jobs pipeline'      combined: jobs matching "pipeline"
+  dagshund plan.json -f 'field:email'             match field change keys (e.g. task keys)
 """
 
 
@@ -129,7 +130,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-f",
         "--filter",
         metavar="EXPR",
-        help='Filter by search expression (type:X status:X "exact" or fuzzy text)',
+        help='Filter by search expression (type:X status:X field:X "exact" or fuzzy text)',
     )
     return parser
 

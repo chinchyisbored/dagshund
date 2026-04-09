@@ -440,6 +440,16 @@ def test_filter_composes_with_changes_only(fixtures_dir: Path) -> None:
     assert "jobs" not in result.stdout
 
 
+def test_filter_field_matches_change_keys(fixtures_dir: Path) -> None:
+    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "field:email")
+
+    assert result.returncode == 0
+    assert "data_quality_pipeline" in result.stdout
+    assert "etl_pipeline" in result.stdout
+    assert "volumes" not in result.stdout
+    assert "alerts" not in result.stdout
+
+
 def test_filter_no_matches_produces_no_output(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "type:nonexistent")
 

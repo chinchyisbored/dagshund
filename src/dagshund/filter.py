@@ -1,8 +1,9 @@
 """Search DSL for filtering plan resources.
 
-Grammar matches the browser search DSL (js/src/utils/search-query-parser.ts):
+Grammar extends the browser search DSL (js/src/utils/search-query-parser.ts):
   type:X       — substring match against resource type (e.g. type:jobs)
   status:X     — exact match against diff state (added/modified/removed/unchanged)
+  field:X      — substring match against field change keys (e.g. field:email)
   "exact"      — exact match against resource name
   bare words   — substring match against resource name
 
@@ -33,11 +34,16 @@ class _ExactToken:
 
 
 @dataclass(frozen=True, slots=True)
+class _FieldToken:
+    value: str
+
+
+@dataclass(frozen=True, slots=True)
 class _FuzzyToken:
     value: str
 
 
-type _SearchToken = _TypeToken | _StatusToken | _ExactToken | _FuzzyToken
+type _SearchToken = _TypeToken | _StatusToken | _FieldToken | _ExactToken | _FuzzyToken
 
 
 def _tokenize(query: str) -> list[str]:
@@ -55,6 +61,9 @@ def _classify_token(raw: str) -> _SearchToken | None:
     if raw.startswith("status:"):
         value = raw[7:]
         return _StatusToken(value=value) if value else None
+    if raw.startswith("field:"):
+        value = raw[6:]
+        return _FieldToken(value=value) if value else None
     return _FuzzyToken(value=raw)
 
 
@@ -62,6 +71,14 @@ def _parse_filter_query(query: str) -> list[_SearchToken]:
     """Parse a filter query string into structured search tokens."""
     lowered = query.lower().strip()
     return [token for raw in _tokenize(lowered) if (token := _classify_token(raw)) is not None]
+
+
+def _has_matching_field_key(value: str, entry: ResourceChange) -> bool:
+    """Check if any field change key contains the search value."""
+    changes = entry.get("changes")
+    if not isinstance(changes, dict):
+        return False
+    return any(value in field_key.lower() for field_key in changes)
 
 
 def _match_token(token: _SearchToken, key: ResourceKey, entry: ResourceChange) -> bool:
@@ -72,6 +89,8 @@ def _match_token(token: _SearchToken, key: ResourceKey, entry: ResourceChange) -
             return value in resource_type.lower()
         case _StatusToken(value=value):
             return action_to_diff_state(entry.get("action", "")).value == value
+        case _FieldToken(value=value):
+            return _has_matching_field_key(value, entry)
         case _ExactToken(value=value):
             return resource_name.lower() == value
         case _FuzzyToken(value=value):
