@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Empty — all resources removed. Everything shows as "delete".
+bundle:
+  name: dagshund-golden-all-destroy
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml

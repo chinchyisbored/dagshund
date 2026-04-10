@@ -306,12 +306,12 @@ def test_render_markdown_empty_plan_raises_error() -> None:
 
 
 def test_render_markdown_no_changes(fixtures_dir: Path) -> None:
-    plan = json.loads((fixtures_dir / "no-changes-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "no-changes" / "plan.json").read_text())
 
     result = render_markdown(plan)
 
     assert "No changes" in result
-    assert "8 resources unchanged" in result
+    assert "5 resources unchanged" in result
     assert "###" in result
 
 
@@ -321,14 +321,14 @@ def test_render_markdown_complex_plan(real_plan_json: str) -> None:
     assert "### dagshund plan" in result
     assert "#### jobs" in result
     assert "`jobs/etl_pipeline`" in result
-    assert "**+4** create" in result
+    assert "**+2** create" in result
     assert "**-1** delete" in result
     assert "> [!CAUTION]" in result
-    assert "registered_models/quality_metrics" in result
+    assert "volumes/old_exports" in result
 
 
 def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
-    plan = json.loads((fixtures_dir / "drift-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "manual-drift" / "plan.json").read_text())
 
     result = render_markdown(plan)
 
@@ -339,7 +339,7 @@ def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
 
 
 def test_render_markdown_with_visible_states(fixtures_dir: Path) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     result = render_markdown(plan, visible_states=frozenset({DiffState.ADDED}))
 
@@ -348,7 +348,7 @@ def test_render_markdown_with_visible_states(fixtures_dir: Path) -> None:
 
 
 def test_render_markdown_with_filter_query(fixtures_dir: Path) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     result = render_markdown(plan, filter_query="type:alerts")
 
@@ -363,7 +363,7 @@ def test_render_markdown_returns_string_not_none(real_plan_json: str) -> None:
 
 
 def test_render_markdown_mixed_plan(fixtures_dir: Path) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     result = render_markdown(plan)
 

@@ -868,13 +868,13 @@ def test_render_text_missing_plan_key_raises_error() -> None:
 
 
 def test_render_text_all_unchanged_shows_no_changes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "no-changes-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "no-changes" / "plan.json").read_text())
 
     render_text(plan)
 
     out = capsys.readouterr().out
     assert "No changes" in out
-    assert "8 resources unchanged" in out
+    assert "5 resources unchanged" in out
     # Should NOT list individual resources
     assert "alerts" not in out
     assert "(skip)" not in out
@@ -894,7 +894,7 @@ def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFix
 
 
 def test_render_text_mixed_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     render_text(plan)
 
@@ -905,7 +905,7 @@ def test_render_text_mixed_plan_fixture(fixtures_dir: Path, capsys: pytest.Captu
 
 
 def test_render_text_sample_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "sample-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "all-create" / "plan.json").read_text())
 
     render_text(plan)
 
@@ -1117,7 +1117,7 @@ def test_print_resource_groups_no_visible_states_shows_all(
 
 
 def test_render_text_changes_only_hides_unchanged(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
     all_changes = frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
 
     render_text(plan, visible_states=all_changes)
@@ -1126,16 +1126,15 @@ def test_render_text_changes_only_hides_unchanged(fixtures_dir: Path, capsys: py
     # Changed resources visible
     assert "alerts/stale_pipeline_alert" in out
     assert "experiments/audit_analysis_final" in out
-    assert "volumes/external_imports" in out
-    # Unchanged groups hidden
-    assert "jobs" not in out
-    assert "schemas" not in out
+    assert "volumes/old_exports" in out
+    # Individual unchanged resources hidden
+    assert "volumes/raw_data" not in out
     # Summary excludes unchanged when filtering
     assert "unchanged" not in out
 
 
 def test_render_text_added_only_shows_creates(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     render_text(plan, visible_states=frozenset({DiffState.ADDED}))
 
@@ -1144,22 +1143,22 @@ def test_render_text_added_only_shows_creates(fixtures_dir: Path, capsys: pytest
     assert "(create)" in out
     # No modified or deleted
     assert "alerts/stale_pipeline_alert" not in out
-    assert "volumes/external_imports" not in out
+    assert "volumes/old_exports" not in out
 
 
 def test_render_text_removed_only_shows_deletes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     render_text(plan, visible_states=frozenset({DiffState.REMOVED}))
 
     out = capsys.readouterr().out
-    assert "volumes/external_imports" in out
+    assert "volumes/old_exports" in out
     assert "(delete)" in out
     assert "experiments" not in out
 
 
 def test_render_text_no_visible_states_shows_everything(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     render_text(plan)
 
@@ -1320,18 +1319,18 @@ def test_print_warnings_no_color_when_disabled(capsys: pytest.CaptureFixture[str
 
 
 def test_render_text_shows_warning_for_volume_delete(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     render_text(plan)
 
     out = capsys.readouterr().out
     assert "\u26a0" in out
-    assert "volumes/external_imports" in out
+    assert "volumes/old_exports" in out
     assert "deleted" in out
 
 
 def test_render_text_warning_appears_after_summary(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     render_text(plan)
 
@@ -1358,7 +1357,7 @@ def test_render_text_no_warnings_for_safe_plan(capsys: pytest.CaptureFixture[str
 
 
 def test_render_text_warning_hidden_when_filtered_out(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-plan.json").read_text())
+    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
 
     render_text(plan, visible_states=frozenset({DiffState.ADDED}))
 

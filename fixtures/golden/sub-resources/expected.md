@@ -1,0 +1,14 @@
+### dagshund plan (v2, cli 0.296.0)
+
+#### jobs (1)
+- `~` `jobs/test_job` — update
+  - `~` `permissions.[group_name='admins'].level`: "CAN_MANAGE" -> "CAN_MANAGE_RUN"
+  - `-` `permissions.[group_name='viewers']`: {level: "CAN_VIEW", group_name: "viewers"}
+
+#### schemas (1)
+- `~` `schemas/analytics` — update
+  - `+` `grants.[principal='data_analysts']`: {2 fields}
+  - `~` `grants.[principal='data_engineers'].privileges`: ["CREATE_TABLE", "USE_SCHEMA"] -> ["CREATE_TABLE", "MODIFY", "USE_SCHEMA"]
+  - `-` `grants.[principal='data_readers']`: {2 fields}
+
+**~2** update

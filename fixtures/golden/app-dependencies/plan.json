@@ -1,0 +1,288 @@
+{
+  "plan_version": 2,
+  "cli_version": "0.296.0",
+  "lineage": "1af0ace4-ca91-4c7e-b7ff-4bd3e1edd383",
+  "serial": 1,
+  "plan": {
+    "resources.apps.my_test_app": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.my_etl_job",
+          "label": "${resources.jobs.my_etl_job.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "app_status": {
+          "message": "App status is unavailable.",
+          "state": "UNAVAILABLE"
+        },
+        "compute_size": "MEDIUM",
+        "compute_status": {
+          "message": "Start the app compute to deploy the app.",
+          "state": "STOPPED"
+        },
+        "create_time": "2026-04-10T00:32:03Z",
+        "creator": "user1@example.com",
+        "description": "Test app with all resource dependency types",
+        "id": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6",
+        "name": "my-test-app",
+        "oauth2_app_client_id": "7b19c236-d456-4838-b506-690b23830bf7",
+        "oauth2_app_integration_id": "7b19c236-d456-4838-b506-690b23830bf7",
+        "resources": [
+          {
+            "job": {
+              "id": "388791687332024",
+              "permission": "CAN_MANAGE_RUN"
+            },
+            "name": "etl_job"
+          },
+          {
+            "name": "warehouse",
+            "sql_warehouse": {
+              "id": "9d0afa601cb95187",
+              "permission": "CAN_USE"
+            }
+          },
+          {
+            "name": "volume_data",
+            "uc_securable": {
+              "permission": "READ_VOLUME",
+              "securable_full_name": "dagshund.models.a_volume",
+              "securable_type": "VOLUME"
+            }
+          }
+        ],
+        "service_principal_client_id": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6",
+        "service_principal_id": 79105071584279,
+        "service_principal_name": "app-4u0gcs my-test-app",
+        "update_time": "2026-04-10T00:32:12Z",
+        "updater": "user1@example.com",
+        "url": "https://my-test-app-7474654640708173.aws.databricksapps.com"
+      },
+      "changes": {
+        "app_status": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": {
+            "message": "App status is unavailable.",
+            "state": "UNAVAILABLE"
+          }
+        },
+        "compute_size": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "MEDIUM"
+        },
+        "compute_status": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": {
+            "message": "Start the app compute to deploy the app.",
+            "state": "STOPPED"
+          }
+        },
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-04-10T00:32:03Z"
+        },
+        "creator": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6"
+        },
+        "oauth2_app_client_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "7b19c236-d456-4838-b506-690b23830bf7"
+        },
+        "oauth2_app_integration_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "7b19c236-d456-4838-b506-690b23830bf7"
+        },
+        "service_principal_client_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6"
+        },
+        "service_principal_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": 79105071584279
+        },
+        "service_principal_name": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "app-4u0gcs my-test-app"
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-04-10T00:32:12Z"
+        },
+        "updater": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "url": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "https://my-test-app-7474654640708173.aws.databricksapps.com"
+        }
+      }
+    },
+    "resources.experiments.my_experiment": {
+      "action": "skip",
+      "remote_state": {
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/4139778911287693",
+        "creation_time": 1775781122093,
+        "experiment_id": "4139778911287693",
+        "last_update_time": 1775781122093,
+        "lifecycle_stage": "active",
+        "name": "/experiments/my_experiment",
+        "tags": [
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.experiment.sourceName",
+            "value": "/experiments/my_experiment"
+          },
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.ownerEmail",
+            "value": "user1@example.com"
+          },
+          {
+            "key": "mlflow.experimentType",
+            "value": "MLFLOW_EXPERIMENT"
+          }
+        ]
+      },
+      "changes": {
+        "artifact_location": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "dbfs:/databricks/mlflow-tracking/4139778911287693"
+        },
+        "name": {
+          "action": "skip",
+          "reason": "alias",
+          "old": "/Workspace/experiments/my_experiment",
+          "new": "/Workspace/experiments/my_experiment",
+          "remote": "/experiments/my_experiment"
+        },
+        "tags": {
+          "action": "skip",
+          "reason": "terraform_compat",
+          "remote": [
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.experiment.sourceName",
+              "value": "/experiments/my_experiment"
+            },
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.ownerEmail",
+              "value": "user1@example.com"
+            },
+            {
+              "key": "mlflow.experimentType",
+              "value": "MLFLOW_EXPERIMENT"
+            }
+          ]
+        }
+      }
+    },
+    "resources.jobs.my_etl_job": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1775781122198,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-app-deps/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 388791687332024,
+        "max_concurrent_runs": 1,
+        "name": "my_etl_job",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/app/run",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "run",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='run'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='run'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='run'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='run'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    }
+  }
+}

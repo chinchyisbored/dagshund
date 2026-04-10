@@ -202,6 +202,10 @@ bun install -g pyright typescript-language-server typescript
 
 The plugins are already configured in `.claude/settings.json`.
 
+### Fixtures
+
+Test fixtures live in `fixtures/golden/` and are regenerated from a real Databricks workspace using the scripts in `fixtures/tooling/`. See [`fixtures/README.md`](fixtures/README.md) for the full workflow.
+
 ## License
 
 MIT

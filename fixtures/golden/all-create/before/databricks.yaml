@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Empty baseline — deploys bundle tracking with no resources.
+# After planning with the "after" config, every resource shows as "create".
+bundle:
+  name: dagshund-golden-all-create
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml

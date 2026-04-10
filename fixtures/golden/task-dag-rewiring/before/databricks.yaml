@@ -1,0 +1,123 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Baseline for 18 depends_on mutation scenarios across two jobs.
+# etl_pipeline: linear chain with conditional branch (fan-out + fan-in).
+# data_pipeline: complex DAG covering add/remove/swap/grow/shrink/reorder.
+bundle:
+  name: dagshund-golden-task-dag-rewiring
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  jobs:
+    etl_pipeline:
+      name: etl_pipeline_dag_test
+      tasks:
+        - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/extract
+
+        - task_key: load
+          depends_on:
+            - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/load
+
+        - task_key: check_row_count
+          depends_on:
+            - task_key: load
+          notebook_task:
+            notebook_path: /Workspace/etl/check_row_count
+
+        - task_key: skip_validation
+          depends_on:
+            - task_key: check_row_count
+          notebook_task:
+            notebook_path: /Workspace/etl/skip_validation
+
+        - task_key: full_validation
+          depends_on:
+            - task_key: check_row_count
+          notebook_task:
+            notebook_path: /Workspace/etl/full_validation
+
+        - task_key: publish
+          depends_on:
+            - task_key: full_validation
+            - task_key: skip_validation
+          notebook_task:
+            notebook_path: /Workspace/etl/publish
+
+    data_pipeline:
+      name: data_pipeline_dep_test
+      tasks:
+        - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/data/ingest
+
+        - task_key: standby
+          notebook_task:
+            notebook_path: /Workspace/data/standby
+
+        - task_key: monitor
+          notebook_task:
+            notebook_path: /Workspace/data/monitor
+
+        - task_key: normalize
+          depends_on:
+            - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/data/normalize
+
+        - task_key: clean
+          depends_on:
+            - task_key: normalize
+          notebook_task:
+            notebook_path: /Workspace/data/clean
+
+        - task_key: filter
+          depends_on:
+            - task_key: standby
+          notebook_task:
+            notebook_path: /Workspace/data/filter
+
+        - task_key: validate
+          depends_on:
+            - task_key: clean
+          notebook_task:
+            notebook_path: /Workspace/data/validate
+
+        - task_key: enrich
+          depends_on:
+            - task_key: validate
+          notebook_task:
+            notebook_path: /Workspace/data/enrich
+
+        - task_key: process_a
+          depends_on:
+            - task_key: clean
+            - task_key: filter
+          notebook_task:
+            notebook_path: /Workspace/data/process_a
+
+        - task_key: process_b
+          depends_on:
+            - task_key: clean
+            - task_key: filter
+          notebook_task:
+            notebook_path: /Workspace/data/process_b
+
+        - task_key: combine
+          depends_on:
+            - task_key: process_a
+            - task_key: process_b
+          notebook_task:
+            notebook_path: /Workspace/data/combine
+
+        - task_key: output
+          depends_on:
+            - task_key: combine
+          notebook_task:
+            notebook_path: /Workspace/data/output

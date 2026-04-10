@@ -1,0 +1,113 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 4,
+      "by_kind": {
+        "job": 1,
+        "task": 3
+      }
+    },
+    "edges": {
+      "total": 2
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 35,
+      "by_kind": {
+        "root": 4,
+        "resource": 22,
+        "phantom": 9
+      }
+    },
+    "edges": {
+      "total": 40,
+      "dag": 33,
+      "lateral": 7
+    },
+    "laterals": [
+      {
+        "source": "catalog::lakebase_analytics",
+        "target": "resources.database_instances.analytics_db",
+        "diffState": "unchanged"
+      },
+      {
+        "source": "resources.synced_database_tables.customer_360",
+        "target": "resources.database_instances.analytics_db",
+        "diffState": "unchanged"
+      },
+      {
+        "source": "resources.synced_database_tables.customer_360",
+        "target": "source-table::dagshund.analytics.customer_profiles",
+        "diffState": "unchanged"
+      },
+      {
+        "source": "resources.synced_database_tables.partner_metrics",
+        "target": "database-instance::reporting_db",
+        "diffState": "unchanged"
+      },
+      {
+        "source": "resources.synced_database_tables.partner_metrics",
+        "target": "source-table::dagshund.integrations.partner_rollup",
+        "diffState": "unchanged"
+      },
+      {
+        "source": "resources.synced_database_tables.product_events",
+        "target": "resources.database_instances.analytics_db",
+        "diffState": "unchanged"
+      },
+      {
+        "source": "resources.synced_database_tables.product_events",
+        "target": "source-table::dagshund.analytics.product_interactions",
+        "diffState": "unchanged"
+      }
+    ],
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      },
+      {
+        "id": "database-instance::reporting_db",
+        "label": "reporting_db",
+        "resourceKey": "resources.database_instances.reporting_db"
+      },
+      {
+        "id": "postgres-branch::warehouse-replica/archive",
+        "label": "archive",
+        "resourceKey": "postgres-branch::warehouse-replica/archive"
+      },
+      {
+        "id": "schema::dagshund.integrations",
+        "label": "integrations",
+        "resourceKey": "schema::dagshund.integrations"
+      },
+      {
+        "id": "schema::lakebase_analytics.analytics_data",
+        "label": "analytics_data",
+        "resourceKey": "schema::lakebase_analytics.analytics_data"
+      },
+      {
+        "id": "schema::production.warehouse",
+        "label": "warehouse",
+        "resourceKey": "schema::production.warehouse"
+      },
+      {
+        "id": "source-table::dagshund.analytics.customer_profiles",
+        "label": "customer_profiles",
+        "resourceKey": "source-table::dagshund.analytics.customer_profiles"
+      },
+      {
+        "id": "source-table::dagshund.analytics.product_interactions",
+        "label": "product_interactions",
+        "resourceKey": "source-table::dagshund.analytics.product_interactions"
+      },
+      {
+        "id": "source-table::dagshund.integrations.partner_rollup",
+        "label": "partner_rollup",
+        "resourceKey": "source-table::dagshund.integrations.partner_rollup"
+      }
+    ]
+  }
+}

@@ -2,6 +2,7 @@ root := justfile_directory()
 js_dir := root / "js"
 py_src := root / "src"
 py_tests := root / "tests"
+py_tooling := root / "fixtures" / "tooling"
 
 [private]
 default:
@@ -14,7 +15,7 @@ install:
     uv run prek install
 
 # Start JS dev server in background (plan file path relative to repo root)
-dev plan_file="fixtures/complex-plan.json":
+dev plan_file="fixtures/golden/mixed-changes/plan.json":
     #!/usr/bin/env bash
     bun run --cwd {{js_dir}} build:css
     bunx --cwd {{js_dir}} @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch &>/dev/null &
@@ -76,15 +77,15 @@ test-py filter="":
 
 # Lint Python with ruff
 lint-py:
-    uv run ruff check --fix {{py_src}} {{py_tests}}
+    uv run ruff check --fix {{py_src}} {{py_tests}} {{py_tooling}}
 
 # Format Python with ruff
 format-py:
-    uv run ruff format {{py_src}} {{py_tests}}
+    uv run ruff format {{py_src}} {{py_tests}} {{py_tooling}}
 
 # Typecheck Python with ty
 typecheck-py:
-    uv run ty check {{py_src}} {{py_tests}}
+    uv run ty check {{py_src}} {{py_tests}} {{py_tooling}}
 
 # Run all tests
 test: test-js test-py
@@ -100,14 +101,18 @@ typecheck: typecheck-js typecheck-py
 
 # Check golden files against current output
 test-golden:
-    ./tests/golden/smoke.sh check
-
-# Regenerate golden files from current source
-update-golden:
-    ./tests/golden/smoke.sh generate
+    {{py_tooling}}/generate_expected.sh --check
 
 # Run all quality gates (lint + typecheck + test + golden)
 check: lint typecheck test test-golden
+
+# Regenerate golden fixture(s) from Databricks (local only, requires auth)
+regen name="--all":
+    {{py_tooling}}/regen.sh "{{name}}"
+
+# Generate expected output for golden fixture(s)
+gen-expected name="--all":
+    {{py_tooling}}/generate_expected.sh "{{name}}"
 
 # Run pre-commit hooks on all files
 hooks-run:

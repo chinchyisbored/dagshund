@@ -30,7 +30,7 @@ def test_main_version_flag_prints_version() -> None:
 
 
 def test_main_text_mode_with_file_prints_output(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
     assert "create" in result.stdout
@@ -95,7 +95,7 @@ def test_main_text_mode_with_file(
     fixtures_dir: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "complex-plan.json")])
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "mixed-changes" / "plan.json")])
 
     main()
 
@@ -123,7 +123,7 @@ def test_main_output_flag_writes_html(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     output = tmp_path / "out.html"
-    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "complex-plan.json"), "-o", str(output)])
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "mixed-changes" / "plan.json"), "-o", str(output)])
 
     main()
 
@@ -142,7 +142,7 @@ def test_main_browser_flag_opens_browser(
     output = tmp_path / "out.html"
     monkeypatch.setattr(
         "sys.argv",
-        ["dagshund", str(fixtures_dir / "complex-plan.json"), "-o", str(output), "-b"],
+        ["dagshund", str(fixtures_dir / "mixed-changes" / "plan.json"), "-o", str(output), "-b"],
     )
 
     # Pre-import so monkeypatch can target the cached module object.
@@ -162,7 +162,7 @@ def test_main_browser_without_output_exits_with_error(
     monkeypatch: pytest.MonkeyPatch,
     fixtures_dir: Path,
 ) -> None:
-    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "complex-plan.json"), "-b"])
+    monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "mixed-changes" / "plan.json"), "-b"])
 
     with pytest.raises(SystemExit) as exc_info:
         main()
@@ -220,19 +220,19 @@ def test_main_stdin_with_output_flag_writes_html(
 
 
 def test_detailed_exitcode_no_changes_exits_zero(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "no-changes-plan.json"), "--detailed-exitcode")
+    result = _run_dagshund(str(fixtures_dir / "no-changes" / "plan.json"), "--detailed-exitcode")
 
     assert result.returncode == 0
 
 
 def test_detailed_exitcode_with_safe_changes_exits_two(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "job-only-change-plan.json"), "--detailed-exitcode")
+    result = _run_dagshund(str(fixtures_dir / "task-dag-rewiring" / "plan.json"), "--detailed-exitcode")
 
     assert result.returncode == 2
 
 
 def test_detailed_exitcode_with_dangerous_action_exits_three(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--detailed-exitcode")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "--detailed-exitcode")
 
     assert result.returncode == 3
 
@@ -244,13 +244,13 @@ def test_detailed_exitcode_error_exits_one() -> None:
 
 
 def test_detailed_exitcode_with_manual_edits_exits_three(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "drift-plan.json"), "--detailed-exitcode")
+    result = _run_dagshund(str(fixtures_dir / "manual-drift" / "plan.json"), "--detailed-exitcode")
 
     assert result.returncode == 3
 
 
 def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
 
     assert result.returncode == 0
 
@@ -259,7 +259,7 @@ def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> Non
 
 
 def test_debug_flag_traces_all_functions(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-d")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-d")
 
     assert result.returncode == 0
     assert "→ _read_plan" in result.stderr
@@ -272,7 +272,7 @@ def test_debug_flag_traces_all_functions(fixtures_dir: Path) -> None:
 
 def test_debug_env_var_traces_all_functions(fixtures_dir: Path) -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "dagshund", str(fixtures_dir / "complex-plan.json")],
+        [sys.executable, "-m", "dagshund", str(fixtures_dir / "mixed-changes" / "plan.json")],
         capture_output=True,
         text=True,
         env={**os.environ, "DAGSHUND_DEBUG": "1"},
@@ -284,7 +284,7 @@ def test_debug_env_var_traces_all_functions(fixtures_dir: Path) -> None:
 
 
 def test_no_debug_flag_no_trace_on_stderr(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
 
     assert result.returncode == 0
     assert "→" not in result.stderr
@@ -294,7 +294,7 @@ def test_no_debug_flag_no_trace_on_stderr(fixtures_dir: Path) -> None:
 
 
 def test_subprocess_stdin_pipe_prints_text(fixtures_dir: Path) -> None:
-    plan_json = (fixtures_dir / "complex-plan.json").read_text()
+    plan_json = (fixtures_dir / "mixed-changes" / "plan.json").read_text()
 
     result = _run_dagshund(stdin=plan_json)
 
@@ -305,7 +305,7 @@ def test_subprocess_stdin_pipe_prints_text(fixtures_dir: Path) -> None:
 def test_subprocess_output_flag_writes_html(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
     output = tmp_path / "out.html"
 
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-o", str(output))
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-o", str(output))
 
     assert result.returncode == 0
     assert output.exists()
@@ -347,19 +347,18 @@ def test_build_visible_states_changes_only_overrides_individual() -> None:
 
 
 def test_changes_only_flag_hides_unchanged(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-c")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-c")
 
     assert result.returncode == 0
     assert "alerts/stale_pipeline_alert" in result.stdout
     assert "experiments/audit_analysis_final" in result.stdout
-    assert "volumes/external_imports" in result.stdout
-    # All-unchanged groups hidden
-    assert "\n  jobs" not in result.stdout
-    assert "\n  schemas" not in result.stdout
+    assert "volumes/old_exports" in result.stdout
+    # Individual unchanged resources hidden
+    assert "volumes/raw_data" not in result.stdout
 
 
 def test_added_flag_shows_only_creates(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-a")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-a")
 
     assert result.returncode == 0
     assert "experiments/audit_analysis_final" in result.stdout
@@ -368,15 +367,15 @@ def test_added_flag_shows_only_creates(fixtures_dir: Path) -> None:
 
 
 def test_removed_flag_shows_only_deletes(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-r")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-r")
 
     assert result.returncode == 0
-    assert "volumes/external_imports" in result.stdout
+    assert "volumes/old_exports" in result.stdout
     assert "experiments/audit_analysis_final" not in result.stdout
 
 
 def test_modified_flag_shows_only_updates(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-m")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-m")
 
     assert result.returncode == 0
     assert "alerts/stale_pipeline_alert" in result.stdout
@@ -385,11 +384,11 @@ def test_modified_flag_shows_only_updates(fixtures_dir: Path) -> None:
 
 
 def test_flags_compose_added_and_removed(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-a", "-r")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-a", "-r")
 
     assert result.returncode == 0
     assert "experiments/audit_analysis_final" in result.stdout
-    assert "volumes/external_imports" in result.stdout
+    assert "volumes/old_exports" in result.stdout
     assert "alerts/stale_pipeline_alert" not in result.stdout
 
 
@@ -397,7 +396,7 @@ def test_flags_compose_added_and_removed(fixtures_dir: Path) -> None:
 
 
 def test_filter_by_type_shows_only_matching_type(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "type:alerts")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-f", "type:alerts")
 
     assert result.returncode == 0
     assert "alerts/stale_pipeline_alert" in result.stdout
@@ -406,7 +405,7 @@ def test_filter_by_type_shows_only_matching_type(fixtures_dir: Path) -> None:
 
 
 def test_filter_by_status_shows_only_matching_state(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "status:added")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-f", "status:added")
 
     assert result.returncode == 0
     assert "experiments/audit_analysis_final" in result.stdout
@@ -415,7 +414,7 @@ def test_filter_by_status_shows_only_matching_state(fixtures_dir: Path) -> None:
 
 
 def test_filter_fuzzy_matches_resource_name(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "pipeline")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-f", "pipeline")
 
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
@@ -424,7 +423,7 @@ def test_filter_fuzzy_matches_resource_name(fixtures_dir: Path) -> None:
 
 
 def test_filter_exact_matches_resource_name(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", '"etl_pipeline"')
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-f", '"etl_pipeline"')
 
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
@@ -432,7 +431,7 @@ def test_filter_exact_matches_resource_name(fixtures_dir: Path) -> None:
 
 
 def test_filter_composes_with_changes_only(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-c", "-f", "type:alerts")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-c", "-f", "type:alerts")
 
     assert result.returncode == 0
     assert "alerts/stale_pipeline_alert" in result.stdout
@@ -441,7 +440,7 @@ def test_filter_composes_with_changes_only(fixtures_dir: Path) -> None:
 
 
 def test_filter_field_matches_change_keys(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "field:email")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-f", "field:email")
 
     assert result.returncode == 0
     assert "data_quality_pipeline" in result.stdout
@@ -451,7 +450,7 @@ def test_filter_field_matches_change_keys(fixtures_dir: Path) -> None:
 
 
 def test_filter_no_matches_produces_no_output(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "-f", "type:nonexistent")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-f", "type:nonexistent")
 
     assert result.returncode == 0
     # Header still prints, but no resource groups
@@ -463,7 +462,7 @@ def test_filter_no_matches_produces_no_output(fixtures_dir: Path) -> None:
 
 
 def test_format_md_produces_markdown(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "md")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "--format", "md")
 
     assert result.returncode == 0
     assert "### dagshund plan" in result.stdout
@@ -472,7 +471,7 @@ def test_format_md_produces_markdown(fixtures_dir: Path) -> None:
 
 
 def test_format_md_no_changes(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "no-changes-plan.json"), "--format", "md")
+    result = _run_dagshund(str(fixtures_dir / "no-changes" / "plan.json"), "--format", "md")
 
     assert result.returncode == 0
     assert "No changes" in result.stdout
@@ -481,7 +480,7 @@ def test_format_md_no_changes(fixtures_dir: Path) -> None:
 def test_format_md_with_output_produces_both(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
     output = tmp_path / "out.html"
 
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-o", str(output), "--format", "md")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-o", str(output), "--format", "md")
 
     assert result.returncode == 0
     assert output.exists()
@@ -490,23 +489,23 @@ def test_format_md_with_output_produces_both(require_template: None, fixtures_di
 
 
 def test_format_md_with_detailed_exitcode(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "md", "-e")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "--format", "md", "-e")
 
     assert result.returncode == 3  # dangerous actions present
     assert "### dagshund plan" in result.stdout
 
 
 def test_format_md_with_changes_only(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "--format", "md", "-c")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "--format", "md", "-c")
 
     assert result.returncode == 0
     assert "#### alerts" in result.stdout
-    # Unchanged groups hidden
-    assert "#### jobs" not in result.stdout
+    # Individual unchanged resources hidden
+    assert "volumes/raw_data" not in result.stdout
 
 
 def test_format_md_with_filter(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "mixed-plan.json"), "--format", "md", "-f", "type:alerts")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "--format", "md", "-f", "type:alerts")
 
     assert result.returncode == 0
     assert "#### alerts" in result.stdout
@@ -514,8 +513,8 @@ def test_format_md_with_filter(fixtures_dir: Path) -> None:
 
 
 def test_format_term_explicit_is_default(fixtures_dir: Path) -> None:
-    default = _run_dagshund(str(fixtures_dir / "complex-plan.json"))
-    explicit = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "term")
+    default = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
+    explicit = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "--format", "term")
 
     assert default.stdout == explicit.stdout
 
@@ -523,7 +522,7 @@ def test_format_term_explicit_is_default(fixtures_dir: Path) -> None:
 def test_format_term_with_output_produces_both(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
     output = tmp_path / "out.html"
 
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "--format", "term", "-o", str(output))
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "--format", "term", "-o", str(output))
 
     assert result.returncode == 0
     assert output.exists()
@@ -535,7 +534,7 @@ def test_format_term_with_output_produces_both(require_template: None, fixtures_
 
 
 def test_quiet_suppresses_stdout(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-q")
 
     assert result.returncode == 0
     assert result.stdout == ""
@@ -544,7 +543,7 @@ def test_quiet_suppresses_stdout(fixtures_dir: Path) -> None:
 def test_quiet_with_output_writes_html_only(require_template: None, fixtures_dir: Path, tmp_path: Path) -> None:
     output = tmp_path / "out.html"
 
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "-o", str(output))
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-q", "-o", str(output))
 
     assert result.returncode == 0
     assert output.exists()
@@ -553,19 +552,19 @@ def test_quiet_with_output_writes_html_only(require_template: None, fixtures_dir
 
 
 def test_quiet_with_format_md_errors(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "--format", "md")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-q", "--format", "md")
 
     assert result.returncode == 2  # argparse error code
 
 
 def test_quiet_with_format_term_errors(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "--format", "term")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-q", "--format", "term")
 
     assert result.returncode == 2  # argparse error code
 
 
 def test_quiet_with_detailed_exitcode(fixtures_dir: Path) -> None:
-    result = _run_dagshund(str(fixtures_dir / "complex-plan.json"), "-q", "-e")
+    result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-q", "-e")
 
     assert result.returncode == 3  # dangerous actions present
     assert result.stdout == ""

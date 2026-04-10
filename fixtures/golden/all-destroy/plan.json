@@ -1,0 +1,333 @@
+{
+  "plan_version": 2,
+  "cli_version": "0.296.0",
+  "lineage": "3852f7f8-7d2e-4ab3-9f19-122325f77505",
+  "serial": 1,
+  "plan": {
+    "resources.alerts.stale_pipeline_alert": {
+      "action": "delete",
+      "remote_state": {
+        "create_time": "2026-04-09T23:40:57Z",
+        "display_name": "stale_pipeline_alert",
+        "effective_run_as": {
+          "user_name": "user1@example.com"
+        },
+        "evaluation": {
+          "comparison_operator": "GREATER_THAN",
+          "source": {
+            "name": "count"
+          },
+          "threshold": {
+            "value": {
+              "double_value": 0
+            }
+          }
+        },
+        "id": "1847026944978282",
+        "lifecycle_state": "ACTIVE",
+        "owner_user_name": "user1@example.com",
+        "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-destroy/default/resources",
+        "query_text": "SELECT count(*) AS count FROM dagshund.analytics.raw_data",
+        "schedule": {
+          "quartz_cron_schedule": "0 0 8 * * ?",
+          "timezone_id": "UTC"
+        },
+        "update_time": "2026-04-09T23:40:57Z",
+        "warehouse_id": "9d0afa601cb95187"
+      }
+    },
+    "resources.experiments.audit_analysis": {
+      "action": "delete",
+      "remote_state": {
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/1847026944978281",
+        "creation_time": 1775778057634,
+        "experiment_id": "1847026944978281",
+        "last_update_time": 1775778057634,
+        "lifecycle_stage": "active",
+        "name": "/experiments/audit_analysis",
+        "tags": [
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.experiment.sourceName",
+            "value": "/experiments/audit_analysis"
+          },
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.ownerEmail",
+            "value": "user1@example.com"
+          },
+          {
+            "key": "mlflow.experimentType",
+            "value": "MLFLOW_EXPERIMENT"
+          }
+        ]
+      }
+    },
+    "resources.jobs.data_quality_pipeline": {
+      "action": "delete",
+      "remote_state": {
+        "created_time": 1775778057682,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-destroy/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 474189788850020,
+        "max_concurrent_runs": 1,
+        "name": "data_quality_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "setup_env"
+              }
+            ],
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/check_nulls",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "check_nulls",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_schema"
+              },
+              {
+                "task_key": "check_nulls"
+              }
+            ],
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/generate_report",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "generate_report",
+            "timeout_seconds": 0
+          },
+          {
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/setup_env",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "setup_env",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "setup_env"
+              }
+            ],
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/quality/validate_schema",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate_schema",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      }
+    },
+    "resources.jobs.etl_pipeline": {
+      "action": "delete",
+      "remote_state": {
+        "created_time": 1775778057685,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-destroy/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 860194980766610,
+        "max_concurrent_runs": 1,
+        "name": "etl_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/extract",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "extract",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "transform"
+              }
+            ],
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/load",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "load",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "extract"
+              }
+            ],
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/etl/transform",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "transform",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      }
+    },
+    "resources.registered_models.quality_metrics": {
+      "action": "delete",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "created_at": 1775778057703,
+        "created_by": "user1@example.com",
+        "full_name": "dagshund.models.quality_metrics",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "quality_metrics",
+        "owner": "user1@example.com",
+        "schema_name": "models",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/3b2c388d-4102-43c2-81cc-db8721631544",
+        "updated_at": 1775778057703,
+        "updated_by": "user1@example.com"
+      }
+    },
+    "resources.schemas.analytics": {
+      "action": "delete",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1775778057638,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.analytics",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "analytics",
+        "owner": "user1@example.com",
+        "schema_id": "4015a3a8-ed8c-4b5d-a9db-f8d481873de7",
+        "updated_at": 1775778057638,
+        "updated_by": "user1@example.com"
+      }
+    },
+    "resources.schemas.analytics_staging": {
+      "action": "delete",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1775778057780,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.analytics_staging",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "analytics_staging",
+        "owner": "user1@example.com",
+        "schema_id": "f995ff59-cc4a-44e1-a7c9-31d84bafa6a5",
+        "updated_at": 1775778057780,
+        "updated_by": "user1@example.com"
+      }
+    },
+    "resources.volumes.external_imports": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.analytics_staging",
+          "label": "${resources.schemas.analytics_staging.name}"
+        }
+      ],
+      "action": "delete",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "created_at": 1775778058527,
+        "created_by": "user1@example.com",
+        "encryption_details": {},
+        "full_name": "dagshund.analytics_staging.external_imports",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "external_imports",
+        "owner": "user1@example.com",
+        "schema_name": "analytics_staging",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/6823629e-85ae-40c8-89c9-fd1bcf3c8dca",
+        "updated_at": 1775778058527,
+        "updated_by": "user1@example.com",
+        "volume_id": "6823629e-85ae-40c8-89c9-fd1bcf3c8dca",
+        "volume_type": "MANAGED"
+      }
+    },
+    "resources.volumes.raw_data": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.analytics",
+          "label": "${resources.schemas.analytics.name}"
+        }
+      ],
+      "action": "delete",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "created_at": 1775778058390,
+        "created_by": "user1@example.com",
+        "encryption_details": {},
+        "full_name": "dagshund.analytics.raw_data",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "raw_data",
+        "owner": "user1@example.com",
+        "schema_name": "analytics",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/b627d219-79bf-4dab-84ea-79acc8707d50",
+        "updated_at": 1775778058390,
+        "updated_by": "user1@example.com",
+        "volume_id": "b627d219-79bf-4dab-84ea-79acc8707d50",
+        "volume_type": "MANAGED"
+      }
+    }
+  }
+}

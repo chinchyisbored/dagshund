@@ -356,9 +356,9 @@ describe("buildResourceGraph", () => {
     expect(nodeIds).not.toContain("workspace-root");
   });
 
-  describe("complex-plan.json fixture", () => {
+  describe("mixed-changes fixture", () => {
     test("creates nodes for all 9 resources including jobs", async () => {
-      const plan = await loadFixture("complex-plan.json");
+      const plan = await loadFixture("mixed-changes");
       const graph = buildResourceGraph(plan);
 
       const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
@@ -368,16 +368,16 @@ describe("buildResourceGraph", () => {
       expect(resourceIds).toContain("resources.schemas.analytics");
       expect(resourceIds).toContain("resources.schemas.analytics_staging");
       expect(resourceIds).toContain("resources.volumes.raw_data");
-      expect(resourceIds).toContain("resources.volumes.external_imports");
-      expect(resourceIds).toContain("resources.registered_models.quality_metrics");
+      expect(resourceIds).toContain("resources.volumes.old_exports");
       expect(resourceIds).toContain("resources.alerts.stale_pipeline_alert");
       expect(resourceIds).toContain("resources.experiments.audit_analysis");
+      expect(resourceIds).toContain("resources.experiments.audit_analysis_final");
       expect(resourceIds).toContain("resources.jobs.data_quality_pipeline");
       expect(resourceIds).toContain("resources.jobs.etl_pipeline");
     });
 
     test("creates UC root, catalog phantom, and workspace root nodes", async () => {
-      const plan = await loadFixture("complex-plan.json");
+      const plan = await loadFixture("mixed-changes");
       const graph = buildResourceGraph(plan);
 
       const rootNodes = graph.nodes.filter((n) => n.nodeKind === "root");
@@ -389,18 +389,16 @@ describe("buildResourceGraph", () => {
       expect(catalog?.nodeKind).toBe("phantom");
     });
 
-    test("deleted model has removed diff state", async () => {
-      const plan = await loadFixture("complex-plan.json");
+    test("deleted volume has removed diff state", async () => {
+      const plan = await loadFixture("mixed-changes");
       const graph = buildResourceGraph(plan);
 
-      const modelNode = graph.nodes.find(
-        (n) => n.id === "resources.registered_models.quality_metrics",
-      );
-      expect(modelNode?.diffState).toBe("removed");
+      const volumeNode = graph.nodes.find((n) => n.id === "resources.volumes.old_exports");
+      expect(volumeNode?.diffState).toBe("removed");
     });
 
     test("volume is linked to analytics schema", async () => {
-      const plan = await loadFixture("complex-plan.json");
+      const plan = await loadFixture("mixed-changes");
       const graph = buildResourceGraph(plan);
 
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
@@ -408,7 +406,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("workspace resources including jobs are linked to workspace root", async () => {
-      const plan = await loadFixture("complex-plan.json");
+      const plan = await loadFixture("mixed-changes");
       const graph = buildResourceGraph(plan);
 
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
@@ -416,24 +414,6 @@ describe("buildResourceGraph", () => {
       expect(edgePairs).toContain("workspace-root→resources.experiments.audit_analysis");
       expect(edgePairs).toContain("workspace-root→resources.jobs.data_quality_pipeline");
       expect(edgePairs).toContain("workspace-root→resources.jobs.etl_pipeline");
-    });
-
-    test("external_imports volume links through phantom schema node", async () => {
-      const plan = await loadFixture("complex-plan.json");
-      const graph = buildResourceGraph(plan);
-
-      // Phantom schema node should exist for dagshund_no_dabs
-      const phantom = graph.nodes.find((n) => n.id === "schema::dagshund.dagshund_no_dabs");
-      expect(phantom).toBeDefined();
-      expect(phantom?.label).toBe("dagshund_no_dabs");
-      expect(phantom?.nodeKind).toBe("phantom");
-
-      // Edge chain: catalog → phantom → volume
-      const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-      expect(edgePairs).toContain("catalog::dagshund→schema::dagshund.dagshund_no_dabs");
-      expect(edgePairs).toContain(
-        "schema::dagshund.dagshund_no_dabs→resources.volumes.external_imports",
-      );
     });
   });
 
@@ -1148,7 +1128,7 @@ describe("mixed plan with UC + workspace + postgres", () => {
 
 describe("all-hierarchies-plan.json fixture", () => {
   test("creates UC, workspace, and postgres root sections (no lakebase-root)", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const rootIds = graph.nodes.filter((n) => n.nodeKind === "root").map((n) => n.id);
@@ -1161,7 +1141,7 @@ describe("all-hierarchies-plan.json fixture", () => {
   });
 
   test("UC hierarchy includes catalogs, schemas, leaf resources, and synced tables", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
@@ -1241,7 +1221,7 @@ describe("all-hierarchies-plan.json fixture", () => {
   });
 
   test("postgres hierarchy has 3-tier chain with phantom branch", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
@@ -1276,7 +1256,7 @@ describe("all-hierarchies-plan.json fixture", () => {
   });
 
   test("database_instance is a flat workspace resource", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
@@ -1289,7 +1269,7 @@ describe("all-hierarchies-plan.json fixture", () => {
   });
 
   test("workspace flat resources are wrapped in other-resources-root", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
@@ -1303,7 +1283,7 @@ describe("all-hierarchies-plan.json fixture", () => {
   });
 
   test("has correct total resource count", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
@@ -1414,7 +1394,7 @@ describe("parseThreePartName", () => {
 
 describe("all-hierarchies synced tables in UC", () => {
   test("synced_database_tables placed under correct catalogs and schemas", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
@@ -1639,7 +1619,7 @@ describe("source table phantom nodes", () => {
 
 describe("sub-resources-plan.json (sub-resource merging)", () => {
   test("merges sub-resource keys into parent resource node", async () => {
-    const plan = await loadFixture("sub-resources-plan.json");
+    const plan = await loadFixture("sub-resources");
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
@@ -1649,7 +1629,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
   });
 
   test("includes non-sub-resource entries", async () => {
-    const plan = await loadFixture("sub-resources-plan.json");
+    const plan = await loadFixture("sub-resources");
     const graph = buildResourceGraph(plan);
 
     const resourceKeys = graph.nodes
@@ -1660,7 +1640,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
   });
 
   test("no edges reference sub-resource keys", async () => {
-    const plan = await loadFixture("sub-resources-plan.json");
+    const plan = await loadFixture("sub-resources");
     const graph = buildResourceGraph(plan);
 
     for (const edge of [...graph.edges, ...graph.lateralEdges]) {
@@ -1672,7 +1652,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
   });
 
   test("parent node has merged permission state from remote_state", async () => {
-    const plan = await loadFixture("sub-resources-plan.json");
+    const plan = await loadFixture("sub-resources");
     const graph = buildResourceGraph(plan);
 
     const jobNode = graph.nodes.find(
@@ -1685,7 +1665,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
   });
 
   test("schema node has merged grants changes", async () => {
-    const plan = await loadFixture("sub-resources-plan.json");
+    const plan = await loadFixture("sub-resources");
     const graph = buildResourceGraph(plan);
 
     const schemaNode = graph.nodes.find(
@@ -1693,6 +1673,6 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
         n.nodeKind === "resource" && n.resourceKey === "resources.schemas.analytics",
     );
     expect(schemaNode).toBeDefined();
-    expect(schemaNode?.changes?.["grants.grants[principal='data_team'].privileges"]).toBeDefined();
+    expect(schemaNode?.changes?.["grants.[principal='data_engineers'].privileges"]).toBeDefined();
   });
 });

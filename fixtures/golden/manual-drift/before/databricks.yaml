@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Drift test — deploy this, then manually edit the job in the Databricks UI
+# before planning. See README.md in this directory.
+bundle:
+  name: dagshund-golden-manual-drift
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  jobs:
+    drift_pipeline:
+      name: drift_pipeline
+      tasks:
+        - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/drift/ingest
+
+        - task_key: transform
+          depends_on:
+            - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/drift/transform
+
+        - task_key: publish
+          depends_on:
+            - task_key: transform
+          notebook_task:
+            notebook_path: /Workspace/drift/publish

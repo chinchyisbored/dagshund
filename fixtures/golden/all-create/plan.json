@@ -1,0 +1,212 @@
+{
+  "plan_version": 2,
+  "cli_version": "0.296.0",
+  "plan": {
+    "resources.alerts.stale_pipeline_alert": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "display_name": "stale_pipeline_alert",
+          "evaluation": {
+            "comparison_operator": "GREATER_THAN",
+            "source": {
+              "name": "count"
+            },
+            "threshold": {
+              "value": {
+                "double_value": 0
+              }
+            }
+          },
+          "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-create/default/resources",
+          "query_text": "SELECT count(*) AS count FROM dagshund.analytics.raw_data",
+          "schedule": {
+            "quartz_cron_schedule": "0 0 8 * * ?",
+            "timezone_id": "UTC"
+          },
+          "warehouse_id": "9d0afa601cb95187"
+        }
+      }
+    },
+    "resources.experiments.audit_analysis": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "name": "/Workspace/experiments/audit_analysis"
+        }
+      }
+    },
+    "resources.jobs.data_quality_pipeline": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-create/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "data_quality_pipeline",
+          "queue": {
+            "enabled": true
+          },
+          "tasks": [
+            {
+              "depends_on": [
+                {
+                  "task_key": "setup_env"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/quality/check_nulls"
+              },
+              "task_key": "check_nulls"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "validate_schema"
+                },
+                {
+                  "task_key": "check_nulls"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/quality/generate_report"
+              },
+              "task_key": "generate_report"
+            },
+            {
+              "notebook_task": {
+                "notebook_path": "/Workspace/quality/setup_env"
+              },
+              "task_key": "setup_env"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "setup_env"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/quality/validate_schema"
+              },
+              "task_key": "validate_schema"
+            }
+          ]
+        }
+      }
+    },
+    "resources.jobs.etl_pipeline": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-create/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "etl_pipeline",
+          "queue": {
+            "enabled": true
+          },
+          "tasks": [
+            {
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/extract"
+              },
+              "task_key": "extract"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "transform"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/load"
+              },
+              "task_key": "load"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "extract"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/etl/transform"
+              },
+              "task_key": "transform"
+            }
+          ]
+        }
+      }
+    },
+    "resources.registered_models.quality_metrics": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "quality_metrics",
+          "schema_name": "models"
+        }
+      }
+    },
+    "resources.schemas.analytics": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "analytics"
+        }
+      }
+    },
+    "resources.schemas.analytics_staging": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "analytics_staging"
+        }
+      }
+    },
+    "resources.volumes.external_imports": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.analytics_staging",
+          "label": "${resources.schemas.analytics_staging.name}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "external_imports",
+          "schema_name": "analytics_staging",
+          "volume_type": "MANAGED"
+        }
+      }
+    },
+    "resources.volumes.raw_data": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.analytics",
+          "label": "${resources.schemas.analytics.name}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "raw_data",
+          "schema_name": "analytics",
+          "volume_type": "MANAGED"
+        }
+      }
+    }
+  }
+}
