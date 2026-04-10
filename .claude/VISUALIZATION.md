@@ -46,18 +46,20 @@ Group nodes that represent inferred/external entities (not in the plan) render w
 
 ```
 js/src/
-  index.ts          — Dev server entry point
-  frontend.tsx      — React entry point
-  App.tsx           — Root React component
-  cli.ts            — JS CLI for static HTML export
-  html-assembler.ts — HTML assembly (escape helpers, template building)
-  parser/           — Plan JSON parsing + Zod validation
-  graph/            — DAG graph construction
-  components/       — React components (each in its own file)
-  types/            — TypeScript types and Zod schemas
-  utils/            — Pure utility functions
-  hooks/            — Custom React hooks
-  styles/           — Tailwind CSS
+  index.ts              — Dev server entry point
+  index.html            — Dev server HTML shell
+  frontend.tsx          — React entry point
+  app.tsx               — Root React component
+  cli.ts                — JS CLI for static HTML export
+  html-assembler.ts     — HTML assembly (escape helpers, template building)
+  dagshund/_assets/     — Bundled template.html for static HTML export
+  parser/               — Plan JSON parsing + Zod validation
+  graph/                — DAG graph construction
+  components/           — React components (each in its own file)
+  types/                — TypeScript types and Zod schemas
+  utils/                — Pure utility functions
+  hooks/                — Custom React hooks
+  styles/               — Tailwind CSS
 ```
 
 Each directory has an `index.ts` barrel export. Keep files small and focused.

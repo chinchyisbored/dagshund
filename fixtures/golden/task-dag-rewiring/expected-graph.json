@@ -1,0 +1,30 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 22,
+      "by_kind": {
+        "job": 2,
+        "task": 20
+      }
+    },
+    "edges": {
+      "total": 28
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 3,
+      "by_kind": {
+        "root": 1,
+        "resource": 2
+      }
+    },
+    "edges": {
+      "total": 2,
+      "dag": 2,
+      "lateral": 0
+    },
+    "laterals": [],
+    "phantoms": []
+  }
+}

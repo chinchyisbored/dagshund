@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=bundle_config_schema.json
+# Shared variables for all golden fixtures.
+# Change these when switching workspaces or rotating resources.
+variables:
+  catalog_name:
+    description: Unity Catalog catalog for all fixture resources
+    default: dagshund
+  warehouse_id:
+    description: SQL warehouse ID for alert resources
+    default: "9d0afa601cb95187"
+  models_schema:
+    description: Pre-existing schema for registered_models
+    default: models
+  volume_name:
+    description: Pre-existing external volume for app uc_securable
+    default: a_volume

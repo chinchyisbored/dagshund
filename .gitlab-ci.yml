@@ -12,34 +12,103 @@ include:
 
 variables:
   SECRET_DETECTION_ENABLED: 'true'
+  AST_ENABLE_MR_PIPELINES: 'true'
   GIT_DEPTH: 1
-  # UV_IMAGE, BUN_VERSION, BUN_SHA256 are protected CI/CD variables in GitLab settings.
+  UV_CACHE_DIR: .uv-cache
+  # UV_IMAGE, OSV_SCANNER_IMAGE, BUN_VERSION, BUN_SHA256 are CI/CD variables
+  # in GitLab settings. Images must be digest-pinned (@sha256:...).
 
-# --- Security (every push to main) ---
-# SAST and secret detection run on branch pushes via template rules.
-# Tag pipelines don't re-run security — the commit was already scanned on push.
+# --- Top-level workflow rules ---
+# Control which pipelines run before individual job rules apply.
+workflow:
+  rules:
+    # Release pipelines: tag pushes always run.
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    # Merge request pipelines: always run the full suite.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Branch push with an open MR: defer to the MR pipeline (no double-run).
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    # Feature-branch / main push: only run when meaningful files changed.
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
+        paths:
+          - 'src/**/*'
+          - 'js/**/*'
+          - 'tests/**/*'
+          - 'fixtures/**/*'
+          - 'plugins/**/*'
+          - 'docs/pages/**/*'
+          - 'pyproject.toml'
+          - 'uv.lock'
+          - 'prek.toml'
+          - '.gitlab-ci.yml'
+          - 'justfile'
+
+# --- Security ---
 
 sast:
-  stage: security
-  allow_failure: false
+  stage: security  # template defaults to `test`; never override rules/script
 
 secret_detection:
   stage: security
+  interruptible: true
   allow_failure: false
 
-# --- Shared setup for release jobs ---
+# --- Dependency vulnerability scan ---
+# OSV-Scanner against uv.lock + js/bun.lock. Hard-fails on known CVEs.
+
+dependency-scan:
+  stage: security
+  image:
+    name: ${OSV_SCANNER_IMAGE}
+    entrypoint: [""]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  interruptible: true
+  allow_failure: false
+  script:
+    # Binary lives at /osv-scanner (not on PATH).
+    - /osv-scanner --lockfile=uv.lock --lockfile=js/bun.lock
+
+# --- Shared setup ---
+# Downloads bun, syncs uv, installs js deps. Release jobs extending this
+# must override `interruptible: false`.
 
 .release-setup:
   image: ${UV_IMAGE}
+  interruptible: true
+  cache:
+    - key:
+        files:
+          - uv.lock
+          - js/bun.lock
+        # Namespace cache by ref protection so MR/feature branches can't
+        # poison the cache entries consumed by protected refs (main, tags).
+        prefix: ${CI_COMMIT_REF_PROTECTED}
+      paths:
+        - .uv-cache/
+        - js/node_modules/
+    # Bun binary cache, keyed on BUN_VERSION.
+    - key: "bun-${BUN_VERSION}-${CI_COMMIT_REF_PROTECTED}"
+      paths:
+        - .cache/bun/
   before_script:
-    - apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null
-    - curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
-    - echo "${BUN_SHA256}  /tmp/bun.zip" | sha256sum --check
-    - unzip -qo /tmp/bun.zip -d /tmp && mv /tmp/bun-linux-x64/bun /usr/local/bin/bun && ln -s bun /usr/local/bin/bunx && rm -rf /tmp/bun.zip /tmp/bun-linux-x64
+    - |
+      if [ ! -x .cache/bun/bun ]; then
+        mkdir -p .cache/bun
+        curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
+        echo "${BUN_SHA256}  /tmp/bun.zip" | sha256sum --check
+        unzip -qo /tmp/bun.zip -d /tmp
+        mv /tmp/bun-linux-x64/bun .cache/bun/bun
+        rm -rf /tmp/bun.zip /tmp/bun-linux-x64
+      fi
+    - install -m 0755 .cache/bun/bun /usr/local/bin/bun
+    - ln -sf bun /usr/local/bin/bunx
     - uv sync --locked
     - bun install --frozen-lockfile --cwd js
 
-# --- Quality gate (every push) ---
+# --- Quality gate (every pipeline) ---
 
 quality:
   extends: .release-setup
@@ -47,13 +116,10 @@ quality:
   rules:
     - when: on_success
   script:
-    # Lint
     - bun run --cwd js biome check src/ tests/
     - uv run ruff check src/ tests/
-    # Typecheck
     - bun run --cwd js tsc --noEmit
     - uv run ty check src/ tests/
-    # Test
     - bun test --cwd js --coverage --coverage-reporter=text
     - uv run pytest --cov=dagshund --cov-report=term-missing
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
@@ -61,7 +127,7 @@ quality:
 # --- Version check (tag push only) ---
 
 version-check:
-  image: alpine:3
+  image: alpine:3.20
   stage: quality
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
@@ -75,15 +141,18 @@ version-check:
       fi
 
 # --- Build wheel (tag push only) ---
+# Release job: interruptible: false, never cancel an in-flight build.
 
 build:
   extends: .release-setup
   stage: build
+  interruptible: false
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   needs:
     - quality
-    - version-check
+    - job: version-check
+      optional: true  # survives future rule-drift between these two jobs
   script:
     - bun run --cwd js build:template
     - cp plugins/dagshund/skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
@@ -94,11 +163,12 @@ build:
       - dist/
     expire_in: 1 hour
 
-# --- Smoke tests (golden-file CLI output checks) ---
+# --- Golden fixture checks (every pipeline) ---
+# Diffs text + markdown + exit codes + graph structure against stored expected
+# files. The graph extractor runs under Bun, so this job needs the full setup.
 
-# Text-only smoke: runs on every push. No Bun needed — text mode has no JS dependency.
-smoke-text:
-  image: ${UV_IMAGE}
+golden:
+  extends: .release-setup
   stage: smoke
   variables:
     NO_COLOR: "1"
@@ -107,15 +177,18 @@ smoke-text:
   needs:
     - quality
   allow_failure: false
-  before_script:
-    - uv sync --locked
   script:
-    - ./tests/golden/smoke.sh check
+    - ./fixtures/tooling/generate_expected.sh --check
 
-# Wheel smoke: runs on tags only. Tests the actual build artifact before release.
+# --- Wheel smoke (tag push only) ---
+# Installs the built wheel into a fresh venv, runs the golden checks against
+# the installed binary, and verifies HTML output baked into the wheel.
+# Extends .release-setup because the graph extractor needs bun + js deps.
+
 smoke-wheel:
-  image: ${UV_IMAGE}
+  extends: .release-setup
   stage: smoke
+  interruptible: false
   variables:
     NO_COLOR: "1"
   rules:
@@ -128,16 +201,24 @@ smoke-wheel:
     - uv venv /tmp/smoke-env
     - uv pip install --python /tmp/smoke-env/bin/python dist/*.whl
     - export PATH="/tmp/smoke-env/bin:$PATH"
-    - DAGSHUND=dagshund ./tests/golden/smoke.sh check
+    # Absolute path so this doesn't silently fall back to `uv run dagshund`
+    # if the PATH export ever gets reordered away from the invocation.
+    - DAGSHUND=/tmp/smoke-env/bin/dagshund ./fixtures/tooling/generate_expected.sh --check
+    # Installed-binary entry-point smoke (string-compare avoids SIGPIPE from grep -q)
+    - '[[ "$(dagshund --version)" == *dagshund* ]]'
+    - 'if dagshund fixtures/golden/broken-json.json >/dev/null 2>&1; then echo "ERROR: broken-json.json should have failed"; exit 1; fi'
     # HTML output (requires template baked into the wheel)
-    - dagshund fixtures/complex-plan.json -o /tmp/smoke-out.html
+    - dagshund fixtures/golden/mixed-changes/plan.json -o /tmp/smoke-out.html
     - test -s /tmp/smoke-out.html
     - grep -q "<html" /tmp/smoke-out.html
 
-# --- Publish via OIDC trusted publishing ---
-# uv natively detects PYPI_ID_TOKEN / TESTPYPI_ID_TOKEN and handles the exchange.
-# Environment claims (release / release-test) are verified on the PyPI side.
-
+# TODO(dagshund-2ge9): adopt PyPI attestations (PEP 740) once GitLab CI has a
+# blessed path. As of 2026-04, producing attestations is GitHub-Actions-first;
+# pypi-attestations is "primarily for experimentation" and the PyPI docs open
+# their manual section with "STOP!". Do not hand-roll sigstore-python here.
+# Watch pypi-attestations + https://docs.pypi.org/attestations/producing-attestations/
+# for a first-class GitLab flow, then wire a SIGSTORE_ID_TOKEN id_tokens block
+# into the build job and sign dist/*.whl before publish.
 publish-test:
   stage: release
   rules:
@@ -179,12 +260,20 @@ pages:
   stage: pages
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+  needs:
+    - quality
+    - golden
   script:
     - bun run --cwd js build:template
     - mkdir -p public
     - cp docs/pages/index.html public/index.html
-    - uv run dagshund fixtures/complex-plan.json -o public/complex.html
-    - uv run dagshund fixtures/all-hierarchies-plan.json -o public/all-hierarchies.html
+    - |
+      for dir in fixtures/golden/*/; do
+        name=$(basename "$dir")
+        if [[ -f "$dir/plan.json" ]]; then
+          uv run dagshund "$dir/plan.json" -o "public/$name.html"
+        fi
+      done
   artifacts:
     paths:
       - public

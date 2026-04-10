@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Mixed diff states: create + delete + update + skip in one plan.
+# - etl_pipeline: update (remove validate, add aggregate + trigger_quality_check, change transform path)
+# - data_quality_pipeline: update (add check_duplicates/check_referential_integrity/anomaly_detection,
+#     rewire deps, remove notify_stakeholders, change params)
+# - analytics schema: skip (unchanged)
+# - analytics_staging schema: create (new)
+# - raw_data volume: skip (unchanged)
+# - old_exports volume: REMOVED (delete)
+# - audit_analysis experiment: skip (unchanged)
+# - audit_analysis_final experiment: create (new)
+# - stale_pipeline_alert: update (change threshold)
+bundle:
+  name: dagshund-golden-mixed-changes
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  jobs:
+    etl_pipeline:
+      name: etl_pipeline
+      tasks:
+        - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/extract
+
+        - task_key: transform
+          depends_on:
+            - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/transform_v2
+
+        - task_key: load
+          depends_on:
+            - task_key: transform
+          notebook_task:
+            notebook_path: /Workspace/etl/load
+
+        # validate REMOVED
+
+        - task_key: aggregate
+          depends_on:
+            - task_key: load
+          notebook_task:
+            notebook_path: /Workspace/etl/aggregate
+
+        - task_key: trigger_quality_check
+          depends_on:
+            - task_key: aggregate
+          run_job_task:
+            job_id: ${resources.jobs.data_quality_pipeline.id}
+
+    data_quality_pipeline:
+      name: data_quality_pipeline
+      tasks:
+        - task_key: setup_env
+          notebook_task:
+            notebook_path: /Workspace/quality/setup_env
+
+        - task_key: validate_schema
+          depends_on:
+            - task_key: setup_env
+          notebook_task:
+            notebook_path: /Workspace/quality/validate_schema
+            base_parameters:
+              sample_size: "10000"
+              strict_mode: "true"
+
+        - task_key: check_nulls
+          depends_on:
+            - task_key: validate_schema
+          notebook_task:
+            notebook_path: /Workspace/quality/check_nulls
+
+        - task_key: check_duplicates
+          depends_on:
+            - task_key: validate_schema
+          notebook_task:
+            notebook_path: /Workspace/quality/check_duplicates
+
+        - task_key: check_referential_integrity
+          depends_on:
+            - task_key: validate_schema
+          notebook_task:
+            notebook_path: /Workspace/quality/check_referential_integrity
+
+        - task_key: compute_statistics
+          depends_on:
+            - task_key: check_nulls
+            - task_key: check_duplicates
+          notebook_task:
+            notebook_path: /Workspace/quality/compute_statistics
+
+        - task_key: anomaly_detection
+          depends_on:
+            - task_key: compute_statistics
+          notebook_task:
+            notebook_path: /Workspace/quality/anomaly_detection
+
+        - task_key: aggregate_results
+          depends_on:
+            - task_key: check_nulls
+            - task_key: check_duplicates
+            - task_key: check_referential_integrity
+          notebook_task:
+            notebook_path: /Workspace/quality/aggregate_results
+
+        - task_key: generate_report
+          depends_on:
+            - task_key: aggregate_results
+            - task_key: anomaly_detection
+          notebook_task:
+            notebook_path: /Workspace/quality/generate_report
+
+        # notify_stakeholders REMOVED
+
+  schemas:
+    analytics:
+      catalog_name: ${var.catalog_name}
+      name: analytics
+
+    analytics_staging:
+      catalog_name: ${var.catalog_name}
+      name: analytics_staging
+
+  volumes:
+    raw_data:
+      catalog_name: ${var.catalog_name}
+      schema_name: analytics
+      name: raw_data
+      volume_type: MANAGED
+
+  experiments:
+    audit_analysis:
+      name: /Workspace/experiments/audit_analysis
+
+    audit_analysis_final:
+      name: /Workspace/experiments/audit_analysis_final
+
+  alerts:
+    stale_pipeline_alert:
+      display_name: stale_pipeline_alert
+      warehouse_id: ${var.warehouse_id}
+      query_text: "SELECT count(*) AS count FROM dagshund.analytics.raw_data"
+      schedule:
+        quartz_cron_schedule: "0 0 8 * * ?"
+        timezone_id: UTC
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: count
+        threshold:
+          value:
+            double_value: 100

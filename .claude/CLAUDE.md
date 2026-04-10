@@ -30,7 +30,7 @@ Practical functional style. Readable, composable, explicit.
 
 ## Language Guidelines
 
-See [PYTHON.md](.claude/PYTHON.md) when writing or reviewing Python code.
-See [TYPESCRIPT.md](.claude/TYPESCRIPT.md) when writing or reviewing TypeScript/React code.
+See [PYTHON.md](PYTHON.md) when writing or reviewing Python code.
+See [TYPESCRIPT.md](TYPESCRIPT.md) when writing or reviewing TypeScript/React code.
 See [VISUALIZATION.md](VISUALIZATION.md) when working on the browser UI.
 See [TESTING.md](TESTING.md) when writing tests.

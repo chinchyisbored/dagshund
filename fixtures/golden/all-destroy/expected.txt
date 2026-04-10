@@ -1,0 +1,37 @@
+dagshund plan (v2, cli 0.296.0)
+
+  alerts (1)
+  - alerts/stale_pipeline_alert  (delete)
+
+  experiments (1)
+  - experiments/audit_analysis  (delete)
+
+  jobs (2)
+  - jobs/data_quality_pipeline  (delete)
+  - jobs/etl_pipeline  (delete)
+
+  registered_models (1)
+  - registered_models/quality_metrics  (delete)
+
+  schemas (2)
+  - schemas/analytics  (delete)
+  - schemas/analytics_staging  (delete)
+
+  volumes (2)
+  - volumes/external_imports  (delete)
+  - volumes/raw_data  (delete)
+
+  -9 delete
+
+  Dangerous Actions:
+  ⚠ experiments/audit_analysis will be deleted — all experiment runs and metrics
+    will be lost
+  ⚠ registered_models/quality_metrics will be deleted — all model versions will
+    be lost
+  ⚠ schemas/analytics will be deleted — all tables, views, and volumes in this
+    schema will be lost
+  ⚠ schemas/analytics_staging will be deleted — all tables, views, and volumes
+    in this schema will be lost
+  ⚠ volumes/external_imports will be deleted — all files in this volume will be
+    lost
+  ⚠ volumes/raw_data will be deleted — all files in this volume will be lost

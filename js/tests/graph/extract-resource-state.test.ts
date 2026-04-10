@@ -232,7 +232,7 @@ describe("parseThreePartName", () => {
 
 describe("fixture-based extraction", () => {
   test("extracts state from complex-plan job entries", async () => {
-    const plan = await loadFixture("complex-plan.json");
+    const plan = await loadFixture("mixed-changes");
     const entries = Object.entries(plan.plan ?? {});
 
     const jobEntries = entries.filter(([key]) => key.includes("resources.jobs."));
@@ -245,7 +245,7 @@ describe("fixture-based extraction", () => {
   });
 
   test("extracts source_table_full_name from all-hierarchies synced tables", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const entries = Object.entries(plan.plan ?? {});
 
     const syncedTableEntries = entries.filter(([key]) => key.includes("synced_database_tables."));
@@ -263,7 +263,7 @@ describe("fixture-based extraction", () => {
   });
 
   test("returns undefined for entries without state", async () => {
-    const plan = await loadFixture("sample-plan.json");
+    const plan = await loadFixture("all-create");
     const entries = Object.entries(plan.plan ?? {});
     expect(entries.length).toBeGreaterThan(0);
 

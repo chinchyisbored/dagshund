@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# After state — 18 depends_on mutation scenarios.
+#
+# etl_pipeline changes:
+#   - check_row_count REMOVED (#15 removed with deps, #16 was depended on)
+#   - skip_validation REMOVED (#15 removed with deps)
+#   - full_validation: swap dep check_row_count→load (#6 1→1 swap with outcome removal)
+#   - publish: shrink deps [full_validation, skip_validation]→[full_validation] (#8 2→1)
+#
+# data_pipeline changes:
+#   - standby REMOVED (#14 removed, no deps)
+#   - monitor: add dep on ingest (#3 0→1 add first dep)
+#   - normalize: remove dep on ingest (#4 1→0 remove all deps)
+#   - clean: swap dep normalize→ingest (#5 1→1 swap)
+#   - audit: NEW task, no deps (#12 new task, no deps)
+#   - clean_v2: NEW task, depends on clean (#13 new task, has deps)
+#   - filter: swap dep standby→ingest (#18 dep on removed task replaced)
+#   - validate: swap dep clean→clean_v2 (#17 swap to newly added task)
+#   - enrich: grow deps [validate]→[validate, clean] (#7 1→2 grow)
+#   - process_a: swap one [clean, filter]→[clean, validate] (#9 2→2 swap one)
+#   - process_b: swap both [clean, filter]→[ingest, validate] (#10 2→2 swap both)
+#   - combine: reorder [process_a, process_b]→[process_b, process_a] (#11 2→2 reorder)
+#   - output: unchanged (#2 unchanged with deps)
+bundle:
+  name: dagshund-golden-task-dag-rewiring
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  jobs:
+    etl_pipeline:
+      name: etl_pipeline_dag_test
+      tasks:
+        - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/extract
+
+        - task_key: load
+          depends_on:
+            - task_key: extract
+          notebook_task:
+            notebook_path: /Workspace/etl/load
+
+        - task_key: full_validation
+          depends_on:
+            - task_key: load
+          notebook_task:
+            notebook_path: /Workspace/etl/full_validation
+
+        - task_key: publish
+          depends_on:
+            - task_key: full_validation
+          notebook_task:
+            notebook_path: /Workspace/etl/publish
+
+    data_pipeline:
+      name: data_pipeline_dep_test
+      tasks:
+        - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/data/ingest
+
+        - task_key: monitor
+          depends_on:
+            - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/data/monitor
+
+        - task_key: normalize
+          notebook_task:
+            notebook_path: /Workspace/data/normalize
+
+        - task_key: clean
+          depends_on:
+            - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/data/clean
+
+        - task_key: audit
+          notebook_task:
+            notebook_path: /Workspace/data/audit
+
+        - task_key: clean_v2
+          depends_on:
+            - task_key: clean
+          notebook_task:
+            notebook_path: /Workspace/data/clean_v2
+
+        - task_key: filter
+          depends_on:
+            - task_key: ingest
+          notebook_task:
+            notebook_path: /Workspace/data/filter
+
+        - task_key: validate
+          depends_on:
+            - task_key: clean_v2
+          notebook_task:
+            notebook_path: /Workspace/data/validate
+
+        - task_key: enrich
+          depends_on:
+            - task_key: validate
+            - task_key: clean
+          notebook_task:
+            notebook_path: /Workspace/data/enrich
+
+        - task_key: process_a
+          depends_on:
+            - task_key: clean
+            - task_key: validate
+          notebook_task:
+            notebook_path: /Workspace/data/process_a
+
+        - task_key: process_b
+          depends_on:
+            - task_key: ingest
+            - task_key: validate
+          notebook_task:
+            notebook_path: /Workspace/data/process_b
+
+        - task_key: combine
+          depends_on:
+            - task_key: process_b
+            - task_key: process_a
+          notebook_task:
+            notebook_path: /Workspace/data/combine
+
+        - task_key: output
+          depends_on:
+            - task_key: combine
+          notebook_task:
+            notebook_path: /Workspace/data/output

@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Identical to before/ — skip-only plan to test lateral edge extraction.
+bundle:
+  name: dagshund-golden-app-deps
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  apps:
+    my_test_app:
+      name: my-test-app
+      description: Test app with all resource dependency types
+      source_code_path: ./app_src
+      resources:
+        - name: etl_job
+          job:
+            id: ${resources.jobs.my_etl_job.id}
+            permission: CAN_MANAGE_RUN
+        - name: warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: volume_data
+          uc_securable:
+            securable_full_name: ${var.catalog_name}.${var.models_schema}.${var.volume_name}
+            securable_type: VOLUME
+            permission: READ_VOLUME
+
+  jobs:
+    my_etl_job:
+      name: my_etl_job
+      tasks:
+        - task_key: run
+          notebook_task:
+            notebook_path: /Workspace/app/run
+
+  experiments:
+    my_experiment:
+      name: /Workspace/experiments/my_experiment

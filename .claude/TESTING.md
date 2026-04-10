@@ -32,7 +32,7 @@ just check         # lint + typecheck + all tests
 - **Mocking**: `monkeypatch` over `unittest.mock.patch`. Use mock only for method chains, with a comment explaining why.
 - **Assertions**: no redundant messages — pytest shows expected vs actual. Add messages only for parametrized or multi-step assertions.
 - **Side effects**: `try/finally` when monkeypatch can't handle cleanup (e.g., reassigning `__file__`).
-- **Fixtures**: built-in (`tmp_path`, `capsys`, `monkeypatch`). JSON test data in `fixtures/` at repo root (shared with JS). Reference: `FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"`
+- **Fixtures**: built-in (`tmp_path`, `capsys`, `monkeypatch`). Golden plan fixtures live in `fixtures/golden/<name>/` (shared with JS). See [fixtures/README.md](../fixtures/README.md) for layout, regen tooling, and the `--check` mode used by `just test-golden`.
 
 ---
 
@@ -51,6 +51,6 @@ just test-js "filter"    # Name pattern filter
 - **File layout**: mirror source with `kebab-case.test.ts`
 - **Naming**: plain English, lowercase, describe behavior
 - **Result types**: test both `ok` and error branches. Narrow with `if (result.ok)` / `if (!result.ok)` before asserting. Zod v4 errors are **lowercase**.
-- **Fixtures**: `loadFixture("complex-plan.json")` from `../helpers/load-fixture.ts`. Shared with Python in `fixtures/`.
+- **Fixtures**: `loadFixture("mixed-changes")` from `../helpers/load-fixture.ts` — resolves to `fixtures/golden/<name>/plan.json`. Shared with Python. See [fixtures/README.md](../fixtures/README.md) for the per-fixture layout.
 - **Mocking**: prefer passing test data to pure functions over mocking. Use `for...of` inside a test for iteration-based parametrization.
 - **Non-null assertions**: `!` with `// biome-ignore lint/style/noNonNullAssertion:` comment explaining why.

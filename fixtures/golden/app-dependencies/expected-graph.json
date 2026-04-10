@@ -1,0 +1,48 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 2,
+      "by_kind": {
+        "job": 1,
+        "task": 1
+      }
+    },
+    "edges": {
+      "total": 0
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 5,
+      "by_kind": {
+        "root": 1,
+        "resource": 3,
+        "phantom": 1
+      }
+    },
+    "edges": {
+      "total": 7,
+      "dag": 5,
+      "lateral": 2
+    },
+    "laterals": [
+      {
+        "source": "resources.apps.my_test_app",
+        "target": "resources.jobs.my_etl_job",
+        "diffState": "unchanged"
+      },
+      {
+        "source": "resources.apps.my_test_app",
+        "target": "sql-warehouse::9d0afa601cb95187",
+        "diffState": "unchanged"
+      }
+    ],
+    "phantoms": [
+      {
+        "id": "sql-warehouse::9d0afa601cb95187",
+        "label": "9d0afa601cb95187",
+        "resourceKey": "sql-warehouse::9d0afa601cb95187"
+      }
+    ]
+  }
+}

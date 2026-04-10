@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Baseline with permissions and grants.
+# After config changes, adds, and removes sub-resources.
+bundle:
+  name: dagshund-golden-sub-resources
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  jobs:
+    test_job:
+      name: test_job
+      permissions:
+        - level: CAN_MANAGE
+          group_name: admins
+        - level: CAN_VIEW
+          group_name: viewers
+      tasks:
+        - task_key: run
+          notebook_task:
+            notebook_path: /Workspace/jobs/run
+
+  schemas:
+    analytics:
+      catalog_name: ${var.catalog_name}
+      name: analytics
+      grants:
+        - principal: data_engineers
+          privileges:
+            - USE_SCHEMA
+            - CREATE_TABLE
+        - principal: data_readers
+          privileges:
+            - USE_SCHEMA
+            - SELECT

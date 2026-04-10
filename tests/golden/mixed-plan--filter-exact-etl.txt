@@ -1,6 +1,0 @@
-dagshund plan (v2, cli 0.288.0)
-
-  jobs (1/2)
-    jobs/etl_pipeline
-
-   1 unchanged

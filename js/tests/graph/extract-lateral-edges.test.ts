@@ -869,7 +869,7 @@ describe("extractAppResourceEdges", () => {
 
 describe("all-hierarchies-plan integration", () => {
   test("extracts database instance edges from fixture", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const dbInstanceEdges = graph.lateralEdges.filter(
@@ -887,7 +887,7 @@ describe("all-hierarchies-plan integration", () => {
   });
 
   test("partner_metrics → reporting_db links to phantom database instance", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const reportingEdges = graph.lateralEdges.filter(
@@ -909,7 +909,7 @@ describe("all-hierarchies-plan integration", () => {
   });
 
   test("synced tables produce source-table edges to phantoms", async () => {
-    const plan = await loadFixture("all-hierarchies-plan.json");
+    const plan = await loadFixture("all-hierarchies");
     const graph = buildResourceGraph(plan);
 
     const sourceTableEdges = graph.lateralEdges.filter((e) =>
@@ -930,9 +930,9 @@ describe("all-hierarchies-plan integration", () => {
 // Integration: apps.json
 // ---------------------------------------------------------------------------
 
-describe("apps.json integration", () => {
+describe("app-dependencies integration", () => {
   test("app links to job via API ID reverse index", async () => {
-    const plan = await loadFixture("apps.json");
+    const plan = await loadFixture("app-dependencies");
     const graph = buildResourceGraph(plan);
 
     const appJobEdges = graph.lateralEdges.filter(
@@ -942,51 +942,30 @@ describe("apps.json integration", () => {
     expect(appJobEdges).toHaveLength(1);
   });
 
-  test("phantom secret-scope node created for ss-kv112", async () => {
-    const plan = await loadFixture("apps.json");
+  test("phantom warehouse node created for warehouse API ID", async () => {
+    const plan = await loadFixture("app-dependencies");
     const graph = buildResourceGraph(plan);
 
-    const phantomNode = graph.nodes.find((n) => n.id === "secret-scope::ss-kv112");
+    const phantomNode = graph.nodes.find((n) => n.id === "sql-warehouse::9d0afa601cb95187");
     expect(phantomNode).toBeDefined();
     expect(phantomNode?.nodeKind).toBe("phantom");
-    expect(phantomNode?.label).toBe("ss-kv112");
-  });
-
-  test("app links to phantom secret scope via lateral edge", async () => {
-    const plan = await loadFixture("apps.json");
-    const graph = buildResourceGraph(plan);
-
-    const secretEdges = graph.lateralEdges.filter(
-      (e) => e.source === "resources.apps.my_test_app" && e.target === "secret-scope::ss-kv112",
-    );
-
-    expect(secretEdges).toHaveLength(1);
-  });
-
-  test("phantom warehouse node created for missing warehouse API ID", async () => {
-    const plan = await loadFixture("apps.json");
-    const graph = buildResourceGraph(plan);
-
-    const phantomNode = graph.nodes.find((n) => n.id === "sql-warehouse::88b556379679e44e");
-    expect(phantomNode).toBeDefined();
-    expect(phantomNode?.nodeKind).toBe("phantom");
-    expect(phantomNode?.label).toBe("88b556379679e44e");
+    expect(phantomNode?.label).toBe("9d0afa601cb95187");
   });
 
   test("app links to phantom warehouse via lateral edge", async () => {
-    const plan = await loadFixture("apps.json");
+    const plan = await loadFixture("app-dependencies");
     const graph = buildResourceGraph(plan);
 
     const warehouseEdges = graph.lateralEdges.filter(
       (e) =>
-        e.source === "resources.apps.my_test_app" && e.target === "sql-warehouse::88b556379679e44e",
+        e.source === "resources.apps.my_test_app" && e.target === "sql-warehouse::9d0afa601cb95187",
     );
 
     expect(warehouseEdges).toHaveLength(1);
   });
 
   test("depends_on edge from job to app is preserved", async () => {
-    const plan = await loadFixture("apps.json");
+    const plan = await loadFixture("app-dependencies");
     const graph = buildResourceGraph(plan);
 
     const dependsOnEdges = graph.edges.filter(

@@ -1,0 +1,37 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 18,
+      "by_kind": {
+        "job": 2,
+        "task": 16
+      }
+    },
+    "edges": {
+      "total": 19
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 12,
+      "by_kind": {
+        "root": 2,
+        "resource": 9,
+        "phantom": 1
+      }
+    },
+    "edges": {
+      "total": 10,
+      "dag": 10,
+      "lateral": 0
+    },
+    "laterals": [],
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      }
+    ]
+  }
+}

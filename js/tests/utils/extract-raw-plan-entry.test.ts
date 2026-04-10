@@ -357,15 +357,15 @@ describe("extractRawPlanSlice", () => {
 
   describe("with real fixtures", () => {
     const loadFixture = async (name: string): Promise<Plan> => {
-      const text = await Bun.file(`../fixtures/${name}`).text();
+      const text = await Bun.file(`../fixtures/golden/${name}/plan.json`).text();
       const { parsePlanJson } = await import("../../src/parser/parse-plan.ts");
       const result = parsePlanJson(JSON.parse(text));
       if (!result.ok) throw new Error(`Fixture parse failed: ${result.error}`);
       return result.data;
     };
 
-    test("complex-plan: resource entry matches fixture data", async () => {
-      const plan = await loadFixture("complex-plan.json");
+    test("mixed-changes: resource entry matches fixture data", async () => {
+      const plan = await loadFixture("mixed-changes");
       const result = extractRawPlanSlice(
         plan,
         buildResourceData("resources.alerts.stale_pipeline_alert"),
@@ -374,12 +374,12 @@ describe("extractRawPlanSlice", () => {
       expect(result?.kind).toBe("entry");
       if (result?.kind === "entry") {
         const data = result.data as Record<string, unknown>;
-        expect(data["action"]).toBe("create");
+        expect(data["action"]).toBe("update");
       }
     });
 
     test("sub-resources-plan: job with permissions returns entry-with-subs", async () => {
-      const plan = await loadFixture("sub-resources-plan.json");
+      const plan = await loadFixture("sub-resources");
       const result = extractRawPlanSlice(plan, buildResourceData("resources.jobs.test_job"));
 
       expect(result?.kind).toBe("entry-with-subs");
@@ -392,13 +392,13 @@ describe("extractRawPlanSlice", () => {
     });
 
     test("sub-resources-plan: task from job with sub-resources returns slices", async () => {
-      const plan = await loadFixture("sub-resources-plan.json");
-      const result = extractRawPlanSlice(plan, buildTaskData("resources.jobs.test_job", "ingest"));
+      const plan = await loadFixture("sub-resources");
+      const result = extractRawPlanSlice(plan, buildTaskData("resources.jobs.test_job", "run"));
 
       expect(result?.kind).toBe("task-slices");
       if (result?.kind === "task-slices") {
         expect(result.slices.length).toBeGreaterThan(0);
-        expect(result.slices[0]?.label).toBe("new_state.value.tasks[0]");
+        expect(result.slices[0]?.label).toBe("remote_state.tasks[0]");
       }
     });
   });
