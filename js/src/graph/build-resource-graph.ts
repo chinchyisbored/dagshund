@@ -595,6 +595,25 @@ const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => 
   });
 };
 
+const PAIR_KEY_SEP = "\u0000";
+
+/** Canonical, direction-insensitive key for a pair of node IDs. */
+export const canonicalPairKey = (a: string, b: string): string =>
+  a <= b ? `${a}${PAIR_KEY_SEP}${b}` : `${b}${PAIR_KEY_SEP}${a}`;
+
+/**
+ * Drop lateral edges whose node pair is already connected by a depends_on edge.
+ * Depends_on carries real diff state and direction; lateral is the fallback for
+ * resource kinds DAB doesn't emit depends_on for (warehouses, secrets, etc).
+ */
+export const filterLateralEdgesAgainstDependsOn = (
+  lateralEdges: readonly GraphEdge[],
+  dependsOnEdges: readonly GraphEdge[],
+): readonly GraphEdge[] => {
+  const covered = new Set(dependsOnEdges.map((edge) => canonicalPairKey(edge.source, edge.target)));
+  return lateralEdges.filter((edge) => !covered.has(canonicalPairKey(edge.source, edge.target)));
+};
+
 // ---------------------------------------------------------------------------
 // Main orchestrator
 // ---------------------------------------------------------------------------
@@ -651,7 +670,10 @@ export const buildResourceGraph = (
   );
   const nodeIds = new Set<string>(allNodes.map((node) => node.id));
 
-  const lateralEdges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+  const lateralEdges = filterLateralEdgesAgainstDependsOn(
+    extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds }),
+    dependsOnEdges,
+  );
 
   return {
     nodes: allNodes,

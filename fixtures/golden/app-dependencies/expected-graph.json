@@ -366,15 +366,15 @@
       ]
     },
     "edges": {
-      "total": 7,
+      "total": 6,
       "by_kind": {
         "dag": 5,
-        "lateral": 2
+        "lateral": 1
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
-        "unchanged": 7
+        "unchanged": 6
       },
       "by_kind_and_diff_state": {
         "dag": {
@@ -385,7 +385,7 @@
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 2
+          "unchanged": 1
         }
       },
       "entries": [
@@ -418,12 +418,6 @@
           "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "dag"
-        },
-        {
-          "source": "resources.apps.my_test_app",
-          "target": "resources.jobs.my_etl_job",
-          "diffState": "unchanged",
-          "kind": "lateral"
         },
         {
           "source": "resources.apps.my_test_app",

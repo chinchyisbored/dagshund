@@ -1,14 +1,22 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildResourceGraph,
+  canonicalPairKey,
+  filterLateralEdgesAgainstDependsOn,
   isJobEntry,
   isPostgresType,
   isUnityCatalogType,
 } from "../../src/graph/build-resource-graph.ts";
 import { extractStateField, parseThreePartName } from "../../src/graph/extract-resource-state.ts";
-import type { ResourceGraphNode } from "../../src/types/graph-types.ts";
+import type { GraphEdge, ResourceGraphNode } from "../../src/types/graph-types.ts";
+import { buildGraphEdge } from "../../src/types/graph-types.ts";
 import { extractResourceType } from "../../src/utils/resource-key.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
+
+const lateralEdge = (source: string, target: string): GraphEdge =>
+  buildGraphEdge(source, target, "unchanged", "lateral::");
+const dependsOnEdgeFor = (source: string, target: string): GraphEdge =>
+  buildGraphEdge(source, target, "unchanged");
 
 describe("extractResourceType", () => {
   test("extracts type from standard resource key", () => {
@@ -1674,5 +1682,67 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
     );
     expect(schemaNode).toBeDefined();
     expect(schemaNode?.changes?.["grants.[principal='data_engineers'].privileges"]).toBeDefined();
+  });
+});
+
+describe("canonicalPairKey", () => {
+  test("is symmetric across argument order", () => {
+    expect(canonicalPairKey("alpha", "beta")).toBe(canonicalPairKey("beta", "alpha"));
+  });
+
+  test("distinguishes different pairs", () => {
+    expect(canonicalPairKey("a", "b")).not.toBe(canonicalPairKey("a", "c"));
+  });
+
+  test("produces a stable key for self-pairs", () => {
+    expect(canonicalPairKey("x", "x")).toBe(canonicalPairKey("x", "x"));
+  });
+});
+
+describe("filterLateralEdgesAgainstDependsOn", () => {
+  test("returns empty when both inputs are empty", () => {
+    expect(filterLateralEdgesAgainstDependsOn([], [])).toEqual([]);
+  });
+
+  test("preserves all lateral edges when depends_on is empty", () => {
+    const lateral = [lateralEdge("a", "b"), lateralEdge("c", "d")];
+    expect(filterLateralEdgesAgainstDependsOn(lateral, [])).toEqual(lateral);
+  });
+
+  test("suppresses a lateral edge in the opposite direction of a depends_on edge", () => {
+    const result = filterLateralEdgesAgainstDependsOn(
+      [lateralEdge("b", "a")],
+      [dependsOnEdgeFor("a", "b")],
+    );
+    expect(result).toEqual([]);
+  });
+
+  test("suppresses a lateral edge in the same direction as a depends_on edge", () => {
+    const result = filterLateralEdgesAgainstDependsOn(
+      [lateralEdge("a", "b")],
+      [dependsOnEdgeFor("a", "b")],
+    );
+    expect(result).toEqual([]);
+  });
+
+  test("preserves lateral edges on non-overlapping pairs", () => {
+    const lateral = [lateralEdge("c", "d")];
+    const result = filterLateralEdgesAgainstDependsOn(lateral, [dependsOnEdgeFor("a", "b")]);
+    expect(result).toEqual(lateral);
+  });
+
+  test("suppresses only the overlapping pair in a mixed batch", () => {
+    const surviving = lateralEdge("c", "d");
+    const result = filterLateralEdgesAgainstDependsOn(
+      [lateralEdge("b", "a"), surviving],
+      [dependsOnEdgeFor("a", "b")],
+    );
+    expect(result).toEqual([surviving]);
+  });
+
+  test("preserves a self-edge lateral when no depends_on covers it", () => {
+    // Defensive: buildEdge guards against self-loops, but buildGraphEdge doesn't.
+    const selfLoop = lateralEdge("a", "a");
+    expect(filterLateralEdgesAgainstDependsOn([selfLoop], [])).toEqual([selfLoop]);
   });
 });

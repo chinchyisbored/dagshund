@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
 import { extractLateralEdges } from "../../src/graph/extract-lateral-edges.ts";
-import type { PlanEntry } from "../../src/types/plan-schema.ts";
+import type { Plan, PlanEntry } from "../../src/types/plan-schema.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 // ---------------------------------------------------------------------------
@@ -931,7 +931,7 @@ describe("all-hierarchies-plan integration", () => {
 // ---------------------------------------------------------------------------
 
 describe("app-dependencies integration", () => {
-  test("app links to job via API ID reverse index", async () => {
+  test("app→job lateral is suppressed when depends_on already covers the pair", async () => {
     const plan = await loadFixture("app-dependencies");
     const graph = buildResourceGraph(plan);
 
@@ -939,7 +939,7 @@ describe("app-dependencies integration", () => {
       (e) => e.source === "resources.apps.my_test_app" && e.target === "resources.jobs.my_etl_job",
     );
 
-    expect(appJobEdges).toHaveLength(1);
+    expect(appJobEdges).toHaveLength(0);
   });
 
   test("phantom warehouse node created for warehouse API ID", async () => {
@@ -952,6 +952,8 @@ describe("app-dependencies integration", () => {
     expect(phantomNode?.label).toBe("9d0afa601cb95187");
   });
 
+  // Negative regression: warehouse has no depends_on, so the lateral must
+  // survive the filter. If this ever returns 0, the filter is over-reaching.
   test("app links to phantom warehouse via lateral edge", async () => {
     const plan = await loadFixture("app-dependencies");
     const graph = buildResourceGraph(plan);
@@ -964,7 +966,7 @@ describe("app-dependencies integration", () => {
     expect(warehouseEdges).toHaveLength(1);
   });
 
-  test("depends_on edge from job to app is preserved", async () => {
+  test("depends_on edge from job to app is preserved and not a lateral", async () => {
     const plan = await loadFixture("app-dependencies");
     const graph = buildResourceGraph(plan);
 
@@ -973,5 +975,33 @@ describe("app-dependencies integration", () => {
     );
 
     expect(dependsOnEdges).toHaveLength(1);
+    // The surviving edge must be the real depends_on edge, not the fallback lateral.
+    expect(dependsOnEdges[0]?.id.startsWith("lateral::")).toBe(false);
+  });
+
+  test("app→job lateral fires via API ID reverse index when depends_on does not cover the pair", () => {
+    const plan = {
+      plan: {
+        "resources.apps.solo_app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [{ job: { id: "99999", permission: "CAN_MANAGE_RUN" }, name: "etl" }],
+            },
+          },
+        },
+        "resources.jobs.solo_job": {
+          action: "create",
+          new_state: { value: { job_id: 99999 } },
+        },
+      },
+    } as unknown as Plan;
+    const graph = buildResourceGraph(plan);
+
+    const appJobEdges = graph.lateralEdges.filter(
+      (e) => e.source === "resources.apps.solo_app" && e.target === "resources.jobs.solo_job",
+    );
+
+    expect(appJobEdges).toHaveLength(1);
   });
 });
