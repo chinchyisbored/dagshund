@@ -8,6 +8,7 @@ from dagshund.plan import (
     detect_manual_edits,
     has_drifted_field,
     is_resource_changes,
+    is_topology_drift_change,
     parse_plan,
 )
 from dagshund.types import (
@@ -41,6 +42,7 @@ __all__ = [
     "has_drifted_field",
     "is_resource_changes",
     "is_sub_resource_key",
+    "is_topology_drift_change",
     "merge_sub_resources",
     "parse_plan",
     "parse_resource_key",

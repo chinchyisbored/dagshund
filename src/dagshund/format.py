@@ -1,5 +1,6 @@
 """Shared formatting and data pipeline functions used by text and markdown renderers."""
 
+import re
 from collections import Counter
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from dagshund.plan import (
     STATEFUL_RESOURCE_WARNINGS,
     action_to_diff_state,
     has_drifted_field,
+    is_topology_drift_change,
 )
 from dagshund.types import (
     DiffState,
@@ -36,6 +38,17 @@ class ActionConfig:
     display: str
     symbol: str
     show_field_changes: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class DriftSummary:
+    """Structured summary of drift on one resource: field overwrites + sub-entity re-adds."""
+
+    resource_type: str
+    resource_name: str
+    overwritten_field_count: int
+    # Sorted (noun, label) pairs. e.g. ("task", "transform"), ("grant", "data_engineers").
+    reentries: tuple[tuple[str, str], ...]
 
 
 ACTIONS: dict[str, ActionConfig] = {
@@ -196,6 +209,71 @@ def detect_drift_fields(changes: Mapping[str, FieldChange] | None) -> list[str]:
     )
 
 
+# Captures optional noun segment + single-quoted label in final bracket group.
+# Works for "tasks[task_key='t']", "grants.[principal='p']", "foo.bar[k='v']",
+# and "[principal='x']" (fallback to "entity").
+_DRIFT_KEY_RE = re.compile(r"(?:^|\.)([A-Za-z_][A-Za-z0-9_]*)?\.?\[[^\[\]]*'([^']*)'\][^\[\]]*$")
+
+
+def _singularize(plural: str) -> str:
+    """Singularize a collection noun for observed plan.json collection names.
+
+    Unknown shapes round-trip unchanged. Handles ``libraries -> library`` (ies→y)
+    and ``tasks -> task`` / ``grants -> grant`` (s→). Preserves ``*ss`` endings
+    (e.g. ``class``) to avoid mangling them into ``clas``.
+    """
+    if plural.endswith("ies"):
+        return f"{plural[:-3]}y"
+    if plural.endswith("s") and not plural.endswith("ss"):
+        return plural[:-1]
+    return plural
+
+
+def _extract_drift_label_noun(key: str) -> tuple[str, str]:
+    """Extract a (noun, label) pair from a topology-drift change key.
+
+    Unknown shape falls back to ``("entity", key)``.
+    """
+    match = _DRIFT_KEY_RE.search(key)
+    if match is None:
+        return "entity", key
+    noun_raw, label = match.group(1), match.group(2)
+    return (_singularize(noun_raw) if noun_raw else "entity"), label
+
+
+def detect_drift_reentries(
+    changes: Mapping[str, FieldChange] | None,
+) -> list[tuple[str, str]]:
+    """Return topology-drift ``(noun, label)`` pairs, sorted for stable output."""
+    if not changes:
+        return []
+    pairs: list[tuple[str, str]] = []
+    for key, change in changes.items():
+        if not isinstance(change, dict):
+            continue
+        if not is_topology_drift_change(change):
+            continue
+        pairs.append(_extract_drift_label_noun(key))
+    pairs.sort()
+    return pairs
+
+
+def iter_non_topology_field_changes(
+    changes: Mapping[str, FieldChange],
+) -> Iterator[tuple[str, FieldChange]]:
+    """Yield sorted field changes with topology-drift entries excluded.
+
+    Single source of truth for the ``field vs re-add`` partition shared by the
+    terminal and markdown renderers.
+    """
+    for name, change in sorted(changes.items()):
+        if not isinstance(change, dict):
+            continue
+        if is_topology_drift_change(change):
+            continue
+        yield name, change
+
+
 def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType:
     """Extract the resource type from a (key, change) pair."""
     return parse_resource_key(entry[0])[0]
@@ -275,28 +353,42 @@ def collect_warnings(
     return warnings
 
 
-def collect_drift_warnings(
+def _summarize_resource_drift(key: ResourceKey, entry: ResourceChange) -> DriftSummary | None:
+    """Build a DriftSummary for one resource, or None when nothing drifted."""
+    changes = entry.get("changes", {})
+    if not is_field_changes(changes):
+        return None
+    overwritten = len(detect_drift_fields(changes))
+    reentries = tuple(detect_drift_reentries(changes))
+    if overwritten == 0 and not reentries:
+        return None
+    resource_type, resource_name = parse_resource_key(key)
+    return DriftSummary(
+        resource_type=resource_type,
+        resource_name=resource_name,
+        overwritten_field_count=overwritten,
+        reentries=reentries,
+    )
+
+
+def collect_drift_summaries(
     resources: ResourceChanges,
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
-) -> list[str]:
-    """Collect warnings for resources that were manually edited outside the bundle."""
-    warnings: list[str] = []
-    for key, entry in iter_visible_resources(
-        resources,
-        visible_states=visible_states,
-        resource_filter=resource_filter,
-    ):
-        changes = entry.get("changes", {})
-        if not is_field_changes(changes):
-            continue
-        drifted = detect_drift_fields(changes)
-        if not drifted:
-            continue
-        resource_type, resource_name = parse_resource_key(key)
-        count = len(drifted)
-        noun = "field" if count == 1 else "fields"
-        msg = f"{resource_type}/{resource_name} was edited outside the bundle ({count} {noun} will be overwritten)"
-        warnings.append(msg)
-    return warnings
+) -> list[DriftSummary]:
+    """Collect structured drift summaries for resources edited outside the bundle."""
+    visible = iter_visible_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
+    return [summary for key, entry in visible if (summary := _summarize_resource_drift(key, entry))]
+
+
+def format_drift_subline_body(count: int, noun: str, suffix: str, labels: str = "") -> str:
+    """Build the shared body of a drift sub-line: '1 task will be re-added (transform)'.
+
+    Renderers wrap this with their own prefix ('      ' for terminal, '>   - ' for
+    markdown nested bullets). Centralizing the pluralization + labels logic keeps
+    the copy in lockstep across outputs.
+    """
+    plural = noun if count == 1 else f"{noun}s"
+    body = f"{count} {plural} will be {suffix}"
+    return f"{body} ({labels})" if labels else body

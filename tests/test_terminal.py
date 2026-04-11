@@ -18,11 +18,15 @@ from dagshund.format import (
     ACTIONS,
     DEFAULT_ACTION,
     ActionConfig,
+    DriftSummary,
+    _extract_drift_label_noun,
+    _summarize_resource_drift,
     action_config,
-    collect_drift_warnings,
+    collect_drift_summaries,
     collect_warnings,
     count_by_action,
     detect_drift_fields,
+    detect_drift_reentries,
     filter_resources,
     format_display_value,
     format_group_header,
@@ -30,6 +34,7 @@ from dagshund.format import (
     format_value,
     group_by_resource_type,
     is_long_string,
+    iter_non_topology_field_changes,
 )
 from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES
 from dagshund.terminal import (
@@ -608,7 +613,14 @@ def test_render_resource_field_change_null_new_shows_transition() -> None:
     assert "null" in lines[1]
 
 
-def test_render_resource_field_change_both_null_suppressed_as_noop() -> None:
+def test_render_resource_field_change_both_null_surfaces_as_topology_drift() -> None:
+    """Shape-level predicate: {old: None, new: None, no remote} is topology drift.
+
+    Real plan.json never emits this for scalar fields — Databricks simply omits
+    unchanged fields from `changes`. If it does appear, the new contract is that
+    is_topology_drift_change catches it and the renderer surfaces it as a re-add,
+    which matches the JS port (structural-diff.ts:35).
+    """
     entry = {
         "action": "update",
         "changes": {"field": {"action": "update", "old": None, "new": None}},
@@ -616,8 +628,8 @@ def test_render_resource_field_change_both_null_suppressed_as_noop() -> None:
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
-    assert len(lines) == 1  # header only — no-op field suppressed
-    assert "pipeline" in lines[0]
+    assert any("manually edited outside bundle" in line for line in lines)
+    assert any("field" in line and "(re-added)" in line for line in lines)
 
 
 def test_render_resource_with_color_includes_ansi() -> None:
@@ -1485,73 +1497,314 @@ def test_render_resource_no_drift_warning_when_no_drift() -> None:
     assert not any("manually edited" in line for line in lines)
 
 
-# --- collect_drift_warnings ---
+# --- _extract_drift_label_noun ---
 
 
-def test_collect_drift_warnings_detects_drifted_resource() -> None:
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        ("tasks[task_key='transform']", ("task", "transform")),
+        ("grants.[principal='data_engineers']", ("grant", "data_engineers")),
+        ("libraries[name='foo']", ("library", "foo")),
+        ("job_clusters[job_cluster_key='main']", ("job_cluster", "main")),
+        ("permissions[user_name='alice']", ("permission", "alice")),
+        ("parameters[name='x']", ("parameter", "x")),
+        ("environments[environment_key='prod']", ("environment", "prod")),
+        ("[principal='x']", ("entity", "x")),
+        ("foo.bar[name='baz']", ("bar", "baz")),
+        ("simple_field", ("entity", "simple_field")),
+    ],
+)
+def test_extract_drift_label_noun(key: str, expected: tuple[str, str]) -> None:
+    assert _extract_drift_label_noun(key) == expected
+
+
+# --- detect_drift_reentries ---
+
+
+def test_detect_drift_reentries_empty_returns_empty_list() -> None:
+    assert detect_drift_reentries({}) == []
+    assert detect_drift_reentries(None) == []
+
+
+def test_detect_drift_reentries_single_topology_drift_entry() -> None:
+    changes = {
+        "tasks[task_key='transform']": {
+            "action": "update",
+            "old": {"task_key": "transform"},
+            "new": {"task_key": "transform"},
+        },
+    }
+    assert detect_drift_reentries(changes) == [("task", "transform")]
+
+
+def test_detect_drift_reentries_skips_field_drift_and_skip_actions() -> None:
+    changes = {
+        "tasks[task_key='transform']": {
+            "action": "update",
+            "old": {"task_key": "transform"},
+            "new": {"task_key": "transform"},
+        },
+        "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
+        "noise": {"action": "skip", "remote": 0},
+    }
+    assert detect_drift_reentries(changes) == [("task", "transform")]
+
+
+def test_detect_drift_reentries_sort_stability() -> None:
+    """Insertion order must not bleed through — results are sorted by (noun, label)."""
+    entry_zulu = {"action": "update", "old": {"x": 1}, "new": {"x": 1}}
+    entry_alpha = {"action": "update", "old": {"y": 2}, "new": {"y": 2}}
+    changes = {
+        "tasks[task_key='zulu']": entry_zulu,
+        "tasks[task_key='alpha']": entry_alpha,
+    }
+    assert detect_drift_reentries(changes) == [("task", "alpha"), ("task", "zulu")]
+
+
+def test_detect_drift_reentries_multiple_same_noun() -> None:
+    changes = {
+        "tasks[task_key='alpha']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
+        "tasks[task_key='beta']": {"action": "update", "old": {"b": 2}, "new": {"b": 2}},
+    }
+    pairs = detect_drift_reentries(changes)
+    assert pairs == [("task", "alpha"), ("task", "beta")]
+
+
+# --- iter_non_topology_field_changes ---
+
+
+def test_iter_non_topology_field_changes_sorts_and_skips_topology() -> None:
+    changes = {
+        "zeta": {"action": "update", "old": 1, "new": 2},
+        "alpha": {"action": "update", "old": 3, "new": 4},
+        "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
+    }
+    result = list(iter_non_topology_field_changes(changes))
+    assert [name for name, _ in result] == ["alpha", "zeta"]
+
+
+def test_iter_non_topology_field_changes_retains_field_drift_entries() -> None:
+    changes = {
+        "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
+    }
+    result = list(iter_non_topology_field_changes(changes))
+    assert len(result) == 1
+    assert result[0][0] == "edit_mode"
+
+
+def test_iter_non_topology_field_changes_skips_non_dict_entries() -> None:
+    # FieldChange is typed as dict, but the runtime check must still guard against it.
+    changes: dict[str, object] = {"garbage": "not a dict", "real": {"action": "update", "old": 1, "new": 2}}
+    result = list(iter_non_topology_field_changes(changes))  # type: ignore[arg-type]
+    assert [name for name, _ in result] == ["real"]
+
+
+# --- _summarize_resource_drift ---
+
+
+def test_summarize_resource_drift_field_only() -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            "edit_mode": {"action": "update", "old": "X", "new": "X", "remote": "Y"},
+            "field_b": {"action": "update", "old": 1, "new": 1, "remote": 2},
+        },
+    }
+    summary = _summarize_resource_drift("resources.jobs.pipeline", entry)
+    assert summary == DriftSummary(
+        resource_type="jobs",
+        resource_name="pipeline",
+        overwritten_field_count=2,
+        reentries=(),
+    )
+
+
+def test_summarize_resource_drift_topology_only() -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
+        },
+    }
+    summary = _summarize_resource_drift("resources.jobs.pipeline", entry)
+    assert summary is not None
+    assert summary.overwritten_field_count == 0
+    assert summary.reentries == (("task", "t"),)
+
+
+def test_summarize_resource_drift_returns_none_for_no_drift() -> None:
+    entry = {
+        "action": "update",
+        "changes": {"max_concurrent_runs": {"action": "update", "old": 1, "new": 5}},
+    }
+    assert _summarize_resource_drift("resources.jobs.pipeline", entry) is None
+
+
+def test_summarize_resource_drift_returns_none_for_skip_only_changes() -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            "foo": {"action": "skip", "reason": "empty", "remote": {}},
+            "bar": {"action": "skip", "reason": "backend_default", "remote": "X"},
+        },
+    }
+    assert _summarize_resource_drift("resources.jobs.pipeline", entry) is None
+
+
+# --- collect_drift_summaries ---
+
+
+def test_collect_drift_summaries_field_only_resource() -> None:
     resources = {
         "resources.jobs.pipeline": {
             "action": "update",
             "changes": {
-                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
                 "field_b": {"action": "update", "old": 1, "new": 1, "remote": 2},
             },
         },
     }
-    warnings = collect_drift_warnings(resources)
-    assert len(warnings) == 1
-    assert "jobs/pipeline" in warnings[0]
-    assert "2 fields" in warnings[0]
-    assert "overwritten" in warnings[0]
+    summaries = collect_drift_summaries(resources)
+    assert len(summaries) == 1
+    assert summaries[0].resource_type == "jobs"
+    assert summaries[0].resource_name == "pipeline"
+    assert summaries[0].overwritten_field_count == 2
+    assert summaries[0].reentries == ()
 
 
-def test_collect_drift_warnings_returns_empty_for_no_drift() -> None:
+def test_collect_drift_summaries_returns_empty_for_no_drift() -> None:
+    resources = {
+        "resources.jobs.pipeline": {
+            "action": "update",
+            "changes": {"max_concurrent_runs": {"action": "update", "old": 1, "new": 5}},
+        },
+    }
+    assert collect_drift_summaries(resources) == []
+
+
+def test_collect_drift_summaries_topology_only() -> None:
     resources = {
         "resources.jobs.pipeline": {
             "action": "update",
             "changes": {
-                "max_concurrent_runs": {"action": "update", "old": 1, "new": 5},
+                "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
             },
         },
     }
-    assert collect_drift_warnings(resources) == []
+    summaries = collect_drift_summaries(resources)
+    assert len(summaries) == 1
+    assert summaries[0].overwritten_field_count == 0
+    assert len(summaries[0].reentries) == 1
 
 
-def test_collect_drift_warnings_respects_visible_states() -> None:
+def test_collect_drift_summaries_mixed_field_and_topology() -> None:
     resources = {
         "resources.jobs.pipeline": {
             "action": "update",
             "changes": {
-                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
+                "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
             },
         },
     }
-    assert collect_drift_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
+    summaries = collect_drift_summaries(resources)
+    assert len(summaries) == 1
+    assert summaries[0].overwritten_field_count == 1
+    assert summaries[0].reentries == (("task", "t"),)
 
 
-def test_collect_drift_warnings_respects_resource_filter() -> None:
+def test_collect_drift_summaries_respects_visible_states() -> None:
     resources = {
         "resources.jobs.pipeline": {
             "action": "update",
             "changes": {
-                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
             },
         },
     }
-    assert collect_drift_warnings(resources, resource_filter=lambda k, _: "other" in k) == []
+    assert collect_drift_summaries(resources, visible_states=frozenset({DiffState.ADDED})) == []
 
 
-def test_collect_drift_warnings_singular_field() -> None:
+def test_collect_drift_summaries_respects_resource_filter() -> None:
     resources = {
         "resources.jobs.pipeline": {
             "action": "update",
             "changes": {
-                "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
             },
         },
     }
-    warnings = collect_drift_warnings(resources)
-    assert "1 field" in warnings[0]
+    assert collect_drift_summaries(resources, resource_filter=lambda k, _: "other" in k) == []
+
+
+# --- _render_resource topology drift ---
+
+
+@pytest.mark.parametrize(
+    ("change_key", "expected_token"),
+    [
+        ("tasks[task_key='transform']", "tasks[task_key='transform']"),
+        ("grants.[principal='data_engineers']", "grants.[principal='data_engineers']"),
+    ],
+)
+def test_render_resource_topology_drift_emits_single_reentry_line(change_key: str, expected_token: str) -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            change_key: {"action": "update", "old": {"x": 1}, "new": {"x": 1}},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    matching = [line for line in lines if expected_token in line]
+    assert len(matching) == 1
+    assert matching[0].endswith("(re-added)")
+    assert "+" in matching[0]
+    assert any("manually edited outside bundle" in line for line in lines)
+
+
+def test_render_resource_mixed_field_and_topology_drift() -> None:
+    entry = {
+        "action": "update",
+        "changes": {
+            "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
+            "tasks[task_key='transform']": {"action": "update", "old": {"x": 1}, "new": {"x": 1}},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    assert any("manually edited outside bundle" in line for line in lines)
+    assert any("edit_mode" in line and "(drift)" in line for line in lines)
+    assert any("tasks[task_key='transform']" in line and "(re-added)" in line for line in lines)
+
+
+def test_render_resource_topology_drift_not_emitted_under_create_action() -> None:
+    entry = {
+        "action": "create",
+        "changes": {
+            "tasks[task_key='transform']": {"action": "update", "old": {"x": 1}, "new": {"x": 1}},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    assert not any("(re-added)" in line for line in lines)
+
+
+def test_render_resource_topology_drift_not_emitted_under_recreate_action() -> None:
+    """A change with action=recreate (not update) must NOT render as re-added.
+
+    is_topology_drift_change gates on action==update on the *change*, not the
+    parent resource. This test locks the narrow inner gate: even though the
+    parent is recreate (a show_field_changes action) and the change has the
+    old==new/no-remote shape, action=recreate on the change itself blocks the
+    re-add path.
+    """
+    entry = {
+        "action": "recreate",
+        "changes": {
+            "tasks[task_key='transform']": {"action": "recreate", "old": {"x": 1}, "new": {"x": 1}},
+        },
+    }
+    lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
+    assert not any("(re-added)" in line for line in lines)
 
 
 # --- render_text drift integration ---
@@ -1565,6 +1818,12 @@ def test_render_text_shows_drift_section(capsys: pytest.CaptureFixture[str], mon
                 "action": "update",
                 "changes": {
                     "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                    "owner": {"action": "update", "old": "x", "new": "x", "remote": "y"},
+                    "tasks[task_key='transform']": {
+                        "action": "update",
+                        "old": {"task_key": "transform"},
+                        "new": {"task_key": "transform"},
+                    },
                 },
             },
         },
@@ -1577,6 +1836,42 @@ def test_render_text_shows_drift_section(capsys: pytest.CaptureFixture[str], mon
     assert "jobs/drift_pipeline" in out
     assert "edited outside the bundle" in out
     assert "manually edited outside bundle" in out
+    assert "2 fields will be overwritten" in out
+    assert "1 task will be re-added (transform)" in out
+    # Old flat parenthetical format must not leak back in
+    assert "(2 fields will be overwritten)" not in out
+    assert "(1 field will be overwritten)" not in out
+
+
+def test_render_text_shows_drift_section_multiple_reentries_same_noun(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two topology-drift tasks on one resource → '2 tasks will be re-added (alpha, beta)'."""
+    monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
+    plan = {
+        "plan": {
+            "resources.jobs.drift_pipeline": {
+                "action": "update",
+                "changes": {
+                    "tasks[task_key='alpha']": {
+                        "action": "update",
+                        "old": {"task_key": "alpha"},
+                        "new": {"task_key": "alpha"},
+                    },
+                    "tasks[task_key='beta']": {
+                        "action": "update",
+                        "old": {"task_key": "beta"},
+                        "new": {"task_key": "beta"},
+                    },
+                },
+            },
+        },
+    }
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "2 tasks will be re-added (alpha, beta)" in out
 
 
 # --- format_display_value ---

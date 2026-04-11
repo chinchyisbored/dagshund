@@ -1,25 +1,31 @@
 """Markdown rendering of plan diffs for PR/MR comments."""
 
 from collections.abc import Callable, Iterator
+from itertools import groupby
 
 from dagshund.format import (
+    DriftSummary,
     action_config,
-    collect_drift_warnings,
+    collect_drift_summaries,
     collect_warnings,
     count_by_action,
     detect_drift_fields,
+    detect_drift_reentries,
     field_action_config,
     filter_resources,
+    format_drift_subline_body,
     format_field_suffix,
     format_group_header,
     group_by_resource_type,
     is_field_changes,
+    iter_non_topology_field_changes,
 )
 from dagshund.merge import merge_sub_resources
 from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
     is_resource_changes,
+    is_topology_drift_change,
 )
 from dagshund.types import (
     DagshundError,
@@ -61,16 +67,24 @@ def _render_resource(
     yield f"- `{cfg.symbol}` `{resource_type}/{resource_name}`{label}"
 
     changes = entry.get("changes", {})
-    if is_field_changes(changes) and cfg.show_field_changes and detect_drift_fields(changes):
+    if not (is_field_changes(changes) and changes and cfg.show_field_changes):
+        return
+
+    reentries = detect_drift_reentries(changes)
+    if detect_drift_fields(changes) or reentries:
         yield "  - :warning: manually edited outside bundle"
 
-    if is_field_changes(changes) and changes and cfg.show_field_changes:
-        for field_name, change in sorted(changes.items()):
-            if not isinstance(change, dict):
+    for field_name, change in iter_non_topology_field_changes(changes):
+        rendered = _render_field_change(field_name, change)
+        if rendered is not None:
+            yield rendered
+
+    if reentries:
+        create_cfg = action_config("create")
+        for key_name, change in sorted(changes.items()):
+            if not isinstance(change, dict) or not is_topology_drift_change(change):
                 continue
-            rendered = _render_field_change(field_name, change)
-            if rendered is not None:
-                yield rendered
+            yield f"  - `{create_cfg.symbol}` `{key_name}` (re-added)"
 
 
 def _render_header(plan: Plan) -> Iterator[str]:
@@ -122,13 +136,28 @@ def _render_warnings(warnings: list[str]) -> Iterator[str]:
         yield f"> - {warning}"
 
 
-def _render_drift_warnings(warnings: list[str]) -> Iterator[str]:
+def _iter_drift_warning_md_lines(summary: DriftSummary) -> Iterator[str]:
+    """Yield the header + nested sub-bullets for a single drift summary.
+
+    The ``>   - `` prefix (three spaces between ``>`` and ``-``) is required for
+    GitHub/GitLab nested bullet rendering inside alert blocks; top-level bullets
+    use ``> -`` (one space).
+    """
+    yield f"> - {summary.resource_type}/{summary.resource_name} was edited outside the bundle"
+    if summary.overwritten_field_count > 0:
+        yield f">   - {format_drift_subline_body(summary.overwritten_field_count, 'field', 'overwritten')}"
+    for noun, group in groupby(summary.reentries, key=lambda pair: pair[0]):
+        labels = [pair[1] for pair in group]
+        yield f">   - {format_drift_subline_body(len(labels), noun, 're-added', ', '.join(labels))}"
+
+
+def _render_drift_warnings(summaries: list[DriftSummary]) -> Iterator[str]:
     """Render drift warnings as a GitHub/GitLab alert block."""
     yield ""
     yield "> [!WARNING]"
     yield "> **Manual Edits Detected**"
-    for warning in warnings:
-        yield f"> - {warning}"
+    for summary in summaries:
+        yield from _iter_drift_warning_md_lines(summary)
 
 
 def render_markdown(
@@ -175,8 +204,8 @@ def render_markdown(
     if warnings:
         lines.extend(_render_warnings(warnings))
 
-    drift_warnings = collect_drift_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
-    if drift_warnings:
-        lines.extend(_render_drift_warnings(drift_warnings))
+    drift_summaries = collect_drift_summaries(resources, visible_states=visible_states, resource_filter=resource_filter)
+    if drift_summaries:
+        lines.extend(_render_drift_warnings(drift_summaries))
 
     return "\n".join(lines)

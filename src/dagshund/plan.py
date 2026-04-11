@@ -79,6 +79,31 @@ def has_drifted_field(change: FieldChange) -> bool:
     return "remote" in change and change["remote"] != change["old"]
 
 
+def is_topology_drift_change(change: FieldChange) -> bool:
+    """Check whether a change represents a sub-entity missing from the remote.
+
+    Databricks encodes ``bundle has X, remote doesn't — bundle will recreate it``
+    as ``action=update`` with ``old == new`` and no ``remote`` field. Operates on
+    post-merge change keys (see ``merge.py``); callers live in ``format.py``.
+
+    Direct mirror of the JS predicate at ``js/src/utils/structural-diff.ts``.
+    Gated strictly on ``action=update`` — ``recreate``/``resize``/``update_id``
+    never appear with this shape in observed plan.json output, and treating them
+    as topology drift would render ``(re-added)`` under resources whose per-line
+    action is already ``recreate``.
+
+    Mutually exclusive with ``has_drifted_field`` by construction (that one
+    requires ``"remote" in change``).
+    """
+    if change.get("action") != "update":
+        return False
+    if "old" not in change or "new" not in change:
+        return False
+    if "remote" in change:
+        return False
+    return change["old"] == change["new"]
+
+
 def detect_manual_edits(resources: ResourceChanges) -> bool:
     """Check whether any resource has fields that were manually edited outside the bundle."""
     for entry in resources.values():

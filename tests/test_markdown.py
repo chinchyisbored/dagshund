@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from dagshund import DagshundError, DiffState
+from dagshund.format import DriftSummary
 from dagshund.markdown import (
     _render_drift_warnings,
     _render_field_change,
@@ -282,14 +283,40 @@ def test_render_warnings_uses_caution_block() -> None:
 
 
 def test_render_drift_warnings_uses_warning_block() -> None:
-    warnings = ["jobs/pipeline was edited outside the bundle (1 field will be overwritten)"]
+    summaries = [
+        DriftSummary(
+            resource_type="jobs",
+            resource_name="pipeline",
+            overwritten_field_count=1,
+            reentries=(),
+        ),
+    ]
 
-    lines = list(_render_drift_warnings(warnings))
+    lines = list(_render_drift_warnings(summaries))
 
     text = "\n".join(lines)
     assert "> [!WARNING]" in text
     assert "**Manual Edits Detected**" in text
-    assert "jobs/pipeline" in text
+    assert "jobs/pipeline was edited outside the bundle" in text
+    assert "1 field will be overwritten" in text
+
+
+def test_render_drift_warnings_nested_bullets_for_reentries() -> None:
+    summaries = [
+        DriftSummary(
+            resource_type="jobs",
+            resource_name="pipeline",
+            overwritten_field_count=2,
+            reentries=(("task", "transform"),),
+        ),
+    ]
+
+    lines = list(_render_drift_warnings(summaries))
+    text = "\n".join(lines)
+
+    assert "> - jobs/pipeline was edited outside the bundle" in text
+    assert ">   - 2 fields will be overwritten" in text
+    assert ">   - 1 task will be re-added (transform)" in text
 
 
 # --- render_markdown (integration) ---
@@ -336,6 +363,44 @@ def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
     assert "(drift)" in result
     assert "> [!WARNING]" in result
     assert "Manual Edits Detected" in result
+
+    # Footer: both kinds of drift surfaced with nested sub-bullets
+    assert ">   - 2 fields will be overwritten" in result
+    assert ">   - 1 task will be re-added (transform)" in result
+    assert ">   - 1 field will be overwritten" in result
+    assert ">   - 1 grant will be re-added (data_engineers)" in result
+
+    # Body: re-added sub-entities rendered as create-style list items
+    assert "`+` `tasks[task_key='transform']` (re-added)" in result
+    assert "`+` `grants.[principal='data_engineers']` (re-added)" in result
+
+    # Old flat parenthetical format must not leak back in
+    assert "(2 fields will be overwritten)" not in result
+    assert "(1 field will be overwritten)" not in result
+
+
+def test_render_markdown_drift_topology_only(fixtures_dir: Path) -> None:
+    """A resource whose only drift is a topology re-add still gets the per-resource banner."""
+    plan = {
+        "plan": {
+            "resources.jobs.pipeline": {
+                "action": "update",
+                "changes": {
+                    "tasks[task_key='transform']": {
+                        "action": "update",
+                        "old": {"task_key": "transform"},
+                        "new": {"task_key": "transform"},
+                    },
+                },
+            },
+        },
+    }
+
+    result = render_markdown(plan)
+
+    assert ":warning: manually edited outside bundle" in result
+    assert "`+` `tasks[task_key='transform']` (re-added)" in result
+    assert ">   - 1 task will be re-added (transform)" in result
 
 
 def test_render_markdown_with_visible_states(fixtures_dir: Path) -> None:

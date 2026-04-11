@@ -8,6 +8,7 @@ from dagshund import (
     detect_dangerous_actions,
     detect_manual_edits,
     has_drifted_field,
+    is_topology_drift_change,
     parse_plan,
 )
 from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES
@@ -107,6 +108,69 @@ def test_has_drifted_field_missing_old_returns_false() -> None:
 
 def test_has_drifted_field_missing_new_returns_false() -> None:
     assert has_drifted_field({"action": "update", "old": "A", "remote": "B"}) is False
+
+
+# --- is_topology_drift_change ---
+
+
+def test_is_topology_drift_change_update_old_equals_new_no_remote_returns_true() -> None:
+    assert is_topology_drift_change({"action": "update", "old": "A", "new": "A"}) is True
+
+
+def test_is_topology_drift_change_field_drift_returns_false() -> None:
+    """Field drift (remote present and differs) is the domain of has_drifted_field."""
+    assert is_topology_drift_change({"action": "update", "old": "A", "new": "A", "remote": "B"}) is False
+
+
+def test_is_topology_drift_change_remote_equals_old_returns_false() -> None:
+    assert is_topology_drift_change({"action": "update", "old": "A", "new": "A", "remote": "A"}) is False
+
+
+def test_is_topology_drift_change_old_differs_from_new_returns_false() -> None:
+    assert is_topology_drift_change({"action": "update", "old": "A", "new": "B"}) is False
+
+
+def test_is_topology_drift_change_missing_old_returns_false() -> None:
+    assert is_topology_drift_change({"action": "update", "new": "A"}) is False
+
+
+def test_is_topology_drift_change_missing_new_returns_false() -> None:
+    assert is_topology_drift_change({"action": "update", "old": "A"}) is False
+
+
+def test_is_topology_drift_change_skip_action_returns_false() -> None:
+    assert is_topology_drift_change({"action": "skip", "old": "A", "new": "A"}) is False
+
+
+def test_is_topology_drift_change_empty_action_returns_false() -> None:
+    assert is_topology_drift_change({"action": "", "old": "A", "new": "A"}) is False
+
+
+def test_is_topology_drift_change_recreate_action_returns_false() -> None:
+    """Narrow gate: only action=update counts. recreate with this shape is not topology drift."""
+    assert is_topology_drift_change({"action": "recreate", "old": "A", "new": "A"}) is False
+
+
+def test_is_topology_drift_change_resize_action_returns_false() -> None:
+    assert is_topology_drift_change({"action": "resize", "old": "A", "new": "A"}) is False
+
+
+def test_is_topology_drift_change_deep_equal_nested_dicts_returns_true() -> None:
+    change = {
+        "action": "update",
+        "old": {"task_key": "transform", "notebook_task": {"notebook_path": "/x"}},
+        "new": {"task_key": "transform", "notebook_task": {"notebook_path": "/x"}},
+    }
+    assert is_topology_drift_change(change) is True
+
+
+def test_is_topology_drift_change_deep_equal_lists_returns_true() -> None:
+    change = {
+        "action": "update",
+        "old": [{"task_key": "a"}, {"task_key": "b"}],
+        "new": [{"task_key": "a"}, {"task_key": "b"}],
+    }
+    assert is_topology_drift_change(change) is True
 
 
 # --- detect_manual_edits ---

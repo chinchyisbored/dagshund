@@ -4,28 +4,34 @@ import os
 import sys
 import textwrap
 from collections.abc import Callable, Iterator
+from itertools import groupby
 
 from dagshund.format import (
     ActionConfig,
+    DriftSummary,
     action_config,
-    collect_drift_warnings,
+    collect_drift_summaries,
     collect_warnings,
     count_by_action,
     detect_drift_fields,
+    detect_drift_reentries,
     field_action_config,
     filter_resources,
     format_display_value,
+    format_drift_subline_body,
     format_field_suffix,
     format_group_header,
     format_value,
     group_by_resource_type,
     is_field_changes,
+    iter_non_topology_field_changes,
 )
 from dagshund.merge import merge_sub_resources
 from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
     is_resource_changes,
+    is_topology_drift_change,
 )
 from dagshund.types import (
     DagshundError,
@@ -185,16 +191,26 @@ def _render_resource(
     yield _colorize(header, _action_color(cfg), use_color=use_color)
 
     changes = entry.get("changes", {})
-    if is_field_changes(changes) and cfg.show_field_changes and detect_drift_fields(changes):
+    if not (is_field_changes(changes) and changes and cfg.show_field_changes):
+        return
+
+    reentries = detect_drift_reentries(changes)
+    if detect_drift_fields(changes) or reentries:
         yield _colorize("      \u26a0 manually edited outside bundle", YELLOW, use_color=use_color)
 
-    if is_field_changes(changes) and changes and cfg.show_field_changes:
-        for field_name, change in sorted(changes.items()):
-            if not isinstance(change, dict):
+    for field_name, change in iter_non_topology_field_changes(changes):
+        rendered = _render_field_change(field_name, change, use_color=use_color, width=width)
+        if rendered is not None:
+            yield rendered
+
+    if reentries:
+        create_cfg = action_config("create")
+        create_color = _action_color(create_cfg)
+        for key_name, change in sorted(changes.items()):
+            if not isinstance(change, dict) or not is_topology_drift_change(change):
                 continue
-            rendered = _render_field_change(field_name, change, use_color=use_color, width=width)
-            if rendered is not None:
-                yield rendered
+            line = f"      {create_cfg.symbol} {key_name} (re-added)"
+            yield _colorize(line, create_color, use_color=use_color)
 
 
 def _print_header(plan: Plan, *, use_color: bool) -> None:
@@ -264,15 +280,26 @@ def _print_warnings(warnings: list[str], *, use_color: bool, width: int | None =
         print(_colorize(line, RED, use_color=use_color))
 
 
-def _print_drift_warnings(warnings: list[str], *, use_color: bool, width: int | None = None) -> None:
+def _iter_drift_warning_lines(summary: DriftSummary) -> Iterator[str]:
+    """Yield the header + six-space indented sub-lines for a single drift summary."""
+    yield f"  \u26a0 {summary.resource_type}/{summary.resource_name} was edited outside the bundle"
+    if summary.overwritten_field_count > 0:
+        yield f"      {format_drift_subline_body(summary.overwritten_field_count, 'field', 'overwritten')}"
+    # reentries are pre-sorted by (noun, label); groupby is correct without re-sorting.
+    for noun, group in groupby(summary.reentries, key=lambda pair: pair[0]):
+        labels = [pair[1] for pair in group]
+        yield f"      {format_drift_subline_body(len(labels), noun, 're-added', ', '.join(labels))}"
+
+
+def _print_drift_warnings(summaries: list[DriftSummary], *, use_color: bool, width: int | None = None) -> None:
     """Print drift warnings below the summary line."""
     print()
     print(_colorize("  Manual Edits Detected:", YELLOW + _BOLD, use_color=use_color))
-    for warning in warnings:
-        line = f"  \u26a0 {warning}"
-        if width is not None and width >= _MIN_WRAP_WIDTH:
-            line = _wrap_warning_line(line, width)
-        print(_colorize(line, YELLOW, use_color=use_color))
+    for summary in summaries:
+        for line in _iter_drift_warning_lines(summary):
+            if width is not None and width >= _MIN_WRAP_WIDTH and line.startswith("  \u26a0"):
+                line = _wrap_warning_line(line, width)
+            print(_colorize(line, YELLOW, use_color=use_color))
 
 
 def render_text(
@@ -322,6 +349,6 @@ def render_text(
     if warnings:
         _print_warnings(warnings, use_color=use_color, width=width)
 
-    drift_warnings = collect_drift_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
-    if drift_warnings:
-        _print_drift_warnings(drift_warnings, use_color=use_color, width=width)
+    drift_summaries = collect_drift_summaries(resources, visible_states=visible_states, resource_filter=resource_filter)
+    if drift_summaries:
+        _print_drift_warnings(drift_summaries, use_color=use_color, width=width)
