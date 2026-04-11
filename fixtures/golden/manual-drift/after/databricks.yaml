@@ -28,3 +28,21 @@ resources:
             - task_key: transform
           notebook_task:
             notebook_path: /Workspace/drift/publish
+
+  schemas:
+    drift_doomed:
+      catalog_name: ${var.catalog_name}
+      name: drift_doomed
+
+    drift_grants:
+      catalog_name: ${var.catalog_name}
+      name: drift_grants
+      grants:
+        - principal: data_engineers
+          privileges:
+            - USE_SCHEMA
+            - CREATE_TABLE
+        - principal: data_readers
+          privileges:
+            - USE_SCHEMA
+            - SELECT

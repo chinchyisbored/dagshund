@@ -5,6 +5,7 @@ import {
   diffArrays,
   diffObjects,
   findIdentityKey,
+  isTopologyDriftChange,
 } from "../../src/utils/structural-diff.ts";
 
 describe("findIdentityKey", () => {
@@ -196,47 +197,60 @@ describe("diffObjects", () => {
   });
 });
 
+/** Narrow a result to its diff variant for assertions; fail the test otherwise. */
+const asDiff = (
+  result: ReturnType<typeof computeStructuralDiff>,
+): Extract<ReturnType<typeof computeStructuralDiff>, { kind: "diff" }> => {
+  if (result.kind !== "diff") {
+    throw new Error(`expected diff result, got ${result.kind}`);
+  }
+  return result;
+};
+
 describe("computeStructuralDiff", () => {
   test("create-only when action is create with no baseline", () => {
     const change: ChangeDesc = { action: "create", new: "hello" };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("create-only");
     if (result.diff.kind === "create-only") {
       expect(result.diff.value).toBe("hello");
     }
     expect(result.baselineLabel).toBe("old");
+    expect(result.semantic).toBe("normal");
   });
 
   test("delete-only when action is delete with no new", () => {
     const change: ChangeDesc = { action: "delete", old: "goodbye" };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("delete-only");
     if (result.diff.kind === "delete-only") {
       expect(result.diff.value).toBe("goodbye");
     }
     expect(result.baselineLabel).toBe("old");
+    expect(result.semantic).toBe("normal");
   });
 
   test("scalar diff for primitive values", () => {
     const change: ChangeDesc = { action: "update", old: "before", new: "after" };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("scalar");
     if (result.diff.kind === "scalar") {
       expect(result.diff.old).toBe("before");
       expect(result.diff.new).toBe("after");
     }
     expect(result.baselineLabel).toBe("old");
+    expect(result.semantic).toBe("normal");
   });
 
   test("scalar diff for number values", () => {
     const change: ChangeDesc = { action: "update", old: 1, new: 2 };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("scalar");
   });
 
   test("scalar diff for boolean values", () => {
     const change: ChangeDesc = { action: "update", old: true, new: false };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("scalar");
   });
 
@@ -246,7 +260,7 @@ describe("computeStructuralDiff", () => {
       old: [{ task_key: "a" }],
       new: [{ task_key: "a" }, { task_key: "b" }],
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("array");
     if (result.diff.kind === "array") {
       expect(result.diff.elements).toHaveLength(2);
@@ -260,7 +274,7 @@ describe("computeStructuralDiff", () => {
       old: { a: 1 },
       new: { a: 2, b: 3 },
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("object");
     if (result.diff.kind === "object") {
       expect(result.diff.entries).toHaveLength(2);
@@ -269,19 +283,20 @@ describe("computeStructuralDiff", () => {
 
   test("scalar diff when types mismatch (array vs object)", () => {
     const change: ChangeDesc = { action: "update", old: [1], new: { a: 1 } };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("scalar");
   });
 
-  test("remote fallback when old is missing", () => {
+  test("remote fallback when old is missing but new is present", () => {
     const change: ChangeDesc = {
       action: "update",
       remote: [{ task_key: "a" }],
       new: [{ task_key: "a" }, { task_key: "b" }],
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.baselineLabel).toBe("remote");
     expect(result.diff.kind).toBe("array");
+    expect(result.semantic).toBe("normal");
   });
 
   test("prefers old over remote when both exist", () => {
@@ -291,7 +306,7 @@ describe("computeStructuralDiff", () => {
       remote: "from-remote",
       new: "to-new",
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.baselineLabel).toBe("old");
     if (result.diff.kind === "scalar") {
       expect(result.diff.old).toBe("from-old");
@@ -300,13 +315,13 @@ describe("computeStructuralDiff", () => {
 
   test("create-only when no baseline and action is not create", () => {
     const change: ChangeDesc = { action: "update", new: "value" };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("create-only");
   });
 
   test("delete-only for remote-only baseline on delete", () => {
     const change: ChangeDesc = { action: "delete", remote: "remote-val" };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("delete-only");
     expect(result.baselineLabel).toBe("remote");
     if (result.diff.kind === "delete-only") {
@@ -321,8 +336,9 @@ describe("computeStructuralDiff", () => {
       new: "UI_LOCKED",
       remote: "EDITABLE",
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.baselineLabel).toBe("remote");
+    expect(result.semantic).toBe("drift");
     expect(result.diff.kind).toBe("scalar");
     if (result.diff.kind === "scalar") {
       expect(result.diff.old).toBe("EDITABLE");
@@ -337,8 +353,9 @@ describe("computeStructuralDiff", () => {
       new: { a: 1, b: 2 },
       remote: { a: 1, b: 99 },
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.baselineLabel).toBe("remote");
+    expect(result.semantic).toBe("drift");
     expect(result.diff.kind).toBe("object");
   });
 
@@ -349,8 +366,9 @@ describe("computeStructuralDiff", () => {
       new: "after",
       remote: "something",
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     expect(result.baselineLabel).toBe("old");
+    expect(result.semantic).toBe("normal");
     if (result.diff.kind === "scalar") {
       expect(result.diff.old).toBe("before");
       expect(result.diff.new).toBe("after");
@@ -364,8 +382,155 @@ describe("computeStructuralDiff", () => {
       new: "same",
       remote: "same",
     };
-    const result = computeStructuralDiff(change);
+    const result = asDiff(computeStructuralDiff(change));
     // No swap — falls through to normal old-based diff
     expect(result.baselineLabel).toBe("old");
+    expect(result.semantic).toBe("normal");
+  });
+
+  test("drift: detects old == new == null with non-null remote via `in` check", () => {
+    // Pins the `"old" in change` idiom on the drift branch: a drift where
+    // both sides are explicitly null must still be detected, matching the
+    // remote-only branch's presence check and Python's field_action_config.
+    const change: ChangeDesc = {
+      action: "update",
+      old: null,
+      new: null,
+      remote: "something",
+    };
+    const result = asDiff(computeStructuralDiff(change));
+    expect(result.semantic).toBe("drift");
+    expect(result.baselineLabel).toBe("remote");
+    expect(result.diff).toEqual({ kind: "scalar", old: "something", new: null });
+  });
+
+  test("remote-only: update action with only remote returns remote-only kind", () => {
+    const change: ChangeDesc = { action: "update", remote: "PERFORMANCE_OPTIMIZED" };
+    const result = computeStructuralDiff(change);
+    expect(result.kind).toBe("remote-only");
+    if (result.kind === "remote-only") {
+      expect(result.value).toBe("PERFORMANCE_OPTIMIZED");
+    }
+  });
+
+  test("remote-only: does not route through delete-only (regression guard)", () => {
+    // Before the fix, {action: "update", remote: ...} fell through to delete-only,
+    // rendering as a red "-" block.
+    const change: ChangeDesc = {
+      action: "update",
+      remote: { no_alert_for_skipped_runs: false },
+    };
+    const result = computeStructuralDiff(change);
+    expect(result.kind).toBe("remote-only");
+  });
+
+  test("remote-only: preserves null remote value via `in` check", () => {
+    // Pins the `"remote" in change` idiom: an explicit null remote must still be
+    // classified as remote-only, not fall through to the baseline fallback.
+    const change: ChangeDesc = { action: "update", remote: null };
+    const result = computeStructuralDiff(change);
+    expect(result.kind).toBe("remote-only");
+    if (result.kind === "remote-only") {
+      expect(result.value).toBeNull();
+    }
+  });
+
+  test("remote-only: preserves empty object remote value", () => {
+    const change: ChangeDesc = { action: "update", remote: {} };
+    const result = computeStructuralDiff(change);
+    expect(result.kind).toBe("remote-only");
+    if (result.kind === "remote-only") {
+      expect(result.value).toEqual({});
+    }
+  });
+
+  test("remote-only: preserves empty array remote value", () => {
+    const change: ChangeDesc = { action: "update", remote: [] };
+    const result = computeStructuralDiff(change);
+    expect(result.kind).toBe("remote-only");
+    if (result.kind === "remote-only") {
+      expect(result.value).toEqual([]);
+    }
+  });
+
+  test("delete action with only remote still returns delete-only, not remote-only", () => {
+    // Regression: the delete-only early branch must run before the remote-only
+    // branch so `{action: "delete", remote: ...}` keeps its delete semantics.
+    const change: ChangeDesc = { action: "delete", remote: "gone" };
+    const result = asDiff(computeStructuralDiff(change));
+    expect(result.diff.kind).toBe("delete-only");
+  });
+});
+
+describe("isTopologyDriftChange", () => {
+  test("positive: whole-task re-add shape", () => {
+    const change: ChangeDesc = {
+      action: "update",
+      old: {
+        depends_on: [{ task_key: "ingest" }],
+        notebook_task: { notebook_path: "/Workspace/drift/transform" },
+        task_key: "transform",
+      },
+      new: {
+        depends_on: [{ task_key: "ingest" }],
+        notebook_task: { notebook_path: "/Workspace/drift/transform" },
+        task_key: "transform",
+      },
+    };
+    expect(isTopologyDriftChange(change)).toBe(true);
+  });
+
+  test("positive: grant re-add shape", () => {
+    const change: ChangeDesc = {
+      action: "update",
+      old: { principal: "data_engineers", privileges: ["CREATE_TABLE", "USE_SCHEMA"] },
+      new: { principal: "data_engineers", privileges: ["CREATE_TABLE", "USE_SCHEMA"] },
+    };
+    expect(isTopologyDriftChange(change)).toBe(true);
+  });
+
+  test("negative: field-level drift has remote present", () => {
+    const change: ChangeDesc = {
+      action: "update",
+      old: "UI_LOCKED",
+      new: "UI_LOCKED",
+      remote: "EDITABLE",
+    };
+    expect(isTopologyDriftChange(change)).toBe(false);
+  });
+
+  test("negative: regular update where old differs from new", () => {
+    const change: ChangeDesc = { action: "update", old: "a", new: "b" };
+    expect(isTopologyDriftChange(change)).toBe(false);
+  });
+
+  test("negative: create action", () => {
+    const change: ChangeDesc = { action: "create", new: { foo: "bar" } };
+    expect(isTopologyDriftChange(change)).toBe(false);
+  });
+
+  test("negative: delete action", () => {
+    const change: ChangeDesc = { action: "delete", old: { foo: "bar" } };
+    expect(isTopologyDriftChange(change)).toBe(false);
+  });
+
+  test("negative: skip action", () => {
+    const change: ChangeDesc = { action: "skip", remote: 0 };
+    expect(isTopologyDriftChange(change)).toBe(false);
+  });
+
+  test("negative: missing old", () => {
+    const change: ChangeDesc = { action: "update", new: { foo: "bar" } };
+    expect(isTopologyDriftChange(change)).toBe(false);
+  });
+
+  test("negative: missing new", () => {
+    const change: ChangeDesc = { action: "update", old: { foo: "bar" } };
+    expect(isTopologyDriftChange(change)).toBe(false);
+  });
+
+  test("negative: both missing", () => {
+    const change: ChangeDesc = { action: "update" };
+    expect(isTopologyDriftChange(change)).toBe(false);
   });
 });

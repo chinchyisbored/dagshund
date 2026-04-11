@@ -1,12 +1,21 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
+import { isTopologyDriftChange } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 
-/** Classify a change entry as added, removed, or modified based on old/new fields. */
+/**
+ * Classify a change entry as added, removed, or modified based on old/new fields.
+ *
+ * Topology drift (old == new, no `remote` field) means the entity is defined in
+ * the bundle but missing from the remote — Databricks will create it on apply.
+ * From the remote's perspective that is an addition, so it classifies as "added"
+ * even though both `old` and `new` are populated.
+ */
 export const classifyChange = (
   change: ChangeDesc,
 ): "added" | "removed" | "modified" | undefined => {
+  if (isTopologyDriftChange(change)) return "added";
   const hasNew = change.new !== undefined;
   const hasOld = change.old !== undefined;
   if (hasNew && !hasOld) return "added";

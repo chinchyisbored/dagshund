@@ -4,6 +4,7 @@ import type { ChangeDesc } from "./plan-schema.ts";
 type TaskChangeSummaryEntry = {
   readonly taskKey: string;
   readonly diffState: DiffState;
+  readonly isDrift: boolean;
 };
 
 export type TaskChangeSummary = readonly TaskChangeSummaryEntry[];
@@ -23,17 +24,20 @@ type BaseGraphNode = {
 export type JobGraphNode = BaseGraphNode & {
   readonly nodeKind: "job";
   readonly taskChangeSummary: TaskChangeSummary | undefined;
+  readonly isDrift?: boolean;
 };
 
 export type TaskGraphNode = BaseGraphNode & {
   readonly nodeKind: "task";
   readonly taskKey: string;
+  readonly isDrift?: boolean;
 };
 
 export type ResourceGraphNode = BaseGraphNode & {
   readonly nodeKind: "resource";
   /** Present only for job resources; undefined for all other resource types. */
   readonly taskChangeSummary: TaskChangeSummary | undefined;
+  readonly isDrift?: boolean;
 };
 
 export type RootGraphNode = BaseGraphNode & {

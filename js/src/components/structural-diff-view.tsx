@@ -233,13 +233,28 @@ function DeleteOnlyView({ diff }: { readonly diff: DeleteOnlyDiff }) {
   );
 }
 
+function RemoteOnlyView({ value }: { readonly value: unknown }) {
+  const format = useValueFormat();
+  return (
+    <div className="rounded px-2 py-1">
+      <PrefixedBlock prefix="= " text={formatValue(value, format)} className="text-ink-muted" />
+    </div>
+  );
+}
+
 export function StructuralDiffView({ result }: StructuralDiffViewProps) {
-  const { diff, baselineLabel } = result;
+  if (result.kind === "remote-only") {
+    return (
+      <div>
+        <RemoteOnlyView value={result.value} />
+      </div>
+    );
+  }
+
+  const { diff, semantic } = result;
   return (
     <div>
-      {baselineLabel === "remote" && (
-        <span className="mb-1 block text-xs text-ink-muted">(vs remote)</span>
-      )}
+      {semantic === "drift" && <span className="mb-1 block text-xs text-ink-muted">(drift)</span>}
       {diff.kind === "scalar" && <ScalarDiffView diff={diff} />}
       {diff.kind === "array" && <ArrayDiffView diff={diff} />}
       {diff.kind === "object" && <ObjectDiffView diff={diff} />}

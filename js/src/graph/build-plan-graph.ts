@@ -12,6 +12,7 @@ import {
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
+import { hasAnyDrift, hasTaskDrift } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
@@ -39,6 +40,7 @@ const buildJobNode = (
   nodeKind: "job",
   resourceKey,
   ...buildJobFields(resourceKey, entry, tasks),
+  isDrift: hasAnyDrift(entry.changes),
 });
 
 /** Create task-level graph nodes from extracted tasks. */
@@ -69,6 +71,7 @@ const buildTaskNodes = (
       taskKey: task.task_key,
       changes: filterTaskChanges(task.task_key, entry.changes),
       resourceState,
+      isDrift: hasTaskDrift(task.task_key, entry.changes),
     };
   });
 

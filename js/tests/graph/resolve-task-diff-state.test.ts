@@ -23,6 +23,13 @@ describe("classifyChange", () => {
   test("returns undefined when neither old nor new is present", () => {
     expect(classifyChange(make({}))).toBeUndefined();
   });
+
+  test("returns 'added' for topology drift (old == new, no remote)", () => {
+    // Drift-re-entry: identical bundle definition, missing from remote.
+    // Apply will create it, so it's an addition from the remote's perspective.
+    const task = { task_key: "transform", notebook_task: { notebook_path: "/x" } };
+    expect(classifyChange(make({ old: task, new: task }))).toBe("added");
+  });
 });
 
 describe("resolveTaskDiffState", () => {
@@ -94,5 +101,28 @@ describe("resolveTaskDiffState", () => {
 
   test("returns 'unchanged' when resource action is undefined and no changes", () => {
     expect(resolveTaskDiffState("extract", undefined, undefined)).toBe("unchanged");
+  });
+
+  test("returns 'added' for topology-drift whole-task entry (re-added on apply)", () => {
+    // old == new, no `remote` — indicates the task is missing from the remote.
+    // Databricks will recreate it on apply, so from the remote's perspective
+    // this is an addition. The `isDrift` flag (set separately by the builders)
+    // carries the "this is drift, not a brand-new user addition" context.
+    const changes = {
+      "tasks[task_key='transform']": {
+        action: "update" as const,
+        old: {
+          depends_on: [{ task_key: "ingest" }],
+          notebook_task: { notebook_path: "/Workspace/drift/transform" },
+          task_key: "transform",
+        },
+        new: {
+          depends_on: [{ task_key: "ingest" }],
+          notebook_task: { notebook_path: "/Workspace/drift/transform" },
+          task_key: "transform",
+        },
+      },
+    };
+    expect(resolveTaskDiffState("transform", "update", changes)).toBe("added");
   });
 });

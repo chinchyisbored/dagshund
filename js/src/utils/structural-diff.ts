@@ -7,6 +7,7 @@ import type {
   ObjectEntryStatus,
   StructuralDiffResult,
 } from "../types/structural-diff.ts";
+import { collectChangesForTask } from "./task-key.ts";
 import { isUnknownRecord } from "./unknown-record.ts";
 
 /** Key-order-independent deep equality check. */
@@ -24,6 +25,65 @@ export const deepEqual = (a: unknown, b: unknown): boolean => {
   }
   return false;
 };
+
+/**
+ * Detect a topology-drift change entry: a sub-entity defined in the bundle but
+ * missing from the remote. Databricks encodes it as action=update, structurally
+ * identical old and new, and no `remote` field at all (contrast with field-level
+ * drift, which always has `remote` present).
+ */
+export const isTopologyDriftChange = (change: ChangeDesc): boolean =>
+  change.action === "update" &&
+  change.old !== undefined &&
+  change.new !== undefined &&
+  !("remote" in change) &&
+  deepEqual(change.old, change.new);
+
+/**
+ * Shape-only predicate for field-level drift: both old and new are present
+ * and equal, and remote is present with a different value. Action-agnostic,
+ * so it's safe to reuse inside `computeStructuralDiff` where upstream
+ * filtering (`filter-changes.ts`) has already removed noise actions.
+ */
+const isDriftSwapShape = (change: ChangeDesc): boolean =>
+  "old" in change &&
+  "new" in change &&
+  "remote" in change &&
+  deepEqual(change.old, change.new) &&
+  !deepEqual(change.remote, change.old);
+
+/**
+ * Detect a field-level drift change entry: the bundle's view is unchanged
+ * (`old == new`) but the remote has diverged from both. Databricks will
+ * overwrite the remote with the bundle value on apply.
+ *
+ * Gated on `action === "update"` — the only field-level action Databricks
+ * actually emits for drifted fields. Python's `has_drifted_field` formally
+ * allows any non-unchanged action (update/update_id/recreate/resize), but
+ * `recreate`/`resize`/`update_id` never appear at field level in real
+ * plan.json output, so the narrower gate is equivalent in practice and
+ * more honest about what the data shape actually contains. Also excludes
+ * `action: "skip"` (server-side aliases like normalized enum values).
+ */
+export const isFieldDriftChange = (change: ChangeDesc): boolean =>
+  change.action === "update" && isDriftSwapShape(change);
+
+/** True for any drift shape — topology or field-level. */
+export const isAnyDriftChange = (change: ChangeDesc): boolean =>
+  isTopologyDriftChange(change) || isFieldDriftChange(change);
+
+/** True if any entry in the changes map is drift (topology or field-level).
+ *  Must run on the unfiltered map — `filterJobLevelChanges` strips the
+ *  `tasks[...]` entries that carry whole-task drift. */
+export const hasAnyDrift = (changes: Readonly<Record<string, ChangeDesc>> | undefined): boolean =>
+  changes !== undefined && Object.values(changes).some(isAnyDriftChange);
+
+/** True if any change entry scoped to this task (whole-task or sub-field) is drift. */
+export const hasTaskDrift = (
+  taskKey: string,
+  changes: Readonly<Record<string, ChangeDesc>> | undefined,
+): boolean =>
+  collectChangesForTask(taskKey, changes).some(([, change]) => isAnyDriftChange(change));
 
 /**
  * Check whether a candidate key has unique string values within an array of objects.
@@ -218,44 +278,72 @@ export const diffObjects = (
  *
  * Resolves the baseline (prefers `old`, falls back to `remote`), then
  * dispatches to array, object, or scalar diff depending on value types.
+ *
+ * Branch order matters:
+ *   1. create-only for explicit create with no baseline,
+ *   2. delete-only for explicit delete with no new,
+ *   3. remote-only for fields the bundle does not manage,
+ *   4. drift swap when old == new != remote,
+ *   5. normal baseline-vs-current diff.
  */
 export const computeStructuralDiff = (change: ChangeDesc): StructuralDiffResult => {
   // Create-only: no baseline to compare
   if (change.action === "create" && change.old === undefined && change.remote === undefined) {
     return {
+      kind: "diff",
       diff: { kind: "create-only", value: change.new },
       baselineLabel: "old",
+      semantic: "normal",
     };
   }
 
   // Delete-only: no new value
   if (change.action === "delete" && change.new === undefined) {
     return {
+      kind: "diff",
       diff: { kind: "delete-only", value: change.old ?? change.remote },
       baselineLabel: change.old !== undefined ? "old" : "remote",
+      semantic: "normal",
     };
   }
 
-  // Drift detection: when old == new, swap baseline to remote if it differs
-  if (
-    change.old !== undefined &&
-    change.new !== undefined &&
-    deepEqual(change.old, change.new) &&
-    change.remote !== undefined &&
-    !deepEqual(change.remote, change.old)
-  ) {
+  // Remote-only: the bundle has no opinion on this field, the server does.
+  // Uses `in` (not `!== undefined`) to correctly classify an explicit `remote: null`.
+  if (!("old" in change) && !("new" in change) && "remote" in change) {
+    return { kind: "remote-only", value: change.remote };
+  }
+
+  // Drift detection: when old == new, swap baseline to remote if it differs.
+  // Uses `isDriftSwapShape` (shape only, no action gate) because noise actions
+  // like "skip" are already filtered upstream in `filter-changes.ts` before a
+  // change reaches `ChangeEntry` → `computeStructuralDiff`. Deliberately
+  // broader than `isFieldDriftChange`, which gates on `action === "update"`
+  // for classification purposes (e.g. `hasTaskDrift`).
+  if (isDriftSwapShape(change)) {
     const baseline = change.remote;
     const current = change.new;
 
     if (Array.isArray(baseline) && Array.isArray(current)) {
-      return { diff: diffArrays(baseline, current), baselineLabel: "remote" };
+      return {
+        kind: "diff",
+        diff: diffArrays(baseline, current),
+        baselineLabel: "remote",
+        semantic: "drift",
+      };
     }
     if (isUnknownRecord(baseline) && isUnknownRecord(current)) {
-      return { diff: diffObjects(baseline, current), baselineLabel: "remote" };
+      return {
+        kind: "diff",
+        diff: diffObjects(baseline, current),
+        baselineLabel: "remote",
+        semantic: "drift",
+      };
     }
     return {
+      kind: "diff",
       diff: { kind: "scalar", old: baseline, new: current },
       baselineLabel: "remote",
+      semantic: "drift",
     };
   }
 
@@ -268,32 +356,48 @@ export const computeStructuralDiff = (change: ChangeDesc): StructuralDiffResult 
   // If no baseline at all, treat as create-only
   if (baseline === undefined) {
     return {
+      kind: "diff",
       diff: { kind: "create-only", value: current },
       baselineLabel: "old",
+      semantic: "normal",
     };
   }
 
   // If no current value, treat as delete-only
   if (current === undefined) {
     return {
+      kind: "diff",
       diff: { kind: "delete-only", value: baseline },
       baselineLabel,
+      semantic: "normal",
     };
   }
 
   // Both arrays → array diff
   if (Array.isArray(baseline) && Array.isArray(current)) {
-    return { diff: diffArrays(baseline, current), baselineLabel };
+    return {
+      kind: "diff",
+      diff: diffArrays(baseline, current),
+      baselineLabel,
+      semantic: "normal",
+    };
   }
 
   // Both plain objects → object diff
   if (isUnknownRecord(baseline) && isUnknownRecord(current)) {
-    return { diff: diffObjects(baseline, current), baselineLabel };
+    return {
+      kind: "diff",
+      diff: diffObjects(baseline, current),
+      baselineLabel,
+      semantic: "normal",
+    };
   }
 
   // Scalar or type mismatch
   return {
+    kind: "diff",
     diff: { kind: "scalar", old: baseline, new: current },
     baselineLabel,
+    semantic: "normal",
   };
 };

@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
   "cli_version": "0.296.0",
-  "lineage": "52e16e3c-32c4-4047-8e68-bf3ff4855cb4",
+  "lineage": "4e360b52-639f-43a2-b051-cf11e8077722",
   "serial": 1,
   "plan": {
     "resources.jobs.drift_pipeline": {
@@ -52,7 +52,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1775776914118,
+        "created_time": 1775859305321,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -63,7 +63,7 @@
           "no_alert_for_skipped_runs": false
         },
         "format": "MULTI_TASK",
-        "job_id": 322947409610820,
+        "job_id": 153087918908506,
         "max_concurrent_runs": 1,
         "name": "drift_pipeline",
         "performance_target": "PERFORMANCE_OPTIMIZED",
@@ -210,6 +210,114 @@
           "action": "skip",
           "reason": "empty",
           "remote": {}
+        }
+      }
+    },
+    "resources.schemas.drift_doomed": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "drift_doomed"
+        }
+      }
+    },
+    "resources.schemas.drift_grants": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1775859305365,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.drift_grants",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "drift_grants",
+        "owner": "user1@example.com",
+        "schema_id": "d0be75ee-e90f-4f02-b491-9dc575513604",
+        "updated_at": 1775859371844,
+        "updated_by": "user1@example.com"
+      }
+    },
+    "resources.schemas.drift_grants.grants": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.drift_grants",
+          "label": "${resources.schemas.drift_grants.id}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "securable_type": "schema",
+          "full_name": "dagshund.drift_grants",
+          "__embed__": [
+            {
+              "principal": "data_engineers",
+              "privileges": [
+                "CREATE_TABLE",
+                "USE_SCHEMA"
+              ]
+            },
+            {
+              "principal": "data_readers",
+              "privileges": [
+                "SELECT",
+                "USE_SCHEMA"
+              ]
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "securable_type": "schema",
+        "full_name": "dagshund.drift_grants",
+        "__embed__": [
+          {
+            "principal": "data_readers",
+            "privileges": [
+              "USE_SCHEMA"
+            ]
+          }
+        ]
+      },
+      "changes": {
+        "[principal='data_engineers']": {
+          "action": "update",
+          "old": {
+            "principal": "data_engineers",
+            "privileges": [
+              "CREATE_TABLE",
+              "USE_SCHEMA"
+            ]
+          },
+          "new": {
+            "principal": "data_engineers",
+            "privileges": [
+              "CREATE_TABLE",
+              "USE_SCHEMA"
+            ]
+          }
+        },
+        "[principal='data_readers'].privileges": {
+          "action": "update",
+          "old": [
+            "SELECT",
+            "USE_SCHEMA"
+          ],
+          "new": [
+            "SELECT",
+            "USE_SCHEMA"
+          ],
+          "remote": [
+            "USE_SCHEMA"
+          ]
         }
       }
     }

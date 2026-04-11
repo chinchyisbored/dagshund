@@ -1,6 +1,7 @@
 import type { DiffState } from "../types/diff-state.ts";
 import type { TaskChangeSummary } from "../types/graph-types.ts";
 import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
+import { hasTaskDrift } from "../utils/structural-diff.ts";
 import { TASK_KEY_PATTERN } from "../utils/task-key.ts";
 import type { TaskEntry } from "./extract-tasks.ts";
 import { resolveTaskDiffState } from "./resolve-task-diff-state.ts";
@@ -61,6 +62,7 @@ export const buildTaskChangeSummary = (
   const entries = [...allKeys].map((taskKey) => ({
     taskKey,
     diffState: resolveTaskDiffState(taskKey, resourceAction, changes),
+    isDrift: hasTaskDrift(taskKey, changes),
   }));
 
   const changedEntries = entries.filter((entry) => entry.diffState !== "unchanged");

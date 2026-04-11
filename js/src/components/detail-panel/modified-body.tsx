@@ -98,13 +98,13 @@ const groupChangesByCategory = (
 
 export function ModifiedBody({
   data,
-  meaningfulChanges,
+  fieldChanges,
 }: {
   readonly data: DagNodeData;
-  readonly meaningfulChanges: readonly (readonly [string, ChangeDesc])[];
+  readonly fieldChanges: readonly (readonly [string, ChangeDesc])[];
 }) {
-  const changeGroups = groupChangesByCategory(meaningfulChanges);
-  const { exact, subFieldPaths } = categorizeChangedFields(meaningfulChanges);
+  const changeGroups = groupChangesByCategory(fieldChanges);
+  const { exact, subFieldPaths } = categorizeChangedFields(fieldChanges);
   const unmodifiedState = data.resourceState
     ? filterUnmodifiedState(data.resourceState, exact, subFieldPaths)
     : {};

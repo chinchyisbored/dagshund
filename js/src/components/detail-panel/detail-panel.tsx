@@ -4,10 +4,11 @@ import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import type { LateralContext } from "../../types/lateral-context.ts";
 import type { PhantomContext } from "../../types/phantom-context.ts";
-import type { ChangeDesc } from "../../types/plan-schema.ts";
 import type { ValueFormat } from "../../utils/format-value.ts";
-import { deepEqual } from "../../utils/structural-diff.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
+import { DriftPill } from "./drift-pill.tsx";
+import { DriftReentrySection } from "./drift-reentry-section.tsx";
+import { splitMeaningfulChanges } from "./filter-changes.ts";
 import { FormatToggle, NEXT_FORMAT } from "./format-toggle.tsx";
 import { LateralDependencies } from "./lateral-dependencies.tsx";
 import { ModifiedBody } from "./modified-body.tsx";
@@ -25,25 +26,10 @@ type DetailPanelProps = {
   readonly onNavigateToNode?: (nodeId: string) => void;
 };
 
-const NOISE_ACTIONS: ReadonlySet<string> = new Set(["skip", ""]);
-
-/** Detect no-op changes where old == new with no meaningful remote difference. */
-const isNoOpChange = (change: ChangeDesc): boolean => {
-  if (change.old === undefined || change.new === undefined) return false;
-  if (!deepEqual(change.old, change.new)) return false;
-  // Drift (remote differs) is meaningful — keep it
-  if (change.remote !== undefined && !deepEqual(change.remote, change.old)) return false;
-  return true;
-};
-
-function filterMeaningfulChanges(
-  changes: Readonly<Record<string, ChangeDesc>> | undefined,
-): readonly (readonly [string, ChangeDesc])[] {
-  if (changes === undefined) return [];
-  return Object.entries(changes).filter(
-    ([, change]) => !NOISE_ACTIONS.has(change.action) && !isNoOpChange(change),
-  );
-}
+/** Nodes that can carry the orthogonal `isDrift` dimension. */
+const nodeCanDrift = (data: DagNodeData): boolean =>
+  (data.nodeKind === "task" || data.nodeKind === "job" || data.nodeKind === "resource") &&
+  data.isDrift === true;
 
 function ViewInJobsTabButton({ resourceKey }: { readonly resourceKey: string }) {
   const navigateToJob = useJobNavigation();
@@ -69,7 +55,9 @@ export function DetailPanel({
   onNavigateToNode,
 }: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
-  const meaningfulChanges = filterMeaningfulChanges(data.changes);
+  const { driftChanges, fieldChanges } = splitMeaningfulChanges(data.changes);
+  const hasDriftEntries = Object.keys(driftChanges).length > 0;
+  const isDriftNode = nodeCanDrift(data);
 
   useEffect(() => {
     const closePanelOnEscape = (event: KeyboardEvent) => {
@@ -87,7 +75,8 @@ export function DetailPanel({
 
   const showNoChanges =
     data.diffState === "modified" &&
-    meaningfulChanges.length === 0 &&
+    fieldChanges.length === 0 &&
+    !hasDriftEntries &&
     data.resourceState === undefined &&
     !hasTaskSummary;
 
@@ -101,6 +90,7 @@ export function DetailPanel({
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="min-w-0 break-words text-sm font-semibold text-ink">{data.label}</h2>
             <DiffStateBadge diffState={data.diffState} />
+            {isDriftNode && <DriftPill />}
           </div>
           <div className="ml-2 flex shrink-0 items-center gap-1.5">
             <FormatToggle format={valueFormat} onToggle={toggleFormat} />
@@ -160,17 +150,28 @@ export function DetailPanel({
             <ViewInJobsTabButton resourceKey={data.resourceKey} />
           )}
 
+          {/* Drift re-entry section is hoisted above the diffState body switch so
+             it renders for any body path (added/modified/unchanged) — a node can
+             be `isDrift: true` while its own diffState is any value. Suppressed
+             when the node itself is a drift re-add (`isDrift` + `added`): the
+             green ObjectStateCard already shows the exact same definition, so a
+             separate section would duplicate content. */}
+          {hasDriftEntries && !(isDriftNode && data.diffState === "added") && (
+            <DriftReentrySection driftChanges={driftChanges} />
+          )}
+
           {(data.diffState === "added" || data.diffState === "removed") && (
             <ObjectStateCard
               label={data.label}
               nodeKind={data.nodeKind}
               resourceState={data.resourceState ?? {}}
               variant={data.diffState}
+              isDriftReentry={isDriftNode && data.diffState === "added"}
             />
           )}
 
           {data.diffState === "modified" && (
-            <ModifiedBody data={data} meaningfulChanges={meaningfulChanges} />
+            <ModifiedBody data={data} fieldChanges={fieldChanges} />
           )}
 
           {(data.diffState === "unchanged" || data.diffState === "unknown") && (

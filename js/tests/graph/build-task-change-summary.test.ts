@@ -51,7 +51,7 @@ describe("buildTaskChangeSummary", () => {
     };
     const result = buildTaskChangeSummary(tasks, "update", changes);
     expect(result).toHaveLength(1);
-    expect(result?.[0]).toEqual({ taskKey: "new_task", diffState: "added" });
+    expect(result?.[0]).toEqual({ taskKey: "new_task", diffState: "added", isDrift: false });
   });
 
   test("detects removed tasks from changes record (not in new_state)", () => {
@@ -61,7 +61,7 @@ describe("buildTaskChangeSummary", () => {
     };
     const result = buildTaskChangeSummary(tasks, "update", changes);
     expect(result).toHaveLength(1);
-    expect(result?.[0]).toEqual({ taskKey: "old_task", diffState: "removed" });
+    expect(result?.[0]).toEqual({ taskKey: "old_task", diffState: "removed", isDrift: false });
   });
 
   test("detects modified tasks", () => {
@@ -75,7 +75,7 @@ describe("buildTaskChangeSummary", () => {
     };
     const result = buildTaskChangeSummary(tasks, "update", changes);
     expect(result).toHaveLength(1);
-    expect(result?.[0]).toEqual({ taskKey: "transform", diffState: "modified" });
+    expect(result?.[0]).toEqual({ taskKey: "transform", diffState: "modified", isDrift: false });
   });
 
   test("sorts by diff state order: added → removed → modified", () => {
@@ -118,9 +118,9 @@ describe("buildTaskChangeSummary", () => {
     const result = buildTaskChangeSummary(tasks, "update", changes);
     expect(result).toHaveLength(3);
     // added first, then removed, then modified
-    expect(result?.[0]).toEqual({ taskKey: "new_step", diffState: "added" });
-    expect(result?.[1]).toEqual({ taskKey: "removed_step", diffState: "removed" });
-    expect(result?.[2]).toEqual({ taskKey: "transform", diffState: "modified" });
+    expect(result?.[0]).toEqual({ taskKey: "new_step", diffState: "added", isDrift: false });
+    expect(result?.[1]).toEqual({ taskKey: "removed_step", diffState: "removed", isDrift: false });
+    expect(result?.[2]).toEqual({ taskKey: "transform", diffState: "modified", isDrift: false });
   });
 
   test("works with undefined action (unchanged resource)", () => {
@@ -130,6 +130,60 @@ describe("buildTaskChangeSummary", () => {
     };
     const result = buildTaskChangeSummary(tasks, undefined, changes);
     expect(result).toHaveLength(1);
-    expect(result?.[0]).toEqual({ taskKey: "extract", diffState: "modified" });
+    expect(result?.[0]).toEqual({ taskKey: "extract", diffState: "modified", isDrift: false });
+  });
+
+  test("marks field-drifted tasks with isDrift: true", () => {
+    const tasks = [makeTask("publish")];
+    // Field-level drift: old == new but remote diverged (server-side edit).
+    const changes: Record<string, ChangeDesc> = {
+      "tasks[task_key='publish'].edit_mode": {
+        action: "update",
+        old: "UI_LOCKED",
+        new: "UI_LOCKED",
+        remote: "EDITABLE",
+      },
+    };
+    const result = buildTaskChangeSummary(tasks, "update", changes);
+    expect(result).toHaveLength(1);
+    expect(result?.[0]).toEqual({ taskKey: "publish", diffState: "modified", isDrift: true });
+  });
+
+  test("marks topology-drifted tasks with isDrift: true", () => {
+    const tasks = [makeTask("audit_analysis")];
+    // Topology drift: whole task present in bundle but missing from remote
+    // (old == new, no `remote` key). Classifies as "added" — server will create it.
+    const changes: Record<string, ChangeDesc> = {
+      "tasks[task_key='audit_analysis']": {
+        action: "update",
+        old: { task_key: "audit_analysis" },
+        new: { task_key: "audit_analysis" },
+      },
+    };
+    const result = buildTaskChangeSummary(tasks, "update", changes);
+    expect(result).toHaveLength(1);
+    expect(result?.[0]).toEqual({
+      taskKey: "audit_analysis",
+      diffState: "added",
+      isDrift: true,
+    });
+  });
+
+  test("does not mark skip-action drift-shaped entries as drift", () => {
+    // Regression guard: a server-side alias like `edit_mode: UI_LOCKED <-> EDITABLE`
+    // can come in as action="skip" with the same shape as field drift. It must
+    // NOT be classified as drift — `isFieldDriftChange` gates on action === "update".
+    const tasks = [makeTask("publish")];
+    const changes: Record<string, ChangeDesc> = {
+      "tasks[task_key='publish'].edit_mode": {
+        action: "skip",
+        old: "UI_LOCKED",
+        new: "UI_LOCKED",
+        remote: "EDITABLE",
+      },
+    };
+    const result = buildTaskChangeSummary(tasks, "update", changes);
+    // Filtered out entirely — skip actions are unchanged.
+    expect(result).toBeUndefined();
   });
 });

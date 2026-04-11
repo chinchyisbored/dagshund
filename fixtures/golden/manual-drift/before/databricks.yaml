@@ -29,3 +29,28 @@ resources:
             - task_key: transform
           notebook_task:
             notebook_path: /Workspace/drift/publish
+
+  schemas:
+    # Whole-resource drift: the schema itself will be dropped on the remote,
+    # leaving the bundle with a resource that does not exist upstream.
+    drift_doomed:
+      catalog_name: ${var.catalog_name}
+      name: drift_doomed
+
+    # Sub-entity drift, two dimensions:
+    #   - data_engineers: the entire grant entry will be revoked on the remote
+    #     (whole sub-entity drift).
+    #   - data_readers:   only the SELECT privilege will be revoked, leaving
+    #     USE_SCHEMA in place (partial sub-entity drift).
+    drift_grants:
+      catalog_name: ${var.catalog_name}
+      name: drift_grants
+      grants:
+        - principal: data_engineers
+          privileges:
+            - USE_SCHEMA
+            - CREATE_TABLE
+        - principal: data_readers
+          privileges:
+            - USE_SCHEMA
+            - SELECT

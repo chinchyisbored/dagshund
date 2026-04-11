@@ -8,8 +8,15 @@
   - `=` `performance_target`: "PERFORMANCE_OPTIMIZED" (remote)
   - `~` `tasks[task_key='publish'].depends_on[0].task_key`: "ingest" -> "transform" (drift)
 
-**~1** update
+#### schemas (2)
+- `+` `schemas/drift_doomed` — create
+- `~` `schemas/drift_grants` — update
+  - :warning: manually edited outside bundle
+  - `~` `grants.[principal='data_readers'].privileges`: ["USE_SCHEMA"] -> ["SELECT", "USE_SCHEMA"] (drift)
+
+**+1** create, **~2** update
 
 > [!WARNING]
 > **Manual Edits Detected**
 > - jobs/drift_pipeline was edited outside the bundle (2 fields will be overwritten)
+> - schemas/drift_grants was edited outside the bundle (1 field will be overwritten)

@@ -13,18 +13,25 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 2,
+      "total": 6,
       "by_kind": {
-        "root": 1,
-        "resource": 1
+        "root": 2,
+        "resource": 3,
+        "phantom": 1
       }
     },
     "edges": {
-      "total": 1,
-      "dag": 1,
+      "total": 4,
+      "dag": 4,
       "lateral": 0
     },
     "laterals": [],
-    "phantoms": []
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      }
+    ]
   }
 }

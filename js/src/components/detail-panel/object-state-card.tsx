@@ -12,19 +12,29 @@ const OBJECT_CARD_SUBTITLE: Readonly<Record<"added" | "removed", string>> = {
   removed: "was deleted",
 };
 
+/** Subtitle for drift re-entry — a defined-in-bundle entity missing from the remote. */
+const DRIFT_REENTRY_SUBTITLE =
+  "is present in your bundle but missing from the remote — will be recreated on apply.";
+
 export function ObjectStateCard({
   label,
   nodeKind,
   resourceState,
   variant,
+  isDriftReentry = false,
 }: {
   readonly label: string;
   readonly nodeKind: NodeKind;
   readonly resourceState: Readonly<Record<string, unknown>>;
   readonly variant: "added" | "removed";
+  readonly isDriftReentry?: boolean;
 }) {
   const style = OBJECT_CARD_STYLES[variant];
   const sortedKeys = Object.keys(resourceState).toSorted();
+  const kindLabel = nodeKind === "root" || nodeKind === "phantom" ? "resource" : nodeKind;
+  const subtitle = isDriftReentry
+    ? `This ${kindLabel} ${DRIFT_REENTRY_SUBTITLE}`
+    : `This ${kindLabel} ${OBJECT_CARD_SUBTITLE[variant]}`;
 
   return (
     <div className={`rounded-lg border ${style.border} bg-surface-raised/50`}>
@@ -32,10 +42,7 @@ export function ObjectStateCard({
         <span className="font-mono text-sm text-ink">{label}</span>
         <DiffStateBadge diffState={variant} />
       </div>
-      <p className="px-3 pb-2 text-xs italic text-ink-muted">
-        This {nodeKind === "root" || nodeKind === "phantom" ? "resource" : nodeKind}{" "}
-        {OBJECT_CARD_SUBTITLE[variant]}
-      </p>
+      <p className="px-3 pb-2 text-xs italic text-ink-muted">{subtitle}</p>
       <div className="flex flex-col gap-1.5 border-t border-outline-subtle p-3">
         {sortedKeys.map((key) => (
           <StateFieldRow key={key} fieldKey={key} value={resourceState[key]} variant={variant} />

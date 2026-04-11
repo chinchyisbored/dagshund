@@ -48,7 +48,21 @@ export type StructuralDiff = ScalarDiff | ArrayDiff | ObjectDiff | CreateOnlyDif
 
 type BaselineLabel = "old" | "remote";
 
-export type StructuralDiffResult = {
+/** A diff between two values (old↔new, or remote↔new for drift). */
+export type DiffResult = {
+  readonly kind: "diff";
   readonly diff: StructuralDiff;
   readonly baselineLabel: BaselineLabel;
+  /** "drift" when the diff compares remote→new because the bundle will overwrite
+   *  a manually-edited remote value (old == new != remote). */
+  readonly semantic: "normal" | "drift";
 };
+
+/** A field the remote has that the bundle does not manage. Informational only —
+ *  nothing is being created, removed, or updated by the deploy. */
+export type RemoteOnlyResult = {
+  readonly kind: "remote-only";
+  readonly value: unknown;
+};
+
+export type StructuralDiffResult = DiffResult | RemoteOnlyResult;

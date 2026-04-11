@@ -5,6 +5,7 @@ const ACTION_BADGE_COLORS: Readonly<Record<string, string>> = {
   delete: "text-action-delete bg-action-delete-soft",
   recreate: "text-action-recreate bg-action-recreate-soft",
   resize: "text-action-resize bg-action-resize-soft",
+  remote: "text-badge-text bg-badge-bg",
 };
 
 export function ActionBadge({ action }: { readonly action: string }) {

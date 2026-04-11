@@ -12,6 +12,7 @@ import {
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
+import { hasAnyDrift } from "../utils/structural-diff.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
@@ -81,6 +82,10 @@ export const buildJobFields = (
   changes: filterJobLevelChanges(entry.changes),
   resourceState: resolveJobState(entry.new_state, entry.remote_state),
   taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
+  // Scanned against raw `entry.changes` — `filterJobLevelChanges` above strips
+  // the `tasks[...]` entries that carry whole-task drift, so the scan must
+  // happen here before the filter can hide the signal.
+  isDrift: hasAnyDrift(entry.changes),
 });
 
 /** Build a GraphNode for a real plan resource entry. */
@@ -103,6 +108,7 @@ const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => 
     changes: entry.changes,
     resourceState: extractResourceState(entry),
     taskChangeSummary: undefined,
+    isDrift: hasAnyDrift(entry.changes),
   };
 };
 
@@ -120,6 +126,7 @@ const buildContainerResourceNode = (
   changes: entry.changes,
   resourceState: extractResourceState(entry),
   taskChangeSummary: undefined,
+  isDrift: hasAnyDrift(entry.changes),
 });
 
 /** Build a structural root node (UC root, workspace root, etc). */

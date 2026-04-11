@@ -6,6 +6,7 @@ import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffBadge } from "../utils/diff-state-styles.ts";
 import { extractResourceType, extractTypeBadge } from "../utils/resource-key.ts";
+import { DriftPill } from "./detail-panel/drift-pill.tsx";
 import { LateralHandles } from "./lateral-handles.tsx";
 import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
 
@@ -26,11 +27,15 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
   const diffBadge = getDiffBadge(data.diffState);
   const navigateToJob = useJobNavigation();
   const isJob = extractResourceType(data.resourceKey) === "jobs";
+  // Orthogonal drift dimension — override to dashed border. See task-node.tsx
+  // for the note on the `unknown` diffState border-dashed collision.
+  const isDrift = data.nodeKind === "resource" && data.isDrift === true;
+  const borderStyle = isDrift ? "border-dashed" : styles.borderStyle;
 
   return (
     <div
       style={{ width: NODE_WIDTH, ...glowStyle }}
-      className={`flex cursor-pointer flex-col rounded-lg border-2 px-4 py-1.5 ${styles.border} ${styles.borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
+      className={`flex cursor-pointer flex-col rounded-lg border-2 px-4 py-1.5 ${styles.border} ${borderStyle} ${styles.background} ${styles.text} ${opacityClass}`}
       title={data.label}
     >
       <Handle
@@ -39,11 +44,12 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
         className="!bg-handle"
         style={hasIncoming ? undefined : { visibility: "hidden" }}
       />
-      <span className="truncate text-sm">
+      <span className="flex items-center gap-1 truncate text-sm">
         <span className="mr-1 font-semibold" aria-hidden="true">
           {diffBadge}
         </span>
-        {data.label}
+        <span className="truncate">{data.label}</span>
+        {isDrift ? <DriftPill /> : null}
       </span>
       <div className="flex items-center gap-1.5">
         {isJob && navigateToJob !== null ? (
