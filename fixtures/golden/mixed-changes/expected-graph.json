@@ -4,28 +4,1143 @@
       "total": 18,
       "by_kind": {
         "job": 2,
-        "task": 16
-      }
+        "task": 16,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 5,
+        "removed": 2,
+        "modified": 7,
+        "unchanged": 4,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 5,
+          "removed": 2,
+          "modified": 5,
+          "unchanged": 4,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 55,
+      "with_resource_state": 18,
+      "task_change_summary_total": 12,
+      "entries": [
+        {
+          "id": "resources.jobs.data_quality_pipeline",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "data_quality_pipeline",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "anomaly_detection",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "check_duplicates",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "check_referential_integrity",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "notify_stakeholders",
+              "diffState": "removed",
+              "isDrift": false
+            },
+            {
+              "taskKey": "aggregate_results",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "compute_statistics",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "generate_report",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate_schema",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::aggregate_results",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "aggregate_results",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='aggregate_results'].depends_on",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='aggregate_results'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='aggregate_results'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='aggregate_results'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='aggregate_results'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::anomaly_detection",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "anomaly_detection",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='anomaly_detection']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::check_duplicates",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "check_duplicates",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='check_duplicates']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::check_nulls",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "check_nulls",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='check_nulls'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_nulls'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_nulls'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_nulls'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::check_referential_integrity",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "check_referential_integrity",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='check_referential_integrity']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::compute_statistics",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "compute_statistics",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='compute_statistics'].depends_on",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='compute_statistics'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='compute_statistics'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='compute_statistics'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='compute_statistics'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::generate_report",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "generate_report",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='generate_report'].depends_on",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='generate_report'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='generate_report'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='generate_report'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='generate_report'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::notify_stakeholders",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "notify_stakeholders",
+          "kind": "task",
+          "diffState": "removed",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='notify_stakeholders']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::setup_env",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "setup_env",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='setup_env'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='setup_env'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='setup_env'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='setup_env'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::validate_schema",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "validate_schema",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_schema'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_schema'].notebook_task.base_parameters['sample_size']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='validate_schema'].notebook_task.base_parameters['strict_mode']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='validate_schema'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_schema'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_schema'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "aggregate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "trigger_quality_check",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate",
+              "diffState": "removed",
+              "isDrift": false
+            },
+            {
+              "taskKey": "transform",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::aggregate",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "aggregate",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='aggregate']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::extract",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "extract",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='extract'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='extract'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='extract'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='extract'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::load",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "load",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='load'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::transform",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "transform",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='transform'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='transform'].notebook_task.notebook_path",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='transform'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='transform'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='transform'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::trigger_quality_check",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "trigger_quality_check",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='trigger_quality_check']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::validate",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "validate",
+          "kind": "task",
+          "diffState": "removed",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
-      "total": 19
+      "total": 19,
+      "by_kind": {
+        "dag": 19,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 10,
+        "removed": 2,
+        "unchanged": 7
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 10,
+          "removed": 2,
+          "unchanged": 7
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.data_quality_pipeline::aggregate_results",
+          "target": "resources.jobs.data_quality_pipeline::generate_report",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::anomaly_detection",
+          "target": "resources.jobs.data_quality_pipeline::generate_report",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::check_duplicates",
+          "target": "resources.jobs.data_quality_pipeline::aggregate_results",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::check_duplicates",
+          "target": "resources.jobs.data_quality_pipeline::compute_statistics",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::check_nulls",
+          "target": "resources.jobs.data_quality_pipeline::aggregate_results",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::check_nulls",
+          "target": "resources.jobs.data_quality_pipeline::compute_statistics",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::check_referential_integrity",
+          "target": "resources.jobs.data_quality_pipeline::aggregate_results",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::compute_statistics",
+          "target": "resources.jobs.data_quality_pipeline::anomaly_detection",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::generate_report",
+          "target": "resources.jobs.data_quality_pipeline::notify_stakeholders",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::setup_env",
+          "target": "resources.jobs.data_quality_pipeline::validate_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::validate_schema",
+          "target": "resources.jobs.data_quality_pipeline::check_duplicates",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::validate_schema",
+          "target": "resources.jobs.data_quality_pipeline::check_nulls",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::validate_schema",
+          "target": "resources.jobs.data_quality_pipeline::check_referential_integrity",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::aggregate",
+          "target": "resources.jobs.etl_pipeline::trigger_quality_check",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::extract",
+          "target": "resources.jobs.etl_pipeline::transform",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::load",
+          "target": "resources.jobs.etl_pipeline::aggregate",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::load",
+          "target": "resources.jobs.etl_pipeline::validate",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::transform",
+          "target": "resources.jobs.etl_pipeline::load",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::trigger_quality_check",
+          "target": "resources.jobs.data_quality_pipeline",
+          "diffState": "added",
+          "kind": "dag"
+        }
+      ]
     }
   },
   "resource_graph": {
     "nodes": {
       "total": 12,
       "by_kind": {
-        "root": 2,
+        "job": 0,
+        "task": 0,
         "resource": 9,
+        "root": 2,
         "phantom": 1
-      }
+      },
+      "by_diff_state": {
+        "added": 2,
+        "removed": 1,
+        "modified": 3,
+        "unchanged": 6,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 2,
+          "removed": 1,
+          "modified": 3,
+          "unchanged": 3,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 17,
+      "with_resource_state": 9,
+      "task_change_summary_total": 12,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.alerts.stale_pipeline_alert",
+          "resourceKey": "resources.alerts.stale_pipeline_alert",
+          "label": "stale_pipeline_alert",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "effective_run_as",
+              "action": "skip"
+            },
+            {
+              "key": "evaluation.threshold.value.double_value",
+              "action": "update"
+            },
+            {
+              "key": "id",
+              "action": "skip"
+            },
+            {
+              "key": "lifecycle_state",
+              "action": "skip"
+            },
+            {
+              "key": "owner_user_name",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.audit_analysis",
+          "resourceKey": "resources.experiments.audit_analysis",
+          "label": "audit_analysis",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "artifact_location",
+              "action": "skip"
+            },
+            {
+              "key": "name",
+              "action": "skip"
+            },
+            {
+              "key": "tags",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.audit_analysis_final",
+          "resourceKey": "resources.experiments.audit_analysis_final",
+          "label": "audit_analysis_final",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "data_quality_pipeline",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "anomaly_detection",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "check_duplicates",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "check_referential_integrity",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "notify_stakeholders",
+              "diffState": "removed",
+              "isDrift": false
+            },
+            {
+              "taskKey": "aggregate_results",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "compute_statistics",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "generate_report",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate_schema",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "aggregate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "trigger_quality_check",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate",
+              "diffState": "removed",
+              "isDrift": false
+            },
+            {
+              "taskKey": "transform",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.schemas.analytics",
+          "resourceKey": "resources.schemas.analytics",
+          "label": "analytics",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.analytics_staging",
+          "resourceKey": "resources.schemas.analytics_staging",
+          "label": "analytics_staging",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.old_exports",
+          "resourceKey": "resources.volumes.old_exports",
+          "label": "old_exports",
+          "kind": "resource",
+          "diffState": "removed",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.raw_data",
+          "resourceKey": "resources.volumes.raw_data",
+          "label": "raw_data",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "storage_location",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
       "total": 10,
-      "dag": 10,
-      "lateral": 0
+      "by_kind": {
+        "dag": 10,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 2,
+        "removed": 1,
+        "unchanged": 7
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 2,
+          "removed": 1,
+          "unchanged": 7
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.analytics",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.analytics_staging",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "resources.volumes.old_exports",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "resources.volumes.raw_data",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.alerts.stale_pipeline_alert",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.experiments.audit_analysis",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.experiments.audit_analysis_final",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.data_quality_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.etl_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
     },
-    "laterals": [],
     "phantoms": [
       {
         "id": "catalog::dagshund",

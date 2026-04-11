@@ -4,64 +4,944 @@
       "total": 4,
       "by_kind": {
         "job": 1,
-        "task": 3
-      }
+        "task": 3,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 2,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 1,
+      "with_resource_state": 4,
+      "task_change_summary_total": 1,
+      "entries": [
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "transform",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::extract",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "extract",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::load",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "load",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::transform",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "transform",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='transform'].notebook_task.notebook_path",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
-      "total": 2
+      "total": 2,
+      "by_kind": {
+        "dag": 2,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 2
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 2
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.etl_pipeline::extract",
+          "target": "resources.jobs.etl_pipeline::transform",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::transform",
+          "target": "resources.jobs.etl_pipeline::load",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
     }
   },
   "resource_graph": {
     "nodes": {
       "total": 35,
       "by_kind": {
-        "root": 4,
+        "job": 0,
+        "task": 0,
         "resource": 22,
+        "root": 4,
         "phantom": 9
-      }
+      },
+      "by_diff_state": {
+        "added": 14,
+        "removed": 1,
+        "modified": 7,
+        "unchanged": 13,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 14,
+          "removed": 1,
+          "modified": 7,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 4,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 9,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 9,
+      "with_resource_state": 22,
+      "task_change_summary_total": 1,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "catalog::lakebase_analytics",
+          "resourceKey": "resources.database_catalogs.lakebase_analytics",
+          "label": "lakebase_analytics",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "catalog::production",
+          "resourceKey": "resources.catalogs.production",
+          "label": "production",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "comment",
+              "action": "update"
+            },
+            {
+              "key": "properties['environment']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "database-instance::reporting_db",
+          "resourceKey": "resources.database_instances.reporting_db",
+          "label": "reporting_db",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "other-resources-root",
+          "resourceKey": "other-resources-root",
+          "label": "Other Resources",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-branch::warehouse-replica/archive",
+          "resourceKey": "postgres-branch::warehouse-replica/archive",
+          "label": "archive",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-project::warehouse-replica",
+          "resourceKey": "resources.postgres_projects.warehouse_replica",
+          "label": "warehouse_replica",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-root",
+          "resourceKey": "postgres-root",
+          "label": "Lakebase",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.alerts.data_freshness",
+          "resourceKey": "resources.alerts.data_freshness",
+          "label": "data_freshness",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.database_instances.analytics_db",
+          "resourceKey": "resources.database_instances.analytics_db",
+          "label": "analytics_db",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.ab_test_v2",
+          "resourceKey": "resources.experiments.ab_test_v2",
+          "label": "ab_test_v2",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.external_locations.raw_landing_zone",
+          "resourceKey": "resources.external_locations.raw_landing_zone",
+          "label": "raw_landing_zone",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "transform",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.postgres_branches.production",
+          "resourceKey": "resources.postgres_branches.production",
+          "label": "production",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "is_protected",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_branches.staging",
+          "resourceKey": "resources.postgres_branches.staging",
+          "label": "staging",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_endpoints.legacy_reader",
+          "resourceKey": "resources.postgres_endpoints.legacy_reader",
+          "label": "legacy_reader",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_endpoints.production_rw",
+          "resourceKey": "resources.postgres_endpoints.production_rw",
+          "label": "production_rw",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "autoscaling_limit_max_cu",
+              "action": "update"
+            },
+            {
+              "key": "autoscaling_limit_min_cu",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_endpoints.staging_read",
+          "resourceKey": "resources.postgres_endpoints.staging_read",
+          "label": "staging_read",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.registered_models.churn_predictor",
+          "resourceKey": "resources.registered_models.churn_predictor",
+          "label": "churn_predictor",
+          "kind": "resource",
+          "diffState": "removed",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.analytics",
+          "resourceKey": "resources.schemas.analytics",
+          "label": "analytics",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "comment",
+              "action": "update"
+            },
+            {
+              "key": "properties['environment']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.ml_features",
+          "resourceKey": "resources.schemas.ml_features",
+          "label": "ml_features",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.reporting",
+          "resourceKey": "resources.schemas.reporting",
+          "label": "reporting",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.synced_database_tables.customer_360",
+          "resourceKey": "resources.synced_database_tables.customer_360",
+          "label": "customer_360",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.synced_database_tables.partner_metrics",
+          "resourceKey": "resources.synced_database_tables.partner_metrics",
+          "label": "partner_metrics",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.synced_database_tables.product_events",
+          "resourceKey": "resources.synced_database_tables.product_events",
+          "label": "product_events",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "spec.source_table_full_name",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.partner_feeds",
+          "resourceKey": "resources.volumes.partner_feeds",
+          "label": "partner_feeds",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.raw_data",
+          "resourceKey": "resources.volumes.raw_data",
+          "label": "raw_data",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "comment",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::dagshund.integrations",
+          "resourceKey": "schema::dagshund.integrations",
+          "label": "integrations",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::lakebase_analytics.analytics_data",
+          "resourceKey": "schema::lakebase_analytics.analytics_data",
+          "label": "analytics_data",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::production.warehouse",
+          "resourceKey": "schema::production.warehouse",
+          "label": "warehouse",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.analytics.customer_profiles",
+          "resourceKey": "source-table::dagshund.analytics.customer_profiles",
+          "label": "customer_profiles",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.analytics.product_interactions",
+          "resourceKey": "source-table::dagshund.analytics.product_interactions",
+          "label": "product_interactions",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.integrations.partner_rollup",
+          "resourceKey": "source-table::dagshund.integrations.partner_rollup",
+          "label": "partner_rollup",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
       "total": 40,
-      "dag": 33,
-      "lateral": 7
+      "by_kind": {
+        "dag": 33,
+        "lateral": 7
+      },
+      "by_diff_state": {
+        "added": 14,
+        "removed": 1,
+        "unchanged": 25
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 14,
+          "removed": 1,
+          "unchanged": 18
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 7
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.analytics",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.ml_features",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.integrations",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::lakebase_analytics",
+          "target": "schema::lakebase_analytics.analytics_data",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::production",
+          "target": "resources.schemas.reporting",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::production",
+          "target": "schema::production.warehouse",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "database-instance::reporting_db",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.alerts.data_freshness",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.database_instances.analytics_db",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.experiments.ab_test_v2",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.external_locations.raw_landing_zone",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.jobs.etl_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-branch::warehouse-replica/archive",
+          "target": "resources.postgres_endpoints.legacy_reader",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-project::warehouse-replica",
+          "target": "postgres-branch::warehouse-replica/archive",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-project::warehouse-replica",
+          "target": "resources.postgres_branches.production",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-project::warehouse-replica",
+          "target": "resources.postgres_branches.staging",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-root",
+          "target": "postgres-project::warehouse-replica",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.production",
+          "target": "resources.postgres_endpoints.production_rw",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.staging",
+          "target": "resources.postgres_endpoints.staging_read",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "resources.registered_models.churn_predictor",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "resources.volumes.raw_data",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "source-table::dagshund.analytics.customer_profiles",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "source-table::dagshund.analytics.product_interactions",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.integrations",
+          "target": "resources.volumes.partner_feeds",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.integrations",
+          "target": "source-table::dagshund.integrations.partner_rollup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::lakebase_analytics.analytics_data",
+          "target": "resources.synced_database_tables.customer_360",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::lakebase_analytics.analytics_data",
+          "target": "resources.synced_database_tables.product_events",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::production.warehouse",
+          "target": "resources.synced_database_tables.partner_metrics",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::lakebase_analytics",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::production",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "other-resources-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "postgres-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::lakebase_analytics",
+          "target": "resources.database_instances.analytics_db",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.synced_database_tables.customer_360",
+          "target": "resources.database_instances.analytics_db",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.synced_database_tables.customer_360",
+          "target": "source-table::dagshund.analytics.customer_profiles",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.synced_database_tables.partner_metrics",
+          "target": "database-instance::reporting_db",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.synced_database_tables.partner_metrics",
+          "target": "source-table::dagshund.integrations.partner_rollup",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.synced_database_tables.product_events",
+          "target": "resources.database_instances.analytics_db",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.synced_database_tables.product_events",
+          "target": "source-table::dagshund.analytics.product_interactions",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
     },
-    "laterals": [
-      {
-        "source": "catalog::lakebase_analytics",
-        "target": "resources.database_instances.analytics_db",
-        "diffState": "unchanged"
-      },
-      {
-        "source": "resources.synced_database_tables.customer_360",
-        "target": "resources.database_instances.analytics_db",
-        "diffState": "unchanged"
-      },
-      {
-        "source": "resources.synced_database_tables.customer_360",
-        "target": "source-table::dagshund.analytics.customer_profiles",
-        "diffState": "unchanged"
-      },
-      {
-        "source": "resources.synced_database_tables.partner_metrics",
-        "target": "database-instance::reporting_db",
-        "diffState": "unchanged"
-      },
-      {
-        "source": "resources.synced_database_tables.partner_metrics",
-        "target": "source-table::dagshund.integrations.partner_rollup",
-        "diffState": "unchanged"
-      },
-      {
-        "source": "resources.synced_database_tables.product_events",
-        "target": "resources.database_instances.analytics_db",
-        "diffState": "unchanged"
-      },
-      {
-        "source": "resources.synced_database_tables.product_events",
-        "target": "source-table::dagshund.analytics.product_interactions",
-        "diffState": "unchanged"
-      }
-    ],
     "phantoms": [
       {
         "id": "catalog::dagshund",

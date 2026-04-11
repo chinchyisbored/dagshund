@@ -4,28 +4,548 @@
       "total": 9,
       "by_kind": {
         "job": 2,
-        "task": 7
-      }
+        "task": 7,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 9,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 2,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 7,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 0,
+      "with_resource_state": 9,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "resources.jobs.data_quality_pipeline",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "data_quality_pipeline",
+          "kind": "job",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::check_nulls",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "check_nulls",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::generate_report",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "generate_report",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::setup_env",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "setup_env",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline::validate_schema",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "validate_schema",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "job",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::extract",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "extract",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::load",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "load",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::transform",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "transform",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
-      "total": 6
+      "total": 6,
+      "by_kind": {
+        "dag": 6,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 6,
+        "removed": 0,
+        "unchanged": 0
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 6,
+          "removed": 0,
+          "unchanged": 0
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.data_quality_pipeline::check_nulls",
+          "target": "resources.jobs.data_quality_pipeline::generate_report",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::setup_env",
+          "target": "resources.jobs.data_quality_pipeline::check_nulls",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::setup_env",
+          "target": "resources.jobs.data_quality_pipeline::validate_schema",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.data_quality_pipeline::validate_schema",
+          "target": "resources.jobs.data_quality_pipeline::generate_report",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::extract",
+          "target": "resources.jobs.etl_pipeline::transform",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::transform",
+          "target": "resources.jobs.etl_pipeline::load",
+          "diffState": "added",
+          "kind": "dag"
+        }
+      ]
     }
   },
   "resource_graph": {
     "nodes": {
       "total": 13,
       "by_kind": {
-        "root": 2,
+        "job": 0,
+        "task": 0,
         "resource": 9,
+        "root": 2,
         "phantom": 2
-      }
+      },
+      "by_diff_state": {
+        "added": 9,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 4,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 9,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 0,
+      "with_resource_state": 9,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.alerts.stale_pipeline_alert",
+          "resourceKey": "resources.alerts.stale_pipeline_alert",
+          "label": "stale_pipeline_alert",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.audit_analysis",
+          "resourceKey": "resources.experiments.audit_analysis",
+          "label": "audit_analysis",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.data_quality_pipeline",
+          "resourceKey": "resources.jobs.data_quality_pipeline",
+          "label": "data_quality_pipeline",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.registered_models.quality_metrics",
+          "resourceKey": "resources.registered_models.quality_metrics",
+          "label": "quality_metrics",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.analytics",
+          "resourceKey": "resources.schemas.analytics",
+          "label": "analytics",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.analytics_staging",
+          "resourceKey": "resources.schemas.analytics_staging",
+          "label": "analytics_staging",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.external_imports",
+          "resourceKey": "resources.volumes.external_imports",
+          "label": "external_imports",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.raw_data",
+          "resourceKey": "resources.volumes.raw_data",
+          "label": "raw_data",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::dagshund.models",
+          "resourceKey": "schema::dagshund.models",
+          "label": "models",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
       "total": 11,
-      "dag": 11,
-      "lateral": 0
+      "by_kind": {
+        "dag": 11,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 9,
+        "removed": 0,
+        "unchanged": 2
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 9,
+          "removed": 0,
+          "unchanged": 2
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.analytics",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.analytics_staging",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.models",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "resources.volumes.raw_data",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics_staging",
+          "target": "resources.volumes.external_imports",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.models",
+          "target": "resources.registered_models.quality_metrics",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.alerts.stale_pipeline_alert",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.experiments.audit_analysis",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.data_quality_pipeline",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.etl_pipeline",
+          "diffState": "added",
+          "kind": "dag"
+        }
+      ]
     },
-    "laterals": [],
     "phantoms": [
       {
         "id": "catalog::dagshund",

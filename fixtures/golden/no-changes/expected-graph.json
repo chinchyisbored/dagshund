@@ -4,28 +4,504 @@
       "total": 4,
       "by_kind": {
         "job": 1,
-        "task": 3
-      }
+        "task": 3,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 4,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 3,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 15,
+      "with_resource_state": 4,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::extract",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "extract",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='extract'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='extract'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='extract'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='extract'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::load",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "load",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='load'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::transform",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "transform",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='transform'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='transform'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='transform'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='transform'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
-      "total": 2
+      "total": 2,
+      "by_kind": {
+        "dag": 2,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 2
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 2
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.etl_pipeline::extract",
+          "target": "resources.jobs.etl_pipeline::transform",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::transform",
+          "target": "resources.jobs.etl_pipeline::load",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
     }
   },
   "resource_graph": {
     "nodes": {
       "total": 8,
       "by_kind": {
-        "root": 2,
+        "job": 0,
+        "task": 0,
         "resource": 5,
+        "root": 2,
         "phantom": 1
-      }
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 8,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 5,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 13,
+      "with_resource_state": 5,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.alerts.stale_pipeline_alert",
+          "resourceKey": "resources.alerts.stale_pipeline_alert",
+          "label": "stale_pipeline_alert",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "effective_run_as",
+              "action": "skip"
+            },
+            {
+              "key": "id",
+              "action": "skip"
+            },
+            {
+              "key": "lifecycle_state",
+              "action": "skip"
+            },
+            {
+              "key": "owner_user_name",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.audit_analysis",
+          "resourceKey": "resources.experiments.audit_analysis",
+          "label": "audit_analysis",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "artifact_location",
+              "action": "skip"
+            },
+            {
+              "key": "name",
+              "action": "skip"
+            },
+            {
+              "key": "tags",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.analytics",
+          "resourceKey": "resources.schemas.analytics",
+          "label": "analytics",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.raw_data",
+          "resourceKey": "resources.volumes.raw_data",
+          "label": "raw_data",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "storage_location",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
       "total": 6,
-      "dag": 6,
-      "lateral": 0
+      "by_kind": {
+        "dag": 6,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 6
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 6
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.analytics",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.analytics",
+          "target": "resources.volumes.raw_data",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.alerts.stale_pipeline_alert",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.experiments.audit_analysis",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.etl_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
     },
-    "laterals": [],
     "phantoms": [
       {
         "id": "catalog::dagshund",

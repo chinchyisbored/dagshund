@@ -4,28 +4,480 @@
       "total": 4,
       "by_kind": {
         "job": 1,
-        "task": 3
-      }
+        "task": 3,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 1,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 1,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 3,
+      "drift_by_kind": {
+        "job": 1,
+        "task": 2,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 17,
+      "with_resource_state": 4,
+      "task_change_summary_total": 2,
+      "entries": [
+        {
+          "id": "resources.jobs.drift_pipeline",
+          "resourceKey": "resources.jobs.drift_pipeline",
+          "label": "drift_pipeline",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": true,
+          "changes": [
+            {
+              "key": "edit_mode",
+              "action": "update"
+            },
+            {
+              "key": "email_notifications",
+              "action": "update"
+            },
+            {
+              "key": "performance_target",
+              "action": "update"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "transform",
+              "diffState": "added",
+              "isDrift": true
+            },
+            {
+              "taskKey": "publish",
+              "diffState": "modified",
+              "isDrift": true
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.drift_pipeline::ingest",
+          "resourceKey": "resources.jobs.drift_pipeline",
+          "label": "ingest",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='ingest'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest'].timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest'].webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.drift_pipeline::publish",
+          "resourceKey": "resources.jobs.drift_pipeline",
+          "label": "publish",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": true,
+          "changes": [
+            {
+              "key": "tasks[task_key='publish'].depends_on[0].task_key",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='publish'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish'].timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish'].webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.drift_pipeline::transform",
+          "resourceKey": "resources.jobs.drift_pipeline",
+          "label": "transform",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": true,
+          "changes": [
+            {
+              "key": "tasks[task_key='transform']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
-      "total": 3
+      "total": 3,
+      "by_kind": {
+        "dag": 3,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 2,
+        "removed": 1,
+        "unchanged": 0
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 2,
+          "removed": 1,
+          "unchanged": 0
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.drift_pipeline::ingest",
+          "target": "resources.jobs.drift_pipeline::publish",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.drift_pipeline::ingest",
+          "target": "resources.jobs.drift_pipeline::transform",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.drift_pipeline::transform",
+          "target": "resources.jobs.drift_pipeline::publish",
+          "diffState": "added",
+          "kind": "dag"
+        }
+      ]
     }
   },
   "resource_graph": {
     "nodes": {
       "total": 6,
       "by_kind": {
-        "root": 2,
+        "job": 0,
+        "task": 0,
         "resource": 3,
+        "root": 2,
         "phantom": 1
-      }
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 3,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 1,
+          "removed": 0,
+          "modified": 2,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        }
+      },
+      "drift_count": 2,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 2,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 7,
+      "with_resource_state": 3,
+      "task_change_summary_total": 2,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.drift_pipeline",
+          "resourceKey": "resources.jobs.drift_pipeline",
+          "label": "drift_pipeline",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": true,
+          "changes": [
+            {
+              "key": "edit_mode",
+              "action": "update"
+            },
+            {
+              "key": "email_notifications",
+              "action": "update"
+            },
+            {
+              "key": "performance_target",
+              "action": "update"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "transform",
+              "diffState": "added",
+              "isDrift": true
+            },
+            {
+              "taskKey": "publish",
+              "diffState": "modified",
+              "isDrift": true
+            }
+          ]
+        },
+        {
+          "id": "resources.schemas.drift_doomed",
+          "resourceKey": "resources.schemas.drift_doomed",
+          "label": "drift_doomed",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.drift_grants",
+          "resourceKey": "resources.schemas.drift_grants",
+          "label": "drift_grants",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": true,
+          "changes": [
+            {
+              "key": "grants.[principal='data_engineers']",
+              "action": "update"
+            },
+            {
+              "key": "grants.[principal='data_readers'].privileges",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
     },
     "edges": {
       "total": 4,
-      "dag": 4,
-      "lateral": 0
+      "by_kind": {
+        "dag": 4,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "unchanged": 3
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 3
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.drift_doomed",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.drift_grants",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.drift_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
     },
-    "laterals": [],
     "phantoms": [
       {
         "id": "catalog::dagshund",
