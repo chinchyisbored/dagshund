@@ -192,8 +192,8 @@ def test_colorize_returns_plain_when_disabled() -> None:
         ("recreate", ActionConfig("recreate", "~", show_field_changes=True)),
         ("resize", ActionConfig("resize", "~", show_field_changes=True)),
         ("update_id", ActionConfig("update_id", "~", show_field_changes=True)),
-        ("skip", ActionConfig("unchanged", " ")),
-        ("", ActionConfig("unchanged", " ")),
+        ("skip", ActionConfig("unchanged", "=")),
+        ("", ActionConfig("unchanged", "=")),
         ("unknown_action", DEFAULT_ACTION),
     ],
     ids=[
@@ -573,7 +573,7 @@ def test_render_resource_field_change_old_only() -> None:
 def test_render_resource_skip_action_omits_label() -> None:
     lines = list(_render_resource("resources.jobs.stable", {"action": "skip"}, use_color=False))
 
-    assert "  jobs/stable" in lines[0]
+    assert "= jobs/stable" in lines[0]
     assert "(skip)" not in lines[0]
     assert "(unchanged)" not in lines[0]
 
@@ -581,7 +581,7 @@ def test_render_resource_skip_action_omits_label() -> None:
 def test_render_resource_empty_action_shows_unchanged() -> None:
     lines = list(_render_resource("resources.jobs.stable", {"action": ""}, use_color=False))
 
-    assert "  jobs/stable" in lines[0]
+    assert "= jobs/stable" in lines[0]
     assert "(unchanged)" not in lines[0]
 
 
@@ -835,7 +835,7 @@ def test_print_summary_unchanged_uses_dim_style(capsys: pytest.CaptureFixture[st
     _print_summary(plan, use_color=False)
 
     out = capsys.readouterr().out
-    assert " 1 unchanged" in out
+    assert "=1 unchanged" in out
     assert "?" not in out
 
 

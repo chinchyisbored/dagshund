@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useJobNavigation } from "../../hooks/use-job-navigation.ts";
 import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import type { LateralContext } from "../../types/lateral-context.ts";
 import type { PhantomContext } from "../../types/phantom-context.ts";
+import { expandEmbedEntries } from "../../utils/embed-entries.ts";
 import type { ValueFormat } from "../../utils/format-value.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { DriftPill } from "./drift-pill.tsx";
@@ -58,6 +59,10 @@ export function DetailPanel({
   const { driftChanges, fieldChanges } = splitMeaningfulChanges(data.changes);
   const hasDriftEntries = Object.keys(driftChanges).length > 0;
   const isDriftNode = nodeCanDrift(data);
+  const expandedState = useMemo(
+    () => expandEmbedEntries(data.resourceState ?? {}),
+    [data.resourceState],
+  );
 
   useEffect(() => {
     const closePanelOnEscape = (event: KeyboardEvent) => {
@@ -164,7 +169,7 @@ export function DetailPanel({
             <ObjectStateCard
               label={data.label}
               nodeKind={data.nodeKind}
-              resourceState={data.resourceState ?? {}}
+              resourceState={expandedState}
               variant={data.diffState}
               isDriftReentry={isDriftNode && data.diffState === "added"}
             />
@@ -175,7 +180,7 @@ export function DetailPanel({
           )}
 
           {(data.diffState === "unchanged" || data.diffState === "unknown") && (
-            <ResourceStateView resourceState={data.resourceState ?? {}} />
+            <ResourceStateView resourceState={expandedState} />
           )}
 
           {showNoChanges && <p className="py-8 text-center text-sm text-ink-muted">No changes</p>}

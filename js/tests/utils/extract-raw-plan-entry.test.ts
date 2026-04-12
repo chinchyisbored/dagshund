@@ -380,25 +380,28 @@ describe("extractRawPlanSlice", () => {
 
     test("sub-resources-plan: job with permissions returns entry-with-subs", async () => {
       const plan = await loadFixture("sub-resources");
-      const result = extractRawPlanSlice(plan, buildResourceData("resources.jobs.test_job"));
+      const result = extractRawPlanSlice(plan, buildResourceData("resources.jobs.job_perm_change"));
 
       expect(result?.kind).toBe("entry-with-subs");
       if (result?.kind === "entry-with-subs") {
         expect([...result.entries.keys()]).toEqual([
-          "resources.jobs.test_job",
-          "resources.jobs.test_job.permissions",
+          "resources.jobs.job_perm_change",
+          "resources.jobs.job_perm_change.permissions",
         ]);
       }
     });
 
     test("sub-resources-plan: task from job with sub-resources returns slices", async () => {
       const plan = await loadFixture("sub-resources");
-      const result = extractRawPlanSlice(plan, buildTaskData("resources.jobs.test_job", "run"));
+      const result = extractRawPlanSlice(
+        plan,
+        buildTaskData("resources.jobs.job_perm_change", "run"),
+      );
 
       expect(result?.kind).toBe("task-slices");
       if (result?.kind === "task-slices") {
         expect(result.slices.length).toBeGreaterThan(0);
-        expect(result.slices[0]?.label).toBe("remote_state.tasks[0]");
+        expect(result.slices[0]?.label).toBe("new_state.value.tasks[0]");
       }
     });
   });

@@ -14,3 +14,5 @@ variables:
   volume_name:
     description: Pre-existing external volume for app uc_securable
     default: a_volume
+  secondary_user:
+    description: Second user for ownership/run_as fixture scenarios (no default — set via BUNDLE_VAR_secondary_user)

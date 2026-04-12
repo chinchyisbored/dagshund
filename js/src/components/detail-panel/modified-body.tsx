@@ -6,6 +6,8 @@ import {
   stripChangedFields,
   topLevelFieldName,
 } from "../../utils/change-path.ts";
+import { filterUnchangedEmbedEntries, stripEmbedFromRecord } from "../../utils/embed-entries.ts";
+import { isUnknownRecord } from "../../utils/unknown-record.ts";
 import { ChangeEntry } from "./change-entry.tsx";
 import { ResourceStateView } from "./resource-state-view.tsx";
 import { SectionDivider } from "./section-divider.tsx";
@@ -38,21 +40,39 @@ const categorizeChangedFields = (
   return { exact, subFieldPaths };
 };
 
+/** Check whether any path in the list starts with a bracket-filter (not dict-key). */
+const hasBracketFilterPaths = (paths: readonly string[]): boolean =>
+  paths.some((p) => p.startsWith("["));
+
 /** Filter resourceState: exclude direct-match changed fields,
- *  strip changed array entries from sub-field changed fields. */
+ *  strip changed array entries from sub-field changed fields,
+ *  and expand __embed__ arrays into bracket-keyed entries. */
 const filterUnmodifiedState = (
   resourceState: Readonly<Record<string, unknown>>,
   exact: ReadonlySet<string>,
   subFieldPaths: ReadonlyMap<string, readonly string[]>,
 ): Readonly<Record<string, unknown>> => {
+  // Orphan sub-resources: bracket-filter paths land under "" (empty topLevelFieldName)
+  const embedChangePaths = subFieldPaths.get("") ?? [];
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(resourceState)) {
     if (exact.has(key)) continue;
 
+    // Orphan case: top-level __embed__ with bracket-filter paths under ""
+    if (key === "__embed__" && Array.isArray(value)) {
+      const expanded = filterUnchangedEmbedEntries(value, embedChangePaths);
+      Object.assign(result, expanded);
+      continue;
+    }
+
     const relativePaths = subFieldPaths.get(key);
     if (relativePaths !== undefined) {
-      const stripped = stripChangedFields(value, relativePaths);
+      // Merged case: sub-resource record containing __embed__ with bracket-filter paths
+      const stripped =
+        hasBracketFilterPaths(relativePaths) && isUnknownRecord(value)
+          ? stripEmbedFromRecord(value, relativePaths)
+          : stripChangedFields(value, relativePaths);
       if (!isEmptyValue(stripped)) result[key] = stripped;
     } else {
       result[key] = value;

@@ -5,7 +5,7 @@
   - `~` `evaluation.threshold.value.double_value`: 0 -> 100
 
 #### experiments (2)
-- ` ` `experiments/audit_analysis`
+- `=` `experiments/audit_analysis`
 - `+` `experiments/audit_analysis_final` — create
 
 #### jobs (2)
@@ -26,14 +26,14 @@
   - `-` `tasks[task_key='validate']`: {3 fields}
 
 #### schemas (2)
-- ` ` `schemas/analytics`
+- `=` `schemas/analytics`
 - `+` `schemas/analytics_staging` — create
 
 #### volumes (2)
 - `-` `volumes/old_exports` — delete
-- ` ` `volumes/raw_data`
+- `=` `volumes/raw_data`
 
-**+2** create, **-1** delete, ** 3** unchanged, **~3** update
+**+2** create, **-1** delete, **=3** unchanged, **~3** update
 
 > [!CAUTION]
 > **Dangerous Actions**

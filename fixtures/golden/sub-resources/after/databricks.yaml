@@ -1,7 +1,9 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
-# Sub-resource mutations:
-# - test_job permissions: remove "viewers" entry, change admins level (update)
-# - analytics grants: remove data_readers, add data_analysts (update)
+# After state for sub-resource fixture.
+# job_perm_change: add run_as, add data_engineers, remove data_readers, upgrade viewers level
+# job_noop: no changes
+# schema_perm_change: add viewers, remove data_analysts, upgrade data_engineers privileges, data_readers unchanged
+# schema_noop: no changes
 bundle:
   name: dagshund-golden-sub-resources
   databricks_cli_version: ">=0.296.0"
@@ -12,10 +14,26 @@ include:
 
 resources:
   jobs:
-    test_job:
-      name: test_job
+    job_perm_change:
+      name: job_perm_change
+      run_as:
+        user_name: ${var.secondary_user}
       permissions:
+        - level: CAN_MANAGE
+          group_name: admins
         - level: CAN_MANAGE_RUN
+          group_name: viewers
+        - level: CAN_VIEW
+          group_name: data_engineers
+      tasks:
+        - task_key: run
+          notebook_task:
+            notebook_path: /Workspace/jobs/run
+
+    job_noop:
+      name: job_noop
+      permissions:
+        - level: CAN_MANAGE
           group_name: admins
       tasks:
         - task_key: run
@@ -23,16 +41,32 @@ resources:
             notebook_path: /Workspace/jobs/run
 
   schemas:
-    analytics:
+    schema_perm_change:
       catalog_name: ${var.catalog_name}
-      name: analytics
+      name: schema_perm_change
       grants:
         - principal: data_engineers
           privileges:
             - USE_SCHEMA
             - CREATE_TABLE
             - MODIFY
-        - principal: data_analysts
+        - principal: data_readers
+          privileges:
+            - USE_SCHEMA
+            - SELECT
+        - principal: viewers
+          privileges:
+            - USE_SCHEMA
+            - SELECT
+
+    schema_noop:
+      catalog_name: ${var.catalog_name}
+      name: schema_noop
+      grants:
+        - principal: data_engineers
+          privileges:
+            - USE_SCHEMA
+        - principal: data_readers
           privileges:
             - USE_SCHEMA
             - SELECT

@@ -481,13 +481,13 @@ describe("buildPlanGraph", () => {
   });
 
   describe("sub-resources-plan.json (sub-resource merging)", () => {
-    test("creates only one job node, merging sub-resources into parent", async () => {
+    test("creates job nodes, merging sub-resources into parents", async () => {
       const plan = await loadFixture("sub-resources");
       const graph = buildPlanGraph(plan);
 
       const jobNodes = graph.nodes.filter((n) => n.nodeKind === "job");
-      expect(jobNodes).toHaveLength(1);
-      expect(jobNodes[0]?.label).toBe("test_job");
+      const labels = jobNodes.map((n) => n.label).sort();
+      expect(labels).toEqual(["job_noop", "job_perm_change"]);
     });
 
     test("does not create nodes for permissions or grants sub-resources", async () => {
@@ -495,8 +495,10 @@ describe("buildPlanGraph", () => {
       const graph = buildPlanGraph(plan);
 
       const nodeIds = graph.nodes.map((n) => n.id);
-      expect(nodeIds).not.toContain("resources.jobs.test_job.permissions");
-      expect(nodeIds).not.toContain("resources.schemas.analytics.grants");
+      expect(nodeIds).not.toContain("resources.jobs.job_perm_change.permissions");
+      expect(nodeIds).not.toContain("resources.jobs.job_noop.permissions");
+      expect(nodeIds).not.toContain("resources.schemas.schema_perm_change.grants");
+      expect(nodeIds).not.toContain("resources.schemas.schema_noop.grants");
     });
   });
 

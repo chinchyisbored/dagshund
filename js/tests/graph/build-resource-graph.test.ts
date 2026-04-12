@@ -1631,9 +1631,9 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
     const graph = buildResourceGraph(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("resources.jobs.test_job");
-    expect(nodeIds).not.toContain("resources.jobs.test_job.permissions");
-    expect(nodeIds).not.toContain("resources.schemas.analytics.grants");
+    expect(nodeIds).toContain("resources.jobs.job_perm_change");
+    expect(nodeIds).not.toContain("resources.jobs.job_perm_change.permissions");
+    expect(nodeIds).not.toContain("resources.schemas.schema_perm_change.grants");
   });
 
   test("includes non-sub-resource entries", async () => {
@@ -1643,8 +1643,8 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
     const resourceKeys = graph.nodes
       .filter((n): n is ResourceGraphNode => n.nodeKind === "resource")
       .map((n) => n.resourceKey);
-    expect(resourceKeys).toContain("resources.jobs.test_job");
-    expect(resourceKeys).toContain("resources.schemas.analytics");
+    expect(resourceKeys).toContain("resources.jobs.job_perm_change");
+    expect(resourceKeys).toContain("resources.schemas.schema_perm_change");
   });
 
   test("no edges reference sub-resource keys", async () => {
@@ -1665,7 +1665,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
 
     const jobNode = graph.nodes.find(
       (n): n is ResourceGraphNode =>
-        n.nodeKind === "resource" && n.resourceKey === "resources.jobs.test_job",
+        n.nodeKind === "resource" && n.resourceKey === "resources.jobs.job_perm_change",
     );
     expect(jobNode).toBeDefined();
     const state = jobNode?.resourceState as Record<string, unknown> | undefined;
@@ -1678,7 +1678,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
 
     const schemaNode = graph.nodes.find(
       (n): n is ResourceGraphNode =>
-        n.nodeKind === "resource" && n.resourceKey === "resources.schemas.analytics",
+        n.nodeKind === "resource" && n.resourceKey === "resources.schemas.schema_perm_change",
     );
     expect(schemaNode).toBeDefined();
     expect(schemaNode?.changes?.["grants.[principal='data_engineers'].privileges"]).toBeDefined();

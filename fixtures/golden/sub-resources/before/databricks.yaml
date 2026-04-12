@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
-# Baseline with permissions and grants.
-# After config changes, adds, and removes sub-resources.
+# Baseline state for sub-resource fixture.
+# Each resource type (job, schema) has a *_perm_change and *_noop variant.
 bundle:
   name: dagshund-golden-sub-resources
   databricks_cli_version: ">=0.296.0"
@@ -11,27 +11,54 @@ include:
 
 resources:
   jobs:
-    test_job:
-      name: test_job
+    job_perm_change:
+      name: job_perm_change
       permissions:
         - level: CAN_MANAGE
           group_name: admins
         - level: CAN_VIEW
           group_name: viewers
+        - level: CAN_VIEW
+          group_name: data_readers
+      tasks:
+        - task_key: run
+          notebook_task:
+            notebook_path: /Workspace/jobs/run
+
+    job_noop:
+      name: job_noop
+      permissions:
+        - level: CAN_MANAGE
+          group_name: admins
       tasks:
         - task_key: run
           notebook_task:
             notebook_path: /Workspace/jobs/run
 
   schemas:
-    analytics:
+    schema_perm_change:
       catalog_name: ${var.catalog_name}
-      name: analytics
+      name: schema_perm_change
       grants:
         - principal: data_engineers
           privileges:
             - USE_SCHEMA
             - CREATE_TABLE
+        - principal: data_readers
+          privileges:
+            - USE_SCHEMA
+            - SELECT
+        - principal: data_analysts
+          privileges:
+            - USE_SCHEMA
+
+    schema_noop:
+      catalog_name: ${var.catalog_name}
+      name: schema_noop
+      grants:
+        - principal: data_engineers
+          privileges:
+            - USE_SCHEMA
         - principal: data_readers
           privileges:
             - USE_SCHEMA

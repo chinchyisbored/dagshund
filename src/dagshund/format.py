@@ -52,14 +52,14 @@ class DriftSummary:
 
 
 ACTIONS: dict[str, ActionConfig] = {
-    "": ActionConfig("unchanged", " "),
+    "": ActionConfig("unchanged", "="),
     "create": ActionConfig("create", "+"),
     "delete": ActionConfig("delete", "-"),
     "update": ActionConfig("update", "~", show_field_changes=True),
     "recreate": ActionConfig("recreate", "~", show_field_changes=True),
     "resize": ActionConfig("resize", "~", show_field_changes=True),
     "update_id": ActionConfig("update_id", "~", show_field_changes=True),
-    "skip": ActionConfig("unchanged", " "),
+    "skip": ActionConfig("unchanged", "="),
 }
 
 REMOTE_ONLY_ACTION = ActionConfig("remote", "=")

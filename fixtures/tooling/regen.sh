@@ -12,6 +12,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GOLDEN_DIR="$SCRIPT_DIR/../golden"
 
+# Source .env for BUNDLE_VAR_* overrides (gitignored, contains PII like emails).
+if [[ -f "$GOLDEN_DIR/.env" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$GOLDEN_DIR/.env"
+  set +a
+fi
+
 regen_one() (
   # Runs in a subshell so cd does not affect the caller.
   local name="$1"
