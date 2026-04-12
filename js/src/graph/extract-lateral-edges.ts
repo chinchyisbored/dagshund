@@ -9,6 +9,9 @@ import {
   parseThreePartName,
 } from "./extract-resource-state.ts";
 
+/** Edge ID prefix that distinguishes lateral (cross-resource) edges from DAG edges. */
+export const LATERAL_EDGE_PREFIX = "lateral::" as const;
+
 // ---------------------------------------------------------------------------
 // Context type passed to all extractors
 // ---------------------------------------------------------------------------
@@ -119,7 +122,7 @@ const applyLateralEdgeSpec = (
       const pair = `${sourceNodeId}→${targetId}`;
       if (seen.has(pair)) continue;
       seen.add(pair);
-      edges.push(buildGraphEdge(sourceNodeId, targetId, "unchanged", "lateral::"));
+      edges.push(buildGraphEdge(sourceNodeId, targetId, "unchanged", LATERAL_EDGE_PREFIX));
     }
   }
   return edges;

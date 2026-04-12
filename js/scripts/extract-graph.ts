@@ -22,11 +22,7 @@ import type {
   TaskChangeSummary,
 } from "../src/types/graph-types.ts";
 import type { ActionType } from "../src/types/plan-schema.ts";
-
-// Mirrors the prefix used in extract-lateral-edges.ts when building lateral
-// edge ids. Local to this script because that module does not export the
-// prefix as a constant. If the prefix changes there, it must change here too.
-const LATERAL_PREFIX = "lateral::" as const;
+import { LATERAL_EDGE_PREFIX } from "../src/graph/extract-lateral-edges.ts";
 
 type EdgeKind = "dag" | "lateral";
 
@@ -132,7 +128,7 @@ const nodeHasDrift = (node: GraphNode): boolean =>
   "isDrift" in node && node.isDrift === true;
 
 const edgeKind = (edge: GraphEdge): EdgeKind =>
-  edge.id.startsWith(LATERAL_PREFIX) ? "lateral" : "dag";
+  edge.id.startsWith(LATERAL_EDGE_PREFIX) ? "lateral" : "dag";
 
 const summarizeNodeChanges = (node: GraphNode): readonly NodeChangeSummary[] =>
   Object.entries(node.changes ?? {})

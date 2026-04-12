@@ -1,4 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
+import { LATERAL_EDGE_PREFIX } from "../graph/extract-lateral-edges.ts";
 import type { LateralContext } from "../types/lateral-context.ts";
 import type { PhantomContext } from "../types/phantom-context.ts";
 import { getNodeData } from "./node-data.ts";
@@ -37,7 +38,7 @@ export const resolvePhantomContext = (
     childIds.size === 0
       ? new Set(
           edges
-            .filter((e) => e.target === nodeId && e.id.startsWith("lateral::"))
+            .filter((e) => e.target === nodeId && e.id.startsWith(LATERAL_EDGE_PREFIX))
             .map((e) => e.source),
         )
       : new Set<string>();
@@ -70,7 +71,7 @@ export const resolveLateralContext = (
   const dependedOnByIds = new Set<string>();
 
   for (const edge of lateralEdges) {
-    if (!edge.id.startsWith("lateral::")) continue;
+    if (!edge.id.startsWith(LATERAL_EDGE_PREFIX)) continue;
     if (edge.source === nodeId) dependsOnIds.add(edge.target);
     if (edge.target === nodeId) dependedOnByIds.add(edge.source);
   }
