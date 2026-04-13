@@ -1,22 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildResourceGraph,
-  canonicalPairKey,
-  filterLateralEdgesAgainstDependsOn,
   isJobEntry,
   isPostgresType,
   isUnityCatalogType,
 } from "../../src/graph/build-resource-graph.ts";
 import { extractStateField, parseThreePartName } from "../../src/graph/extract-resource-state.ts";
-import type { GraphEdge, ResourceGraphNode } from "../../src/types/graph-types.ts";
-import { buildGraphEdge } from "../../src/types/graph-types.ts";
+import type { ResourceGraphNode } from "../../src/types/graph-types.ts";
 import { extractResourceType } from "../../src/utils/resource-key.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
-
-const lateralEdge = (source: string, target: string): GraphEdge =>
-  buildGraphEdge(source, target, "unchanged", "lateral::");
-const dependsOnEdgeFor = (source: string, target: string): GraphEdge =>
-  buildGraphEdge(source, target, "unchanged");
 
 describe("extractResourceType", () => {
   test("extracts type from standard resource key", () => {
@@ -467,41 +459,8 @@ describe("buildResourceGraph", () => {
     expect(rootNodes).toHaveLength(1); // only uc-root
   });
 
-  test("job depends_on cross-type edges appear in resource graph", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.schemas.analytics": {
-          action: "update",
-          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
-        },
-        "resources.jobs.etl_pipeline": {
-          action: "create",
-          depends_on: [{ node: "resources.schemas.analytics" }],
-        },
-      },
-    });
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("resources.schemas.analytics→resources.jobs.etl_pipeline");
-  });
-
-  test("job-to-job depends_on edges are excluded from resource graph", () => {
-    const graph = buildResourceGraph({
-      plan: {
-        "resources.jobs.job_a": { action: "create" },
-        "resources.jobs.job_b": {
-          action: "create",
-          depends_on: [{ node: "resources.jobs.job_a" }],
-        },
-      },
-    });
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).not.toContain("resources.jobs.job_a→resources.jobs.job_b");
-    // Both still link to workspace root
-    expect(edgePairs).toContain("workspace-root→resources.jobs.job_a");
-    expect(edgePairs).toContain("workspace-root→resources.jobs.job_b");
-  });
+  // depends_on edges are not used for graph construction — they represent
+  // deployment ordering, not semantic relationships. See buildResourceGraph comment.
 
   describe("job resource node filtering", () => {
     test("job resource node has taskChangeSummary when tasks have changes", () => {
@@ -1625,6 +1584,85 @@ describe("source table phantom nodes", () => {
   });
 });
 
+describe("external leaf phantom refs (UC hierarchy placement)", () => {
+  test("app uc_securable phantom is placed under correct catalog and schema", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.apps.my_app": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                { name: "tbl", uc_securable: { securable_full_name: "prod.analytics.users" } },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("source-table::prod.analytics.users");
+    expect(nodeIds).toContain("schema::prod.analytics");
+    expect(nodeIds).toContain("catalog::prod");
+
+    const phantom = graph.nodes.find((n) => n.id === "source-table::prod.analytics.users");
+    expect(phantom?.nodeKind).toBe("phantom");
+    expect(phantom?.label).toBe("users");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("uc-root→catalog::prod");
+    expect(edgePairs).toContain("catalog::prod→schema::prod.analytics");
+    expect(edgePairs).toContain("schema::prod.analytics→source-table::prod.analytics.users");
+  });
+
+  test("serving endpoint registered model phantom is placed in UC hierarchy", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.model_serving_endpoints.my_endpoint": {
+          action: "update",
+          new_state: {
+            value: {
+              config: {
+                served_entities: [{ entity_name: "ml.models.recommender", entity_version: "1" }],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("registered-model::ml.models.recommender");
+    expect(nodeIds).toContain("schema::ml.models");
+    expect(nodeIds).toContain("catalog::ml");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("schema::ml.models→registered-model::ml.models.recommender");
+  });
+
+  test("quality monitor table_name phantom is placed in UC hierarchy", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.quality_monitors.mon": {
+          action: "create",
+          new_state: {
+            value: { table_name: "analytics.staging.orders", warehouse_id: "abc123" },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("source-table::analytics.staging.orders");
+    expect(nodeIds).toContain("schema::analytics.staging");
+    expect(nodeIds).toContain("catalog::analytics");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("schema::analytics.staging→source-table::analytics.staging.orders");
+  });
+});
+
 describe("sub-resources-plan.json (sub-resource merging)", () => {
   test("merges sub-resource keys into parent resource node", async () => {
     const plan = await loadFixture("sub-resources");
@@ -1682,67 +1720,5 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
     );
     expect(schemaNode).toBeDefined();
     expect(schemaNode?.changes?.["grants.[principal='data_engineers'].privileges"]).toBeDefined();
-  });
-});
-
-describe("canonicalPairKey", () => {
-  test("is symmetric across argument order", () => {
-    expect(canonicalPairKey("alpha", "beta")).toBe(canonicalPairKey("beta", "alpha"));
-  });
-
-  test("distinguishes different pairs", () => {
-    expect(canonicalPairKey("a", "b")).not.toBe(canonicalPairKey("a", "c"));
-  });
-
-  test("produces a stable key for self-pairs", () => {
-    expect(canonicalPairKey("x", "x")).toBe(canonicalPairKey("x", "x"));
-  });
-});
-
-describe("filterLateralEdgesAgainstDependsOn", () => {
-  test("returns empty when both inputs are empty", () => {
-    expect(filterLateralEdgesAgainstDependsOn([], [])).toEqual([]);
-  });
-
-  test("preserves all lateral edges when depends_on is empty", () => {
-    const lateral = [lateralEdge("a", "b"), lateralEdge("c", "d")];
-    expect(filterLateralEdgesAgainstDependsOn(lateral, [])).toEqual(lateral);
-  });
-
-  test("suppresses a lateral edge in the opposite direction of a depends_on edge", () => {
-    const result = filterLateralEdgesAgainstDependsOn(
-      [lateralEdge("b", "a")],
-      [dependsOnEdgeFor("a", "b")],
-    );
-    expect(result).toEqual([]);
-  });
-
-  test("suppresses a lateral edge in the same direction as a depends_on edge", () => {
-    const result = filterLateralEdgesAgainstDependsOn(
-      [lateralEdge("a", "b")],
-      [dependsOnEdgeFor("a", "b")],
-    );
-    expect(result).toEqual([]);
-  });
-
-  test("preserves lateral edges on non-overlapping pairs", () => {
-    const lateral = [lateralEdge("c", "d")];
-    const result = filterLateralEdgesAgainstDependsOn(lateral, [dependsOnEdgeFor("a", "b")]);
-    expect(result).toEqual(lateral);
-  });
-
-  test("suppresses only the overlapping pair in a mixed batch", () => {
-    const surviving = lateralEdge("c", "d");
-    const result = filterLateralEdgesAgainstDependsOn(
-      [lateralEdge("b", "a"), surviving],
-      [dependsOnEdgeFor("a", "b")],
-    );
-    expect(result).toEqual([surviving]);
-  });
-
-  test("preserves a self-edge lateral when no depends_on covers it", () => {
-    // Defensive: buildEdge guards against self-loops, but buildGraphEdge doesn't.
-    const selfLoop = lateralEdge("a", "a");
-    expect(filterLateralEdgesAgainstDependsOn([selfLoop], [])).toEqual([selfLoop]);
   });
 });

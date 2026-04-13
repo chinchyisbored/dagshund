@@ -170,19 +170,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 35,
+      "total": 36,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 22,
         "root": 4,
-        "phantom": 9
+        "phantom": 10
       },
       "by_diff_state": {
         "added": 14,
         "removed": 1,
         "modified": 7,
-        "unchanged": 13,
+        "unchanged": 14,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -218,7 +218,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 9,
+          "unchanged": 10,
           "unknown": 0
         }
       },
@@ -653,6 +653,17 @@
           "taskChangeSummary": []
         },
         {
+          "id": "sql-warehouse::799f096837f0aaaa",
+          "resourceKey": "sql-warehouse::799f096837f0aaaa",
+          "label": "799f096837f0aaaa",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "uc-root",
           "resourceKey": "uc-root",
           "label": "Unity Catalog",
@@ -677,26 +688,26 @@
       ]
     },
     "edges": {
-      "total": 40,
+      "total": 42,
       "by_kind": {
-        "dag": 33,
-        "lateral": 7
+        "dag": 34,
+        "lateral": 8
       },
       "by_diff_state": {
         "added": 14,
         "removed": 1,
-        "unchanged": 25
+        "unchanged": 27
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 14,
           "removed": 1,
-          "unchanged": 18
+          "unchanged": 19
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 7
+          "unchanged": 8
         }
       },
       "entries": [
@@ -769,6 +780,12 @@
         {
           "source": "other-resources-root",
           "target": "resources.jobs.etl_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "sql-warehouse::799f096837f0aaaa",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -905,6 +922,12 @@
           "kind": "lateral"
         },
         {
+          "source": "resources.alerts.data_freshness",
+          "target": "sql-warehouse::799f096837f0aaaa",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
           "source": "resources.synced_database_tables.customer_360",
           "target": "resources.database_instances.analytics_db",
           "diffState": "unchanged",
@@ -987,6 +1010,11 @@
         "id": "source-table::dagshund.integrations.partner_rollup",
         "label": "partner_rollup",
         "resourceKey": "source-table::dagshund.integrations.partner_rollup"
+      },
+      {
+        "id": "sql-warehouse::799f096837f0aaaa",
+        "label": "799f096837f0aaaa",
+        "resourceKey": "sql-warehouse::799f096837f0aaaa"
       }
     ]
   }

@@ -14,5 +14,14 @@ variables:
   volume_name:
     description: Pre-existing external volume for app uc_securable
     default: a_volume
+  phantom_schema:
+    description: Pre-existing schema with phantom test resources (table, model)
+    default: phantom_schema
+  external_pipeline_id:
+    description: Pre-existing DLT pipeline ID for phantom pipeline_task references
+    default: "38a5d519-ec0f-4cc7-8431-8435a3824365"
+  external_dashboard_id:
+    description: Pre-existing Lakeview dashboard ID for phantom dashboard_task references
+    default: "01f10382fb111e3e9d8132f891c5b179"
   secondary_user:
     description: Second user for ownership/run_as fixture scenarios (no default — set via BUNDLE_VAR_secondary_user)

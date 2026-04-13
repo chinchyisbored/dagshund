@@ -31,7 +31,10 @@ export const extractPhantomBadge = (resourceKey: string): string | undefined => 
   if (resourceKey.startsWith("serving-endpoint::")) return "serving";
   if (resourceKey.startsWith("job::")) return "job";
   if (resourceKey.startsWith("sql-warehouse::")) return "warehouse";
+  if (resourceKey.startsWith("dashboard::")) return "dashboard";
   if (resourceKey.startsWith("experiment::")) return "experiment";
+  if (resourceKey.startsWith("pipeline::")) return "pipeline";
+  if (resourceKey.startsWith("registered-model::")) return "model";
   if (resourceKey.startsWith("postgres-project::")) return "postgres project";
   if (resourceKey.startsWith("postgres-branch::")) return "postgres branch";
   return extractTypeBadge(resourceKey);
@@ -46,6 +49,9 @@ const PHANTOM_LEAF_PREFIXES: readonly string[] = [
   "job::",
   "sql-warehouse::",
   "experiment::",
+  "dashboard::",
+  "pipeline::",
+  "registered-model::",
 ];
 
 /** Check whether a node ID represents an inferred leaf phantom (not a hierarchy phantom).
@@ -58,6 +64,25 @@ export const DATABASE_INSTANCE_SOURCE_TYPES: ReadonlySet<string> = new Set([
   "synced_database_tables",
   "database_catalogs",
 ]);
+
+/** Top-level resource types that carry a `warehouse_id` state field.
+ *  Used by both the lateral edge spec and the phantom collector. */
+export const WAREHOUSE_SOURCE_TYPES: ReadonlySet<string> = new Set([
+  "alerts",
+  "dashboards",
+  "quality_monitors",
+]);
+
+/** Job task sub-object keys that can carry a `warehouse_id` field.
+ *  Used by both the lateral edge spec and the phantom collector. */
+export const TASK_WAREHOUSE_KEYS: readonly string[] = [
+  "sql_task",
+  "dashboard_task",
+  "alert_task",
+  "dbt_task",
+  "notebook_task",
+  "power_bi_task",
+];
 
 /** Map resource type segment to a short display badge. */
 const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {

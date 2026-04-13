@@ -76,3 +76,15 @@ export const parseThreePartName = (
   }
   return { catalog, schema, table };
 };
+
+/** Extract served_entities array from a serving endpoint entry.
+ *  Handles both new_state shape (config.served_entities) and
+ *  remote_state shape (endpoint_details.config.served_entities). */
+export const extractServedEntities = (entry: PlanEntry): readonly unknown[] => {
+  const state = extractResourceState(entry);
+  if (state === undefined) return [];
+  const entities =
+    getUnknownProp(state["config"], "served_entities") ??
+    getUnknownProp(getUnknownProp(state["endpoint_details"], "config"), "served_entities");
+  return Array.isArray(entities) ? entities : [];
+};

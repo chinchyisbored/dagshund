@@ -1,0 +1,916 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 6,
+      "by_kind": {
+        "job": 1,
+        "task": 5,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 6,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 5,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 19,
+      "with_resource_state": 6,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "resources.jobs.orchestrator",
+          "resourceKey": "resources.jobs.orchestrator",
+          "label": "orchestrator",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.orchestrator::refresh_bundled_dashboard",
+          "resourceKey": "resources.jobs.orchestrator",
+          "label": "refresh_bundled_dashboard",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='refresh_bundled_dashboard'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='refresh_bundled_dashboard'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='refresh_bundled_dashboard'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.orchestrator::refresh_external_dashboard",
+          "resourceKey": "resources.jobs.orchestrator",
+          "label": "refresh_external_dashboard",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='refresh_external_dashboard'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='refresh_external_dashboard'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='refresh_external_dashboard'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.orchestrator::run_etl",
+          "resourceKey": "resources.jobs.orchestrator",
+          "label": "run_etl",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_etl'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_etl'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_etl'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.orchestrator::run_external_pipeline",
+          "resourceKey": "resources.jobs.orchestrator",
+          "label": "run_external_pipeline",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_external_pipeline'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_external_pipeline'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_external_pipeline'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.orchestrator::run_query",
+          "resourceKey": "resources.jobs.orchestrator",
+          "label": "run_query",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_query'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_query'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_query'].sql_task.file.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_query'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 0,
+      "by_kind": {
+        "dag": 0,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 0
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": []
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 17,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 8,
+        "root": 2,
+        "phantom": 7
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 15,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 2,
+          "unchanged": 6,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 7,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 41,
+      "with_resource_state": 8,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "dashboard::01f10382fb111e3e9d8132f891c5b179",
+          "resourceKey": "dashboard::01f10382fb111e3e9d8132f891c5b179",
+          "label": "01f10382fb111e3e9d8132f891c5b179",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
+          "resourceKey": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
+          "label": "38a5d519-ec0f-4cc7-8431-8435a3824365",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "registered-model::dagshund.phantom_schema.phantom_model",
+          "resourceKey": "registered-model::dagshund.phantom_schema.phantom_model",
+          "label": "phantom_model",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.alerts.data_freshness",
+          "resourceKey": "resources.alerts.data_freshness",
+          "label": "data_freshness",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "effective_run_as",
+              "action": "skip"
+            },
+            {
+              "key": "id",
+              "action": "skip"
+            },
+            {
+              "key": "lifecycle_state",
+              "action": "skip"
+            },
+            {
+              "key": "owner_user_name",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.apps.data_app",
+          "resourceKey": "resources.apps.data_app",
+          "label": "data_app",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "app_status",
+              "action": "skip"
+            },
+            {
+              "key": "compute_size",
+              "action": "skip"
+            },
+            {
+              "key": "compute_status",
+              "action": "skip"
+            },
+            {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "creator",
+              "action": "skip"
+            },
+            {
+              "key": "id",
+              "action": "skip"
+            },
+            {
+              "key": "oauth2_app_client_id",
+              "action": "skip"
+            },
+            {
+              "key": "oauth2_app_integration_id",
+              "action": "skip"
+            },
+            {
+              "key": "resources[0].uc_securable.securable_kind",
+              "action": "update"
+            },
+            {
+              "key": "service_principal_client_id",
+              "action": "skip"
+            },
+            {
+              "key": "service_principal_id",
+              "action": "skip"
+            },
+            {
+              "key": "service_principal_name",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            },
+            {
+              "key": "updater",
+              "action": "skip"
+            },
+            {
+              "key": "url",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.dashboards.metrics",
+          "resourceKey": "resources.dashboards.metrics",
+          "label": "metrics",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "etag",
+              "action": "skip"
+            },
+            {
+              "key": "serialized_dashboard",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.orchestrator",
+          "resourceKey": "resources.jobs.orchestrator",
+          "label": "orchestrator",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.model_serving_endpoints.phantom_endpoint",
+          "resourceKey": "resources.model_serving_endpoints.phantom_endpoint",
+          "label": "phantom_endpoint",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "config.served_entities[0].name",
+              "action": "skip"
+            },
+            {
+              "key": "config.served_entities[0].workload_type",
+              "action": "skip"
+            },
+            {
+              "key": "config.traffic_config",
+              "action": "skip"
+            },
+            {
+              "key": "description",
+              "action": "skip"
+            },
+            {
+              "key": "route_optimized",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.pipelines.etl_pipeline",
+          "resourceKey": "resources.pipelines.etl_pipeline",
+          "label": "etl_pipeline",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.quality_monitors.table_monitor",
+          "resourceKey": "resources.quality_monitors.table_monitor",
+          "label": "table_monitor",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "schedule.pause_status",
+              "action": "update"
+            },
+            {
+              "key": "warehouse_id",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.registered_models.bundled_model",
+          "resourceKey": "resources.registered_models.bundled_model",
+          "label": "bundled_model",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "created_at",
+              "action": "skip"
+            },
+            {
+              "key": "created_by",
+              "action": "skip"
+            },
+            {
+              "key": "full_name",
+              "action": "skip"
+            },
+            {
+              "key": "metastore_id",
+              "action": "skip"
+            },
+            {
+              "key": "owner",
+              "action": "skip"
+            },
+            {
+              "key": "storage_location",
+              "action": "skip"
+            },
+            {
+              "key": "updated_at",
+              "action": "skip"
+            },
+            {
+              "key": "updated_by",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::dagshund.phantom_schema",
+          "resourceKey": "schema::dagshund.phantom_schema",
+          "label": "phantom_schema",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.phantom_schema.phantom_table",
+          "resourceKey": "source-table::dagshund.phantom_schema.phantom_table",
+          "label": "phantom_table",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "sql-warehouse::9d0afa601cb95187",
+          "resourceKey": "sql-warehouse::9d0afa601cb95187",
+          "label": "9d0afa601cb95187",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 28,
+      "by_kind": {
+        "dag": 15,
+        "lateral": 13
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 28
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 15
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 13
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.phantom_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.phantom_schema",
+          "target": "registered-model::dagshund.phantom_schema.phantom_model",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.phantom_schema",
+          "target": "resources.registered_models.bundled_model",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.phantom_schema",
+          "target": "source-table::dagshund.phantom_schema.phantom_table",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "dashboard::01f10382fb111e3e9d8132f891c5b179",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.alerts.data_freshness",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.apps.data_app",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.dashboards.metrics",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.orchestrator",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.model_serving_endpoints.phantom_endpoint",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.pipelines.etl_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.quality_monitors.table_monitor",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.alerts.data_freshness",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.data_app",
+          "target": "source-table::dagshund.phantom_schema.phantom_table",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.dashboards.metrics",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.orchestrator",
+          "target": "dashboard::01f10382fb111e3e9d8132f891c5b179",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.orchestrator",
+          "target": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.orchestrator",
+          "target": "resources.dashboards.metrics",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.orchestrator",
+          "target": "resources.pipelines.etl_pipeline",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.orchestrator",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.model_serving_endpoints.phantom_endpoint",
+          "target": "registered-model::dagshund.phantom_schema.phantom_model",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.pipelines.etl_pipeline",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.pipelines.etl_pipeline",
+          "target": "schema::dagshund.phantom_schema",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.quality_monitors.table_monitor",
+          "target": "source-table::dagshund.phantom_schema.phantom_table",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.quality_monitors.table_monitor",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      },
+      {
+        "id": "dashboard::01f10382fb111e3e9d8132f891c5b179",
+        "label": "01f10382fb111e3e9d8132f891c5b179",
+        "resourceKey": "dashboard::01f10382fb111e3e9d8132f891c5b179"
+      },
+      {
+        "id": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
+        "label": "38a5d519-ec0f-4cc7-8431-8435a3824365",
+        "resourceKey": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365"
+      },
+      {
+        "id": "registered-model::dagshund.phantom_schema.phantom_model",
+        "label": "phantom_model",
+        "resourceKey": "registered-model::dagshund.phantom_schema.phantom_model"
+      },
+      {
+        "id": "schema::dagshund.phantom_schema",
+        "label": "phantom_schema",
+        "resourceKey": "schema::dagshund.phantom_schema"
+      },
+      {
+        "id": "source-table::dagshund.phantom_schema.phantom_table",
+        "label": "phantom_table",
+        "resourceKey": "source-table::dagshund.phantom_schema.phantom_table"
+      },
+      {
+        "id": "sql-warehouse::9d0afa601cb95187",
+        "label": "9d0afa601cb95187",
+        "resourceKey": "sql-warehouse::9d0afa601cb95187"
+      }
+    ]
+  }
+}

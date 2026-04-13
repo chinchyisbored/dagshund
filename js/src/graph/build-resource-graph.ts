@@ -14,14 +14,21 @@ import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
 import { hasAnyDrift } from "../utils/structural-diff.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
+import { getUnknownProp } from "../utils/unknown-record.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
   collectPhantomAppDependencies,
   collectPhantomDatabaseInstances,
+  collectPhantomExternalRefs,
 } from "./collect-phantom-nodes.ts";
-import { extractLateralEdges } from "./extract-lateral-edges.ts";
+import {
+  buildApiIdIndex,
+  extractAppResourceReferences,
+  extractLateralEdges,
+} from "./extract-lateral-edges.ts";
 import {
   extractResourceState,
+  extractServedEntities,
   extractSourceTableFullName,
   extractStateField,
   parseThreePartName,
@@ -197,6 +204,17 @@ type ChainSpec = {
   readonly rootLabel: string;
   /** Tiers ordered from root-adjacent (index 0) to leaf (last index). */
   readonly tiers: readonly TierSpec[];
+};
+
+/** A pre-extracted phantom leaf reference from a non-hierarchy entry (e.g. serving endpoint, quality monitor).
+ *  Allows workspace entries to inject phantom leaves into a hierarchy chain with custom IDs. */
+type ExternalLeafPhantomRef = {
+  /** Three-part name identity (e.g. "dagshund.phantom_schema.phantom_model"). */
+  readonly identity: string;
+  /** Custom phantom node ID (e.g. "registered-model::dagshund.phantom_schema.phantom_model"). */
+  readonly phantomId: string;
+  /** Display label (e.g. "phantom_model"). */
+  readonly label: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -443,8 +461,11 @@ const resolveEntryParent = (
 const buildChainGraph = (
   entries: readonly (readonly [string, PlanEntry])[],
   spec: ChainSpec,
+  externalLeafPhantomRefs?: readonly ExternalLeafPhantomRef[],
 ): PlanGraph => {
-  if (entries.length === 0) return { nodes: [], edges: [] };
+  const hasExternalRefs =
+    externalLeafPhantomRefs !== undefined && externalLeafPhantomRefs.length > 0;
+  if (entries.length === 0 && !hasExternalRefs) return { nodes: [], edges: [] };
 
   const root = buildRootNode(spec.rootId, spec.rootLabel);
   const tierIndexes = buildTierIndexes(entries, spec.tiers);
@@ -514,6 +535,32 @@ const buildChainGraph = (
     }
   }
 
+  // External leaf phantom refs: workspace entries (serving endpoints, quality monitors, apps)
+  // that reference three-part UC names — inject them as phantom leaves with custom IDs.
+  if (externalLeafPhantomRefs !== undefined && externalLeafPhantomRefs.length > 0) {
+    const schemaTierIndex = spec.tiers.length - 2; // schema is one above leaf
+    for (const { identity, phantomId, label } of externalLeafPhantomRefs) {
+      if (phantomNodes.has(phantomId)) continue;
+      const parsed = parseThreePartName(identity);
+      if (parsed === undefined) continue;
+
+      // Resolve (or create) phantom ancestors up through the schema tier
+      const schemaIdentity = `${parsed.catalog}.${parsed.schema}`;
+      const parentNodeId = resolveParentChain(
+        schemaIdentity,
+        schemaTierIndex,
+        spec,
+        tierIndexes,
+        phantomNodes,
+        phantomEdges,
+      );
+
+      // Create the leaf phantom with its custom ID and wire to schema parent
+      phantomNodes.set(phantomId, buildPhantomNode(phantomId, label));
+      phantomEdges.push(buildEdge(parentNodeId, phantomId));
+    }
+  }
+
   return {
     nodes: [root, ...resourceNodes, ...[...phantomNodes.values()]],
     edges: [...filterDefinedEdges(hierarchyEdges), ...filterDefinedEdges(phantomEdges)],
@@ -570,20 +617,8 @@ const buildWorkspaceGraph = (
 };
 
 // ---------------------------------------------------------------------------
-// Depends-on edges + deduplication
+// Edge deduplication
 // ---------------------------------------------------------------------------
-
-/** Collect explicit depends_on edges, skipping job-to-job edges (deployment ordering, not hierarchy). */
-const collectDependsOnEdges = (
-  entries: readonly (readonly [string, PlanEntry])[],
-): readonly GraphEdge[] =>
-  filterDefinedEdges(
-    entries.flatMap(([key, entry]) =>
-      (entry.depends_on ?? [])
-        .filter((dep) => !(isJobEntry(key) && isJobEntry(dep.node)))
-        .map((dep) => buildEdge(dep.node, key, resolveEntryEdgeDiffState(entry))),
-    ),
-  );
 
 /** Deduplicate edges, keeping the first occurrence of each edge id. */
 const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => {
@@ -595,23 +630,64 @@ const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => 
   });
 };
 
-const PAIR_KEY_SEP = "\u0000";
+// ---------------------------------------------------------------------------
+// External leaf phantom refs
+// ---------------------------------------------------------------------------
 
-/** Canonical, direction-insensitive key for a pair of node IDs. */
-export const canonicalPairKey = (a: string, b: string): string =>
-  a <= b ? `${a}${PAIR_KEY_SEP}${b}` : `${b}${PAIR_KEY_SEP}${a}`;
+/** Collect phantom leaf references from workspace entries that reference three-part UC names.
+ *  These are placed in the UC hierarchy (not under workspace-root) via buildChainGraph. */
+const collectExternalLeafPhantomRefs = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  existingUcKeys: ReadonlySet<string>,
+  registeredModelFullNameIndex: ReadonlyMap<string, string>,
+): readonly ExternalLeafPhantomRef[] => {
+  const refs: ExternalLeafPhantomRef[] = [];
 
-/**
- * Drop lateral edges whose node pair is already connected by a depends_on edge.
- * Depends_on carries real diff state and direction; lateral is the fallback for
- * resource kinds DAB doesn't emit depends_on for (warehouses, secrets, etc).
- */
-export const filterLateralEdgesAgainstDependsOn = (
-  lateralEdges: readonly GraphEdge[],
-  dependsOnEdges: readonly GraphEdge[],
-): readonly GraphEdge[] => {
-  const covered = new Set(dependsOnEdges.map((edge) => canonicalPairKey(edge.source, edge.target)));
-  return lateralEdges.filter((edge) => !covered.has(canonicalPairKey(edge.source, edge.target)));
+  // Registered models from serving endpoint entity_names
+  for (const [key, entry] of entries) {
+    if (extractResourceType(key) !== "model_serving_endpoints") continue;
+    for (const entity of extractServedEntities(entry)) {
+      const name = getUnknownProp(entity, "entity_name");
+      if (typeof name !== "string") continue;
+      const targetKey =
+        registeredModelFullNameIndex.get(name) ?? `resources.registered_models.${name}`;
+      if (existingUcKeys.has(targetKey)) continue;
+      if (parseThreePartName(name) === undefined) continue;
+      refs.push({
+        identity: name,
+        phantomId: `registered-model::${name}`,
+        label: name.split(".").at(-1) ?? name,
+      });
+    }
+  }
+
+  // Phantom tables from quality_monitor table_name
+  for (const [key, entry] of entries) {
+    if (extractResourceType(key) !== "quality_monitors") continue;
+    const tableName = extractStateField(entry, "table_name");
+    if (tableName === undefined || parseThreePartName(tableName) === undefined) continue;
+    refs.push({
+      identity: tableName,
+      phantomId: `source-table::${tableName}`,
+      label: tableName.split(".").at(-1) ?? tableName,
+    });
+  }
+
+  // Phantom tables from app uc_securable
+  for (const [key, entry] of entries) {
+    if (extractResourceType(key) !== "apps") continue;
+    for (const ref of extractAppResourceReferences(entry)) {
+      if (ref.kind !== "uc_securable") continue;
+      if (parseThreePartName(ref.fullName) === undefined) continue;
+      refs.push({
+        identity: ref.fullName,
+        phantomId: `source-table::${ref.fullName}`,
+        label: ref.fullName.split(".").at(-1) ?? ref.fullName,
+      });
+    }
+  }
+
+  return refs;
 };
 
 // ---------------------------------------------------------------------------
@@ -640,11 +716,41 @@ export const buildResourceGraph = (
     }
   }
 
-  const ucGraph = buildChainGraph(ucEntries, UC_CHAIN);
+  // Build registered model index early — needed for external leaf phantom dedup
+  const registeredModelFullNameIndex = buildApiIdIndex(entries, "registered_models", (e) =>
+    extractStateField(e, "full_name"),
+  );
+
+  const existingUcKeys = new Set(ucEntries.map(([key]) => key));
+  const externalLeafPhantomRefs = collectExternalLeafPhantomRefs(
+    entries,
+    existingUcKeys,
+    registeredModelFullNameIndex,
+  );
+
+  const ucGraph = buildChainGraph(ucEntries, UC_CHAIN, externalLeafPhantomRefs);
   const workspaceGraph = buildWorkspaceGraph(workspaceEntries, postgresEntries);
-  const dependsOnEdges = collectDependsOnEdges(entries);
+
+  // depends_on edges are NOT used for graph construction. They represent
+  // deployment ordering (Terraform-style: "deploy X before Y so ${resources.X.id}
+  // resolves"), not semantic relationships. Every depends_on is already covered by:
+  //   - UC hierarchy edges (volumes under schemas)
+  //   - Lateral edges (job→warehouse, app→job, etc.)
+  // New cross-resource reference patterns should add lateral specs in
+  // extract-lateral-edges.ts, not re-add depends_on edge creation.
 
   const graphNodes = [...ucGraph.nodes, ...workspaceGraph.nodes];
+
+  // Build shared indexes once for all phantom collectors and lateral edge specs
+  const warehouseIndex = buildApiIdIndex(entries, "sql_warehouses", (e) =>
+    extractStateField(e, "id"),
+  );
+  const dashboardIndex = buildApiIdIndex(entries, "dashboards", (e) =>
+    extractStateField(e, "dashboard_id"),
+  );
+  const pipelineIndex = buildApiIdIndex(entries, "pipelines", (e) =>
+    extractStateField(e, "pipeline_id"),
+  );
 
   // Create phantom nodes for database instances referenced but not in the plan.
   // Parent to the same group as real flat workspace resources.
@@ -660,9 +766,25 @@ export const buildResourceGraph = (
     entries,
     existingKeys,
     workspaceGraph.flatParentId,
+    warehouseIndex,
   );
 
-  const allNodes = [...graphNodes, ...phantomDbInstances.nodes, ...phantomAppDeps.nodes];
+  // Create phantom nodes for external references (warehouses, dashboards, pipelines) from
+  // top-level resources and job task sub-objects.
+  const phantomExternalRefs = collectPhantomExternalRefs(
+    entries,
+    workspaceGraph.flatParentId,
+    warehouseIndex,
+    dashboardIndex,
+    pipelineIndex,
+  );
+
+  const allNodes = [
+    ...graphNodes,
+    ...phantomDbInstances.nodes,
+    ...phantomAppDeps.nodes,
+    ...phantomExternalRefs.nodes,
+  ];
 
   // Build lookup maps for lateral edge extraction
   const nodeIdByResourceKey = new Map<string, string>(
@@ -670,9 +792,9 @@ export const buildResourceGraph = (
   );
   const nodeIds = new Set<string>(allNodes.map((node) => node.id));
 
-  const lateralEdges = filterLateralEdgesAgainstDependsOn(
-    extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds }),
-    dependsOnEdges,
+  const lateralEdges = extractLateralEdges(
+    { entries, nodeIdByResourceKey, nodeIds },
+    { warehouseIndex, dashboardIndex, pipelineIndex, registeredModelFullNameIndex },
   );
 
   return {
@@ -680,9 +802,9 @@ export const buildResourceGraph = (
     edges: deduplicateEdges([
       ...ucGraph.edges,
       ...workspaceGraph.edges,
-      ...dependsOnEdges,
       ...phantomDbInstances.edges,
       ...phantomAppDeps.edges,
+      ...phantomExternalRefs.edges,
     ]),
     lateralEdges,
   };

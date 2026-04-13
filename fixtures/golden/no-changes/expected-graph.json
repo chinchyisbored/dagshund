@@ -223,19 +223,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 8,
+      "total": 9,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 5,
         "root": 2,
-        "phantom": 1
+        "phantom": 2
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
         "modified": 0,
-        "unchanged": 8,
+        "unchanged": 9,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -271,7 +271,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 1,
+          "unchanged": 2,
           "unknown": 0
         }
       },
@@ -417,6 +417,17 @@
           "taskChangeSummary": []
         },
         {
+          "id": "sql-warehouse::9d0afa601cb95187",
+          "resourceKey": "sql-warehouse::9d0afa601cb95187",
+          "label": "9d0afa601cb95187",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "uc-root",
           "resourceKey": "uc-root",
           "label": "Unity Catalog",
@@ -441,26 +452,26 @@
       ]
     },
     "edges": {
-      "total": 6,
+      "total": 8,
       "by_kind": {
-        "dag": 6,
-        "lateral": 0
+        "dag": 7,
+        "lateral": 1
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
-        "unchanged": 6
+        "unchanged": 8
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 0,
           "removed": 0,
-          "unchanged": 6
+          "unchanged": 7
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 0
+          "unchanged": 1
         }
       },
       "entries": [
@@ -499,6 +510,18 @@
           "target": "resources.jobs.etl_pipeline",
           "diffState": "unchanged",
           "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.alerts.stale_pipeline_alert",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
         }
       ]
     },
@@ -507,6 +530,11 @@
         "id": "catalog::dagshund",
         "label": "dagshund",
         "resourceKey": "catalog::dagshund"
+      },
+      {
+        "id": "sql-warehouse::9d0afa601cb95187",
+        "label": "9d0afa601cb95187",
+        "resourceKey": "sql-warehouse::9d0afa601cb95187"
       }
     ]
   }

@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Comprehensive lateral dependency fixture: exercises all cross-resource
+# reference types with both in-bundle (real edge) and external (phantom)
+# targets. Skip-only plan (before == after) to isolate edge extraction.
+bundle:
+  name: dagshund-golden-lateral-deps
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  # ── In-bundle targets for lateral edges ──
+
+  pipelines:
+    etl_pipeline:
+      name: lateral_deps_etl_pipeline
+      catalog: ${var.catalog_name}
+      target: ${var.phantom_schema}
+      serverless: true
+      libraries:
+        - notebook:
+            path: ./pipeline.py
+
+  dashboards:
+    metrics:
+      display_name: lateral_deps_metrics
+      warehouse_id: ${var.warehouse_id}
+      file_path: ./dashboard.lvdash.json
+
+  registered_models:
+    bundled_model:
+      catalog_name: ${var.catalog_name}
+      schema_name: ${var.phantom_schema}
+      name: bundled_model
+
+  # ── Serving endpoint → system model not in bundle (phantom) [1o0m] ──
+
+  model_serving_endpoints:
+    phantom_endpoint:
+      name: lateral_deps_phantom_endpoint
+      config:
+        served_entities:
+          - entity_name: dagshund.phantom_schema.phantom_model
+            entity_version: "1"
+            workload_size: Small
+            scale_to_zero_enabled: true
+
+  # ── Job with diverse task types ──
+
+  jobs:
+    orchestrator:
+      name: lateral_deps_orchestrator
+      tasks:
+        # sql_task → warehouse (phantom)
+        - task_key: run_query
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ./query.sql
+
+        # dashboard_task → in-bundle dashboard + warehouse (phantom)
+        - task_key: refresh_bundled_dashboard
+          dashboard_task:
+            dashboard_id: ${resources.dashboards.metrics.id}
+            warehouse_id: ${var.warehouse_id}
+
+        # dashboard_task → external dashboard (phantom) + warehouse (phantom) [2786]
+        - task_key: refresh_external_dashboard
+          dashboard_task:
+            dashboard_id: ${var.external_dashboard_id}
+            warehouse_id: ${var.warehouse_id}
+
+        # pipeline_task → in-bundle pipeline [247c]
+        - task_key: run_etl
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.etl_pipeline.id}
+
+        # pipeline_task → external pipeline (phantom) [247c]
+        - task_key: run_external_pipeline
+          pipeline_task:
+            pipeline_id: ${var.external_pipeline_id}
+
+  # ── Alert → warehouse (phantom) [dktg] ──
+
+  alerts:
+    data_freshness:
+      display_name: lateral_deps_data_freshness
+      warehouse_id: ${var.warehouse_id}
+      query_text: "SELECT count(*) AS count FROM ${var.catalog_name}.${var.phantom_schema}.phantom_table"
+      schedule:
+        quartz_cron_schedule: "0 0 8 * * ?"
+        timezone_id: UTC
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: count
+        threshold:
+          value:
+            double_value: 0
+
+  # ── Quality monitor → warehouse (phantom) + table_name [6334] ──
+
+  quality_monitors:
+    table_monitor:
+      table_name: ${var.catalog_name}.${var.phantom_schema}.phantom_table
+      warehouse_id: ${var.warehouse_id}
+      assets_dir: /Workspace/monitoring/lateral_deps
+      output_schema_name: ${var.catalog_name}.${var.phantom_schema}
+      schedule:
+        quartz_cron_expression: "0 0 8 * * ?"
+        timezone_id: UTC
+      snapshot: {}
+
+  # ── App → uc_securable [33dm] ──
+
+  apps:
+    data_app:
+      name: lateral-deps-data-app
+      source_code_path: ./app
+      resources:
+        - name: source_table
+          uc_securable:
+            securable_full_name: ${var.catalog_name}.${var.phantom_schema}.phantom_table
+            securable_type: TABLE
+            permission: SELECT

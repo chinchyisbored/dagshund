@@ -41,13 +41,13 @@ regen_one() (
   # shellcheck disable=SC2329
   cleanup() {
     echo "==> [$name] Cleanup: destroying deployed state..." >&2
-    cd "$fixture_dir/after" && databricks bundle destroy --auto-approve || true
+    cd "$fixture_dir/after" && databricks bundle destroy --force-lock --auto-approve || true
   }
   trap cleanup EXIT
 
   echo "==> [$name] Deploying before/ state..."
   cd "$fixture_dir/before"
-  databricks bundle deploy
+  databricks bundle deploy --force-lock
 
   echo "==> [$name] Planning after/ state..."
   cd "$fixture_dir/after"
@@ -57,11 +57,11 @@ regen_one() (
 
   echo "==> [$name] Deploying after/ state..."
   cd "$fixture_dir/after"
-  databricks bundle deploy --auto-approve
+  databricks bundle deploy --force-lock --auto-approve
 
   echo "==> [$name] Destroying deployed state..."
   cd "$fixture_dir/after"
-  databricks bundle destroy --auto-approve
+  databricks bundle destroy --force-lock --auto-approve
 
   trap - EXIT
   echo "==> [$name] Done: $fixture_dir/plan.json"
