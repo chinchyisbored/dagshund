@@ -2,26 +2,11 @@ import { useNodeConnections } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import type { DiffState } from "../types/diff-state.ts";
 import { type DiffStateStyles, getDiffStateStyles } from "../utils/diff-state-styles.ts";
+import { buildGlowStyle } from "../utils/node-dimming.ts";
 import { useInteractionState } from "./use-interaction-context.ts";
 
 const TARGET_HANDLE = { handleType: "target" } as const;
 const SOURCE_HANDLE = { handleType: "source" } as const;
-
-/** Build the shared boxShadow + opacity inline style used by all node components. */
-const buildGlowStyle = (
-  isSelected: boolean,
-  isHovered: boolean,
-  isDimmed: boolean,
-  dimOpacity: number,
-  hoverGlow: string,
-): CSSProperties => ({
-  ...(isSelected
-    ? { boxShadow: `0 0 0 2.5px ${hoverGlow}` }
-    : isHovered
-      ? { boxShadow: `0 0 0 1.5px ${hoverGlow}` }
-      : undefined),
-  ...(isDimmed ? { opacity: dimOpacity } : undefined),
-});
 
 type NodeDimmingResult = {
   readonly opacityClass: string;

@@ -1,9 +1,8 @@
 import type { Edge, Node } from "@xyflow/react";
-import { LATERAL_EDGE_PREFIX } from "../graph/extract-lateral-edges.ts";
 import type { LateralContext } from "../types/lateral-context.ts";
 import type { PhantomContext } from "../types/phantom-context.ts";
 import { getNodeData } from "./node-data.ts";
-import { extractTypeBadge } from "./resource-key.ts";
+import { extractTypeBadge, LATERAL_EDGE_PREFIX } from "./resource-key.ts";
 
 /** Returns the given node ID plus all node IDs sharing an edge with it.
  *  When a job (parent) node is targeted, its child tasks are included too. */

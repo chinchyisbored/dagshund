@@ -18,6 +18,8 @@ const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
   style: { stroke: "var(--edge-default)", strokeWidth: 2 },
 };
 
+const PRO_OPTIONS = { hideAttribution: true } as const;
+
 type FlowCanvasLayoutProps = {
   // ReactFlow core
   readonly nodes: Node[];
@@ -97,7 +99,7 @@ export function FlowCanvasLayout({
         maxZoom={16}
         nodeClickDistance={5}
         paneClickDistance={5}
-        proOptions={{ hideAttribution: true }}
+        proOptions={PRO_OPTIONS}
         onNodeClick={onNodeClick}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}

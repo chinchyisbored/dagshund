@@ -1,3 +1,6 @@
+/** Edge ID prefix that distinguishes lateral (cross-resource) edges from DAG edges. */
+export const LATERAL_EDGE_PREFIX = "lateral::" as const;
+
 /** Extract the short resource name from a resource key (last dot-segment). */
 export const extractResourceName = (resourceKey: string): string => {
   const segments = resourceKey.split(".");

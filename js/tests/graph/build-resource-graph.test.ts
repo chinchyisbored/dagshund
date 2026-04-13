@@ -1707,7 +1707,9 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
     );
     expect(jobNode).toBeDefined();
     const state = jobNode?.resourceState as Record<string, unknown> | undefined;
-    expect(state?.["permissions"]).toBeDefined();
+    expect(state?.["permissions"]).toBeObject();
+    expect(state?.["permissions"]).toHaveProperty("object_id");
+    expect(state?.["permissions"]).toHaveProperty("__embed__");
   });
 
   test("schema node has merged grants changes", async () => {
@@ -1719,6 +1721,9 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
         n.nodeKind === "resource" && n.resourceKey === "resources.schemas.schema_perm_change",
     );
     expect(schemaNode).toBeDefined();
-    expect(schemaNode?.changes?.["grants.[principal='data_engineers'].privileges"]).toBeDefined();
+    const grantsChange = schemaNode?.changes?.["grants.[principal='data_engineers'].privileges"];
+    expect(grantsChange).toHaveProperty("action", "update");
+    expect(grantsChange).toHaveProperty("new");
+    expect(grantsChange).toHaveProperty("old");
   });
 });

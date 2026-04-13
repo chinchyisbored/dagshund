@@ -22,7 +22,7 @@ import type {
   TaskChangeSummary,
 } from "../src/types/graph-types.ts";
 import type { ActionType } from "../src/types/plan-schema.ts";
-import { LATERAL_EDGE_PREFIX } from "../src/graph/extract-lateral-edges.ts";
+import { LATERAL_EDGE_PREFIX } from "../src/utils/resource-key.ts";
 
 type EdgeKind = "dag" | "lateral";
 

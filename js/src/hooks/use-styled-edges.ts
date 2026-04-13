@@ -1,5 +1,6 @@
 import type { Edge } from "@xyflow/react";
 import { useMemo } from "react";
+import { computeEdgeStyle } from "../utils/edge-styles.ts";
 
 /**
  * Apply visual styling to edges based on interaction state.
@@ -24,47 +25,17 @@ export const useStyledEdges = (
       isolatedLateralIds === null
     )
       return baseEdges;
-    return baseEdges.map((edge) => {
-      const baseStyle = edge.style ?? {};
-      // Hover takes priority — highlight direct connections, dim the rest.
-      if (connectedIds !== null) {
-        const isDirectlyConnected = edge.source === hoveredNodeId || edge.target === hoveredNodeId;
-        const isBetweenConnected = connectedIds.has(edge.source) && connectedIds.has(edge.target);
-        return isDirectlyConnected
-          ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5, filter: "brightness(1.5)" } }
-          : isBetweenConnected
-            ? { ...edge, style: baseStyle }
-            : { ...edge, style: { ...baseStyle, strokeWidth: 2, opacity: 0.15 } };
-      }
-      // Filter — show edges touching matched nodes, dim the rest.
-      if (filterMatchedIds !== null) {
-        const isRelevant = filterMatchedIds.has(edge.source) || filterMatchedIds.has(edge.target);
-        return isRelevant
-          ? { ...edge, style: baseStyle }
-          : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
-      }
-      // Lateral isolation — edges touching isolated node stay visible, others dim.
-      if (isolatedLateralIds !== null) {
-        const touchesIsolated =
-          isolatedLateralIds.has(edge.source) && isolatedLateralIds.has(edge.target);
-        return touchesIsolated
-          ? { ...edge, style: baseStyle }
-          : { ...edge, style: { ...baseStyle, opacity: 0.15 } };
-      }
-      // Selection — subtler than hover, slightly higher dim opacity.
-      if (selectedConnectedIds !== null) {
-        const isDirectlyConnected =
-          edge.source === selectedNodeId || edge.target === selectedNodeId;
-        const isBetweenConnected =
-          selectedConnectedIds.has(edge.source) && selectedConnectedIds.has(edge.target);
-        return isDirectlyConnected
-          ? { ...edge, style: { ...baseStyle, strokeWidth: 2.5 } }
-          : isBetweenConnected
-            ? { ...edge, style: baseStyle }
-            : { ...edge, style: { ...baseStyle, opacity: 0.3 } };
-      }
-      return { ...edge, style: baseStyle };
-    });
+    return baseEdges.map((edge) =>
+      computeEdgeStyle(
+        edge,
+        hoveredNodeId,
+        selectedNodeId,
+        connectedIds,
+        selectedConnectedIds,
+        filterMatchedIds,
+        isolatedLateralIds,
+      ),
+    );
   }, [
     baseEdges,
     connectedIds,

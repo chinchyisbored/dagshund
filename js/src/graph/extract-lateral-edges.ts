@@ -3,6 +3,7 @@ import type { PlanEntry } from "../types/plan-schema.ts";
 import {
   DATABASE_INSTANCE_SOURCE_TYPES,
   extractResourceType,
+  LATERAL_EDGE_PREFIX,
   TASK_WAREHOUSE_KEYS,
   WAREHOUSE_SOURCE_TYPES,
 } from "../utils/resource-key.ts";
@@ -15,9 +16,6 @@ import {
   parseThreePartName,
 } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
-
-/** Edge ID prefix that distinguishes lateral (cross-resource) edges from DAG edges. */
-export const LATERAL_EDGE_PREFIX = "lateral::" as const;
 
 // ---------------------------------------------------------------------------
 // Context type passed to all extractors

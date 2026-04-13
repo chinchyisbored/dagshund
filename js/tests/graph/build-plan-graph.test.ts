@@ -172,7 +172,12 @@ describe("buildPlanGraph", () => {
       const graph = buildPlanGraph(plan);
 
       const etlJob = graph.nodes.find((n) => n.nodeKind === "job");
-      expect(etlJob?.taskChangeSummary).toBeDefined();
+      expect(etlJob?.taskChangeSummary).toBeArrayOfSize(8);
+      // biome-ignore lint/style/noNonNullAssertion: guarded by toBeArrayOfSize above
+      const firstEntry = etlJob!.taskChangeSummary![0]!;
+      expect(firstEntry).toHaveProperty("taskKey");
+      expect(firstEntry).toHaveProperty("diffState");
+      expect(firstEntry).toHaveProperty("isDrift");
     });
 
     test("creates cross-job edge from trigger_quality_check to data_quality_pipeline", async () => {
@@ -185,6 +190,7 @@ describe("buildPlanGraph", () => {
           e.target === "resources.jobs.data_quality_pipeline",
       );
       expect(crossJobEdge).toBeDefined();
+      expect(crossJobEdge?.diffState).toBe("added");
     });
   });
 
@@ -313,6 +319,7 @@ describe("buildPlanGraph", () => {
           e.target === "resources.jobs.worker_job",
       );
       expect(crossJobEdge).toBeDefined();
+      expect(crossJobEdge?.diffState).toBe("unchanged");
     });
 
     test("both jobs new: edge has 'added' diffState", () => {
@@ -384,6 +391,7 @@ describe("buildPlanGraph", () => {
           e.target === "resources.jobs.pipeline_b",
       );
       expect(crossJobEdge).toBeDefined();
+      expect(crossJobEdge?.diffState).toBe("unchanged");
     });
 
     test("no vars field: job_id 0 produces no edge", () => {
