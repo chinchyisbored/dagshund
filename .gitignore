@@ -16,6 +16,7 @@ js/src/dagshund/
 
 # Caches
 .cache
+.uv-cache/
 *.tsbuildinfo
 
 # Python
