@@ -66,7 +66,9 @@ export function DiffFilterToolbar({
     <div className="flex gap-1.5">
       {FILTER_BUTTONS.map((button) => {
         const count = diffStateCounts[button.state];
-        if (count === 0) return null;
+        // Hide "unknown" when empty (rare fallback state); always show added/modified/removed
+        // so the toolbar doesn't reflow next to the lateral/phantom toggles.
+        if (count === 0 && button.state === "unknown") return null;
         const isActive = activeFilter === button.state;
         return (
           <button
