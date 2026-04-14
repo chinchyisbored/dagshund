@@ -5,7 +5,9 @@ description: >
   in a deploy, databricks bundle changes, pending deployments, deployment diff,
   schemas/jobs/resources being deployed, or wants to visualize a bundle plan.
   Visualizes Declarative Automation Bundle (formerly Databricks Asset Bundle)
-  deployment plans as colored terminal diffs and interactive DAG diagrams.
+  deployment plans as colored terminal diffs, markdown summaries, or a
+  self-contained HTML report with an interactive resource graph and per-job
+  task DAGs.
 ---
 
 # Dagshund
@@ -69,14 +71,15 @@ For ambiguous requests, default to text mode.
 databricks bundle plan -t <target> -o json | dagshund
 ```
 
-### Interactive DAG visualization
+### Interactive HTML report
 
 ```bash
 databricks bundle plan -t <target> -o json | dagshund -o plan.html -b
 ```
 
-Suggest this when the user explicitly asks for visualization, the plan has
-many resources, or they want to explore job task dependencies. In headless
+Self-contained HTML with a resource graph and per-job task DAGs. Suggest
+this when the user explicitly asks for visualization, the plan has many
+resources, or they want to explore job task dependencies. In headless
 environments (SSH, CI), omit `-b` and tell the user where the HTML file
 was written.
 
@@ -89,7 +92,12 @@ databricks bundle plan -t <target> -o json | dagshund -m          # modified onl
 databricks bundle plan -t <target> -o json | dagshund -r          # removed only
 databricks bundle plan -t <target> -o json | dagshund -c -f 'type:jobs'
 databricks bundle plan -t <target> -o json | dagshund -f '"exact_name"'
+databricks bundle plan -t <target> -o json | dagshund -f 'field:email_notifications'
 ```
+
+`-f` accepts `type:`, `status:`, `field:` (substring match against changed
+field names), `"exact"` names, and bare fuzzy words. All tokens in an
+expression AND together, and `-f` composes with `-c`/`-a`/`-m`/`-r`.
 
 ### Quiet mode (suppress terminal output)
 
@@ -123,9 +131,12 @@ Text mode groups resources by type (jobs, schemas, volumes, etc.):
 - `~` yellow = will be modified (field-level old → new values shown)
 - Dim = unchanged (hidden with `-c`)
 
-Summary line shows totals. A warnings section appears when dangerous actions
-affect stateful resources (catalogs, schemas, volumes, registered_models).
-Surface these warnings prominently — they indicate potential data loss.
+Summary line shows totals. A warnings section appears when dangerous
+actions (deletes or recreates of stateful resources — catalogs, schemas,
+volumes, registered_models) or manual edits (the plan's `old` state
+diverges from the live `remote` state) are present. Surface these
+warnings prominently — dangerous actions indicate potential data loss and
+manual edits will be silently overwritten on the next deploy.
 
 Plan output may contain internal infrastructure details (workspace URLs,
 resource names). Do not share or summarize it externally without the

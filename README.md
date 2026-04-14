@@ -1,57 +1,45 @@
 # Dagshund
 
-Colored diff summaries and interactive DAG visualizations for Declarative Automation Bundles (formerly Databricks Asset Bundles). Requires a plan file from the [direct deployment engine](https://docs.databricks.com/aws/en/dev-tools/bundles/direct) (`databricks bundle plan -o json`). See what changed, what's new, and what's being deleted, in your terminal or in the browser.
+Dagshund renders `databricks bundle plan -o json` output as a colored terminal diff, a markdown summary, or a self-contained HTML report with an interactive resource graph and per-job task DAGs. It is read-only: it does not connect to Databricks and does not deploy. The CLI is pure Python with no runtime dependencies.
+
+Requires the [direct deployment engine](https://docs.databricks.com/aws/en/dev-tools/bundles/direct) for Declarative Automation Bundles (formerly Databricks Asset Bundles).
 
 ![Dagshund resource graph](docs/pictures/resources.png)
 
+## Where it fits
+
+Dagshund sits between `databricks bundle plan` and `databricks bundle deploy`. Two places you would run it:
+
+**Locally**, while working on a bundle. The terminal output gives you a quick glance at what a deploy would do, filterable by resource type, status, or changed field. The HTML report is for detailed inspection: browse the full resource graph, open a node to see its field-level diff, and switch to the Jobs tab to walk task dependencies.
+
+**In CI**, for example on every PR against the target workspace. Pipe a plan into dagshund to post a markdown summary on the PR, upload the HTML report as a pipeline artifact for deeper inspection, and use `-e` exit codes to gate the pipeline: 0 for no changes, 2 for safe changes, 3 for dangerous actions or manual edits, 1 for errors.
+
 ## Install
 
-Requires Python 3.12+.
+Requires Python 3.12+. Tested against Databricks CLI 0.296 (the plan JSON shape is what dagshund reads).
 
 ```bash
-# Run without installing (ephemeral)
-uvx dagshund plan.json
-
-# Persistent install
+# Install (recommended for regular use)
 uv tool install dagshund
 
-# Traditional pip
-pip install dagshund
+# Or run one-off without installing
+uvx dagshund plan.json
 ```
 
-## Usage
+## Local usage
 
-By default, dagshund prints a colored diff to the terminal (`--format term`):
+By default, dagshund reads a plan file (or stdin) and prints a colored diff to the terminal:
 
 ```bash
 dagshund plan.json
+databricks bundle plan -o json | dagshund    # pipe straight from the Databricks CLI
 ```
 
 ![Terminal output](docs/pictures/terminal.png)
 
-Export an interactive HTML visualization with `-o` (terminal output is included by default):
-
-```bash
-dagshund plan.json -o report.html
-dagshund plan.json -o report.html -b    # also open in browser
-```
-
-Suppress terminal output with `-q` when you only need the file:
-
-```bash
-dagshund plan.json -q -o report.html
-```
-
-Reads from stdin, so you can pipe directly from the Databricks CLI:
-
-```bash
-databricks bundle plan -o json | dagshund
-databricks bundle plan -o json | dagshund -o report.html
-```
-
 Dagshund works anywhere, it just needs a plan JSON file. You don't need to run it from inside your bundle directory.
 
-Filter the output to specific change types:
+Filter to specific change types:
 
 ```bash
 dagshund plan.json -c              # changed resources only (hides unchanged)
@@ -62,26 +50,32 @@ dagshund plan.json -a -r           # added and removed
 
 The filter flags (`-a`, `-m`, `-r`) compose freely. `-c` is shorthand for `-a -m -r`.
 
-Use `-f` to filter by resource type, name, or diff status with the same search DSL as the browser UI:
+Use `-f` to filter by resource type, name, diff status, or changed field:
 
 ```bash
-dagshund plan.json -f 'type:jobs'               # only jobs
+dagshund plan.json -f 'type:jobs'                # only jobs
 dagshund plan.json -f 'status:added'             # only new resources
-dagshund plan.json -f '"etl_pipeline"'            # exact name match
+dagshund plan.json -f '"etl_pipeline"'           # exact name match
 dagshund plan.json -f 'type:jobs pipeline'       # jobs matching "pipeline"
+dagshund plan.json -f 'field:email_notifications' # resources whose diff touches that field
 dagshund plan.json -c -f 'type:volumes'          # changed volumes only
 ```
 
-All tokens in a filter expression AND together. `-f` composes with `-c`/`-a`/`-m`/`-r` — both must match.
+All tokens in a filter expression AND together. `-f` composes with `-c`/`-a`/`-m`/`-r`: both must match. `field:` is a substring match against changed field names.
 
-Use `--format md` for markdown output, suitable for PR/MR comments:
+Export the HTML report with `-o` for detailed inspection in a browser:
+
+```bash
+dagshund plan.json -o report.html           # write HTML, keep terminal output
+dagshund plan.json -o report.html -b        # also open in the default browser
+dagshund plan.json -q -o report.html        # HTML only, suppress terminal output
+```
+
+Or emit a markdown summary to stdout with `--format md`:
 
 ```bash
 dagshund plan.json --format md
-dagshund plan.json -o report.html --format md -e > summary.md   # CI: HTML + markdown + exit code
 ```
-
-Use `-e` for CI-friendly exit codes (see [CI Exit Codes](#ci-exit-codes)).
 
 ## Interactive Visualization
 
@@ -89,7 +83,7 @@ The HTML report shows your resources as an interactive graph with diff highlight
 
 - **Workspace**, jobs, alerts, experiments, pipelines, and other bundle resources
 - **Unity Catalog**, catalogs, schemas, volumes, and registered models in their hierarchy
-- **Lakebase**, database instances and synced tables (when present, flat resources move into an "Other Resources" group)
+- **Lakebase**, database instances and synced tables. When your plan includes any, this group appears and the non-hierarchical Workspace resources move into a sibling **Other Resources** group.
 
 Click any node to open a detail panel with per-field structural diffs, old values in red, new values in green, unchanged fields for context.
 
@@ -101,19 +95,19 @@ Jobs with task dependencies get their own DAG view. Switch between the Resources
 
 ### Phantom Nodes
 
-If your schema references a parent catalog that isn't in your bundle, dagshund infers it and adds it to the graph as a **phantom node** (shown with a dashed border). Hierarchy phantoms like these always display because they hold the tree together. Inferred leaf nodes (like a warehouse referenced by an alert) can be toggled on or off with the **Inferred leaf nodes** button in the toolbar.
+When a resource in your bundle references something that isn't in the bundle itself, dagshund infers the missing piece and adds it to the graph as a **phantom node** (shown with a dashed border). Two kinds: hierarchy phantoms (for example a parent catalog above a schema) always display to preserve the hierarchy's structure. Inferred leaf phantoms (for example a warehouse referenced by an alert) are off by default; toggle them with the **Inferred leaf nodes** button in the toolbar.
 
 ![Phantom nodes](docs/pictures/phantom_node.png)
 
 ### Lateral Dependencies
 
-Many resources reference each other across hierarchies, an alert might target a SQL warehouse, or a serving endpoint might bind to a registered model. These relationships are hidden by default to keep the graph clean. Toggle **Lateral dependencies** in the toolbar to see how your resources connect across group boundaries.
+Many resources reference each other across hierarchies, an alert might target a SQL warehouse, or a serving endpoint might bind to a registered model. These relationships are off by default to keep the graph clean; toggle them with the **Lateral dependencies** button in the toolbar to see how your resources connect across group boundaries.
 
 ![Lateral dependencies](docs/pictures/lateral_dependencies.png)
 
 ### Search
 
-The search bar uses the same filter DSL as the CLI's `-f` flag. Non-matching nodes dim so matches stand out.
+The search bar dims non-matching nodes so matches stand out.
 
 - Type a name to filter: `warehouse`, `analytics`
 - Wrap in quotes for exact match: `"analytics"` finds only that node, not `analytics_pipeline`
@@ -127,36 +121,44 @@ The diff filter buttons (**Added**, **Modified**, **Removed**) compose with sear
 
 When someone edits a job directly in the Databricks UI (break glass), the bundle doesn't know about it. On the next deploy, those manual changes will be silently overwritten. Dagshund detects this by comparing the plan's expected state against the actual server state, and warns you when they diverge.
 
-![Manual edit detection](docs/pictures/drift.png)
+In the terminal:
 
-The warning appears both inline (per resource) and in a summary section at the bottom. No configuration needed — dagshund checks automatically whenever `old` and `remote` states differ in the plan.
+![Manual edit detection in terminal](docs/pictures/drift.png)
 
-## CI Exit Codes
+In the HTML report:
 
-Use `--detailed-exitcode` (or `-e`) for machine-readable exit codes in CI pipelines:
+![Manual edit detection in browser](docs/pictures/drift_web.png)
+
+The warning surfaces in both views whenever the plan's `old` and `remote` states differ.
+
+## CI usage
+
+Run dagshund in a CI pipeline to surface plan changes on every PR. One command produces all three CI outputs: markdown for the PR comment, HTML for a pipeline artifact, and an exit code for gating.
 
 ```bash
-dagshund plan.json -e
+databricks bundle plan -t "$TARGET" -o json | \
+  dagshund --format md -o report.html -e > summary.md
+status=$?
 ```
 
-| Exit Code | Meaning |
-|-----------|---------|
+Then in your pipeline step:
+
+- Post `summary.md` as a PR comment with `gh pr comment`, `glab mr note`, or your provider's API.
+- Upload `report.html` as a pipeline artifact for deeper inspection.
+- Branch on `$status` to gate the deploy step.
+
+![PR comment rendering](docs/pictures/pr_comment.png)
+
+Exit codes from `-e`:
+
+| Code | Meaning |
+|------|---------|
 | 0 | Plan parsed, no changes detected |
 | 1 | Error (bad input, missing file, etc.) |
 | 2 | Plan parsed, changes detected |
 | 3 | Plan parsed, changes detected AND dangerous actions or manual edits present |
 
-```bash
-# Check for drift
-dagshund plan.json -e
-case $? in
-  2) echo "Changes detected" ;;
-  3) echo "Changes detected (dangerous actions or manual edits)" ;;
-esac
-
-# Generate report AND get exit code (quiet suppresses terminal output)
-dagshund plan.json -q -o report.html -e
-```
+Dangerous actions are deletes or recreates of stateful resources (catalogs, schemas, volumes, registered models). Manual edits are detected whenever the plan's `old` and `remote` states differ.
 
 Without `-e`, dagshund always exits 0 on success.
 
@@ -179,32 +181,11 @@ dagshund --install-skill .cursor/skills     # Cursor
 dagshund --install-skill .agents/skills     # Codex / Gemini CLI
 ```
 
+Re-running `--install-skill` overwrites any existing `SKILL.md` at the target path without prompting.
+
 ## Contributing
 
 Dagshund is a solo project and I'm not accepting pull requests at this time. If you run into a bug or have a feature request, please open an issue, I'm happy to hear what you need.
-
-## Development
-
-Requires [Bun](https://bun.sh) 1.3+, [uv](https://docs.astral.sh/uv/), and [just](https://just.systems/).
-
-```bash
-just install        # Install dependencies
-just dev            # Dev server with hot reload (http://localhost:3000)
-just build          # JS template + Python wheel
-just check          # Lint + typecheck + all tests
-```
-
-For [Claude Code](https://docs.anthropic.com/en/docs/claude-code) LSP support (go-to-definition, type hover, find-references), install the language server binaries:
-
-```bash
-bun install -g pyright typescript-language-server typescript
-```
-
-The plugins are already configured in `.claude/settings.json`.
-
-### Fixtures
-
-Test fixtures live in `fixtures/golden/` and are regenerated from a real Databricks workspace using the scripts in `fixtures/tooling/`. See [`fixtures/README.md`](fixtures/README.md) for the full workflow.
 
 ## License
 
