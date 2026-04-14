@@ -6,6 +6,7 @@ describe("resolveRunJobTarget", () => {
   test("string interpolation resolves to resource key via parseResourceReference", () => {
     const jobIdMap = new Map<number, string>();
     const target = resolveRunJobTarget(
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks vars interpolation syntax
       "${resources.jobs.downstream.id}",
       jobIdMap,
       undefined,
@@ -24,6 +25,7 @@ describe("resolveRunJobTarget", () => {
     const jobIdMap = new Map<number, string>();
     const newState = {
       vars: {
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks vars interpolation syntax
         "tasks[0].run_job_task.job_id": "${resources.jobs.downstream.id}",
       },
       value: {

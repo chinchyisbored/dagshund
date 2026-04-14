@@ -5,9 +5,10 @@ import pytest
 from dagshund.format import (
     _singularize,
     field_action_config,
+    format_display_value,
     format_drift_subline_body,
     format_field_suffix,
-    format_single_value,
+    format_transition,
 )
 
 # --- field_action_config ---
@@ -112,55 +113,44 @@ def test_format_field_suffix_no_values_returns_empty() -> None:
     assert result == ""
 
 
-# --- format_single_value ---
+# --- format_display_value ---
 
 
-def test_format_single_value_short_string() -> None:
-    assert format_single_value("hello") == ': "hello"'
+def test_format_display_value_small_list_inline() -> None:
+    assert format_display_value([1, 2, 3]) == "[1, 2, 3]"
 
 
-def test_format_single_value_long_string_truncated() -> None:
-    assert format_single_value("x" * 50) == ": ..."
+def test_format_display_value_large_list_summarized() -> None:
+    assert format_display_value(list(range(30))) == "[30 items]"
 
 
-def test_format_single_value_small_dict_inline() -> None:
-    result = format_single_value({"key": "val"})
-
-    assert result == ': {key: "val"}'
-
-
-def test_format_single_value_large_dict_summarized() -> None:
+def test_format_display_value_large_dict_summarized() -> None:
     big_dict = {f"key_{i}": f"value_{i}" for i in range(20)}
 
-    result = format_single_value(big_dict)
-
-    assert result == ": {20 fields}"
+    assert format_display_value(big_dict) == "{20 fields}"
 
 
-def test_format_single_value_small_list_inline() -> None:
-    result = format_single_value([1, 2, 3])
+def test_format_field_suffix_transition_collapses_large_lists() -> None:
+    old = [{"task_key": f"t{i}"} for i in range(5)]
+    new = [{"task_key": f"t{i}"} for i in range(8)]
 
-    assert result == ": [1, 2, 3]"
+    result = format_field_suffix({"old": old, "new": new})
 
-
-def test_format_single_value_large_list_summarized() -> None:
-    big_list = list(range(30))
-
-    result = format_single_value(big_list)
-
-    assert result == ": [30 items]"
+    assert result == ": [5 items] -> [8 items]"
 
 
-def test_format_single_value_number() -> None:
-    assert format_single_value(42) == ": 42"
+# --- format_transition ---
 
 
-def test_format_single_value_boolean() -> None:
-    assert format_single_value(True) == ": true"
+def test_format_transition_collapses_each_side_independently() -> None:
+    # Asymmetric collapse is intentional: the short side keeps context,
+    # the long side summarizes. Locks in the design decision from dagshund-an5c.
+    short_old = [{"task_key": "check_nulls"}]
+    long_new = [{"task_key": f"t{i}"} for i in range(8)]
 
+    result = format_transition(short_old, long_new)
 
-def test_format_single_value_null() -> None:
-    assert format_single_value(None) == ": null"
+    assert result == ': [{task_key: "check_nulls"}] -> [8 items]'
 
 
 # --- format_drift_subline_body ---

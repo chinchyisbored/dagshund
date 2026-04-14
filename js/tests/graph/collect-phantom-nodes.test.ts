@@ -420,6 +420,7 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       action: "create",
       new_state: {
         vars: {
+          // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks vars interpolation syntax
           "tasks[0].run_job_task.job_id": "${resources.jobs.downstream.id}",
         },
         value: {
@@ -450,6 +451,7 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
           tasks: [
             {
               task_key: "trigger",
+              // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks vars interpolation syntax
               run_job_task: { job_id: "${resources.jobs.downstream.id}" },
             },
           ],

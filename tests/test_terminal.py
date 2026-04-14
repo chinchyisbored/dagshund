@@ -273,12 +273,12 @@ def test_format_value_unknown_type_uses_repr() -> None:
 # --- format_transition ---
 
 
-def test_format_transition_large_dict_stays_inline() -> None:
+def test_format_transition_large_dict_collapses_both_sides() -> None:
     big = {"a": "x" * 30, "b": "y" * 30}
 
     result = format_transition(big, big)
 
-    assert "\n" not in result
+    assert result == ": {2 fields} -> {2 fields}"
 
 
 # --- is_long_string ---

@@ -10,12 +10,12 @@
 
 #### jobs (2)
 - `~` `jobs/data_quality_pipeline` — update
-  - `~` `tasks[task_key='aggregate_results'].depends_on`: [{task_key: "check_nulls"}] -> [{task_key: "check_nulls"}, {task_key: "check_duplicates"}, {task_key: "check_referential_integrity"}]
+  - `~` `tasks[task_key='aggregate_results'].depends_on`: [{task_key: "check_nulls"}] -> [3 items]
   - `+` `tasks[task_key='anomaly_detection']`: {3 fields}
   - `+` `tasks[task_key='check_duplicates']`: {3 fields}
   - `+` `tasks[task_key='check_referential_integrity']`: {3 fields}
   - `~` `tasks[task_key='compute_statistics'].depends_on`: [{task_key: "check_nulls"}] -> [{task_key: "check_nulls"}, {task_key: "check_duplicates"}]
-  - `~` `tasks[task_key='generate_report'].depends_on`: [{task_key: "aggregate_results"}] -> [{task_key: "aggregate_results"}, {task_key: "anomaly_detection"}]
+  - `~` `tasks[task_key='generate_report'].depends_on`: [{task_key: "aggregate_results"}] -> [2 items]
   - `-` `tasks[task_key='notify_stakeholders']`: {3 fields}
   - `~` `tasks[task_key='validate_schema'].notebook_task.base_parameters['sample_size']`: "1000" -> "10000"
   - `~` `tasks[task_key='validate_schema'].notebook_task.base_parameters['strict_mode']`: "false" -> "true"

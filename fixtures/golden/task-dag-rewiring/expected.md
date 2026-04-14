@@ -19,7 +19,7 @@
 - `~` `jobs/etl_pipeline` — update
   - `-` `tasks[task_key='check_row_count']`: {3 fields}
   - `~` `tasks[task_key='full_validation'].depends_on[0].task_key`: "check_row_count" -> "load"
-  - `~` `tasks[task_key='publish'].depends_on`: [{task_key: "full_validation"}, {task_key: "skip_validation"}] -> [{task_key: "full_validation"}]
+  - `~` `tasks[task_key='publish'].depends_on`: [2 items] -> [{task_key: "full_validation"}]
   - `-` `tasks[task_key='skip_validation']`: {3 fields}
 
 **~2** update

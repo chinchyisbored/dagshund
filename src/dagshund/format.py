@@ -139,12 +139,21 @@ def is_long_string(value: object) -> bool:
 
 
 def format_display_value(value: object) -> str:
-    """Format a value for display, truncating long strings to ellipsis."""
-    return "..." if is_long_string(value) else format_value(value)
+    """Format a value for display, collapsing long strings and large collections.
+
+    Mirrors the collapse behavior of format_single_value so that transitions
+    (old -> new) render consistently with single-value add/delete cases.
+    """
+    if is_long_string(value):
+        return "..."
+    inline = format_value(value)
+    if isinstance(value, (dict, list)) and len(inline) > _INLINE_LIMIT:
+        return _format_collection_summary(value)
+    return inline
 
 
 def format_transition(old: object, new: object) -> str:
-    """Format an old -> new value transition, truncating long strings."""
+    """Format an old -> new value transition, collapsing long strings and large collections per side."""
     return f": {format_display_value(old)} -> {format_display_value(new)}"
 
 
@@ -153,16 +162,6 @@ def _format_collection_summary(value: dict | list) -> str:
     if isinstance(value, dict):
         return f"{{{len(value)} fields}}"
     return f"[{len(value)} items]"
-
-
-def format_single_value(value: object) -> str:
-    """Format a single value suffix, truncating long strings and large collections."""
-    if is_long_string(value):
-        return ": ..."
-    inline = format_value(value)
-    if isinstance(value, (dict, list)) and len(inline) > _INLINE_LIMIT:
-        return f": {_format_collection_summary(value)}"
-    return f": {inline}"
 
 
 def format_field_suffix(change: FieldChange) -> str | None:
@@ -187,9 +186,9 @@ def format_field_suffix(change: FieldChange) -> str | None:
     if has_old and has_new:
         return format_transition(old, new)
     if has_new:
-        return format_single_value(new)
+        return f": {format_display_value(new)}"
     if has_old:
-        return format_single_value(old)
+        return f": {format_display_value(old)}"
     return ""
 
 
