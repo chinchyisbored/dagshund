@@ -5,6 +5,7 @@ import {
   extractLateralEdges as extractLateralEdgesRaw,
 } from "../../src/graph/extract-lateral-edges.ts";
 import { extractStateField } from "../../src/graph/extract-resource-state.ts";
+import { buildJobIdMap } from "../../src/graph/resolve-run-job-target.ts";
 import type { Plan, PlanEntry } from "../../src/types/plan-schema.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
@@ -25,7 +26,7 @@ const makeSkipEntry = (remoteState: Record<string, unknown>): PlanEntry =>
     remote_state: remoteState,
   }) as PlanEntry;
 
-/** Build warehouse + dashboard + pipeline + registered model indexes from entries. */
+/** Build warehouse + dashboard + pipeline + registered model + jobIdMap indexes from entries. */
 const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => ({
   warehouseIndex: buildApiIdIndex(entries, "sql_warehouses", (e) => extractStateField(e, "id")),
   dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
@@ -35,6 +36,7 @@ const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => ({
   registeredModelFullNameIndex: buildApiIdIndex(entries, "registered_models", (e) =>
     extractStateField(e, "full_name"),
   ),
+  jobIdMap: buildJobIdMap(entries),
 });
 
 /** Wrapper: calls extractLateralEdges with auto-built indexes from the context's entries. */
@@ -1634,6 +1636,134 @@ describe("extractQualityMonitorTableEdges", () => {
   test("no source-table edge when phantom node not in nodeIds", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.quality_monitors.drift", makeEntry({ table_name: "dagshund.analytics.orders" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// job → job via run_job_task.job_id
+// ---------------------------------------------------------------------------
+
+describe("extractJobRunJobTaskEdges", () => {
+  test("first-deploy placeholder 0 resolves via new_state.vars interpolation", () => {
+    const sourceEntry: PlanEntry = {
+      action: "create",
+      new_state: {
+        vars: {
+          "tasks[0].run_job_task.job_id": "${resources.jobs.downstream.id}",
+        },
+        value: {
+          name: "source",
+          tasks: [{ task_key: "trigger", run_job_task: { job_id: 0 } }],
+        },
+      },
+    } as PlanEntry;
+    const entries: [string, PlanEntry][] = [
+      ["resources.jobs.source", sourceEntry],
+      ["resources.jobs.downstream", makeEntry({ name: "downstream" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.jobs.source",
+      target: "resources.jobs.downstream",
+    });
+  });
+
+  test("already-deployed numeric job_id resolves via jobIdMap", () => {
+    const sourceEntry: PlanEntry = {
+      action: "update",
+      new_state: {
+        value: {
+          name: "source",
+          tasks: [{ task_key: "trigger", run_job_task: { job_id: 12345 } }],
+        },
+      },
+      remote_state: { job_id: 7777 },
+    } as PlanEntry;
+    const downstreamEntry: PlanEntry = {
+      action: "update",
+      new_state: { value: { name: "downstream" } },
+      remote_state: { job_id: 12345 },
+    } as PlanEntry;
+    const entries: [string, PlanEntry][] = [
+      ["resources.jobs.source", sourceEntry],
+      ["resources.jobs.downstream", downstreamEntry],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.jobs.source",
+      target: "resources.jobs.downstream",
+    });
+  });
+
+  test("external numeric job_id lands on job::<id> phantom when present in nodeIds", () => {
+    const sourceEntry: PlanEntry = {
+      action: "create",
+      new_state: {
+        value: {
+          name: "source",
+          tasks: [{ task_key: "trigger", run_job_task: { job_id: 99999 } }],
+        },
+      },
+    } as PlanEntry;
+    const entries: [string, PlanEntry][] = [["resources.jobs.source", sourceEntry]];
+    const nodeIdByResourceKey = new Map<string, string>([
+      ["resources.jobs.source", "resources.jobs.source"],
+    ]);
+    const nodeIds = new Set<string>(["resources.jobs.source", "job::99999"]);
+
+    const edges = extractLateralEdges(
+      { entries, nodeIdByResourceKey, nodeIds },
+      buildIndexes(entries),
+    );
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.target).toBe("job::99999");
+  });
+
+  test("string interpolation directly in task resolves via parseResourceReference", () => {
+    const sourceEntry: PlanEntry = {
+      action: "create",
+      new_state: {
+        value: {
+          name: "source",
+          tasks: [
+            {
+              task_key: "trigger",
+              run_job_task: { job_id: "${resources.jobs.downstream.id}" },
+            },
+          ],
+        },
+      },
+    } as PlanEntry;
+    const entries: [string, PlanEntry][] = [
+      ["resources.jobs.source", sourceEntry],
+      ["resources.jobs.downstream", makeEntry({ name: "downstream" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.target).toBe("resources.jobs.downstream");
+  });
+
+  test("no edge when run_job_task is absent from all tasks", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.source",
+        makeEntry({ name: "source", tasks: [{ task_key: "plain", notebook_task: {} }] }),
+      ],
+      ["resources.jobs.downstream", makeEntry({ name: "downstream" })],
     ];
 
     const edges = extractLateralEdges(makeContext(entries));

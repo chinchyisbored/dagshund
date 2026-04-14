@@ -1,16 +1,16 @@
 {
   "plan_graph": {
     "nodes": {
-      "total": 9,
+      "total": 10,
       "by_kind": {
         "job": 2,
-        "task": 7,
+        "task": 8,
         "resource": 0,
         "root": 0,
         "phantom": 0
       },
       "by_diff_state": {
-        "added": 9,
+        "added": 10,
         "removed": 0,
         "modified": 0,
         "unchanged": 0,
@@ -25,7 +25,7 @@
           "unknown": 0
         },
         "task": {
-          "added": 7,
+          "added": 8,
           "removed": 0,
           "modified": 0,
           "unchanged": 0,
@@ -69,7 +69,7 @@
         "unknown": 0
       },
       "total_change_entries": 0,
-      "with_resource_state": 9,
+      "with_resource_state": 10,
       "task_change_summary_total": 0,
       "entries": [
         {
@@ -170,23 +170,34 @@
           "changes": [],
           "hasResourceState": true,
           "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.etl_pipeline::trigger_quality_checks",
+          "resourceKey": "resources.jobs.etl_pipeline",
+          "label": "trigger_quality_checks",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
         }
       ]
     },
     "edges": {
-      "total": 6,
+      "total": 8,
       "by_kind": {
-        "dag": 6,
+        "dag": 8,
         "lateral": 0
       },
       "by_diff_state": {
-        "added": 6,
+        "added": 8,
         "removed": 0,
         "unchanged": 0
       },
       "by_kind_and_diff_state": {
         "dag": {
-          "added": 6,
+          "added": 8,
           "removed": 0,
           "unchanged": 0
         },
@@ -228,8 +239,20 @@
           "kind": "dag"
         },
         {
+          "source": "resources.jobs.etl_pipeline::load",
+          "target": "resources.jobs.etl_pipeline::trigger_quality_checks",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
           "source": "resources.jobs.etl_pipeline::transform",
           "target": "resources.jobs.etl_pipeline::load",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline::trigger_quality_checks",
+          "target": "resources.jobs.data_quality_pipeline",
           "diffState": "added",
           "kind": "dag"
         }
@@ -238,19 +261,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 14,
+      "total": 10,
       "by_kind": {
         "job": 0,
         "task": 0,
-        "resource": 9,
+        "resource": 6,
         "root": 2,
-        "phantom": 3
+        "phantom": 2
       },
       "by_diff_state": {
-        "added": 9,
+        "added": 6,
         "removed": 0,
         "modified": 0,
-        "unchanged": 5,
+        "unchanged": 4,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -269,7 +292,7 @@
           "unknown": 0
         },
         "resource": {
-          "added": 9,
+          "added": 6,
           "removed": 0,
           "modified": 0,
           "unchanged": 0,
@@ -286,7 +309,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 3,
+          "unchanged": 2,
           "unknown": 0
         }
       },
@@ -306,7 +329,7 @@
         "unknown": 0
       },
       "total_change_entries": 0,
-      "with_resource_state": 9,
+      "with_resource_state": 6,
       "task_change_summary_total": 0,
       "entries": [
         {
@@ -324,17 +347,6 @@
           "id": "resources.alerts.stale_pipeline_alert",
           "resourceKey": "resources.alerts.stale_pipeline_alert",
           "label": "stale_pipeline_alert",
-          "kind": "resource",
-          "diffState": "added",
-          "isDrift": false,
-          "changes": [],
-          "hasResourceState": true,
-          "taskChangeSummary": []
-        },
-        {
-          "id": "resources.experiments.audit_analysis",
-          "resourceKey": "resources.experiments.audit_analysis",
-          "label": "audit_analysis",
           "kind": "resource",
           "diffState": "added",
           "isDrift": false,
@@ -365,17 +377,6 @@
           "taskChangeSummary": []
         },
         {
-          "id": "resources.registered_models.quality_metrics",
-          "resourceKey": "resources.registered_models.quality_metrics",
-          "label": "quality_metrics",
-          "kind": "resource",
-          "diffState": "added",
-          "isDrift": false,
-          "changes": [],
-          "hasResourceState": true,
-          "taskChangeSummary": []
-        },
-        {
           "id": "resources.schemas.analytics",
           "resourceKey": "resources.schemas.analytics",
           "label": "analytics",
@@ -398,36 +399,14 @@
           "taskChangeSummary": []
         },
         {
-          "id": "resources.volumes.external_imports",
-          "resourceKey": "resources.volumes.external_imports",
-          "label": "external_imports",
+          "id": "resources.volumes.landing",
+          "resourceKey": "resources.volumes.landing",
+          "label": "landing",
           "kind": "resource",
           "diffState": "added",
           "isDrift": false,
           "changes": [],
           "hasResourceState": true,
-          "taskChangeSummary": []
-        },
-        {
-          "id": "resources.volumes.raw_data",
-          "resourceKey": "resources.volumes.raw_data",
-          "label": "raw_data",
-          "kind": "resource",
-          "diffState": "added",
-          "isDrift": false,
-          "changes": [],
-          "hasResourceState": true,
-          "taskChangeSummary": []
-        },
-        {
-          "id": "schema::dagshund.models",
-          "resourceKey": "schema::dagshund.models",
-          "label": "models",
-          "kind": "phantom",
-          "diffState": "unchanged",
-          "isDrift": false,
-          "changes": [],
-          "hasResourceState": false,
           "taskChangeSummary": []
         },
         {
@@ -466,26 +445,26 @@
       ]
     },
     "edges": {
-      "total": 13,
+      "total": 10,
       "by_kind": {
-        "dag": 12,
-        "lateral": 1
+        "dag": 8,
+        "lateral": 2
       },
       "by_diff_state": {
-        "added": 9,
+        "added": 6,
         "removed": 0,
         "unchanged": 4
       },
       "by_kind_and_diff_state": {
         "dag": {
-          "added": 9,
+          "added": 6,
           "removed": 0,
-          "unchanged": 3
+          "unchanged": 2
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 1
+          "unchanged": 2
         }
       },
       "entries": [
@@ -502,26 +481,8 @@
           "kind": "dag"
         },
         {
-          "source": "catalog::dagshund",
-          "target": "schema::dagshund.models",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
-          "source": "resources.schemas.analytics",
-          "target": "resources.volumes.raw_data",
-          "diffState": "added",
-          "kind": "dag"
-        },
-        {
           "source": "resources.schemas.analytics_staging",
-          "target": "resources.volumes.external_imports",
-          "diffState": "added",
-          "kind": "dag"
-        },
-        {
-          "source": "schema::dagshund.models",
-          "target": "resources.registered_models.quality_metrics",
+          "target": "resources.volumes.landing",
           "diffState": "added",
           "kind": "dag"
         },
@@ -534,12 +495,6 @@
         {
           "source": "workspace-root",
           "target": "resources.alerts.stale_pipeline_alert",
-          "diffState": "added",
-          "kind": "dag"
-        },
-        {
-          "source": "workspace-root",
-          "target": "resources.experiments.audit_analysis",
           "diffState": "added",
           "kind": "dag"
         },
@@ -566,6 +521,12 @@
           "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline",
+          "target": "resources.jobs.data_quality_pipeline",
+          "diffState": "unchanged",
+          "kind": "lateral"
         }
       ]
     },
@@ -574,11 +535,6 @@
         "id": "catalog::dagshund",
         "label": "dagshund",
         "resourceKey": "catalog::dagshund"
-      },
-      {
-        "id": "schema::dagshund.models",
-        "label": "models",
-        "resourceKey": "schema::dagshund.models"
       },
       {
         "id": "sql-warehouse::9d0afa601cb95187",

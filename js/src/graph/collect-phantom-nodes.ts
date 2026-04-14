@@ -150,15 +150,22 @@ export const collectPhantomAppDependencies = (
 // Phantom warehouses and dashboards (from alerts, dashboards, quality monitors, job tasks)
 // ---------------------------------------------------------------------------
 
+/** Index set for phantom external-ref resolution. */
+type PhantomExternalRefIndexes = {
+  readonly warehouseIndex: ReadonlyMap<string, string>;
+  readonly dashboardIndex: ReadonlyMap<string, string>;
+  readonly pipelineIndex: ReadonlyMap<string, string>;
+  readonly jobIdMap: ReadonlyMap<number, string>;
+};
+
 /** Collect phantom nodes from top-level warehouse references and job task sub-objects
- *  (warehouses, dashboards, pipelines). */
+ *  (warehouses, dashboards, pipelines, cross-job run_job_task). */
 export const collectPhantomExternalRefs = (
   entries: readonly (readonly [string, PlanEntry])[],
   parentId: string,
-  warehouseIndex: ReadonlyMap<string, string>,
-  dashboardIndex: ReadonlyMap<string, string>,
-  pipelineIndex: ReadonlyMap<string, string>,
+  indexes: PhantomExternalRefIndexes,
 ): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
+  const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = indexes;
   const phantoms = new Map<string, PhantomEntry>();
 
   for (const [key, entry] of entries) {
@@ -174,7 +181,7 @@ export const collectPhantomExternalRefs = (
       }
     }
 
-    // Job tasks with warehouse_id, dashboard_id, and pipeline_id
+    // Job tasks with warehouse_id, dashboard_id, pipeline_id, and run_job_task.job_id
     if (resourceType === "jobs") {
       const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
       for (const task of tasks) {
@@ -192,6 +199,11 @@ export const collectPhantomExternalRefs = (
         if (pipelineId !== undefined && !pipelineIndex.has(pipelineId)) {
           const id = `pipeline::${pipelineId}`;
           phantoms.set(id, { id, resourceKey: id, label: pipelineId });
+        }
+        const runJobId = task.run_job_task?.job_id;
+        if (typeof runJobId === "number" && runJobId !== 0 && !jobIdMap.has(runJobId)) {
+          const id = `job::${runJobId}`;
+          phantoms.set(id, { id, resourceKey: id, label: String(runJobId) });
         }
       }
     }

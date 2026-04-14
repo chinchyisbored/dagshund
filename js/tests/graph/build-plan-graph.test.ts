@@ -25,7 +25,7 @@ describe("buildPlanGraph", () => {
       const taskNodes = graph.nodes.filter((n) => n.nodeKind === "task");
 
       expect(jobNodes).toHaveLength(2);
-      expect(taskNodes).toHaveLength(7);
+      expect(taskNodes).toHaveLength(8);
 
       const labels = jobNodes.map((n) => n.label).sort();
       expect(labels).toEqual(["data_quality_pipeline", "etl_pipeline"]);
@@ -56,11 +56,12 @@ describe("buildPlanGraph", () => {
       const etlEdges = graph.edges.filter(
         (e) => e.source.startsWith(`${rk}::`) && e.target.startsWith(`${rk}::`),
       );
-      expect(etlEdges).toHaveLength(2);
+      expect(etlEdges).toHaveLength(3);
 
       const edgePairs = etlEdges.map((e) => [e.source, e.target]);
       expect(edgePairs).toContainEqual([`${rk}::extract`, `${rk}::transform`]);
       expect(edgePairs).toContainEqual([`${rk}::transform`, `${rk}::load`]);
+      expect(edgePairs).toContainEqual([`${rk}::load`, `${rk}::trigger_quality_checks`]);
     });
 
     test("all edges have diffState 'added' for a create plan", async () => {

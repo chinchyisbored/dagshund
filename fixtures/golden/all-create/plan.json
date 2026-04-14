@@ -28,14 +28,6 @@
         }
       }
     },
-    "resources.experiments.audit_analysis": {
-      "action": "create",
-      "new_state": {
-        "value": {
-          "name": "/Workspace/experiments/audit_analysis"
-        }
-      }
-    },
     "resources.jobs.data_quality_pipeline": {
       "action": "create",
       "new_state": {
@@ -99,6 +91,12 @@
       }
     },
     "resources.jobs.etl_pipeline": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.data_quality_pipeline",
+          "label": "${resources.jobs.data_quality_pipeline.id}"
+        }
+      ],
       "action": "create",
       "new_state": {
         "value": {
@@ -141,18 +139,22 @@
                 "notebook_path": "/Workspace/etl/transform"
               },
               "task_key": "transform"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "load"
+                }
+              ],
+              "run_job_task": {
+                "job_id": 0
+              },
+              "task_key": "trigger_quality_checks"
             }
           ]
-        }
-      }
-    },
-    "resources.registered_models.quality_metrics": {
-      "action": "create",
-      "new_state": {
-        "value": {
-          "catalog_name": "dagshund",
-          "name": "quality_metrics",
-          "schema_name": "models"
+        },
+        "vars": {
+          "tasks[3].run_job_task.job_id": "${resources.jobs.data_quality_pipeline.id}"
         }
       }
     },
@@ -174,7 +176,7 @@
         }
       }
     },
-    "resources.volumes.external_imports": {
+    "resources.volumes.landing": {
       "depends_on": [
         {
           "node": "resources.schemas.analytics_staging",
@@ -185,25 +187,8 @@
       "new_state": {
         "value": {
           "catalog_name": "dagshund",
-          "name": "external_imports",
+          "name": "landing",
           "schema_name": "analytics_staging",
-          "volume_type": "MANAGED"
-        }
-      }
-    },
-    "resources.volumes.raw_data": {
-      "depends_on": [
-        {
-          "node": "resources.schemas.analytics",
-          "label": "${resources.schemas.analytics.name}"
-        }
-      ],
-      "action": "create",
-      "new_state": {
-        "value": {
-          "catalog_name": "dagshund",
-          "name": "raw_data",
-          "schema_name": "analytics",
           "volume_type": "MANAGED"
         }
       }

@@ -14,7 +14,7 @@ import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
 import { hasAnyDrift, hasTaskDrift } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
-import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
+import { isUnknownRecord } from "../utils/unknown-record.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
 import {
   extractDeletedTaskEntries,
@@ -24,6 +24,7 @@ import {
   resolveTaskEntries,
   type TaskEntry,
 } from "./extract-tasks.ts";
+import { buildJobIdMap, resolveRunJobTarget } from "./resolve-run-job-target.ts";
 import { classifyChange, resolveTaskDiffState } from "./resolve-task-diff-state.ts";
 
 /** Create a unique node ID for a task within a resource. */
@@ -211,55 +212,6 @@ const buildEntryGraph = (
     edges: buildDiffEdges(resourceKey, allTasks, entry),
   };
 };
-
-/** Extract a resource key from a Databricks bundle interpolation like "${resources.jobs.X.id}". */
-const INTERPOLATION_PATTERN = /^\$\{(resources\..+?)\.id\}$/;
-
-const parseResourceReference = (interpolation: string): string | undefined =>
-  INTERPOLATION_PATTERN.exec(interpolation)?.[1];
-
-/** Build a map from numeric remote_state.job_id to resource key for cross-job resolution. */
-const buildJobIdMap = (
-  entries: readonly (readonly [string, PlanEntry])[],
-): ReadonlyMap<number, string> => {
-  const map = new Map<number, string>();
-  for (const [resourceKey, entry] of entries) {
-    const remoteState = entry.remote_state;
-    if (typeof remoteState === "object" && remoteState !== null && "job_id" in remoteState) {
-      const { job_id: jobId } = remoteState;
-      if (typeof jobId === "number" && jobId !== 0) {
-        map.set(jobId, resourceKey);
-      }
-    }
-  }
-  return map;
-};
-
-/** Resolve a run_job_task target via new_state.vars interpolation references.
- *  Handles placeholder job_id=0 for newly created target jobs. */
-const resolveRunJobTargetFromVars = (newState: unknown, taskKey: string): string | undefined => {
-  const vars = getUnknownProp(newState, "vars");
-  if (!isUnknownRecord(vars)) return undefined;
-  const value = getUnknownProp(newState, "value");
-  if (!isUnknownRecord(value)) return undefined;
-  const tasks = value["tasks"];
-  if (!Array.isArray(tasks)) return undefined;
-  const taskIndex = tasks.findIndex((t) => isUnknownRecord(t) && t["task_key"] === taskKey);
-  if (taskIndex < 0) return undefined;
-  const interpolation = vars[`tasks[${taskIndex}].run_job_task.job_id`];
-  return typeof interpolation === "string" ? parseResourceReference(interpolation) : undefined;
-};
-
-/** Resolve a run_job_task's job_id to the target resource key. */
-const resolveRunJobTarget = (
-  jobId: string | number,
-  jobIdMap: ReadonlyMap<number, string>,
-  newState: unknown,
-  taskKey: string,
-): string | undefined =>
-  typeof jobId === "string"
-    ? parseResourceReference(jobId)
-    : (jobIdMap.get(jobId) ?? resolveRunJobTargetFromVars(newState, taskKey));
 
 /** Replace run_job_task.job_id with an annotated string showing the resolved target name. */
 const annotateRunJobTaskState = (

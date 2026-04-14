@@ -1067,15 +1067,15 @@
       ]
     },
     "edges": {
-      "total": 12,
+      "total": 13,
       "by_kind": {
         "dag": 11,
-        "lateral": 1
+        "lateral": 2
       },
       "by_diff_state": {
         "added": 2,
         "removed": 1,
-        "unchanged": 9
+        "unchanged": 10
       },
       "by_kind_and_diff_state": {
         "dag": {
@@ -1086,7 +1086,7 @@
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 1
+          "unchanged": 2
         }
       },
       "entries": [
@@ -1159,6 +1159,12 @@
         {
           "source": "resources.alerts.stale_pipeline_alert",
           "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.etl_pipeline",
+          "target": "resources.jobs.data_quality_pipeline",
           "diffState": "unchanged",
           "kind": "lateral"
         }

@@ -34,6 +34,7 @@ import {
   parseThreePartName,
 } from "./extract-resource-state.ts";
 import { resolveJobState, resolveTaskEntries, type TaskEntry } from "./extract-tasks.ts";
+import { buildJobIdMap } from "./resolve-run-job-target.ts";
 
 // ---------------------------------------------------------------------------
 // Type classification sets
@@ -751,6 +752,7 @@ export const buildResourceGraph = (
   const pipelineIndex = buildApiIdIndex(entries, "pipelines", (e) =>
     extractStateField(e, "pipeline_id"),
   );
+  const jobIdMap = buildJobIdMap(entries);
 
   // Create phantom nodes for database instances referenced but not in the plan.
   // Parent to the same group as real flat workspace resources.
@@ -771,13 +773,12 @@ export const buildResourceGraph = (
 
   // Create phantom nodes for external references (warehouses, dashboards, pipelines) from
   // top-level resources and job task sub-objects.
-  const phantomExternalRefs = collectPhantomExternalRefs(
-    entries,
-    workspaceGraph.flatParentId,
+  const phantomExternalRefs = collectPhantomExternalRefs(entries, workspaceGraph.flatParentId, {
     warehouseIndex,
     dashboardIndex,
     pipelineIndex,
-  );
+    jobIdMap,
+  });
 
   const allNodes = [
     ...graphNodes,
@@ -794,7 +795,7 @@ export const buildResourceGraph = (
 
   const lateralEdges = extractLateralEdges(
     { entries, nodeIdByResourceKey, nodeIds },
-    { warehouseIndex, dashboardIndex, pipelineIndex, registeredModelFullNameIndex },
+    { warehouseIndex, dashboardIndex, pipelineIndex, registeredModelFullNameIndex, jobIdMap },
   );
 
   return {

@@ -16,6 +16,7 @@ import {
   parseThreePartName,
 } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
+import { resolveRunJobTarget } from "./resolve-run-job-target.ts";
 
 // ---------------------------------------------------------------------------
 // Context type passed to all extractors
@@ -336,6 +337,30 @@ const createJobTaskRefsSpec = (
   },
 });
 
+/** Factory: job → job (via run_job_task.job_id, with vars-interpolation fallback for first-deploy). */
+const createJobRunJobTaskSpec = (jobIdMap: ReadonlyMap<number, string>): LateralEdgeSpec => ({
+  sourceTypes: new Set(["jobs"]),
+  extractTargetIds: (entry, context) => {
+    const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
+    if (tasks.length === 0) return [];
+    const targets: string[] = [];
+    const seen = new Set<string>();
+    for (const task of tasks) {
+      const runJobId = task.run_job_task?.job_id;
+      if (runJobId === undefined) continue;
+      const resolvedKey = resolveRunJobTarget(runJobId, jobIdMap, entry.new_state, task.task_key);
+      const targetKey =
+        resolvedKey ?? (typeof runJobId === "number" ? `job::${runJobId}` : undefined);
+      if (targetKey === undefined) continue;
+      const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+      if (seen.has(targetNodeId)) continue;
+      seen.add(targetNodeId);
+      if (context.nodeIds.has(targetNodeId)) targets.push(targetNodeId);
+    }
+    return targets;
+  },
+});
+
 /** Factory: app → job/warehouse/secret/serving_endpoint/experiment (via nested resources[] array). */
 const createAppResourcesSpec = (
   context: LateralEdgeContext,
@@ -400,6 +425,7 @@ type LateralEdgeIndexes = {
   readonly dashboardIndex: ReadonlyMap<string, string>;
   readonly pipelineIndex: ReadonlyMap<string, string>;
   readonly registeredModelFullNameIndex: ReadonlyMap<string, string>;
+  readonly jobIdMap: ReadonlyMap<number, string>;
 };
 
 /** Extract all lateral (cross-reference) edges from plan entries. */
@@ -407,11 +433,13 @@ export const extractLateralEdges = (
   context: LateralEdgeContext,
   indexes: LateralEdgeIndexes,
 ): readonly GraphEdge[] => {
-  const { warehouseIndex, dashboardIndex, pipelineIndex, registeredModelFullNameIndex } = indexes;
+  const { warehouseIndex, dashboardIndex, pipelineIndex, registeredModelFullNameIndex, jobIdMap } =
+    indexes;
   const allSpecs = [
     ...LATERAL_EDGE_SPECS,
     createWarehouseSpec(warehouseIndex),
     createJobTaskRefsSpec(warehouseIndex, dashboardIndex, pipelineIndex),
+    createJobRunJobTaskSpec(jobIdMap),
     createAppResourcesSpec(context, warehouseIndex),
     createServingEndpointModelSpec(registeredModelFullNameIndex),
   ];

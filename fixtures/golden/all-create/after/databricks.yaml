@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
-# Full resource set — everything is new.
-# Covers: jobs, schemas, volumes, experiments, registered_models, alerts.
+# First deploy of a data platform — everything is new.
+# Narrative: raw files land in analytics_staging.landing, etl_pipeline curates
+# them into the analytics schema, then triggers data_quality_pipeline. A
+# freshness alert watches the curated output.
 bundle:
   name: dagshund-golden-all-create
   databricks_cli_version: ">=0.296.0"
@@ -29,6 +31,12 @@ resources:
             - task_key: transform
           notebook_task:
             notebook_path: /Workspace/etl/load
+
+        - task_key: trigger_quality_checks
+          depends_on:
+            - task_key: load
+          run_job_task:
+            job_id: ${resources.jobs.data_quality_pipeline.id}
 
     data_quality_pipeline:
       name: data_quality_pipeline
@@ -66,27 +74,11 @@ resources:
       name: analytics_staging
 
   volumes:
-    raw_data:
-      catalog_name: ${var.catalog_name}
-      schema_name: analytics
-      name: raw_data
-      volume_type: MANAGED
-
-    external_imports:
+    landing:
       catalog_name: ${var.catalog_name}
       schema_name: analytics_staging
-      name: external_imports
+      name: landing
       volume_type: MANAGED
-
-  experiments:
-    audit_analysis:
-      name: /Workspace/experiments/audit_analysis
-
-  registered_models:
-    quality_metrics:
-      catalog_name: ${var.catalog_name}
-      schema_name: ${var.models_schema}
-      name: quality_metrics
 
   alerts:
     stale_pipeline_alert:
