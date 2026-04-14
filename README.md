@@ -6,6 +6,8 @@ Requires the [direct deployment engine](https://docs.databricks.com/aws/en/dev-t
 
 ![Dagshund resource graph](docs/pictures/resources.png)
 
+Try it live: [here](https://dagshund-806de7.gitlab.io). Renders the HTML report for each golden fixture.
+
 ## Where it fits
 
 Dagshund sits between `databricks bundle plan` and `databricks bundle deploy`. Two places you would run it:
