@@ -1,5 +1,6 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
 # Empty — all resources removed. Everything shows as "delete".
+# Pairs with before/databricks.yaml to exercise every Dangerous Actions path.
 bundle:
   name: dagshund-golden-all-destroy
   databricks_cli_version: ">=0.296.0"

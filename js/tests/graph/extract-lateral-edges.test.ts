@@ -995,7 +995,10 @@ describe("extractAppResourceEdges", () => {
         "resources.apps.my_app",
         makeEntry({
           resources: [
-            { experiment: { id: "exp-999", permission: "CAN_MANAGE" }, name: "tracking" },
+            {
+              experiment: { experiment_id: "exp-999", permission: "CAN_MANAGE" },
+              name: "tracking",
+            },
           ],
         }),
       ],
@@ -1087,7 +1090,9 @@ describe("extractAppResourceEdges", () => {
       [
         "resources.apps.my_app",
         makeEntry({
-          resources: [{ experiment: { id: "exp-42", permission: "CAN_MANAGE" }, name: "tracking" }],
+          resources: [
+            { experiment: { experiment_id: "exp-42", permission: "CAN_MANAGE" }, name: "tracking" },
+          ],
         }),
       ],
     ];
@@ -1781,7 +1786,7 @@ describe("lateral-deps integration", () => {
     const plan = await loadFixture("lateral-deps");
     const graph = buildResourceGraph(plan);
 
-    expect(graph.lateralEdges).toHaveLength(13);
+    expect(graph.lateralEdges).toHaveLength(15);
   });
 
   test("produces expected phantom node count", async () => {
@@ -1792,25 +1797,35 @@ describe("lateral-deps integration", () => {
     expect(phantoms).toHaveLength(7);
   });
 
-  test("orchestrator → etl_pipeline lateral exists (not suppressed by depends_on)", async () => {
+  test("orchestrator → worker_a and worker_b run_job_task laterals exist", async () => {
+    const plan = await loadFixture("lateral-deps");
+    const graph = buildResourceGraph(plan);
+
+    const runJobLaterals = graph.lateralEdges.filter(
+      (e) => e.source === "resources.jobs.orchestrator",
+    );
+    const targets = runJobLaterals.map((e) => e.target).sort();
+    expect(targets).toEqual(["resources.jobs.worker_a", "resources.jobs.worker_b"]);
+  });
+
+  test("worker_a → etl_pipeline lateral exists (pipeline_task, in-bundle)", async () => {
     const plan = await loadFixture("lateral-deps");
     const graph = buildResourceGraph(plan);
 
     const etlLaterals = graph.lateralEdges.filter(
       (e) =>
-        e.source === "resources.jobs.orchestrator" &&
-        e.target === "resources.pipelines.etl_pipeline",
+        e.source === "resources.jobs.worker_a" && e.target === "resources.pipelines.etl_pipeline",
     );
     expect(etlLaterals).toHaveLength(1);
   });
 
-  test("orchestrator → phantom pipeline lateral exists", async () => {
+  test("worker_a → phantom pipeline lateral exists (pipeline_task, external)", async () => {
     const plan = await loadFixture("lateral-deps");
     const graph = buildResourceGraph(plan);
 
     const pipelineLaterals = graph.lateralEdges.filter(
       (e) =>
-        e.source === "resources.jobs.orchestrator" &&
+        e.source === "resources.jobs.worker_a" &&
         e.target === "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
     );
     expect(pipelineLaterals).toHaveLength(1);
@@ -1826,16 +1841,6 @@ describe("lateral-deps integration", () => {
         e.target.startsWith("registered-model::"),
     );
     expect(modelLaterals).toHaveLength(1);
-  });
-
-  test("data_app → source-table phantom lateral exists (uc_securable)", async () => {
-    const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
-
-    const ucLaterals = graph.lateralEdges.filter(
-      (e) => e.source === "resources.apps.data_app" && e.target.startsWith("source-table::"),
-    );
-    expect(ucLaterals).toHaveLength(1);
   });
 
   test("table_monitor → source-table phantom lateral exists (table_name)", async () => {

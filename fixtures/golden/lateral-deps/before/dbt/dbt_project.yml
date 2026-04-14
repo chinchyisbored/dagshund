@@ -1,0 +1,3 @@
+name: lateral_deps_dbt
+version: "1.0.0"
+profile: lateral_deps

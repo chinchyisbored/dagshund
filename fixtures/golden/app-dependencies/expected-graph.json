@@ -154,19 +154,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 9,
+      "total": 13,
       "by_kind": {
         "job": 0,
         "task": 0,
-        "resource": 3,
+        "resource": 4,
         "root": 2,
-        "phantom": 4
+        "phantom": 7
       },
       "by_diff_state": {
-        "added": 0,
+        "added": 1,
         "removed": 0,
-        "modified": 0,
-        "unchanged": 9,
+        "modified": 1,
+        "unchanged": 11,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -185,10 +185,10 @@
           "unknown": 0
         },
         "resource": {
-          "added": 0,
+          "added": 1,
           "removed": 0,
-          "modified": 0,
-          "unchanged": 3,
+          "modified": 1,
+          "unchanged": 2,
           "unknown": 0
         },
         "root": {
@@ -202,7 +202,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 4,
+          "unchanged": 7,
           "unknown": 0
         }
       },
@@ -221,8 +221,8 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 20,
-      "with_resource_state": 3,
+      "total_change_entries": 21,
+      "with_resource_state": 4,
       "task_change_summary_total": 0,
       "entries": [
         {
@@ -237,11 +237,22 @@
           "taskChangeSummary": []
         },
         {
+          "id": "registered-model::dagshund.phantom_schema.phantom_model",
+          "resourceKey": "registered-model::dagshund.phantom_schema.phantom_model",
+          "label": "phantom_model",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "resources.apps.my_test_app",
           "resourceKey": "resources.apps.my_test_app",
           "label": "my_test_app",
           "kind": "resource",
-          "diffState": "unchanged",
+          "diffState": "modified",
           "isDrift": false,
           "changes": [
             {
@@ -275,6 +286,10 @@
             {
               "key": "oauth2_app_integration_id",
               "action": "skip"
+            },
+            {
+              "key": "resources",
+              "action": "update"
             },
             {
               "key": "service_principal_client_id",
@@ -353,9 +368,42 @@
           "taskChangeSummary": []
         },
         {
+          "id": "resources.model_serving_endpoints.app_chat_endpoint",
+          "resourceKey": "resources.model_serving_endpoints.app_chat_endpoint",
+          "label": "app_chat_endpoint",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
           "id": "schema::dagshund.models",
           "resourceKey": "schema::dagshund.models",
           "label": "models",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::dagshund.phantom_schema",
+          "resourceKey": "schema::dagshund.phantom_schema",
+          "label": "phantom_schema",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "secret-scope::app_secrets",
+          "resourceKey": "resources.secret_scopes.app_secrets",
+          "label": "app_secrets",
           "kind": "phantom",
           "diffState": "unchanged",
           "isDrift": false,
@@ -410,26 +458,26 @@
       ]
     },
     "edges": {
-      "total": 10,
+      "total": 18,
       "by_kind": {
-        "dag": 7,
-        "lateral": 3
+        "dag": 11,
+        "lateral": 7
       },
       "by_diff_state": {
-        "added": 0,
+        "added": 1,
         "removed": 0,
-        "unchanged": 10
+        "unchanged": 17
       },
       "by_kind_and_diff_state": {
         "dag": {
-          "added": 0,
+          "added": 1,
           "removed": 0,
-          "unchanged": 7
+          "unchanged": 10
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 3
+          "unchanged": 7
         }
       },
       "entries": [
@@ -440,8 +488,20 @@
           "kind": "dag"
         },
         {
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.phantom_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
           "source": "schema::dagshund.models",
           "target": "source-table::dagshund.models.a_volume",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.phantom_schema",
+          "target": "registered-model::dagshund.phantom_schema.phantom_model",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -471,13 +531,43 @@
         },
         {
           "source": "workspace-root",
+          "target": "resources.model_serving_endpoints.app_chat_endpoint",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "secret-scope::app_secrets",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
           "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
           "source": "resources.apps.my_test_app",
+          "target": "resources.experiments.my_experiment",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.my_test_app",
           "target": "resources.jobs.my_etl_job",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.my_test_app",
+          "target": "resources.model_serving_endpoints.app_chat_endpoint",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.my_test_app",
+          "target": "secret-scope::app_secrets",
           "diffState": "unchanged",
           "kind": "lateral"
         },
@@ -492,6 +582,12 @@
           "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "lateral"
+        },
+        {
+          "source": "resources.model_serving_endpoints.app_chat_endpoint",
+          "target": "registered-model::dagshund.phantom_schema.phantom_model",
+          "diffState": "unchanged",
+          "kind": "lateral"
         }
       ]
     },
@@ -502,9 +598,24 @@
         "resourceKey": "catalog::dagshund"
       },
       {
+        "id": "registered-model::dagshund.phantom_schema.phantom_model",
+        "label": "phantom_model",
+        "resourceKey": "registered-model::dagshund.phantom_schema.phantom_model"
+      },
+      {
         "id": "schema::dagshund.models",
         "label": "models",
         "resourceKey": "schema::dagshund.models"
+      },
+      {
+        "id": "schema::dagshund.phantom_schema",
+        "label": "phantom_schema",
+        "resourceKey": "schema::dagshund.phantom_schema"
+      },
+      {
+        "id": "secret-scope::app_secrets",
+        "label": "app_secrets",
+        "resourceKey": "resources.secret_scopes.app_secrets"
       },
       {
         "id": "source-table::dagshund.models.a_volume",

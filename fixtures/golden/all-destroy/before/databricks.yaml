@@ -1,6 +1,10 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
-# Full resource set — deployed first, then planned with empty "after" config.
-# Same resource set as all-create/after.
+# Decommissioning the data platform — full teardown.
+# Deployed first, then planned with empty "after" config so every resource
+# shows as "delete". Intentionally broader than all-create/after: includes
+# experiments + registered_models + extra volumes so the plan exercises
+# every Dangerous Actions warning path (experiments, registered_models,
+# schemas, volumes) in a single fixture.
 bundle:
   name: dagshund-golden-all-destroy
   databricks_cli_version: ">=0.296.0"

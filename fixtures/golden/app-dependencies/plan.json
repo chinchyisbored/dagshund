@@ -1,17 +1,77 @@
 {
   "plan_version": 2,
   "cli_version": "0.296.0",
-  "lineage": "1af0ace4-ca91-4c7e-b7ff-4bd3e1edd383",
+  "lineage": "f5d0e740-80ee-4c85-86de-fc2c0c3eaad3",
   "serial": 1,
   "plan": {
     "resources.apps.my_test_app": {
       "depends_on": [
         {
+          "node": "resources.experiments.my_experiment",
+          "label": "${resources.experiments.my_experiment.id}"
+        },
+        {
           "node": "resources.jobs.my_etl_job",
           "label": "${resources.jobs.my_etl_job.id}"
+        },
+        {
+          "node": "resources.model_serving_endpoints.app_chat_endpoint",
+          "label": "${resources.model_serving_endpoints.app_chat_endpoint.name}"
         }
       ],
-      "action": "skip",
+      "action": "update",
+      "new_state": {
+        "value": {
+          "description": "Test app with all resource dependency types",
+          "name": "my-test-app",
+          "resources": [
+            {
+              "job": {
+                "id": "824144895872197",
+                "permission": "CAN_MANAGE_RUN"
+              },
+              "name": "etl_job"
+            },
+            {
+              "name": "warehouse",
+              "sql_warehouse": {
+                "id": "9d0afa601cb95187",
+                "permission": "CAN_USE"
+              }
+            },
+            {
+              "name": "volume_data",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.models.a_volume",
+                "securable_type": "VOLUME"
+              }
+            },
+            {
+              "experiment": {
+                "experiment_id": "3512302282446799",
+                "permission": "CAN_READ"
+              },
+              "name": "experiment_tracker"
+            },
+            {
+              "name": "api_token",
+              "secret": {
+                "key": "external_api_token",
+                "permission": "READ",
+                "scope": "app_secrets"
+              }
+            },
+            {
+              "name": "chat_model",
+              "serving_endpoint": {
+                "name": "app_chat_endpoint",
+                "permission": "CAN_QUERY"
+              }
+            }
+          ]
+        }
+      },
       "remote_state": {
         "app_status": {
           "message": "App status is unavailable.",
@@ -22,17 +82,17 @@
           "message": "Start the app compute to deploy the app.",
           "state": "STOPPED"
         },
-        "create_time": "2026-04-10T00:32:03Z",
+        "create_time": "2026-04-14T16:56:47Z",
         "creator": "user1@example.com",
         "description": "Test app with all resource dependency types",
-        "id": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6",
+        "id": "5acbdf2a-fd72-46f6-a84f-1c1bc7553c8b",
         "name": "my-test-app",
-        "oauth2_app_client_id": "7b19c236-d456-4838-b506-690b23830bf7",
-        "oauth2_app_integration_id": "7b19c236-d456-4838-b506-690b23830bf7",
+        "oauth2_app_client_id": "d1fc5b94-371c-4bd3-81f3-d7043d7e741b",
+        "oauth2_app_integration_id": "d1fc5b94-371c-4bd3-81f3-d7043d7e741b",
         "resources": [
           {
             "job": {
-              "id": "388791687332024",
+              "id": "824144895872197",
               "permission": "CAN_MANAGE_RUN"
             },
             "name": "etl_job"
@@ -53,10 +113,10 @@
             }
           }
         ],
-        "service_principal_client_id": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6",
-        "service_principal_id": 79105071584279,
+        "service_principal_client_id": "5acbdf2a-fd72-46f6-a84f-1c1bc7553c8b",
+        "service_principal_id": 72248814643598,
         "service_principal_name": "app-4u0gcs my-test-app",
-        "update_time": "2026-04-10T00:32:12Z",
+        "update_time": "2026-04-14T16:56:55Z",
         "updater": "user1@example.com",
         "url": "https://my-test-app-7474654640708173.aws.databricksapps.com"
       },
@@ -85,7 +145,7 @@
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-04-10T00:32:03Z"
+          "remote": "2026-04-14T16:56:47Z"
         },
         "creator": {
           "action": "skip",
@@ -95,27 +155,124 @@
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6"
+          "remote": "5acbdf2a-fd72-46f6-a84f-1c1bc7553c8b"
         },
         "oauth2_app_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "7b19c236-d456-4838-b506-690b23830bf7"
+          "remote": "d1fc5b94-371c-4bd3-81f3-d7043d7e741b"
         },
         "oauth2_app_integration_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "7b19c236-d456-4838-b506-690b23830bf7"
+          "remote": "d1fc5b94-371c-4bd3-81f3-d7043d7e741b"
+        },
+        "resources": {
+          "action": "update",
+          "old": [
+            {
+              "job": {
+                "id": "824144895872197",
+                "permission": "CAN_MANAGE_RUN"
+              },
+              "name": "etl_job"
+            },
+            {
+              "name": "warehouse",
+              "sql_warehouse": {
+                "id": "9d0afa601cb95187",
+                "permission": "CAN_USE"
+              }
+            },
+            {
+              "name": "volume_data",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.models.a_volume",
+                "securable_type": "VOLUME"
+              }
+            }
+          ],
+          "new": [
+            {
+              "job": {
+                "id": "824144895872197",
+                "permission": "CAN_MANAGE_RUN"
+              },
+              "name": "etl_job"
+            },
+            {
+              "name": "warehouse",
+              "sql_warehouse": {
+                "id": "9d0afa601cb95187",
+                "permission": "CAN_USE"
+              }
+            },
+            {
+              "name": "volume_data",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.models.a_volume",
+                "securable_type": "VOLUME"
+              }
+            },
+            {
+              "experiment": {
+                "experiment_id": "3512302282446799",
+                "permission": "CAN_READ"
+              },
+              "name": "experiment_tracker"
+            },
+            {
+              "name": "api_token",
+              "secret": {
+                "key": "external_api_token",
+                "permission": "READ",
+                "scope": "app_secrets"
+              }
+            },
+            {
+              "name": "chat_model",
+              "serving_endpoint": {
+                "name": "app_chat_endpoint",
+                "permission": "CAN_QUERY"
+              }
+            }
+          ],
+          "remote": [
+            {
+              "job": {
+                "id": "824144895872197",
+                "permission": "CAN_MANAGE_RUN"
+              },
+              "name": "etl_job"
+            },
+            {
+              "name": "warehouse",
+              "sql_warehouse": {
+                "id": "9d0afa601cb95187",
+                "permission": "CAN_USE"
+              }
+            },
+            {
+              "name": "volume_data",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.models.a_volume",
+                "securable_type": "VOLUME"
+              }
+            }
+          ]
         },
         "service_principal_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "918e8ce0-80b7-4b5c-8641-3a5c3e3b3eb6"
+          "remote": "5acbdf2a-fd72-46f6-a84f-1c1bc7553c8b"
         },
         "service_principal_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": 79105071584279
+          "remote": 72248814643598
         },
         "service_principal_name": {
           "action": "skip",
@@ -125,7 +282,7 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-04-10T00:32:12Z"
+          "remote": "2026-04-14T16:56:55Z"
         },
         "updater": {
           "action": "skip",
@@ -142,10 +299,10 @@
     "resources.experiments.my_experiment": {
       "action": "skip",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/4139778911287693",
-        "creation_time": 1775781122093,
-        "experiment_id": "4139778911287693",
-        "last_update_time": 1775781122093,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/3512302282446799",
+        "creation_time": 1776185805060,
+        "experiment_id": "3512302282446799",
+        "last_update_time": 1776185805060,
         "lifecycle_stage": "active",
         "name": "/experiments/my_experiment",
         "tags": [
@@ -175,7 +332,7 @@
         "artifact_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "dbfs:/databricks/mlflow-tracking/4139778911287693"
+          "remote": "dbfs:/databricks/mlflow-tracking/3512302282446799"
         },
         "name": {
           "action": "skip",
@@ -215,7 +372,7 @@
     "resources.jobs.my_etl_job": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1775781122198,
+        "created_time": 1776185805157,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -224,7 +381,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 388791687332024,
+        "job_id": 824144895872197,
         "max_concurrent_runs": 1,
         "name": "my_etl_job",
         "queue": {
@@ -281,6 +438,24 @@
           "action": "skip",
           "reason": "empty",
           "remote": {}
+        }
+      }
+    },
+    "resources.model_serving_endpoints.app_chat_endpoint": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "config": {
+            "served_entities": [
+              {
+                "entity_name": "dagshund.phantom_schema.phantom_model",
+                "entity_version": "1",
+                "scale_to_zero_enabled": true,
+                "workload_size": "Small"
+              }
+            ]
+          },
+          "name": "app_chat_endpoint"
         }
       }
     }

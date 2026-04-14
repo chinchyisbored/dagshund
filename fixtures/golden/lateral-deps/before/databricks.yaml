@@ -1,7 +1,11 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
-# Comprehensive lateral dependency fixture: exercises all cross-resource
-# reference types with both in-bundle (real edge) and external (phantom)
+# Comprehensive lateral dependency fixture: exercises every cross-resource
+# reference type with both in-bundle (real edge) and external (phantom)
 # targets. Skip-only plan (before == after) to isolate edge extraction.
+#
+# Topology: an `orchestrator` job fans out in parallel via run_job_task to
+# two worker jobs (`worker_a`, `worker_b`) which between them cover every
+# supported job task type.
 bundle:
   name: dagshund-golden-lateral-deps
   databricks_cli_version: ">=0.296.0"
@@ -29,12 +33,6 @@ resources:
       warehouse_id: ${var.warehouse_id}
       file_path: ./dashboard.lvdash.json
 
-  registered_models:
-    bundled_model:
-      catalog_name: ${var.catalog_name}
-      schema_name: ${var.phantom_schema}
-      name: bundled_model
-
   # ── Serving endpoint → system model not in bundle (phantom) [1o0m] ──
 
   model_serving_endpoints:
@@ -46,41 +44,6 @@ resources:
             entity_version: "1"
             workload_size: Small
             scale_to_zero_enabled: true
-
-  # ── Job with diverse task types ──
-
-  jobs:
-    orchestrator:
-      name: lateral_deps_orchestrator
-      tasks:
-        # sql_task → warehouse (phantom)
-        - task_key: run_query
-          sql_task:
-            warehouse_id: ${var.warehouse_id}
-            file:
-              path: ./query.sql
-
-        # dashboard_task → in-bundle dashboard + warehouse (phantom)
-        - task_key: refresh_bundled_dashboard
-          dashboard_task:
-            dashboard_id: ${resources.dashboards.metrics.id}
-            warehouse_id: ${var.warehouse_id}
-
-        # dashboard_task → external dashboard (phantom) + warehouse (phantom) [2786]
-        - task_key: refresh_external_dashboard
-          dashboard_task:
-            dashboard_id: ${var.external_dashboard_id}
-            warehouse_id: ${var.warehouse_id}
-
-        # pipeline_task → in-bundle pipeline [247c]
-        - task_key: run_etl
-          pipeline_task:
-            pipeline_id: ${resources.pipelines.etl_pipeline.id}
-
-        # pipeline_task → external pipeline (phantom) [247c]
-        - task_key: run_external_pipeline
-          pipeline_task:
-            pipeline_id: ${var.external_pipeline_id}
 
   # ── Alert → warehouse (phantom) [dktg] ──
 
@@ -113,15 +76,79 @@ resources:
         timezone_id: UTC
       snapshot: {}
 
-  # ── App → uc_securable [33dm] ──
+  # ── Jobs: orchestrator → (worker_a || worker_b) ──
 
-  apps:
-    data_app:
-      name: lateral-deps-data-app
-      source_code_path: ./app
-      resources:
-        - name: source_table
-          uc_securable:
-            securable_full_name: ${var.catalog_name}.${var.phantom_schema}.phantom_table
-            securable_type: TABLE
-            permission: SELECT
+  jobs:
+    orchestrator:
+      name: lateral_deps_orchestrator
+      tasks:
+        # run_job_task → in-bundle worker_a [aaby]
+        - task_key: run_worker_a
+          run_job_task:
+            job_id: ${resources.jobs.worker_a.id}
+
+        # run_job_task → in-bundle worker_b (parallel with run_worker_a) [aaby]
+        - task_key: run_worker_b
+          run_job_task:
+            job_id: ${resources.jobs.worker_b.id}
+
+    worker_a:
+      name: lateral_deps_worker_a
+      tasks:
+        # sql_task → warehouse (phantom)
+        - task_key: run_query
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ./query.sql
+
+        # dashboard_task → in-bundle dashboard + warehouse (phantom)
+        - task_key: refresh_bundled_dashboard
+          dashboard_task:
+            dashboard_id: ${resources.dashboards.metrics.id}
+            warehouse_id: ${var.warehouse_id}
+
+        # dashboard_task → external dashboard (phantom) + warehouse (phantom) [2786]
+        - task_key: refresh_external_dashboard
+          dashboard_task:
+            dashboard_id: ${var.external_dashboard_id}
+            warehouse_id: ${var.warehouse_id}
+
+        # pipeline_task → in-bundle pipeline [247c]
+        - task_key: run_etl
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.etl_pipeline.id}
+
+        # pipeline_task → external pipeline (phantom) [247c]
+        - task_key: run_external_pipeline
+          pipeline_task:
+            pipeline_id: ${var.external_pipeline_id}
+
+    worker_b:
+      name: lateral_deps_worker_b
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: "2"
+      tasks:
+        # alert_task → warehouse (phantom)
+        - task_key: evaluate_alert
+          alert_task:
+            alert_id: ${resources.alerts.data_freshness.id}
+            warehouse_id: ${var.warehouse_id}
+
+        # dbt_task → warehouse (phantom)
+        - task_key: run_dbt
+          environment_key: serverless_env
+          dbt_task:
+            warehouse_id: ${var.warehouse_id}
+            project_directory: ./dbt
+            commands:
+              - dbt deps
+              - dbt run
+
+        # notebook_task → warehouse (phantom)
+        - task_key: run_sql_notebook
+          notebook_task:
+            notebook_path: /Workspace/lateral_deps/sql_report
+            warehouse_id: ${var.warehouse_id}

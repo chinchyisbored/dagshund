@@ -1,5 +1,12 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
-# Identical to before/ — skip-only plan to test lateral edge extraction.
+# Second deploy: the ETL pipeline has matured enough to plug in experiment
+# tracking, a secret-backed external API call, and LLM inference. Adds a
+# model_serving_endpoint as a bundle-owned resource and wires three new
+# refs into the app: experiment_tracker (bundle-owned experiment),
+# api_token (CLI-managed phantom secret), and chat_model (new endpoint).
+# Plan should show:
+#   + model_serving_endpoints/app_chat_endpoint (create)
+#   ~ apps/my_test_app                         (update — 3 resource refs added)
 bundle:
   name: dagshund-golden-app-deps
   databricks_cli_version: ">=0.296.0"
@@ -28,6 +35,19 @@ resources:
             securable_full_name: ${var.catalog_name}.${var.models_schema}.${var.volume_name}
             securable_type: VOLUME
             permission: READ_VOLUME
+        - name: experiment_tracker
+          experiment:
+            experiment_id: ${resources.experiments.my_experiment.id}
+            permission: CAN_READ
+        - name: api_token
+          secret:
+            scope: app_secrets
+            key: external_api_token
+            permission: READ
+        - name: chat_model
+          serving_endpoint:
+            name: ${resources.model_serving_endpoints.app_chat_endpoint.name}
+            permission: CAN_QUERY
 
   jobs:
     my_etl_job:
@@ -40,3 +60,13 @@ resources:
   experiments:
     my_experiment:
       name: /Workspace/experiments/my_experiment
+
+  model_serving_endpoints:
+    app_chat_endpoint:
+      name: app_chat_endpoint
+      config:
+        served_entities:
+          - entity_name: ${var.catalog_name}.${var.phantom_schema}.phantom_model
+            entity_version: "1"
+            workload_size: Small
+            scale_to_zero_enabled: true

@@ -1,7 +1,9 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
-# App with all lateral dependency types: job, sql_warehouse, secret,
-# serving_endpoint, uc_securable. Tests lateral edge extraction and
-# phantom node generation.
+# First deploy: app with 3 lateral dependency types (job, sql_warehouse,
+# uc_securable). Paired with after/ which is a SECOND deploy that adds a
+# secret_scope + model_serving_endpoint resource and wires both into the
+# app's resources list — they show as green (+) creates in the plan while
+# the app shows as (~) update.
 bundle:
   name: dagshund-golden-app-deps
   databricks_cli_version: ">=0.296.0"

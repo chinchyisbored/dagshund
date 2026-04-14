@@ -96,8 +96,8 @@ export const extractAppResourceReferences = (entry: PlanEntry): readonly AppReso
       continue;
     }
     const experiment = resource["experiment"];
-    if (isUnknownRecord(experiment) && typeof experiment["id"] === "string") {
-      refs.push({ kind: "experiment", id: experiment["id"] });
+    if (isUnknownRecord(experiment) && typeof experiment["experiment_id"] === "string") {
+      refs.push({ kind: "experiment", id: experiment["experiment_id"] });
       continue;
     }
     const ucSecurable = resource["uc_securable"];

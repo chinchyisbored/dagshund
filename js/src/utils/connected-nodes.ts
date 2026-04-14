@@ -2,7 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { LateralContext } from "../types/lateral-context.ts";
 import type { PhantomContext } from "../types/phantom-context.ts";
 import { getNodeData } from "./node-data.ts";
-import { extractTypeBadge, LATERAL_EDGE_PREFIX } from "./resource-key.ts";
+import { extractPhantomBadge, LATERAL_EDGE_PREFIX } from "./resource-key.ts";
 
 /** Returns the given node ID plus all node IDs sharing an edge with it.
  *  When a job (parent) node is targeted, its child tasks are included too. */
@@ -52,7 +52,7 @@ export const resolvePhantomContext = (
       return {
         label: data.label,
         resourceKey: data.resourceKey,
-        resourceType: extractTypeBadge(data.resourceKey),
+        resourceType: extractPhantomBadge(data.resourceKey),
       };
     });
 
@@ -87,7 +87,7 @@ export const resolveLateralContext = (
       nodeId: id,
       label: data.label,
       resourceKey: data.resourceKey,
-      resourceType: extractTypeBadge(data.resourceKey),
+      resourceType: extractPhantomBadge(data.resourceKey),
       diffState: data.diffState,
     };
   };
