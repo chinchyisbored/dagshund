@@ -19,41 +19,39 @@ variables:
   # in GitLab settings. Images must be digest-pinned (@sha256:...).
 
 # --- Top-level workflow rules ---
-# Control which pipelines run before individual job rules apply.
+# Three-lane pipeline model:
+#   1. Merge request  → full CI (quality, golden, security, dependency-scan)
+#   2. Push to main   → pages deploy only (MR already validated the code)
+#   3. Tag push       → release (version-check, build, smoke-wheel, publish)
+# Feature-branch pushes produce no pipeline — the MR is the gate.
 workflow:
   rules:
-    # Release pipelines: tag pushes always run.
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-    # Merge request pipelines: always run the full suite.
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    # Branch push with an open MR: defer to the MR pipeline (no double-run).
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    # Feature-branch / main push: only run when meaningful files changed.
-    - if: $CI_PIPELINE_SOURCE == "push"
-      changes:
-        paths:
-          - 'src/**/*'
-          - 'js/**/*'
-          - 'tests/**/*'
-          - 'fixtures/**/*'
-          - 'plugins/**/*'
-          - 'docs/pages/**/*'
-          - 'pyproject.toml'
-          - 'uv.lock'
-          - 'prek.toml'
-          - '.gitlab-ci.yml'
-          - 'justfile'
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
 
 # --- Security ---
 
+# The top-level `sast` is a scriptless group job from the template.
+# Never override its rules or script — only pin its stage (template default
+# is `test`, which we don't define). Scope the actual analyzer below.
 sast:
-  stage: security  # template defaults to `test`; never override rules/script
+  stage: security
+
+semgrep-sast:
+  stage: security
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 secret_detection:
   stage: security
   interruptible: true
   allow_failure: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Defense in depth: rescan on tag in case a secret landed between the last
+    # MR and the release cut.
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
 
 # --- Dependency vulnerability scan ---
 # OSV-Scanner against uv.lock + js/bun.lock. Hard-fails on known CVEs.
@@ -65,6 +63,9 @@ dependency-scan:
     entrypoint: [""]
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Defense in depth: rescan on tag because CVE disclosures can land against
+    # unchanged lockfiles between the last MR and the release cut.
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   interruptible: true
   allow_failure: false
   script:
@@ -114,7 +115,8 @@ quality:
   extends: .release-setup
   stage: quality
   rules:
-    - when: on_success
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   script:
     - bun run --cwd js biome check src/ tests/
     - uv run ruff check src/ tests/
@@ -151,8 +153,7 @@ build:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   needs:
     - quality
-    - job: version-check
-      optional: true  # survives future rule-drift between these two jobs
+    - version-check  # cheapest possible gate against publishing a mismatched wheel — never make optional
   script:
     - bun run --cwd js build:template
     - cp plugins/dagshund/skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
@@ -163,9 +164,11 @@ build:
       - dist/
     expire_in: 1 hour
 
-# --- Golden fixture checks (every pipeline) ---
+# --- Golden fixture checks (MR only) ---
 # Diffs text + markdown + exit codes + graph structure against stored expected
 # files. The graph extractor runs under Bun, so this job needs the full setup.
+# On tag pipelines `smoke-wheel` re-runs the golden check against the installed
+# wheel, so `golden` itself is MR-only.
 
 golden:
   extends: .release-setup
@@ -173,7 +176,7 @@ golden:
   variables:
     NO_COLOR: "1"
   rules:
-    - when: on_success
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   needs:
     - quality
   allow_failure: false
@@ -245,6 +248,7 @@ publish:
   environment: release
   needs:
     - build
+    - smoke-wheel  # explicit — defends against future edits to publish-test's needs
     - publish-test
   id_tokens:
     PYPI_ID_TOKEN:
@@ -254,15 +258,26 @@ publish:
     - uv publish
 
 # --- GitLab Pages demo site (every push to main) ---
+# Relies on `main` branch protection requiring pipelines to succeed, so every
+# commit landing here has already passed MR validation. If that setting ever
+# drifts off, a broken main could ship to Pages.
 
 pages:
   extends: .release-setup
   stage: pages
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-  needs:
-    - quality
-    - golden
+    # Only re-deploy when something that affects the rendered site changed.
+    # js/**          → bun-built template
+    # src/dagshund/** → Python CLI that embeds the template + writes HTML
+    # fixtures/golden/** → plans rendered into public/*.html
+    # docs/pages/**  → static landing page
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+      changes:
+        paths:
+          - 'js/**/*'
+          - 'src/dagshund/**/*'
+          - 'fixtures/golden/**/*'
+          - 'docs/pages/**/*'
   script:
     - bun run --cwd js build:template
     - mkdir -p public
