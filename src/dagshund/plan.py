@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 
-from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange, parse_plan
+from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
 from dagshund.types import DiffState, ResourceKey, parse_resource_key
 
 __all__ = [
@@ -15,7 +15,6 @@ __all__ = [
     "detect_manual_edits",
     "has_drifted_field",
     "is_topology_drift_change",
-    "parse_plan",
 ]
 
 DANGEROUS_ACTIONS: frozenset[ActionType] = frozenset({ActionType.DELETE, ActionType.RECREATE})

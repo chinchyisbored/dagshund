@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+from enum import IntEnum
 from pathlib import Path
 
 from dagshund import (
@@ -16,6 +17,14 @@ from dagshund import (
     merge_sub_resources,
     parse_plan,
 )
+
+
+class ExitCode(IntEnum):
+    OK = 0
+    ERROR = 1
+    CHANGES = 2
+    NEEDS_ATTENTION = 3
+
 
 EPILOG = """\
 examples:
@@ -244,7 +253,7 @@ def main() -> None:
             merged = merge_sub_resources(plan.resources)
             if detect_changes(merged):
                 needs_attention = detect_manual_edits(merged) or detect_dangerous_actions(merged)
-                sys.exit(3 if needs_attention else 2)
+                sys.exit(ExitCode.NEEDS_ATTENTION if needs_attention else ExitCode.CHANGES)
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(ExitCode.ERROR)
