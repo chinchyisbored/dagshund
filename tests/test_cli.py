@@ -97,8 +97,10 @@ def test_main_text_mode_with_file(
 ) -> None:
     monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "mixed-changes" / "plan.json")])
 
-    main()
+    with pytest.raises(SystemExit) as exc_info:
+        main()
 
+    assert exc_info.value.code == 0
     assert "etl_pipeline" in capsys.readouterr().out
 
 
@@ -110,8 +112,10 @@ def test_main_text_mode_from_stdin(
     monkeypatch.setattr("sys.argv", ["dagshund"])
     monkeypatch.setattr("sys.stdin", StringIO(real_plan_json))
 
-    main()
+    with pytest.raises(SystemExit) as exc_info:
+        main()
 
+    assert exc_info.value.code == 0
     assert "etl_pipeline" in capsys.readouterr().out
 
 
@@ -125,8 +129,10 @@ def test_main_output_flag_writes_html(
     output = tmp_path / "out.html"
     monkeypatch.setattr("sys.argv", ["dagshund", str(fixtures_dir / "mixed-changes" / "plan.json"), "-o", str(output)])
 
-    main()
+    with pytest.raises(SystemExit) as exc_info:
+        main()
 
+    assert exc_info.value.code == 0
     assert output.exists()
     captured = capsys.readouterr()
     assert "exported to" in captured.err
@@ -152,8 +158,10 @@ def test_main_browser_flag_opens_browser(
     opened_urls: list[str] = []
     monkeypatch.setattr(webbrowser, "open", lambda url: opened_urls.append(url))
 
-    main()
+    with pytest.raises(SystemExit) as exc_info:
+        main()
 
+    assert exc_info.value.code == 0
     assert len(opened_urls) == 1
     assert opened_urls[0].startswith("file://")
 
@@ -208,8 +216,10 @@ def test_main_stdin_with_output_flag_writes_html(
     monkeypatch.setattr("sys.argv", ["dagshund", "-o", str(output)])
     monkeypatch.setattr("sys.stdin", StringIO(real_plan_json))
 
-    main()
+    with pytest.raises(SystemExit) as exc_info:
+        main()
 
+    assert exc_info.value.code == 0
     assert output.exists()
     captured = capsys.readouterr()
     assert "exported to" in captured.err

@@ -8,6 +8,7 @@ from pathlib import Path
 from dagshund import (
     DagshundError,
     DiffState,
+    Plan,
     __version__,
     detect_changes,
     detect_dangerous_actions,
@@ -190,25 +191,22 @@ def _build_visible_states(args: argparse.Namespace) -> frozenset[DiffState] | No
     return frozenset(states) if states else None
 
 
-def main() -> None:
-    parser = _build_parser()
-    args = parser.parse_args()
-
-    if args.install_skill is not None:
-        _install_skill(args.install_skill)
+def _maybe_enable_debug(args: argparse.Namespace) -> None:
+    if not (args.debug or os.environ.get("DAGSHUND_DEBUG")):
         return
 
-    if args.debug or os.environ.get("DAGSHUND_DEBUG"):
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="dagshund: %(message)s",
-            stream=sys.stderr,
-        )
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="dagshund: %(message)s",
+        stream=sys.stderr,
+    )
 
-        from dagshund.debug import enable_profile_tracing
+    from dagshund.debug import enable_profile_tracing
 
-        enable_profile_tracing()
+    enable_profile_tracing()
 
+
+def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if args.browser and not args.output:
         parser.error("--browser requires --output")
 
@@ -218,37 +216,65 @@ def main() -> None:
     if args.format is None:
         args.format = "term"
 
+
+def _render_stdout(
+    plan: Plan,
+    args: argparse.Namespace,
+    visible_states: frozenset[DiffState] | None,
+) -> None:
+    match args.format:
+        case "term":
+            from dagshund.terminal import render_text
+
+            render_text(plan, visible_states=visible_states, filter_query=args.filter)
+        case "md":
+            from dagshund.markdown import render_markdown
+
+            print(render_markdown(plan, visible_states=visible_states, filter_query=args.filter))
+
+
+def _run(args: argparse.Namespace) -> ExitCode:
     visible_states = _build_visible_states(args)
+    raw = _read_plan(args.plan_file)
+    plan = parse_plan(raw)
+
+    if args.output:
+        from dagshund.browser import render_browser
+
+        render_browser(plan, output_path=args.output)
+
+        if args.browser:
+            import webbrowser
+
+            webbrowser.open(Path(args.output).resolve().as_uri())
+
+    if not args.quiet:
+        _render_stdout(plan, args, visible_states)
+
+    if not args.detailed_exitcode:
+        return ExitCode.OK
+
+    merged = merge_sub_resources(plan.resources)
+    if not detect_changes(merged):
+        return ExitCode.OK
+    if detect_manual_edits(merged) or detect_dangerous_actions(merged):
+        return ExitCode.NEEDS_ATTENTION
+    return ExitCode.CHANGES
+
+
+def main() -> None:
+    parser = _build_parser()
+    args = parser.parse_args()
+
+    if args.install_skill is not None:
+        _install_skill(args.install_skill)
+        return
+
+    _maybe_enable_debug(args)
+    _validate_args(parser, args)
 
     try:
-        raw = _read_plan(args.plan_file)
-        plan = parse_plan(raw)
-
-        if args.output:
-            from dagshund.browser import render_browser
-
-            render_browser(plan, output_path=args.output)
-
-            if args.browser:
-                import webbrowser
-
-                webbrowser.open(Path(args.output).resolve().as_uri())
-
-        if not args.quiet:
-            if args.format == "term":
-                from dagshund.terminal import render_text
-
-                render_text(plan, visible_states=visible_states, filter_query=args.filter)
-            elif args.format == "md":
-                from dagshund.markdown import render_markdown
-
-                print(render_markdown(plan, visible_states=visible_states, filter_query=args.filter))
-
-        if args.detailed_exitcode:
-            merged = merge_sub_resources(plan.resources)
-            if detect_changes(merged):
-                needs_attention = detect_manual_edits(merged) or detect_dangerous_actions(merged)
-                sys.exit(ExitCode.NEEDS_ATTENTION if needs_attention else ExitCode.CHANGES)
+        sys.exit(_run(args))
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)
         sys.exit(ExitCode.ERROR)
