@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from factories import plan_from_dict
 
 from dagshund import DagshundError
 from dagshund.browser import (
@@ -53,7 +54,7 @@ def test_escape_for_script_tag(content: str, expected: str) -> None:
 def test_inject_plan_replaces_placeholder() -> None:
     template = f"<html>{PLACEHOLDER}</html>"
 
-    result = _inject_plan(template, {"key": "value"})
+    result = _inject_plan(template, plan_from_dict({"key": "value"}))
 
     assert PLACEHOLDER not in result
     assert "key" in result
@@ -62,20 +63,20 @@ def test_inject_plan_replaces_placeholder() -> None:
 
 def test_inject_plan_missing_placeholder_raises() -> None:
     with pytest.raises(DagshundError, match="not found"):
-        _inject_plan("<html>no placeholder</html>", {"key": "value"})
+        _inject_plan("<html>no placeholder</html>", plan_from_dict({"key": "value"}))
 
 
 def test_inject_plan_duplicate_placeholder_raises() -> None:
     template = f"<script>{PLACEHOLDER}</script><!-- {PLACEHOLDER} -->"
     with pytest.raises(DagshundError, match="found 2"):
-        _inject_plan(template, {"key": "value"})
+        _inject_plan(template, plan_from_dict({"key": "value"}))
 
 
 def test_inject_plan_escapes_angle_brackets_in_values() -> None:
     """Injected JSON must not contain raw < inside the script block."""
     template = f"<script>{PLACEHOLDER}</script>"
 
-    result = _inject_plan(template, {"html": "<script>alert(1)</script>"})
+    result = _inject_plan(template, plan_from_dict({"html": "<script>alert(1)</script>"}))
 
     injected_part = result.replace("<script>", "").replace("</script>", "")
     assert "<" not in injected_part
@@ -84,7 +85,7 @@ def test_inject_plan_escapes_angle_brackets_in_values() -> None:
 def test_inject_plan_uses_compact_json() -> None:
     template = f"<div>{PLACEHOLDER}</div>"
 
-    result = _inject_plan(template, {"a": 1, "b": 2})
+    result = _inject_plan(template, plan_from_dict({"a": 1, "b": 2}))
 
     injected = result.removeprefix("<div>").removesuffix("</div>")
     assert '" :' not in injected
@@ -95,7 +96,7 @@ def test_inject_plan_placeholder_string_in_plan_data() -> None:
     """Plan data containing the placeholder string should not break injection."""
     template = f"before:{PLACEHOLDER}:after"
 
-    result = _inject_plan(template, {"key": PLACEHOLDER})
+    result = _inject_plan(template, plan_from_dict({"key": PLACEHOLDER}))
 
     assert result.startswith("before:")
     assert result.endswith(":after")
@@ -109,7 +110,7 @@ def test_inject_plan_placeholder_string_in_plan_data() -> None:
 def test_render_browser_writes_html_file(require_template: None, tmp_path: Path) -> None:
     output = tmp_path / "output.html"
 
-    render_browser({"plan": {}}, output_path=str(output))
+    render_browser(plan_from_dict({"plan": {}}), output_path=str(output))
 
     assert output.exists()
     content = output.read_text()
@@ -121,7 +122,7 @@ def test_render_browser_prints_success_message(
 ) -> None:
     output = tmp_path / "output.html"
 
-    render_browser({"plan": {}}, output_path=str(output))
+    render_browser(plan_from_dict({"plan": {}}), output_path=str(output))
 
     assert "exported to" in capsys.readouterr().err
 
@@ -130,7 +131,7 @@ def test_render_browser_overwrites_existing_file(require_template: None, tmp_pat
     output = tmp_path / "output.html"
     output.write_text("old content")
 
-    render_browser({"plan": {}}, output_path=str(output))
+    render_browser(plan_from_dict({"plan": {}}), output_path=str(output))
 
     assert "old content" not in output.read_text()
 
@@ -142,11 +143,11 @@ def test_render_browser_rejects_symlink_output(require_template: None, tmp_path:
     link.symlink_to(target)
 
     with pytest.raises(DagshundError, match="symlink"):
-        render_browser({"plan": {}}, output_path=str(link))
+        render_browser(plan_from_dict({"plan": {}}), output_path=str(link))
 
 
 def test_render_browser_write_error_raises(require_template: None, tmp_path: Path) -> None:
     bad_path = tmp_path / "nonexistent" / "deep" / "output.html"
 
     with pytest.raises(DagshundError, match="could not write output file"):
-        render_browser({"plan": {}}, output_path=str(bad_path))
+        render_browser(plan_from_dict({"plan": {}}), output_path=str(bad_path))

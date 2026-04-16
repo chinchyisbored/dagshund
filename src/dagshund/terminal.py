@@ -3,7 +3,8 @@
 import os
 import sys
 import textwrap
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
+from dataclasses import replace
 from itertools import groupby
 
 from dagshund.format import (
@@ -23,24 +24,18 @@ from dagshund.format import (
     format_group_header,
     format_value,
     group_by_resource_type,
-    is_field_changes,
     iter_non_topology_field_changes,
 )
 from dagshund.merge import merge_sub_resources
+from dagshund.model import UNSET, ActionType, FieldChange, Plan, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
-    is_resource_changes,
     is_topology_drift_change,
 )
 from dagshund.types import (
     DagshundError,
     DiffState,
-    FieldChange,
-    Plan,
-    ResourceChange,
-    ResourceChanges,
-    ResourceChangesByType,
     ResourceKey,
     parse_resource_key,
 )
@@ -109,35 +104,30 @@ def _detect_terminal_width() -> int:
 
 
 def _wrap_transition(prefix: str, change: FieldChange) -> str | None:
-    """Build a two-line wrapped transition from the change dict, breaking at ->.
+    """Build a two-line wrapped transition from the change, breaking at ->.
 
     Returns None if the change is not a wrappable transition (single value, no-op, etc.).
     Uses format_display_value/format_value directly — no string parsing.
     """
-    old, new = change.get("old"), change.get("new")
-    has_old, has_new = "old" in change, "new" in change
-
-    if not has_old or not has_new:
+    if change.old is UNSET or change.new is UNSET:
         return None
-
-    remote = change.get("remote")
 
     # Drift: old == new but remote differs — show remote -> new (drift)
     # Uses format_value (no truncation) to match format_field_suffix drift path
-    if old == new and "remote" in change and remote != old:
-        left = format_value(remote)
-        right = format_value(new)
+    if change.old == change.new and change.remote is not UNSET and change.remote != change.old:
+        left = format_value(change.remote)
+        right = format_value(change.new)
         first = f"{prefix}: {left}"
         cont = f"{' ' * _BLOCK_INDENT}-> {right} (drift)"
         return f"{first}\n{cont}"
 
     # No-op: old == new — nothing to wrap
-    if old == new:
+    if change.old == change.new:
         return None
 
     # Normal transition: old -> new
-    left = format_display_value(old)
-    right = format_display_value(new)
+    left = format_display_value(change.old)
+    right = format_display_value(change.new)
     first = f"{prefix}: {left}"
     cont = f"{' ' * _BLOCK_INDENT}-> {right}"
     return f"{first}\n{cont}"
@@ -154,8 +144,7 @@ def _render_field_change(
     field_name: str, change: FieldChange, *, use_color: bool, width: int | None = None
 ) -> str | None:
     """Render a single field-level change, or None if unchanged/no-op."""
-    action = str(change.get("action", ""))
-    if action_to_diff_state(action) == DiffState.UNCHANGED:
+    if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return None
 
     suffix = format_field_suffix(change)
@@ -182,16 +171,15 @@ def _render_resource(
     width: int | None = None,
 ) -> Iterator[str]:
     """Render a single resource entry as lines of text."""
-    action = entry.get("action", "")
-    cfg = action_config(action)
+    cfg = action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
 
-    label = f"  ({cfg.display})" if action_to_diff_state(action) != DiffState.UNCHANGED else ""
+    label = f"  ({cfg.display})" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
     header = f"  {cfg.symbol} {resource_type}/{resource_name}{label}"
     yield _colorize(header, _action_color(cfg), use_color=use_color)
 
-    changes = entry.get("changes", {})
-    if not (is_field_changes(changes) and changes and cfg.show_field_changes):
+    changes = entry.changes
+    if not (changes and cfg.show_field_changes):
         return
 
     reentries = detect_drift_reentries(changes)
@@ -204,10 +192,10 @@ def _render_resource(
             yield rendered
 
     if reentries:
-        create_cfg = action_config("create")
+        create_cfg = action_config(ActionType.CREATE)
         create_color = _action_color(create_cfg)
         for key_name, change in sorted(changes.items()):
-            if not isinstance(change, dict) or not is_topology_drift_change(change):
+            if not is_topology_drift_change(change):
                 continue
             line = f"      {create_cfg.symbol} {key_name} (re-added)"
             yield _colorize(line, create_color, use_color=use_color)
@@ -215,8 +203,8 @@ def _render_resource(
 
 def _print_header(plan: Plan, *, use_color: bool) -> None:
     """Print the plan version header line."""
-    cli_version = plan.get("cli_version", "unknown")
-    plan_version = plan.get("plan_version", "?")
+    cli_version = plan.cli_version or "unknown"
+    plan_version = plan.plan_version if plan.plan_version is not None else "?"
     print(
         _colorize(
             f"dagshund plan (v{plan_version}, cli {cli_version})",
@@ -228,7 +216,7 @@ def _print_header(plan: Plan, *, use_color: bool) -> None:
 
 
 def _print_resource_groups(
-    resource_groups: ResourceChangesByType,
+    resource_groups: Mapping[str, Mapping[ResourceKey, ResourceChange]],
     *,
     use_color: bool,
     visible_states: frozenset[DiffState] | None = None,
@@ -255,7 +243,7 @@ def _format_action_count(cfg: ActionConfig, count: int, *, use_color: bool) -> s
 
 
 def _print_summary(
-    resources: ResourceChanges,
+    resources: Mapping[ResourceKey, ResourceChange],
     *,
     use_color: bool,
     visible_states: frozenset[DiffState] | None = None,
@@ -309,12 +297,10 @@ def render_text(
     filter_query: str | None = None,
 ) -> None:
     """Render colored diff summary to terminal."""
-    raw_resources = plan.get("plan", {})
-    if not is_resource_changes(raw_resources):
-        raise DagshundError("plan must be an object")
-    resources = merge_sub_resources(raw_resources)
+    resources = merge_sub_resources(plan.resources)
     if not resources:
         raise DagshundError("plan is empty")
+    plan = replace(plan, resources=resources)
 
     resource_filter = None
     if filter_query:

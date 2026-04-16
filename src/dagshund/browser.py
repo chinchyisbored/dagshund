@@ -4,7 +4,8 @@ import json
 import sys
 from pathlib import Path
 
-from dagshund.types import DagshundError, Plan
+from dagshund.model import Plan
+from dagshund.types import DagshundError
 
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
 
@@ -42,7 +43,7 @@ def _inject_plan(template: str, plan: Plan) -> str:
         )
     if count > 1:
         raise DagshundError(f"expected 1 placeholder in template, found {count}")
-    safe_json = _escape_for_script_tag(json.dumps(plan, separators=(",", ":")))
+    safe_json = _escape_for_script_tag(json.dumps(plan.raw, separators=(",", ":")))
     return template.replace(PLACEHOLDER, safe_json, 1)
 
 

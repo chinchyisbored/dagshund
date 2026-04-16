@@ -13,7 +13,6 @@ from dagshund import (
     detect_changes,
     detect_dangerous_actions,
     detect_manual_edits,
-    is_resource_changes,
     merge_sub_resources,
     parse_plan,
 )
@@ -242,12 +241,10 @@ def main() -> None:
                 print(render_markdown(plan, visible_states=visible_states, filter_query=args.filter))
 
         if args.detailed_exitcode:
-            resources = plan.get("plan", {})
-            if is_resource_changes(resources):
-                merged = merge_sub_resources(resources)
-                if detect_changes(merged):
-                    needs_attention = detect_manual_edits(merged) or detect_dangerous_actions(merged)
-                    sys.exit(3 if needs_attention else 2)
+            merged = merge_sub_resources(plan.resources)
+            if detect_changes(merged):
+                needs_attention = detect_manual_edits(merged) or detect_dangerous_actions(merged)
+                sys.exit(3 if needs_attention else 2)
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)
         sys.exit(1)

@@ -14,8 +14,9 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from dagshund.model import ResourceChange
 from dagshund.plan import action_to_diff_state
-from dagshund.types import ResourceChange, ResourceKey, parse_resource_key
+from dagshund.types import ResourceKey, parse_resource_key
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,10 +76,7 @@ def _parse_filter_query(query: str) -> list[_SearchToken]:
 
 def _has_matching_field_key(value: str, entry: ResourceChange) -> bool:
     """Check if any field change key contains the search value."""
-    changes = entry.get("changes")
-    if not isinstance(changes, dict):
-        return False
-    return any(value in field_key.lower() for field_key in changes)
+    return any(value in field_key.lower() for field_key in entry.changes)
 
 
 def _match_token(token: _SearchToken, key: ResourceKey, entry: ResourceChange) -> bool:
@@ -88,7 +86,7 @@ def _match_token(token: _SearchToken, key: ResourceKey, entry: ResourceChange) -
         case _TypeToken(value=value):
             return value in resource_type.lower()
         case _StatusToken(value=value):
-            return action_to_diff_state(entry.get("action", "")).value == value
+            return action_to_diff_state(entry.action).value == value
         case _FieldToken(value=value):
             return _has_matching_field_key(value, entry)
         case _ExactToken(value=value):

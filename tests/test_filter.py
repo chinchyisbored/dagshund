@@ -1,4 +1,5 @@
 import pytest
+from factories import make_change, make_resource
 
 from dagshund.filter import (
     _classify_token,
@@ -116,85 +117,85 @@ def test_parse_filter_query_multiple_tokens() -> None:
 
 
 def test_match_type_token_substring_match() -> None:
-    assert _match_token(_TypeToken(value="job"), "resources.jobs.etl", {"action": "create"})
+    assert _match_token(_TypeToken(value="job"), "resources.jobs.etl", make_resource(action="create"))
 
 
 def test_match_type_token_no_match() -> None:
-    assert not _match_token(_TypeToken(value="schema"), "resources.jobs.etl", {"action": "create"})
+    assert not _match_token(_TypeToken(value="schema"), "resources.jobs.etl", make_resource(action="create"))
 
 
 def test_match_status_token_exact_match() -> None:
-    assert _match_token(_StatusToken(value="added"), "resources.jobs.etl", {"action": "create"})
+    assert _match_token(_StatusToken(value="added"), "resources.jobs.etl", make_resource(action="create"))
 
 
 def test_match_status_token_no_match() -> None:
-    assert not _match_token(_StatusToken(value="removed"), "resources.jobs.etl", {"action": "create"})
+    assert not _match_token(_StatusToken(value="removed"), "resources.jobs.etl", make_resource(action="create"))
 
 
 def test_match_exact_token_exact_name_match() -> None:
-    assert _match_token(_ExactToken(value="etl"), "resources.jobs.etl", {"action": "create"})
+    assert _match_token(_ExactToken(value="etl"), "resources.jobs.etl", make_resource(action="create"))
 
 
 def test_match_exact_token_partial_name_no_match() -> None:
-    assert not _match_token(_ExactToken(value="et"), "resources.jobs.etl", {"action": "create"})
+    assert not _match_token(_ExactToken(value="et"), "resources.jobs.etl", make_resource(action="create"))
 
 
 def test_match_fuzzy_token_substring_match() -> None:
-    assert _match_token(_FuzzyToken(value="pipe"), "resources.jobs.etl_pipeline", {"action": "create"})
+    assert _match_token(_FuzzyToken(value="pipe"), "resources.jobs.etl_pipeline", make_resource(action="create"))
 
 
 def test_match_fuzzy_token_no_match() -> None:
-    assert not _match_token(_FuzzyToken(value="xyz"), "resources.jobs.etl_pipeline", {"action": "create"})
+    assert not _match_token(_FuzzyToken(value="xyz"), "resources.jobs.etl_pipeline", make_resource(action="create"))
 
 
 def test_match_fuzzy_token_does_not_search_field_keys() -> None:
     """Fuzzy tokens only match resource names, not field change keys."""
-    entry: dict = {
-        "action": "update",
-        "changes": {
-            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": {"action": "update", "old": "a", "new": "b"},
+    entry = make_resource(
+        action="update",
+        changes={
+            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": make_change(action="update", old="a", new="b"),
         },
-    }
+    )
     assert not _match_token(_FuzzyToken(value="sysdata"), "resources.jobs.ibmi_job", entry)
 
 
 def test_match_field_token_substring_match() -> None:
-    entry: dict = {
-        "action": "update",
-        "changes": {
-            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": {"action": "update", "old": "a", "new": "b"},
+    entry = make_resource(
+        action="update",
+        changes={
+            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": make_change(action="update", old="a", new="b"),
         },
-    }
+    )
     assert _match_token(_FieldToken(value="sysdata"), "resources.jobs.ibmi_job", entry)
 
 
 def test_match_field_token_no_match() -> None:
-    entry: dict = {
-        "action": "update",
-        "changes": {
-            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": {"action": "update", "old": "a", "new": "b"},
+    entry = make_resource(
+        action="update",
+        changes={
+            "tasks[task_key='SYSDATA_EFP690_RAW'].libraries[0].whl": make_change(action="update", old="a", new="b"),
         },
-    }
+    )
     assert not _match_token(_FieldToken(value="carbtr"), "resources.jobs.ibmi_job", entry)
 
 
-def test_match_field_token_no_changes_dict() -> None:
-    """No crash when entry has no changes dict."""
-    assert not _match_token(_FieldToken(value="task"), "resources.jobs.new_job", {"action": "create"})
+def test_match_field_token_no_changes() -> None:
+    """No crash when entry has no changes."""
+    assert not _match_token(_FieldToken(value="task"), "resources.jobs.new_job", make_resource(action="create"))
 
 
 def test_match_field_token_matches_top_level_field() -> None:
-    entry: dict = {
-        "action": "update",
-        "changes": {
-            "email_notifications": {"action": "update", "old": {}, "new": {"on_failure": ["a@b.com"]}},
+    entry = make_resource(
+        action="update",
+        changes={
+            "email_notifications": make_change(action="update", old={}, new={"on_failure": ["a@b.com"]}),
         },
-    }
+    )
     assert _match_token(_FieldToken(value="email"), "resources.jobs.my_job", entry)
 
 
 def test_match_fuzzy_token_case_insensitive() -> None:
-    assert _match_token(_FuzzyToken(value="pipeline"), "resources.jobs.ETL_Pipeline", {"action": "create"})
+    assert _match_token(_FuzzyToken(value="pipeline"), "resources.jobs.ETL_Pipeline", make_resource(action="create"))
 
 
 @pytest.mark.parametrize(
@@ -212,7 +213,7 @@ def test_match_fuzzy_token_case_insensitive() -> None:
     ids=["added", "removed", "update", "recreate", "resize", "update_id", "skip", "empty"],
 )
 def test_match_status_token_all_actions(status: str, action: str) -> None:
-    assert _match_token(_StatusToken(value=status), "resources.jobs.x", {"action": action})
+    assert _match_token(_StatusToken(value=status), "resources.jobs.x", make_resource(action=action))
 
 
 # --- build_query_predicate ---
@@ -234,46 +235,48 @@ def test_build_query_predicate_single_token_matches() -> None:
     predicate = build_query_predicate("type:jobs")
 
     assert predicate is not None
-    assert predicate("resources.jobs.etl", {"action": "create"})
-    assert not predicate("resources.schemas.analytics", {"action": "create"})
+    assert predicate("resources.jobs.etl", make_resource(action="create"))
+    assert not predicate("resources.schemas.analytics", make_resource(action="create"))
 
 
 def test_build_query_predicate_multiple_tokens_and_together() -> None:
     predicate = build_query_predicate("type:jobs status:added")
 
     assert predicate is not None
-    assert predicate("resources.jobs.etl", {"action": "create"})
-    assert not predicate("resources.jobs.etl", {"action": "skip"})
-    assert not predicate("resources.schemas.analytics", {"action": "create"})
+    assert predicate("resources.jobs.etl", make_resource(action="create"))
+    assert not predicate("resources.jobs.etl", make_resource(action="skip"))
+    assert not predicate("resources.schemas.analytics", make_resource(action="create"))
 
 
 def test_build_query_predicate_exact_match() -> None:
     predicate = build_query_predicate('"etl_pipeline"')
 
     assert predicate is not None
-    assert predicate("resources.jobs.etl_pipeline", {"action": "create"})
-    assert not predicate("resources.jobs.etl_pipeline_v2", {"action": "create"})
+    assert predicate("resources.jobs.etl_pipeline", make_resource(action="create"))
+    assert not predicate("resources.jobs.etl_pipeline_v2", make_resource(action="create"))
 
 
 def test_build_query_predicate_fuzzy_match() -> None:
     predicate = build_query_predicate("pipeline")
 
     assert predicate is not None
-    assert predicate("resources.jobs.etl_pipeline", {"action": "create"})
-    assert predicate("resources.jobs.data_pipeline", {"action": "create"})
-    assert not predicate("resources.jobs.etl_job", {"action": "create"})
+    assert predicate("resources.jobs.etl_pipeline", make_resource(action="create"))
+    assert predicate("resources.jobs.data_pipeline", make_resource(action="create"))
+    assert not predicate("resources.jobs.etl_job", make_resource(action="create"))
 
 
 def test_build_query_predicate_field_token_composes_with_type() -> None:
     predicate = build_query_predicate("type:jobs field:email")
-    entry_with_email: dict = {
-        "action": "update",
-        "changes": {"email_notifications": {"action": "update", "old": {}, "new": {"on_failure": ["a@b.com"]}}},
-    }
-    entry_without_email: dict = {
-        "action": "update",
-        "changes": {"storage_location": {"action": "update", "old": "/a", "new": "/b"}},
-    }
+    entry_with_email = make_resource(
+        action="update",
+        changes={
+            "email_notifications": make_change(action="update", old={}, new={"on_failure": ["a@b.com"]}),
+        },
+    )
+    entry_without_email = make_resource(
+        action="update",
+        changes={"storage_location": make_change(action="update", old="/a", new="/b")},
+    )
 
     assert predicate is not None
     assert predicate("resources.jobs.my_job", entry_with_email)

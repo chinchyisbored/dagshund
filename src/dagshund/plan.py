@@ -1,18 +1,24 @@
 """Plan parsing, change detection, and drift predicates."""
 
-import json
-from typing import TypeGuard
+from collections.abc import Mapping
 
-from dagshund.types import (
-    DagshundError,
-    DiffState,
-    FieldChange,
-    Plan,
-    ResourceChanges,
-    parse_resource_key,
-)
+from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange, parse_plan
+from dagshund.types import DiffState, ResourceKey, parse_resource_key
 
-DANGEROUS_ACTIONS: frozenset[str] = frozenset({"delete", "recreate"})
+__all__ = [
+    "DANGEROUS_ACTIONS",
+    "STATEFUL_RESOURCE_TYPES",
+    "STATEFUL_RESOURCE_WARNINGS",
+    "action_to_diff_state",
+    "detect_changes",
+    "detect_dangerous_actions",
+    "detect_manual_edits",
+    "has_drifted_field",
+    "is_topology_drift_change",
+    "parse_plan",
+]
+
+DANGEROUS_ACTIONS: frozenset[ActionType] = frozenset({ActionType.DELETE, ActionType.RECREATE})
 
 STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
     # Unity Catalog
@@ -30,34 +36,29 @@ STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
 STATEFUL_RESOURCE_TYPES: frozenset[str] = frozenset(STATEFUL_RESOURCE_WARNINGS)
 
 
-def action_to_diff_state(action: str) -> DiffState:
-    """Map a plan action string to its diff state category.
+def action_to_diff_state(action: ActionType) -> DiffState:
+    """Map an action to its diff state category.
 
     Action vocabulary is duplicated in two other locations:
     - format.py: ACTIONS dict (display config per action)
     - js/src/types/plan-schema.ts: knownActionTypes (Zod schema)
     """
     match action:
-        case "create":
+        case ActionType.CREATE:
             return DiffState.ADDED
-        case "delete":
+        case ActionType.DELETE:
             return DiffState.REMOVED
-        case "update" | "recreate" | "resize" | "update_id":
+        case ActionType.UPDATE | ActionType.RECREATE | ActionType.RESIZE | ActionType.UPDATE_ID:
             return DiffState.MODIFIED
-        case "" | "skip":
+        case ActionType.EMPTY | ActionType.SKIP:
             return DiffState.UNCHANGED
-        case _:
+        case ActionType.UNKNOWN:
             return DiffState.UNKNOWN
 
 
-def is_resource_changes(value: object) -> TypeGuard[ResourceChanges]:
-    """Runtime check that narrows Any to ResourceChanges for the type checker."""
-    return isinstance(value, dict) and all(isinstance(v, dict) for v in value.values())
-
-
-def detect_changes(resources: ResourceChanges) -> bool:
+def detect_changes(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
     """Check whether any resource has a non-skip action (i.e., drift detected)."""
-    return any(entry.get("action") not in ("skip", "") for entry in resources.values())
+    return any(entry.action not in (ActionType.SKIP, ActionType.EMPTY) for entry in resources.values())
 
 
 def has_drifted_field(change: FieldChange) -> bool:
@@ -66,17 +67,14 @@ def has_drifted_field(change: FieldChange) -> bool:
     A field has drifted when old and new are both defined and equal (the bundle
     didn't intend to change it), and remote is present with a different value
     (someone edited the server state directly).
-
-    Assumes the caller has already narrowed the type with ``isinstance(change, dict)``.
     """
-    action = str(change.get("action", ""))
-    if action_to_diff_state(action) == DiffState.UNCHANGED:
+    if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return False
-    if "old" not in change or "new" not in change:
+    if change.old is UNSET or change.new is UNSET:
         return False
-    if change["old"] != change["new"]:
+    if change.old != change.new:
         return False
-    return "remote" in change and change["remote"] != change["old"]
+    return change.remote is not UNSET and change.remote != change.old
 
 
 def is_topology_drift_change(change: FieldChange) -> bool:
@@ -93,49 +91,25 @@ def is_topology_drift_change(change: FieldChange) -> bool:
     action is already ``recreate``.
 
     Mutually exclusive with ``has_drifted_field`` by construction (that one
-    requires ``"remote" in change``).
+    requires ``remote`` to be set).
     """
-    if change.get("action") != "update":
+    if change.action != ActionType.UPDATE:
         return False
-    if "old" not in change or "new" not in change:
+    if change.old is UNSET or change.new is UNSET:
         return False
-    if "remote" in change:
+    if change.remote is not UNSET:
         return False
-    return change["old"] == change["new"]
+    return change.old == change.new
 
 
-def detect_manual_edits(resources: ResourceChanges) -> bool:
+def detect_manual_edits(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
     """Check whether any resource has fields that were manually edited outside the bundle."""
-    for entry in resources.values():
-        changes = entry.get("changes", {})
-        if not isinstance(changes, dict):
-            continue
-        for change in changes.values():
-            if not isinstance(change, dict):
-                continue
-            if has_drifted_field(change):
-                return True
-    return False
+    return any(has_drifted_field(change) for entry in resources.values() for change in entry.changes.values())
 
 
-def detect_dangerous_actions(resources: ResourceChanges) -> bool:
+def detect_dangerous_actions(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
     """Check whether any stateful resource has a dangerous action (delete or recreate)."""
     return any(
-        entry.get("action") in DANGEROUS_ACTIONS and parse_resource_key(key)[0] in STATEFUL_RESOURCE_TYPES
+        entry.action in DANGEROUS_ACTIONS and parse_resource_key(key)[0] in STATEFUL_RESOURCE_TYPES
         for key, entry in resources.items()
     )
-
-
-def parse_plan(raw: str) -> Plan:
-    """Parse and validate plan JSON."""
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise DagshundError(f"invalid JSON: {exc}") from exc
-    except RecursionError as exc:
-        raise DagshundError("plan JSON is too deeply nested") from exc
-
-    if not isinstance(data, dict):
-        raise DagshundError("plan JSON must be an object")
-
-    return data

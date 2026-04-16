@@ -1,6 +1,7 @@
 """Markdown rendering of plan diffs for PR/MR comments."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
+from dataclasses import replace
 from itertools import groupby
 
 from dagshund.format import (
@@ -17,24 +18,18 @@ from dagshund.format import (
     format_field_suffix,
     format_group_header,
     group_by_resource_type,
-    is_field_changes,
     iter_non_topology_field_changes,
 )
 from dagshund.merge import merge_sub_resources
+from dagshund.model import ActionType, FieldChange, Plan, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
-    is_resource_changes,
     is_topology_drift_change,
 )
 from dagshund.types import (
     DagshundError,
     DiffState,
-    FieldChange,
-    Plan,
-    ResourceChange,
-    ResourceChanges,
-    ResourceChangesByType,
     ResourceKey,
     parse_resource_key,
 )
@@ -42,8 +37,7 @@ from dagshund.types import (
 
 def _render_field_change(field_name: str, change: FieldChange) -> str | None:
     """Render a single field-level change as a markdown list item, or None if unchanged/no-op."""
-    action = str(change.get("action", ""))
-    if action_to_diff_state(action) == DiffState.UNCHANGED:
+    if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return None
 
     suffix = format_field_suffix(change)
@@ -59,15 +53,14 @@ def _render_resource(
     entry: ResourceChange,
 ) -> Iterator[str]:
     """Render a single resource entry as markdown list items."""
-    action = entry.get("action", "")
-    cfg = action_config(action)
+    cfg = action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
 
-    label = f" \u2014 {cfg.display}" if action_to_diff_state(action) != DiffState.UNCHANGED else ""
+    label = f" \u2014 {cfg.display}" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
     yield f"- `{cfg.symbol}` `{resource_type}/{resource_name}`{label}"
 
-    changes = entry.get("changes", {})
-    if not (is_field_changes(changes) and changes and cfg.show_field_changes):
+    changes = entry.changes
+    if not (changes and cfg.show_field_changes):
         return
 
     reentries = detect_drift_reentries(changes)
@@ -80,23 +73,23 @@ def _render_resource(
             yield rendered
 
     if reentries:
-        create_cfg = action_config("create")
+        create_cfg = action_config(ActionType.CREATE)
         for key_name, change in sorted(changes.items()):
-            if not isinstance(change, dict) or not is_topology_drift_change(change):
+            if not is_topology_drift_change(change):
                 continue
             yield f"  - `{create_cfg.symbol}` `{key_name}` (re-added)"
 
 
 def _render_header(plan: Plan) -> Iterator[str]:
     """Render the plan version header."""
-    cli_version = plan.get("cli_version", "unknown")
-    plan_version = plan.get("plan_version", "?")
+    cli_version = plan.cli_version or "unknown"
+    plan_version = plan.plan_version if plan.plan_version is not None else "?"
     yield f"### dagshund plan (v{plan_version}, cli {cli_version})"
     yield ""
 
 
 def _render_resource_groups(
-    resource_groups: ResourceChangesByType,
+    resource_groups: Mapping[str, Mapping[ResourceKey, ResourceChange]],
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
@@ -114,7 +107,7 @@ def _render_resource_groups(
 
 
 def _render_summary(
-    resources: ResourceChanges,
+    resources: Mapping[ResourceKey, ResourceChange],
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
@@ -171,12 +164,10 @@ def render_markdown(
     Returns the complete markdown string. The caller decides whether to print it,
     write it to a file, or post it to an API.
     """
-    raw_resources = plan.get("plan", {})
-    if not is_resource_changes(raw_resources):
-        raise DagshundError("plan must be an object")
-    resources = merge_sub_resources(raw_resources)
+    resources = merge_sub_resources(plan.resources)
     if not resources:
         raise DagshundError("plan is empty")
+    plan = replace(plan, resources=resources)
 
     resource_filter = None
     if filter_query:

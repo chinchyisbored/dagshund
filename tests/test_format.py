@@ -1,6 +1,7 @@
 """Direct unit tests for format.py functions."""
 
 import pytest
+from factories import make_change
 
 from dagshund.format import (
     _singularize,
@@ -15,42 +16,42 @@ from dagshund.format import (
 
 
 def test_field_action_config_new_only_returns_create() -> None:
-    result = field_action_config({"action": "update", "new": "val"})
+    result = field_action_config(make_change(action="update", new="val"))
 
     assert result.display == "create"
     assert result.symbol == "+"
 
 
 def test_field_action_config_old_only_returns_delete() -> None:
-    result = field_action_config({"action": "update", "old": "val"})
+    result = field_action_config(make_change(action="update", old="val"))
 
     assert result.display == "delete"
     assert result.symbol == "-"
 
 
 def test_field_action_config_both_old_and_new_returns_base() -> None:
-    result = field_action_config({"action": "update", "old": "a", "new": "b"})
+    result = field_action_config(make_change(action="update", old="a", new="b"))
 
     assert result.display == "update"
     assert result.show_field_changes is True
 
 
 def test_field_action_config_remote_only_returns_remote() -> None:
-    result = field_action_config({"action": "update", "remote": "val"})
+    result = field_action_config(make_change(action="update", remote="val"))
 
     assert result.display == "remote"
     assert result.symbol == "="
 
 
 def test_field_action_config_non_field_action_passes_through() -> None:
-    result = field_action_config({"action": "create", "new": "val"})
+    result = field_action_config(make_change(action="create", new="val"))
 
     assert result.display == "create"
     assert result.symbol == "+"
 
 
 def test_field_action_config_unknown_action_returns_default() -> None:
-    result = field_action_config({"action": "bogus"})
+    result = field_action_config(make_change(action="bogus"))
 
     assert result.display == "unknown"
     assert result.symbol == "?"
@@ -60,55 +61,43 @@ def test_field_action_config_unknown_action_returns_default() -> None:
 
 
 def test_format_field_suffix_drift_shows_remote_to_new() -> None:
-    change = {"old": "val", "new": "val", "remote": "drifted"}
-
-    result = format_field_suffix(change)
+    result = format_field_suffix(make_change(old="val", new="val", remote="drifted"))
 
     assert result == ': "drifted" -> "val" (drift)'
 
 
 def test_format_field_suffix_noop_returns_none() -> None:
-    change = {"old": "same", "new": "same"}
-
-    result = format_field_suffix(change)
+    result = format_field_suffix(make_change(old="same", new="same"))
 
     assert result is None
 
 
 def test_format_field_suffix_remote_only() -> None:
-    change = {"remote": "server_val"}
-
-    result = format_field_suffix(change)
+    result = format_field_suffix(make_change(remote="server_val"))
 
     assert result == ': "server_val" (remote)'
 
 
 def test_format_field_suffix_transition() -> None:
-    change = {"old": "before", "new": "after"}
-
-    result = format_field_suffix(change)
+    result = format_field_suffix(make_change(old="before", new="after"))
 
     assert result == ': "before" -> "after"'
 
 
 def test_format_field_suffix_new_only() -> None:
-    change = {"new": "added_val"}
-
-    result = format_field_suffix(change)
+    result = format_field_suffix(make_change(new="added_val"))
 
     assert result == ': "added_val"'
 
 
 def test_format_field_suffix_old_only() -> None:
-    change = {"old": "removed_val"}
-
-    result = format_field_suffix(change)
+    result = format_field_suffix(make_change(old="removed_val"))
 
     assert result == ': "removed_val"'
 
 
 def test_format_field_suffix_no_values_returns_empty() -> None:
-    result = format_field_suffix({})
+    result = format_field_suffix(make_change())
 
     assert result == ""
 
@@ -134,7 +123,7 @@ def test_format_field_suffix_transition_collapses_large_lists() -> None:
     old = [{"task_key": f"t{i}"} for i in range(5)]
     new = [{"task_key": f"t{i}"} for i in range(8)]
 
-    result = format_field_suffix({"old": old, "new": new})
+    result = format_field_suffix(make_change(old=old, new=new))
 
     assert result == ": [5 items] -> [8 items]"
 

@@ -4,13 +4,20 @@ import sys
 from pathlib import Path
 
 import pytest
+from factories import (
+    make_change,
+    make_plan,
+    make_resource,
+    plan_from_dict,
+    resources_from_dict,
+)
 
 from dagshund import (
+    ActionType,
     DagshundError,
     DiffState,
     action_to_diff_state,
     detect_changes,
-    is_sub_resource_key,
     merge_sub_resources,
     parse_resource_key,
 )
@@ -55,46 +62,29 @@ from dagshund.terminal import (
     render_text,
 )
 
-# --- is_sub_resource_key ---
-
-
-@pytest.mark.parametrize(
-    ("key", "expected"),
-    [
-        ("resources.jobs.test_job", False),
-        ("resources.jobs.test_job.permissions", True),
-        ("resources.jobs.test_job.grants.extra", True),
-        ("resources.jobs", False),
-        ("resources", False),
-        ("", False),
-    ],
-    ids=["three_segments", "four_segments", "five_segments", "two_segments", "one_segment", "empty"],
-)
-def test_is_sub_resource_key(key: str, *, expected: bool) -> None:
-    assert is_sub_resource_key(key) == expected
-
-
 # --- render_text merges sub-resources (integration) ---
 
 
 def test_render_text_merges_sub_resources(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = {
-        "plan_version": 2,
-        "cli_version": "0.292.0",
-        "plan": {
-            "resources.jobs.test_job": {"action": "skip"},
-            "resources.jobs.test_job.permissions": {
-                "action": "update",
-                "changes": {
-                    "permissions[group_name='users'].permission_level": {
-                        "action": "update",
-                        "old": "CAN_VIEW",
-                        "new": "CAN_MANAGE",
+    plan = plan_from_dict(
+        {
+            "plan_version": 2,
+            "cli_version": "0.292.0",
+            "plan": {
+                "resources.jobs.test_job": {"action": "skip"},
+                "resources.jobs.test_job.permissions": {
+                    "action": "update",
+                    "changes": {
+                        "permissions[group_name='users'].permission_level": {
+                            "action": "update",
+                            "old": "CAN_VIEW",
+                            "new": "CAN_MANAGE",
+                        },
                     },
                 },
             },
-        },
-    }
+        }
+    )
 
     render_text(plan)
 
@@ -107,19 +97,21 @@ def test_render_text_merges_sub_resources(capsys: pytest.CaptureFixture[str]) ->
 
 
 def test_detect_changes_true_after_merge_promotes_parent() -> None:
-    resources = {
-        "resources.jobs.my_job": {"action": "skip"},
-        "resources.jobs.my_job.permissions": {
-            "action": "update",
-            "changes": {
-                "permissions[group_name='users'].permission_level": {
-                    "action": "update",
-                    "old": "CAN_VIEW",
-                    "new": "CAN_MANAGE",
+    resources = resources_from_dict(
+        {
+            "resources.jobs.my_job": {"action": "skip"},
+            "resources.jobs.my_job.permissions": {
+                "action": "update",
+                "changes": {
+                    "permissions[group_name='users'].permission_level": {
+                        "action": "update",
+                        "old": "CAN_VIEW",
+                        "new": "CAN_MANAGE",
+                    },
                 },
             },
-        },
-    }
+        }
+    )
 
     # Before merge: parent is skip, no changes detected
     assert detect_changes({"resources.jobs.my_job": resources["resources.jobs.my_job"]}) is False
@@ -186,15 +178,15 @@ def test_colorize_returns_plain_when_disabled() -> None:
 @pytest.mark.parametrize(
     ("action", "expected"),
     [
-        ("create", ActionConfig("create", "+")),
-        ("delete", ActionConfig("delete", "-")),
-        ("update", ActionConfig("update", "~", show_field_changes=True)),
-        ("recreate", ActionConfig("recreate", "~", show_field_changes=True)),
-        ("resize", ActionConfig("resize", "~", show_field_changes=True)),
-        ("update_id", ActionConfig("update_id", "~", show_field_changes=True)),
-        ("skip", ActionConfig("unchanged", "=")),
-        ("", ActionConfig("unchanged", "=")),
-        ("unknown_action", DEFAULT_ACTION),
+        (ActionType.CREATE, ActionConfig("create", "+")),
+        (ActionType.DELETE, ActionConfig("delete", "-")),
+        (ActionType.UPDATE, ActionConfig("update", "~", show_field_changes=True)),
+        (ActionType.RECREATE, ActionConfig("recreate", "~", show_field_changes=True)),
+        (ActionType.RESIZE, ActionConfig("resize", "~", show_field_changes=True)),
+        (ActionType.UPDATE_ID, ActionConfig("update_id", "~", show_field_changes=True)),
+        (ActionType.SKIP, ActionConfig("unchanged", "=")),
+        (ActionType.EMPTY, ActionConfig("unchanged", "=")),
+        (ActionType.UNKNOWN, DEFAULT_ACTION),
     ],
     ids=[
         "create",
@@ -208,7 +200,7 @@ def test_colorize_returns_plain_when_disabled() -> None:
         "unknown",
     ],
 )
-def test_action_config(action: str, expected: ActionConfig) -> None:
+def test_action_config(action: ActionType, expected: ActionConfig) -> None:
     assert action_config(action) == expected
 
 
@@ -313,7 +305,7 @@ def test_render_field_change_large_dict_shows_summary() -> None:
             "job_run_id": "{{job.parameters.job_run_id}}",
         },
     }
-    change = {"action": "create", "new": large_dict}
+    change = make_change(action="create", new=large_dict)
 
     result = _render_field_change("run_job_task", change, use_color=False)
 
@@ -326,7 +318,7 @@ def test_render_field_change_large_dict_shows_summary() -> None:
 
 
 def test_render_field_change_long_old_and_new_shows_ellipsis() -> None:
-    change = {"action": "update", "old": "a" * 50, "new": "b" * 50}
+    change = make_change(action="update", old="a" * 50, new="b" * 50)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -335,7 +327,7 @@ def test_render_field_change_long_old_and_new_shows_ellipsis() -> None:
 
 
 def test_render_field_change_long_new_short_old_preserves_short() -> None:
-    change = {"action": "update", "old": None, "new": "a" * 50}
+    change = make_change(action="update", old=None, new="a" * 50)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -344,7 +336,7 @@ def test_render_field_change_long_new_short_old_preserves_short() -> None:
 
 
 def test_render_field_change_long_old_short_new_preserves_short() -> None:
-    change = {"action": "update", "old": "a" * 50, "new": 42}
+    change = make_change(action="update", old="a" * 50, new=42)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -353,7 +345,7 @@ def test_render_field_change_long_old_short_new_preserves_short() -> None:
 
 
 def test_render_field_change_short_string_old_long_new_preserves_short() -> None:
-    change = {"action": "update", "old": "short text", "new": "a" * 50}
+    change = make_change(action="update", old="short text", new="a" * 50)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -362,7 +354,7 @@ def test_render_field_change_short_string_old_long_new_preserves_short() -> None
 
 
 def test_render_field_change_long_old_null_new_preserves_null() -> None:
-    change = {"action": "update", "old": "a" * 50, "new": None}
+    change = make_change(action="update", old="a" * 50, new=None)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -371,7 +363,7 @@ def test_render_field_change_long_old_null_new_preserves_null() -> None:
 
 
 def test_render_field_change_long_new_only_shows_ellipsis() -> None:
-    change = {"action": "create", "new": "a" * 50}
+    change = make_change(action="create", new="a" * 50)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -380,7 +372,7 @@ def test_render_field_change_long_new_only_shows_ellipsis() -> None:
 
 
 def test_render_field_change_short_values_show_inline() -> None:
-    change = {"action": "update", "old": "short", "new": "also short"}
+    change = make_change(action="update", old="short", new="also short")
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -389,7 +381,7 @@ def test_render_field_change_short_values_show_inline() -> None:
 
 
 def test_render_field_change_long_old_missing_new_shows_ellipsis() -> None:
-    change = {"action": "delete", "old": "a" * 50}
+    change = make_change(action="delete", old="a" * 50)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -399,7 +391,7 @@ def test_render_field_change_long_old_missing_new_shows_ellipsis() -> None:
 
 
 def test_render_field_change_dict_old_long_new_preserves_dict() -> None:
-    change = {"action": "update", "old": {"a": 1}, "new": "b" * 50}
+    change = make_change(action="update", old={"a": 1}, new="b" * 50)
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -408,7 +400,7 @@ def test_render_field_change_dict_old_long_new_preserves_dict() -> None:
 
 
 def test_render_field_change_no_old_no_new_shows_field_only() -> None:
-    change = {"action": "update"}
+    change = make_change(action="update")
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -417,7 +409,7 @@ def test_render_field_change_no_old_no_new_shows_field_only() -> None:
 
 
 def test_render_field_change_unchanged_returns_none() -> None:
-    change = {"action": "skip"}
+    change = make_change(action="skip")
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -425,7 +417,7 @@ def test_render_field_change_unchanged_returns_none() -> None:
 
 
 def test_render_field_change_drift_shows_remote_to_new() -> None:
-    change = {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"}
+    change = make_change(action="update", old="UI_LOCKED", new="UI_LOCKED", remote="EDITABLE")
 
     result = _render_field_change("edit_mode", change, use_color=False)
 
@@ -435,7 +427,7 @@ def test_render_field_change_drift_shows_remote_to_new() -> None:
 
 
 def test_render_field_change_noop_old_equals_new_no_remote_suppressed() -> None:
-    change = {"action": "update", "old": {"key": "val"}, "new": {"key": "val"}}
+    change = make_change(action="update", old={"key": "val"}, new={"key": "val"})
 
     result = _render_field_change("task", change, use_color=False)
 
@@ -443,7 +435,7 @@ def test_render_field_change_noop_old_equals_new_no_remote_suppressed() -> None:
 
 
 def test_render_field_change_noop_old_equals_new_equals_remote_suppressed() -> None:
-    change = {"action": "update", "old": "A", "new": "A", "remote": "A"}
+    change = make_change(action="update", old="A", new="A", remote="A")
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -451,7 +443,7 @@ def test_render_field_change_noop_old_equals_new_equals_remote_suppressed() -> N
 
 
 def test_render_field_change_remote_only_shows_remote_value() -> None:
-    change = {"action": "update", "remote": {"no_alert": False}}
+    change = make_change(action="update", remote={"no_alert": False})
 
     result = _render_field_change("email_notifications", change, use_color=False)
 
@@ -461,7 +453,7 @@ def test_render_field_change_remote_only_shows_remote_value() -> None:
 
 
 def test_render_field_change_remote_only_scalar_shows_value() -> None:
-    change = {"action": "update", "remote": "PERFORMANCE_OPTIMIZED"}
+    change = make_change(action="update", remote="PERFORMANCE_OPTIMIZED")
 
     result = _render_field_change("performance_target", change, use_color=False)
 
@@ -472,7 +464,7 @@ def test_render_field_change_remote_only_scalar_shows_value() -> None:
 
 def test_render_field_change_remote_only_shows_remote_symbol() -> None:
     """Field with action='update' but only 'remote' should show '=' not '~'."""
-    change = {"action": "update", "remote": "PERFORMANCE_OPTIMIZED"}
+    change = make_change(action="update", remote="PERFORMANCE_OPTIMIZED")
 
     result = _render_field_change("performance_target", change, use_color=False)
 
@@ -482,7 +474,7 @@ def test_render_field_change_remote_only_shows_remote_symbol() -> None:
 
 def test_render_field_change_update_new_only_shows_create_symbol() -> None:
     """Field with action='update' but only 'new' should show '+' not '~'."""
-    change = {"action": "update", "new": {"job_id": 0, "task_key": "my_task"}}
+    change = make_change(action="update", new={"job_id": 0, "task_key": "my_task"})
 
     result = _render_field_change("tasks[task_key='my_task']", change, use_color=False)
 
@@ -492,7 +484,7 @@ def test_render_field_change_update_new_only_shows_create_symbol() -> None:
 
 def test_render_field_change_update_old_only_shows_delete_symbol() -> None:
     """Field with action='update' but only 'old' should show '-' not '~'."""
-    change = {"action": "update", "old": "removed_value"}
+    change = make_change(action="update", old="removed_value")
 
     result = _render_field_change("deprecated_field", change, use_color=False)
 
@@ -502,7 +494,7 @@ def test_render_field_change_update_old_only_shows_delete_symbol() -> None:
 
 def test_render_field_change_update_both_old_and_new_shows_update_symbol() -> None:
     """Field with action='update' and both 'old' and 'new' keeps '~'."""
-    change = {"action": "update", "old": "before", "new": "after"}
+    change = make_change(action="update", old="before", new="after")
 
     result = _render_field_change("field", change, use_color=False)
 
@@ -514,7 +506,7 @@ def test_render_field_change_update_both_old_and_new_shows_update_symbol() -> No
 
 
 def test_render_resource_create_action() -> None:
-    lines = list(_render_resource("resources.jobs.etl", {"action": "create"}, use_color=False))
+    lines = list(_render_resource("resources.jobs.etl", make_resource(action="create"), use_color=False))
 
     assert len(lines) == 1
     assert "+ jobs/etl" in lines[0]
@@ -522,20 +514,20 @@ def test_render_resource_create_action() -> None:
 
 
 def test_render_resource_delete_action() -> None:
-    lines = list(_render_resource("resources.jobs.old", {"action": "delete"}, use_color=False))
+    lines = list(_render_resource("resources.jobs.old", make_resource(action="delete"), use_color=False))
 
     assert "- jobs/old" in lines[0]
     assert "(delete)" in lines[0]
 
 
 def test_render_resource_update_shows_field_changes() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "max_concurrent_runs": {"action": "update", "old": 1, "new": 5},
-            "skipped_field": {"action": "skip"},
+    entry = make_resource(
+        action="update",
+        changes={
+            "max_concurrent_runs": make_change(action="update", old=1, new=5),
+            "skipped_field": make_change(action="skip"),
         },
-    }
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -547,10 +539,10 @@ def test_render_resource_update_shows_field_changes() -> None:
 
 
 def test_render_resource_field_change_new_only() -> None:
-    entry = {
-        "action": "update",
-        "changes": {"new_field": {"action": "create", "new": "value"}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"new_field": make_change(action="create", new="value")},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -559,10 +551,10 @@ def test_render_resource_field_change_new_only() -> None:
 
 
 def test_render_resource_field_change_old_only() -> None:
-    entry = {
-        "action": "update",
-        "changes": {"removed_field": {"action": "delete", "old": "gone"}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"removed_field": make_change(action="delete", old="gone")},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -571,7 +563,7 @@ def test_render_resource_field_change_old_only() -> None:
 
 
 def test_render_resource_skip_action_omits_label() -> None:
-    lines = list(_render_resource("resources.jobs.stable", {"action": "skip"}, use_color=False))
+    lines = list(_render_resource("resources.jobs.stable", make_resource(action="skip"), use_color=False))
 
     assert "= jobs/stable" in lines[0]
     assert "(skip)" not in lines[0]
@@ -579,17 +571,17 @@ def test_render_resource_skip_action_omits_label() -> None:
 
 
 def test_render_resource_empty_action_shows_unchanged() -> None:
-    lines = list(_render_resource("resources.jobs.stable", {"action": ""}, use_color=False))
+    lines = list(_render_resource("resources.jobs.stable", make_resource(action=""), use_color=False))
 
     assert "= jobs/stable" in lines[0]
     assert "(unchanged)" not in lines[0]
 
 
 def test_render_resource_field_change_null_old_shows_transition() -> None:
-    entry = {
-        "action": "update",
-        "changes": {"field": {"action": "update", "old": None, "new": "value"}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"field": make_change(action="update", old=None, new="value")},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -600,10 +592,10 @@ def test_render_resource_field_change_null_old_shows_transition() -> None:
 
 
 def test_render_resource_field_change_null_new_shows_transition() -> None:
-    entry = {
-        "action": "update",
-        "changes": {"field": {"action": "update", "old": "value", "new": None}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"field": make_change(action="update", old="value", new=None)},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -621,10 +613,10 @@ def test_render_resource_field_change_both_null_surfaces_as_topology_drift() -> 
     is_topology_drift_change catches it and the renderer surfaces it as a re-add,
     which matches the JS port (structural-diff.ts:35).
     """
-    entry = {
-        "action": "update",
-        "changes": {"field": {"action": "update", "old": None, "new": None}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"field": make_change(action="update", old=None, new=None)},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -633,7 +625,7 @@ def test_render_resource_field_change_both_null_surfaces_as_topology_drift() -> 
 
 
 def test_render_resource_with_color_includes_ansi() -> None:
-    lines = list(_render_resource("resources.jobs.etl", {"action": "create"}, use_color=True))
+    lines = list(_render_resource("resources.jobs.etl", make_resource(action="create"), use_color=True))
 
     assert GREEN in lines[0]
     assert RESET in lines[0]
@@ -645,10 +637,10 @@ def test_render_resource_with_color_includes_ansi() -> None:
     ids=["recreate", "resize", "update_id"],
 )
 def test_render_resource_update_action_shows_field_changes(action: str) -> None:
-    entry = {
-        "action": action,
-        "changes": {"threshold": {"action": "update", "old": 10, "new": 20}},
-    }
+    entry = make_resource(
+        action=action,
+        changes={"threshold": make_change(action="update", old=10, new=20)},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -660,10 +652,10 @@ def test_render_resource_update_action_shows_field_changes(action: str) -> None:
 
 
 def test_render_resource_field_change_no_old_no_new() -> None:
-    entry = {
-        "action": "update",
-        "changes": {"mystery_field": {"action": "update"}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"mystery_field": make_change(action="update")},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -674,10 +666,10 @@ def test_render_resource_field_change_no_old_no_new() -> None:
 
 def test_render_resource_field_change_missing_action_key() -> None:
     """Field change dict without an action key falls back to default (unchanged)."""
-    entry = {
-        "action": "update",
-        "changes": {"orphan_field": {"old": 1, "new": 2}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"orphan_field": make_change(old=1, new=2)},
+    )
 
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
 
@@ -686,7 +678,7 @@ def test_render_resource_field_change_missing_action_key() -> None:
 
 
 def test_render_resource_non_dict_changes_skips_field_details() -> None:
-    entry = {"action": "update", "changes": "should_be_object"}
+    entry = make_resource(action="update")
 
     lines = list(_render_resource("resources.jobs.etl", entry, use_color=False))
 
@@ -695,13 +687,12 @@ def test_render_resource_non_dict_changes_skips_field_details() -> None:
 
 
 def test_render_resource_non_dict_change_entry_skips_that_field() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "good_field": {"action": "update", "old": 1, "new": 2},
-            "bad_field": "not_a_dict",
+    entry = make_resource(
+        action="update",
+        changes={
+            "good_field": make_change(action="update", old=1, new=2),
         },
-    }
+    )
 
     lines = list(_render_resource("resources.jobs.etl", entry, use_color=False))
 
@@ -714,28 +705,30 @@ def test_render_resource_non_dict_change_entry_skips_that_field() -> None:
 
 
 def test_count_by_action_mixed() -> None:
-    entries = {
-        "a": {"action": "create"},
-        "b": {"action": "create"},
-        "c": {"action": "delete"},
-        "d": {"action": "update"},
-    }
+    entries = resources_from_dict(
+        {
+            "a": {"action": "create"},
+            "b": {"action": "create"},
+            "c": {"action": "delete"},
+            "d": {"action": "update"},
+        }
+    )
 
     assert count_by_action(entries) == {
-        action_config("create"): 2,
-        action_config("delete"): 1,
-        action_config("update"): 1,
+        action_config(ActionType.CREATE): 2,
+        action_config(ActionType.DELETE): 1,
+        action_config(ActionType.UPDATE): 1,
     }
 
 
 def test_count_by_action_skip_becomes_unchanged() -> None:
-    entries = {"a": {"action": "skip"}, "b": {"action": "skip"}}
-    assert count_by_action(entries) == {action_config("skip"): 2}
+    entries = resources_from_dict({"a": {"action": "skip"}, "b": {"action": "skip"}})
+    assert count_by_action(entries) == {action_config(ActionType.SKIP): 2}
 
 
 def test_count_by_action_empty_becomes_unchanged() -> None:
-    entries = {"a": {"action": ""}, "b": {}}
-    assert count_by_action(entries) == {action_config(""): 2}
+    entries = resources_from_dict({"a": {"action": ""}, "b": {}})
+    assert count_by_action(entries) == {action_config(ActionType.EMPTY): 2}
 
 
 def test_count_by_action_empty_input() -> None:
@@ -746,7 +739,7 @@ def test_count_by_action_empty_input() -> None:
 
 
 def test_print_header_shows_version_info(capsys: pytest.CaptureFixture[str]) -> None:
-    _print_header({"cli_version": "0.287.0", "plan_version": 2}, use_color=False)
+    _print_header(make_plan(cli_version="0.287.0", plan_version=2), use_color=False)
 
     out = capsys.readouterr().out
     assert "v2" in out
@@ -754,7 +747,7 @@ def test_print_header_shows_version_info(capsys: pytest.CaptureFixture[str]) -> 
 
 
 def test_print_header_defaults_when_missing(capsys: pytest.CaptureFixture[str]) -> None:
-    _print_header({}, use_color=False)
+    _print_header(make_plan(), use_color=False)
 
     out = capsys.readouterr().out
     assert "unknown" in out
@@ -765,11 +758,13 @@ def test_print_header_defaults_when_missing(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_group_by_resource_type_groups_correctly() -> None:
-    plan = {
-        "resources.jobs.a": {"action": "create"},
-        "resources.jobs.b": {"action": "delete"},
-        "resources.schemas.c": {"action": "update"},
-    }
+    plan = resources_from_dict(
+        {
+            "resources.jobs.a": {"action": "create"},
+            "resources.jobs.b": {"action": "delete"},
+            "resources.schemas.c": {"action": "update"},
+        }
+    )
 
     result = group_by_resource_type(plan)
 
@@ -786,7 +781,7 @@ def test_group_by_resource_type_empty_plan() -> None:
 
 
 def test_print_resource_groups_renders_type_header_and_entries(capsys: pytest.CaptureFixture[str]) -> None:
-    by_type = {"jobs": {"resources.jobs.etl": {"action": "create"}}}
+    by_type = {"jobs": resources_from_dict({"resources.jobs.etl": {"action": "create"}})}
 
     _print_resource_groups(by_type, use_color=False)
 
@@ -797,8 +792,8 @@ def test_print_resource_groups_renders_type_header_and_entries(capsys: pytest.Ca
 
 def test_print_resource_groups_multiple_types(capsys: pytest.CaptureFixture[str]) -> None:
     by_type = {
-        "alerts": {"resources.alerts.a": {"action": "delete"}},
-        "jobs": {"resources.jobs.etl": {"action": "create"}},
+        "alerts": resources_from_dict({"resources.alerts.a": {"action": "delete"}}),
+        "jobs": resources_from_dict({"resources.jobs.etl": {"action": "create"}}),
     }
 
     _print_resource_groups(by_type, use_color=False)
@@ -820,7 +815,7 @@ def test_print_resource_groups_empty_dict(capsys: pytest.CaptureFixture[str]) ->
 
 
 def test_print_summary_shows_action_counts(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = {"a": {"action": "create"}, "b": {"action": "delete"}}
+    plan = resources_from_dict({"a": {"action": "create"}, "b": {"action": "delete"}})
 
     _print_summary(plan, use_color=False)
 
@@ -830,7 +825,7 @@ def test_print_summary_shows_action_counts(capsys: pytest.CaptureFixture[str]) -
 
 
 def test_print_summary_unchanged_uses_dim_style(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = {"a": {"action": "create"}, "b": {"action": "skip"}}
+    plan = resources_from_dict({"a": {"action": "create"}, "b": {"action": "skip"}})
 
     _print_summary(plan, use_color=False)
 
@@ -847,7 +842,7 @@ def test_print_summary_empty_plan(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_print_summary_all_same_action(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = {"a": {"action": "create"}, "b": {"action": "create"}}
+    plan = resources_from_dict({"a": {"action": "create"}, "b": {"action": "create"}})
 
     _print_summary(plan, use_color=False)
 
@@ -859,28 +854,18 @@ def test_print_summary_all_same_action(capsys: pytest.CaptureFixture[str]) -> No
 # --- render_text (integration) ---
 
 
-def test_render_text_non_dict_plan_raises_error() -> None:
-    with pytest.raises(DagshundError, match="plan must be an object"):
-        render_text({"plan": "not_a_dict"})
-
-
-def test_render_text_list_plan_raises_error() -> None:
-    with pytest.raises(DagshundError, match="plan must be an object"):
-        render_text({"plan": [1, 2, 3]})
-
-
 def test_render_text_empty_plan_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
-        render_text({"plan": {}})
+        render_text(plan_from_dict({"plan": {}}))
 
 
 def test_render_text_missing_plan_key_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
-        render_text({"cli_version": "1.0"})
+        render_text(plan_from_dict({"cli_version": "1.0"}))
 
 
 def test_render_text_all_unchanged_shows_no_changes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "no-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "no-changes" / "plan.json").read_text()))
 
     render_text(plan)
 
@@ -894,7 +879,7 @@ def test_render_text_all_unchanged_shows_no_changes(fixtures_dir: Path, capsys: 
 
 
 def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFixture[str]) -> None:
-    render_text(json.loads(real_plan_json))
+    render_text(plan_from_dict(json.loads(real_plan_json)))
 
     out = capsys.readouterr().out
     assert "etl_pipeline" in out
@@ -906,7 +891,7 @@ def test_render_text_real_fixture(real_plan_json: str, capsys: pytest.CaptureFix
 
 
 def test_render_text_mixed_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
     render_text(plan)
 
@@ -917,7 +902,7 @@ def test_render_text_mixed_plan_fixture(fixtures_dir: Path, capsys: pytest.Captu
 
 
 def test_render_text_sample_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "all-create" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "all-create" / "plan.json").read_text()))
 
     render_text(plan)
 
@@ -927,7 +912,7 @@ def test_render_text_sample_plan_fixture(fixtures_dir: Path, capsys: pytest.Capt
 
 
 def test_render_text_invalid_plan_fixture(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "invalid-plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "invalid-plan.json").read_text()))
 
     render_text(plan)
 
@@ -941,7 +926,7 @@ def test_render_text_force_color_includes_ansi(
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setenv("FORCE_COLOR", "1")
 
-    render_text(json.loads(real_plan_json))
+    render_text(plan_from_dict(json.loads(real_plan_json)))
 
     out = capsys.readouterr().out
     assert RESET in out
@@ -952,7 +937,7 @@ def test_render_text_no_color_excludes_ansi(
 ) -> None:
     monkeypatch.setenv("NO_COLOR", "")
 
-    render_text(json.loads(real_plan_json))
+    render_text(plan_from_dict(json.loads(real_plan_json)))
 
     out = capsys.readouterr().out
     assert RESET not in out
@@ -964,19 +949,19 @@ def test_render_text_no_color_excludes_ansi(
 @pytest.mark.parametrize(
     ("action", "expected"),
     [
-        ("create", DiffState.ADDED),
-        ("delete", DiffState.REMOVED),
-        ("update", DiffState.MODIFIED),
-        ("recreate", DiffState.MODIFIED),
-        ("resize", DiffState.MODIFIED),
-        ("update_id", DiffState.MODIFIED),
-        ("skip", DiffState.UNCHANGED),
-        ("", DiffState.UNCHANGED),
-        ("unknown_action", DiffState.UNKNOWN),
+        (ActionType.CREATE, DiffState.ADDED),
+        (ActionType.DELETE, DiffState.REMOVED),
+        (ActionType.UPDATE, DiffState.MODIFIED),
+        (ActionType.RECREATE, DiffState.MODIFIED),
+        (ActionType.RESIZE, DiffState.MODIFIED),
+        (ActionType.UPDATE_ID, DiffState.MODIFIED),
+        (ActionType.SKIP, DiffState.UNCHANGED),
+        (ActionType.EMPTY, DiffState.UNCHANGED),
+        (ActionType.UNKNOWN, DiffState.UNKNOWN),
     ],
     ids=["create", "delete", "update", "recreate", "resize", "update_id", "skip", "empty", "unknown"],
 )
-def test_action_to_diff_state(action: str, expected: DiffState) -> None:
+def test_action_to_diff_state(action: ActionType, expected: DiffState) -> None:
     assert action_to_diff_state(action) == expected
 
 
@@ -990,11 +975,13 @@ def test_all_diff_states_reachable_from_actions() -> None:
 
 
 def test_filter_resources_by_state_keeps_matching() -> None:
-    entries = {
-        "resources.jobs.a": {"action": "create"},
-        "resources.jobs.b": {"action": "skip"},
-        "resources.jobs.c": {"action": "delete"},
-    }
+    entries = resources_from_dict(
+        {
+            "resources.jobs.a": {"action": "create"},
+            "resources.jobs.b": {"action": "skip"},
+            "resources.jobs.c": {"action": "delete"},
+        }
+    )
 
     result = filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
 
@@ -1002,11 +989,13 @@ def test_filter_resources_by_state_keeps_matching() -> None:
 
 
 def test_filter_resources_by_state_multiple_states() -> None:
-    entries = {
-        "resources.jobs.a": {"action": "create"},
-        "resources.jobs.b": {"action": "delete"},
-        "resources.jobs.c": {"action": "skip"},
-    }
+    entries = resources_from_dict(
+        {
+            "resources.jobs.a": {"action": "create"},
+            "resources.jobs.b": {"action": "delete"},
+            "resources.jobs.c": {"action": "skip"},
+        }
+    )
 
     result = filter_resources(entries, visible_states=frozenset({DiffState.ADDED, DiffState.REMOVED}))
 
@@ -1014,7 +1003,7 @@ def test_filter_resources_by_state_multiple_states() -> None:
 
 
 def test_filter_resources_by_state_returns_empty_when_none_match() -> None:
-    entries = {"resources.jobs.a": {"action": "skip"}}
+    entries = resources_from_dict({"resources.jobs.a": {"action": "skip"}})
 
     result = filter_resources(entries, visible_states=frozenset({DiffState.ADDED}))
 
@@ -1022,13 +1011,15 @@ def test_filter_resources_by_state_returns_empty_when_none_match() -> None:
 
 
 def test_filter_resources_by_state_modified_includes_all_update_actions() -> None:
-    entries = {
-        "resources.jobs.a": {"action": "update"},
-        "resources.jobs.b": {"action": "recreate"},
-        "resources.jobs.c": {"action": "resize"},
-        "resources.jobs.d": {"action": "update_id"},
-        "resources.jobs.e": {"action": "skip"},
-    }
+    entries = resources_from_dict(
+        {
+            "resources.jobs.a": {"action": "update"},
+            "resources.jobs.b": {"action": "recreate"},
+            "resources.jobs.c": {"action": "resize"},
+            "resources.jobs.d": {"action": "update_id"},
+            "resources.jobs.e": {"action": "skip"},
+        }
+    )
 
     result = filter_resources(entries, visible_states=frozenset({DiffState.MODIFIED}))
 
@@ -1037,10 +1028,12 @@ def test_filter_resources_by_state_modified_includes_all_update_actions() -> Non
 
 
 def test_filter_resources_by_predicate_keeps_matching() -> None:
-    entries = {
-        "resources.jobs.a": {"action": "create"},
-        "resources.jobs.b": {"action": "skip"},
-    }
+    entries = resources_from_dict(
+        {
+            "resources.jobs.a": {"action": "create"},
+            "resources.jobs.b": {"action": "skip"},
+        }
+    )
 
     result = filter_resources(entries, resource_filter=lambda k, _v: "jobs.a" in k)
 
@@ -1048,11 +1041,13 @@ def test_filter_resources_by_predicate_keeps_matching() -> None:
 
 
 def test_filter_resources_both_filters_compose_as_and() -> None:
-    entries = {
-        "resources.jobs.a": {"action": "create"},
-        "resources.jobs.b": {"action": "create"},
-        "resources.jobs.c": {"action": "skip"},
-    }
+    entries = resources_from_dict(
+        {
+            "resources.jobs.a": {"action": "create"},
+            "resources.jobs.b": {"action": "create"},
+            "resources.jobs.c": {"action": "skip"},
+        }
+    )
 
     result = filter_resources(
         entries,
@@ -1081,8 +1076,8 @@ def test_print_resource_groups_visible_states_hides_unchanged_groups(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     by_type = {
-        "jobs": {"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "skip"}},
-        "alerts": {"resources.alerts.a": {"action": "create"}},
+        "jobs": resources_from_dict({"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "skip"}}),
+        "alerts": resources_from_dict({"resources.alerts.a": {"action": "create"}}),
     }
 
     _print_resource_groups(by_type, use_color=False, visible_states=frozenset({DiffState.ADDED}))
@@ -1096,10 +1091,12 @@ def test_print_resource_groups_visible_states_shows_partial_count(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     by_type = {
-        "experiments": {
-            "resources.experiments.a": {"action": "skip"},
-            "resources.experiments.b": {"action": "create"},
-        },
+        "experiments": resources_from_dict(
+            {
+                "resources.experiments.a": {"action": "skip"},
+                "resources.experiments.b": {"action": "create"},
+            }
+        ),
     }
 
     _print_resource_groups(by_type, use_color=False, visible_states=frozenset({DiffState.ADDED}))
@@ -1114,7 +1111,7 @@ def test_print_resource_groups_no_visible_states_shows_all(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     by_type = {
-        "jobs": {"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "create"}},
+        "jobs": resources_from_dict({"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "create"}}),
     }
 
     _print_resource_groups(by_type, use_color=False)
@@ -1129,7 +1126,7 @@ def test_print_resource_groups_no_visible_states_shows_all(
 
 
 def test_render_text_changes_only_hides_unchanged(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
     all_changes = frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
 
     render_text(plan, visible_states=all_changes)
@@ -1146,7 +1143,7 @@ def test_render_text_changes_only_hides_unchanged(fixtures_dir: Path, capsys: py
 
 
 def test_render_text_added_only_shows_creates(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
     render_text(plan, visible_states=frozenset({DiffState.ADDED}))
 
@@ -1159,7 +1156,7 @@ def test_render_text_added_only_shows_creates(fixtures_dir: Path, capsys: pytest
 
 
 def test_render_text_removed_only_shows_deletes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
     render_text(plan, visible_states=frozenset({DiffState.REMOVED}))
 
@@ -1170,7 +1167,7 @@ def test_render_text_removed_only_shows_deletes(fixtures_dir: Path, capsys: pyte
 
 
 def test_render_text_no_visible_states_shows_everything(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
     render_text(plan)
 
@@ -1184,7 +1181,7 @@ def test_render_text_no_visible_states_shows_everything(fixtures_dir: Path, caps
 
 
 def test_collect_warnings_detects_stateful_delete() -> None:
-    resources = {"resources.volumes.imports": {"action": "delete"}}
+    resources = resources_from_dict({"resources.volumes.imports": {"action": "delete"}})
 
     warnings = collect_warnings(resources)
 
@@ -1195,7 +1192,7 @@ def test_collect_warnings_detects_stateful_delete() -> None:
 
 
 def test_collect_warnings_detects_stateful_recreate() -> None:
-    resources = {"resources.schemas.analytics": {"action": "recreate"}}
+    resources = resources_from_dict({"resources.schemas.analytics": {"action": "recreate"}})
 
     warnings = collect_warnings(resources)
 
@@ -1206,19 +1203,19 @@ def test_collect_warnings_detects_stateful_recreate() -> None:
 
 
 def test_collect_warnings_ignores_non_stateful_delete() -> None:
-    resources = {"resources.jobs.etl": {"action": "delete"}}
+    resources = resources_from_dict({"resources.jobs.etl": {"action": "delete"}})
 
     assert collect_warnings(resources) == []
 
 
 def test_collect_warnings_ignores_stateful_update() -> None:
-    resources = {"resources.schemas.analytics": {"action": "update"}}
+    resources = resources_from_dict({"resources.schemas.analytics": {"action": "update"}})
 
     assert collect_warnings(resources) == []
 
 
 def test_collect_warnings_ignores_stateful_skip() -> None:
-    resources = {"resources.volumes.data": {"action": "skip"}}
+    resources = resources_from_dict({"resources.volumes.data": {"action": "skip"}})
 
     assert collect_warnings(resources) == []
 
@@ -1247,7 +1244,7 @@ def test_collect_warnings_ignores_stateful_skip() -> None:
     ],
 )
 def test_collect_warnings_all_stateful_types(resource_type: str, expected_risk: str) -> None:
-    resources = {f"resources.{resource_type}.x": {"action": "delete"}}
+    resources = resources_from_dict({f"resources.{resource_type}.x": {"action": "delete"}})
 
     warnings = collect_warnings(resources)
 
@@ -1256,10 +1253,12 @@ def test_collect_warnings_all_stateful_types(resource_type: str, expected_risk: 
 
 
 def test_collect_warnings_respects_visible_states_filter() -> None:
-    resources = {
-        "resources.volumes.imports": {"action": "delete"},
-        "resources.schemas.analytics": {"action": "recreate"},
-    }
+    resources = resources_from_dict(
+        {
+            "resources.volumes.imports": {"action": "delete"},
+            "resources.schemas.analytics": {"action": "recreate"},
+        }
+    )
 
     warnings = collect_warnings(resources, visible_states=frozenset({DiffState.REMOVED}))
 
@@ -1268,16 +1267,18 @@ def test_collect_warnings_respects_visible_states_filter() -> None:
 
 
 def test_collect_warnings_empty_when_filtered_out() -> None:
-    resources = {"resources.volumes.imports": {"action": "delete"}}
+    resources = resources_from_dict({"resources.volumes.imports": {"action": "delete"}})
 
     assert collect_warnings(resources, visible_states=frozenset({DiffState.ADDED})) == []
 
 
 def test_collect_warnings_multiple_sorted_by_key() -> None:
-    resources = {
-        "resources.volumes.z_data": {"action": "delete"},
-        "resources.catalogs.a_main": {"action": "delete"},
-    }
+    resources = resources_from_dict(
+        {
+            "resources.volumes.z_data": {"action": "delete"},
+            "resources.catalogs.a_main": {"action": "delete"},
+        }
+    )
 
     warnings = collect_warnings(resources)
 
@@ -1289,14 +1290,14 @@ def test_collect_warnings_multiple_sorted_by_key() -> None:
 def test_collect_warnings_covers_all_dangerous_actions() -> None:
     """Every action in DANGEROUS_ACTIONS must trigger a warning on a stateful resource."""
     for action in DANGEROUS_ACTIONS:
-        resources = {"resources.schemas.test": {"action": action}}
+        resources = resources_from_dict({"resources.schemas.test": {"action": action}})
         assert collect_warnings(resources), f"action '{action}' should produce a warning"
 
 
 def test_collect_warnings_covers_all_stateful_types() -> None:
     """Every type in STATEFUL_RESOURCE_TYPES must trigger a warning on delete."""
     for resource_type in STATEFUL_RESOURCE_TYPES:
-        resources = {f"resources.{resource_type}.test": {"action": "delete"}}
+        resources = resources_from_dict({f"resources.{resource_type}.test": {"action": "delete"}})
         assert collect_warnings(resources), f"resource type '{resource_type}' should produce a warning"
 
 
@@ -1331,7 +1332,7 @@ def test_print_warnings_no_color_when_disabled(capsys: pytest.CaptureFixture[str
 
 
 def test_render_text_shows_warning_for_volume_delete(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
     render_text(plan)
 
@@ -1342,7 +1343,7 @@ def test_render_text_shows_warning_for_volume_delete(fixtures_dir: Path, capsys:
 
 
 def test_render_text_warning_appears_after_summary(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
     render_text(plan)
 
@@ -1353,14 +1354,16 @@ def test_render_text_warning_appears_after_summary(fixtures_dir: Path, capsys: p
 
 
 def test_render_text_no_warnings_for_safe_plan(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = {
-        "plan_version": 2,
-        "cli_version": "0.288.0",
-        "plan": {
-            "resources.jobs.etl": {"action": "delete"},
-            "resources.alerts.old": {"action": "delete"},
-        },
-    }
+    plan = plan_from_dict(
+        {
+            "plan_version": 2,
+            "cli_version": "0.288.0",
+            "plan": {
+                "resources.jobs.etl": {"action": "delete"},
+                "resources.alerts.old": {"action": "delete"},
+            },
+        }
+    )
 
     render_text(plan)
 
@@ -1369,7 +1372,7 @@ def test_render_text_no_warnings_for_safe_plan(capsys: pytest.CaptureFixture[str
 
 
 def test_render_text_warning_hidden_when_filtered_out(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    plan = json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text())
+    plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
     render_text(plan, visible_states=frozenset({DiffState.ADDED}))
 
@@ -1378,13 +1381,15 @@ def test_render_text_warning_hidden_when_filtered_out(fixtures_dir: Path, capsys
 
 
 def test_render_text_schema_recreate_warns(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = {
-        "plan_version": 2,
-        "cli_version": "0.288.0",
-        "plan": {
-            "resources.schemas.analytics": {"action": "recreate"},
-        },
-    }
+    plan = plan_from_dict(
+        {
+            "plan_version": 2,
+            "cli_version": "0.288.0",
+            "plan": {
+                "resources.schemas.analytics": {"action": "recreate"},
+            },
+        }
+    )
 
     render_text(plan)
 
@@ -1398,54 +1403,53 @@ def test_render_text_schema_recreate_warns(capsys: pytest.CaptureFixture[str]) -
 
 
 def test_detect_drift_fields_returns_empty_for_no_changes() -> None:
-    assert detect_drift_fields(None) == []
     assert detect_drift_fields({}) == []
 
 
 def test_detect_drift_fields_returns_empty_when_old_differs_from_new() -> None:
-    changes = {"field": {"action": "update", "old": "a", "new": "b", "remote": "c"}}
+    changes = {"field": make_change(action="update", old="a", new="b", remote="c")}
     assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_returns_empty_when_old_equals_remote() -> None:
-    changes = {"field": {"action": "update", "old": "a", "new": "a", "remote": "a"}}
+    changes = {"field": make_change(action="update", old="a", new="a", remote="a")}
     assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_detects_remote_differs_from_old() -> None:
-    changes = {"edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"}}
+    changes = {"edit_mode": make_change(action="update", old="UI_LOCKED", new="UI_LOCKED", remote="EDITABLE")}
     assert detect_drift_fields(changes) == ["edit_mode"]
 
 
 def test_detect_drift_fields_remote_absent_not_drift() -> None:
-    changes = {"task": {"action": "update", "old": {"task_key": "x"}, "new": {"task_key": "x"}}}
+    changes = {"task": make_change(action="update", old={"task_key": "x"}, new={"task_key": "x"})}
     assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_skip_action() -> None:
-    changes = {"field": {"action": "skip", "old": "a", "new": "a", "remote": "b"}}
+    changes = {"field": make_change(action="skip", old="a", new="a", remote="b")}
     assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_empty_action() -> None:
-    changes = {"field": {"action": "", "old": "a", "new": "a", "remote": "b"}}
+    changes = {"field": make_change(action="", old="a", new="a", remote="b")}
     assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_entries_without_old() -> None:
-    changes = {"field": {"action": "update", "new": "a", "remote": "b"}}
+    changes = {"field": make_change(action="update", new="a", remote="b")}
     assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_skips_entries_without_new() -> None:
-    changes = {"field": {"action": "update", "old": "a", "remote": "b"}}
+    changes = {"field": make_change(action="update", old="a", remote="b")}
     assert detect_drift_fields(changes) == []
 
 
 def test_detect_drift_fields_returns_multiple_sorted() -> None:
     changes = {
-        "z_field": {"action": "update", "old": 1, "new": 1, "remote": 2},
-        "a_field": {"action": "update", "old": "x", "new": "x", "remote": "y"},
+        "z_field": make_change(action="update", old=1, new=1, remote=2),
+        "a_field": make_change(action="update", old="x", new="x", remote="y"),
     }
     assert detect_drift_fields(changes) == ["a_field", "z_field"]
 
@@ -1454,45 +1458,45 @@ def test_detect_drift_fields_returns_multiple_sorted() -> None:
 
 
 def test_render_resource_shows_drift_warning_when_drift_detected() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+    entry = make_resource(
+        action="update",
+        changes={
+            "edit_mode": make_change(action="update", old="UI_LOCKED", new="UI_LOCKED", remote="EDITABLE"),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     assert any("manually edited outside bundle" in line for line in lines)
 
 
 def test_render_resource_no_drift_warning_for_create_action() -> None:
-    entry = {
-        "action": "create",
-        "changes": {
-            "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+    entry = make_resource(
+        action="create",
+        changes={
+            "edit_mode": make_change(action="update", old="UI_LOCKED", new="UI_LOCKED", remote="EDITABLE"),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     assert not any("manually edited" in line for line in lines)
 
 
 def test_render_resource_no_drift_warning_for_delete_action() -> None:
-    entry = {
-        "action": "delete",
-        "changes": {
-            "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+    entry = make_resource(
+        action="delete",
+        changes={
+            "edit_mode": make_change(action="update", old="UI_LOCKED", new="UI_LOCKED", remote="EDITABLE"),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     assert not any("manually edited" in line for line in lines)
 
 
 def test_render_resource_no_drift_warning_when_no_drift() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "max_concurrent_runs": {"action": "update", "old": 1, "new": 5},
+    entry = make_resource(
+        action="update",
+        changes={
+            "max_concurrent_runs": make_change(action="update", old=1, new=5),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     assert not any("manually edited" in line for line in lines)
 
@@ -1524,37 +1528,36 @@ def test_extract_drift_label_noun(key: str, expected: tuple[str, str]) -> None:
 
 def test_detect_drift_reentries_empty_returns_empty_list() -> None:
     assert detect_drift_reentries({}) == []
-    assert detect_drift_reentries(None) == []
 
 
 def test_detect_drift_reentries_single_topology_drift_entry() -> None:
     changes = {
-        "tasks[task_key='transform']": {
-            "action": "update",
-            "old": {"task_key": "transform"},
-            "new": {"task_key": "transform"},
-        },
+        "tasks[task_key='transform']": make_change(
+            action="update",
+            old={"task_key": "transform"},
+            new={"task_key": "transform"},
+        ),
     }
     assert detect_drift_reentries(changes) == [("task", "transform")]
 
 
 def test_detect_drift_reentries_skips_field_drift_and_skip_actions() -> None:
     changes = {
-        "tasks[task_key='transform']": {
-            "action": "update",
-            "old": {"task_key": "transform"},
-            "new": {"task_key": "transform"},
-        },
-        "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
-        "noise": {"action": "skip", "remote": 0},
+        "tasks[task_key='transform']": make_change(
+            action="update",
+            old={"task_key": "transform"},
+            new={"task_key": "transform"},
+        ),
+        "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
+        "noise": make_change(action="skip", remote=0),
     }
     assert detect_drift_reentries(changes) == [("task", "transform")]
 
 
 def test_detect_drift_reentries_sort_stability() -> None:
     """Insertion order must not bleed through — results are sorted by (noun, label)."""
-    entry_zulu = {"action": "update", "old": {"x": 1}, "new": {"x": 1}}
-    entry_alpha = {"action": "update", "old": {"y": 2}, "new": {"y": 2}}
+    entry_zulu = make_change(action="update", old={"x": 1}, new={"x": 1})
+    entry_alpha = make_change(action="update", old={"y": 2}, new={"y": 2})
     changes = {
         "tasks[task_key='zulu']": entry_zulu,
         "tasks[task_key='alpha']": entry_alpha,
@@ -1564,8 +1567,8 @@ def test_detect_drift_reentries_sort_stability() -> None:
 
 def test_detect_drift_reentries_multiple_same_noun() -> None:
     changes = {
-        "tasks[task_key='alpha']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
-        "tasks[task_key='beta']": {"action": "update", "old": {"b": 2}, "new": {"b": 2}},
+        "tasks[task_key='alpha']": make_change(action="update", old={"a": 1}, new={"a": 1}),
+        "tasks[task_key='beta']": make_change(action="update", old={"b": 2}, new={"b": 2}),
     }
     pairs = detect_drift_reentries(changes)
     assert pairs == [("task", "alpha"), ("task", "beta")]
@@ -1576,9 +1579,9 @@ def test_detect_drift_reentries_multiple_same_noun() -> None:
 
 def test_iter_non_topology_field_changes_sorts_and_skips_topology() -> None:
     changes = {
-        "zeta": {"action": "update", "old": 1, "new": 2},
-        "alpha": {"action": "update", "old": 3, "new": 4},
-        "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
+        "zeta": make_change(action="update", old=1, new=2),
+        "alpha": make_change(action="update", old=3, new=4),
+        "tasks[task_key='t']": make_change(action="update", old={"a": 1}, new={"a": 1}),
     }
     result = list(iter_non_topology_field_changes(changes))
     assert [name for name, _ in result] == ["alpha", "zeta"]
@@ -1586,31 +1589,24 @@ def test_iter_non_topology_field_changes_sorts_and_skips_topology() -> None:
 
 def test_iter_non_topology_field_changes_retains_field_drift_entries() -> None:
     changes = {
-        "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
+        "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
     }
     result = list(iter_non_topology_field_changes(changes))
     assert len(result) == 1
     assert result[0][0] == "edit_mode"
 
 
-def test_iter_non_topology_field_changes_skips_non_dict_entries() -> None:
-    # FieldChange is typed as dict, but the runtime check must still guard against it.
-    changes: dict[str, object] = {"garbage": "not a dict", "real": {"action": "update", "old": 1, "new": 2}}
-    result = list(iter_non_topology_field_changes(changes))  # type: ignore[arg-type]
-    assert [name for name, _ in result] == ["real"]
-
-
 # --- _summarize_resource_drift ---
 
 
 def test_summarize_resource_drift_field_only() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "edit_mode": {"action": "update", "old": "X", "new": "X", "remote": "Y"},
-            "field_b": {"action": "update", "old": 1, "new": 1, "remote": 2},
+    entry = make_resource(
+        action="update",
+        changes={
+            "edit_mode": make_change(action="update", old="X", new="X", remote="Y"),
+            "field_b": make_change(action="update", old=1, new=1, remote=2),
         },
-    }
+    )
     summary = _summarize_resource_drift("resources.jobs.pipeline", entry)
     assert summary == DriftSummary(
         resource_type="jobs",
@@ -1621,12 +1617,12 @@ def test_summarize_resource_drift_field_only() -> None:
 
 
 def test_summarize_resource_drift_topology_only() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
+    entry = make_resource(
+        action="update",
+        changes={
+            "tasks[task_key='t']": make_change(action="update", old={"a": 1}, new={"a": 1}),
         },
-    }
+    )
     summary = _summarize_resource_drift("resources.jobs.pipeline", entry)
     assert summary is not None
     assert summary.overwritten_field_count == 0
@@ -1634,21 +1630,21 @@ def test_summarize_resource_drift_topology_only() -> None:
 
 
 def test_summarize_resource_drift_returns_none_for_no_drift() -> None:
-    entry = {
-        "action": "update",
-        "changes": {"max_concurrent_runs": {"action": "update", "old": 1, "new": 5}},
-    }
+    entry = make_resource(
+        action="update",
+        changes={"max_concurrent_runs": make_change(action="update", old=1, new=5)},
+    )
     assert _summarize_resource_drift("resources.jobs.pipeline", entry) is None
 
 
 def test_summarize_resource_drift_returns_none_for_skip_only_changes() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "foo": {"action": "skip", "reason": "empty", "remote": {}},
-            "bar": {"action": "skip", "reason": "backend_default", "remote": "X"},
+    entry = make_resource(
+        action="update",
+        changes={
+            "foo": make_change(action="skip", reason="empty", remote={}),
+            "bar": make_change(action="skip", reason="backend_default", remote="X"),
         },
-    }
+    )
     assert _summarize_resource_drift("resources.jobs.pipeline", entry) is None
 
 
@@ -1657,13 +1653,13 @@ def test_summarize_resource_drift_returns_none_for_skip_only_changes() -> None:
 
 def test_collect_drift_summaries_field_only_resource() -> None:
     resources = {
-        "resources.jobs.pipeline": {
-            "action": "update",
-            "changes": {
-                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
-                "field_b": {"action": "update", "old": 1, "new": 1, "remote": 2},
+        "resources.jobs.pipeline": make_resource(
+            action="update",
+            changes={
+                "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
+                "field_b": make_change(action="update", old=1, new=1, remote=2),
             },
-        },
+        ),
     }
     summaries = collect_drift_summaries(resources)
     assert len(summaries) == 1
@@ -1675,22 +1671,22 @@ def test_collect_drift_summaries_field_only_resource() -> None:
 
 def test_collect_drift_summaries_returns_empty_for_no_drift() -> None:
     resources = {
-        "resources.jobs.pipeline": {
-            "action": "update",
-            "changes": {"max_concurrent_runs": {"action": "update", "old": 1, "new": 5}},
-        },
+        "resources.jobs.pipeline": make_resource(
+            action="update",
+            changes={"max_concurrent_runs": make_change(action="update", old=1, new=5)},
+        ),
     }
     assert collect_drift_summaries(resources) == []
 
 
 def test_collect_drift_summaries_topology_only() -> None:
     resources = {
-        "resources.jobs.pipeline": {
-            "action": "update",
-            "changes": {
-                "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
+        "resources.jobs.pipeline": make_resource(
+            action="update",
+            changes={
+                "tasks[task_key='t']": make_change(action="update", old={"a": 1}, new={"a": 1}),
             },
-        },
+        ),
     }
     summaries = collect_drift_summaries(resources)
     assert len(summaries) == 1
@@ -1700,13 +1696,13 @@ def test_collect_drift_summaries_topology_only() -> None:
 
 def test_collect_drift_summaries_mixed_field_and_topology() -> None:
     resources = {
-        "resources.jobs.pipeline": {
-            "action": "update",
-            "changes": {
-                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
-                "tasks[task_key='t']": {"action": "update", "old": {"a": 1}, "new": {"a": 1}},
+        "resources.jobs.pipeline": make_resource(
+            action="update",
+            changes={
+                "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
+                "tasks[task_key='t']": make_change(action="update", old={"a": 1}, new={"a": 1}),
             },
-        },
+        ),
     }
     summaries = collect_drift_summaries(resources)
     assert len(summaries) == 1
@@ -1716,24 +1712,24 @@ def test_collect_drift_summaries_mixed_field_and_topology() -> None:
 
 def test_collect_drift_summaries_respects_visible_states() -> None:
     resources = {
-        "resources.jobs.pipeline": {
-            "action": "update",
-            "changes": {
-                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
+        "resources.jobs.pipeline": make_resource(
+            action="update",
+            changes={
+                "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
             },
-        },
+        ),
     }
     assert collect_drift_summaries(resources, visible_states=frozenset({DiffState.ADDED})) == []
 
 
 def test_collect_drift_summaries_respects_resource_filter() -> None:
     resources = {
-        "resources.jobs.pipeline": {
-            "action": "update",
-            "changes": {
-                "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
+        "resources.jobs.pipeline": make_resource(
+            action="update",
+            changes={
+                "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
             },
-        },
+        ),
     }
     assert collect_drift_summaries(resources, resource_filter=lambda k, _: "other" in k) == []
 
@@ -1749,12 +1745,12 @@ def test_collect_drift_summaries_respects_resource_filter() -> None:
     ],
 )
 def test_render_resource_topology_drift_emits_single_reentry_line(change_key: str, expected_token: str) -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            change_key: {"action": "update", "old": {"x": 1}, "new": {"x": 1}},
+    entry = make_resource(
+        action="update",
+        changes={
+            change_key: make_change(action="update", old={"x": 1}, new={"x": 1}),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     matching = [line for line in lines if expected_token in line]
     assert len(matching) == 1
@@ -1764,13 +1760,13 @@ def test_render_resource_topology_drift_emits_single_reentry_line(change_key: st
 
 
 def test_render_resource_mixed_field_and_topology_drift() -> None:
-    entry = {
-        "action": "update",
-        "changes": {
-            "edit_mode": {"action": "update", "old": "UI", "new": "UI", "remote": "EDITABLE"},
-            "tasks[task_key='transform']": {"action": "update", "old": {"x": 1}, "new": {"x": 1}},
+    entry = make_resource(
+        action="update",
+        changes={
+            "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
+            "tasks[task_key='transform']": make_change(action="update", old={"x": 1}, new={"x": 1}),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     assert any("manually edited outside bundle" in line for line in lines)
     assert any("edit_mode" in line and "(drift)" in line for line in lines)
@@ -1778,12 +1774,12 @@ def test_render_resource_mixed_field_and_topology_drift() -> None:
 
 
 def test_render_resource_topology_drift_not_emitted_under_create_action() -> None:
-    entry = {
-        "action": "create",
-        "changes": {
-            "tasks[task_key='transform']": {"action": "update", "old": {"x": 1}, "new": {"x": 1}},
+    entry = make_resource(
+        action="create",
+        changes={
+            "tasks[task_key='transform']": make_change(action="update", old={"x": 1}, new={"x": 1}),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     assert not any("(re-added)" in line for line in lines)
 
@@ -1797,12 +1793,12 @@ def test_render_resource_topology_drift_not_emitted_under_recreate_action() -> N
     old==new/no-remote shape, action=recreate on the change itself blocks the
     re-add path.
     """
-    entry = {
-        "action": "recreate",
-        "changes": {
-            "tasks[task_key='transform']": {"action": "recreate", "old": {"x": 1}, "new": {"x": 1}},
+    entry = make_resource(
+        action="recreate",
+        changes={
+            "tasks[task_key='transform']": make_change(action="recreate", old={"x": 1}, new={"x": 1}),
         },
-    }
+    )
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     assert not any("(re-added)" in line for line in lines)
 
@@ -1812,22 +1808,24 @@ def test_render_resource_topology_drift_not_emitted_under_recreate_action() -> N
 
 def test_render_text_shows_drift_section(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
-    plan = {
-        "plan": {
-            "resources.jobs.drift_pipeline": {
-                "action": "update",
-                "changes": {
-                    "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
-                    "owner": {"action": "update", "old": "x", "new": "x", "remote": "y"},
-                    "tasks[task_key='transform']": {
-                        "action": "update",
-                        "old": {"task_key": "transform"},
-                        "new": {"task_key": "transform"},
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.drift_pipeline": {
+                    "action": "update",
+                    "changes": {
+                        "edit_mode": {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"},
+                        "owner": {"action": "update", "old": "x", "new": "x", "remote": "y"},
+                        "tasks[task_key='transform']": {
+                            "action": "update",
+                            "old": {"task_key": "transform"},
+                            "new": {"task_key": "transform"},
+                        },
                     },
                 },
             },
-        },
-    }
+        }
+    )
 
     render_text(plan)
 
@@ -1848,25 +1846,27 @@ def test_render_text_shows_drift_section_multiple_reentries_same_noun(
 ) -> None:
     """Two topology-drift tasks on one resource → '2 tasks will be re-added (alpha, beta)'."""
     monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
-    plan = {
-        "plan": {
-            "resources.jobs.drift_pipeline": {
-                "action": "update",
-                "changes": {
-                    "tasks[task_key='alpha']": {
-                        "action": "update",
-                        "old": {"task_key": "alpha"},
-                        "new": {"task_key": "alpha"},
-                    },
-                    "tasks[task_key='beta']": {
-                        "action": "update",
-                        "old": {"task_key": "beta"},
-                        "new": {"task_key": "beta"},
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.drift_pipeline": {
+                    "action": "update",
+                    "changes": {
+                        "tasks[task_key='alpha']": {
+                            "action": "update",
+                            "old": {"task_key": "alpha"},
+                            "new": {"task_key": "alpha"},
+                        },
+                        "tasks[task_key='beta']": {
+                            "action": "update",
+                            "old": {"task_key": "beta"},
+                            "new": {"task_key": "beta"},
+                        },
                     },
                 },
             },
-        },
-    }
+        }
+    )
 
     render_text(plan)
 
@@ -1925,7 +1925,7 @@ def test_detect_terminal_width_fallback_80_on_value_error(monkeypatch: pytest.Mo
 
 def test_wrap_transition_normal_splits_at_arrow() -> None:
     prefix = "      ~ config"
-    change = {"action": "update", "old": {"a": 1, "b": 2}, "new": {"a": 1, "b": 3}}
+    change = make_change(action="update", old={"a": 1, "b": 2}, new={"a": 1, "b": 3})
 
     result = _wrap_transition(prefix, change)
 
@@ -1938,7 +1938,7 @@ def test_wrap_transition_normal_splits_at_arrow() -> None:
 
 def test_wrap_transition_drift_includes_annotation() -> None:
     prefix = "      ~ edit_mode"
-    change = {"action": "update", "old": "UI_LOCKED", "new": "UI_LOCKED", "remote": "EDITABLE"}
+    change = make_change(action="update", old="UI_LOCKED", new="UI_LOCKED", remote="EDITABLE")
 
     result = _wrap_transition(prefix, change)
 
@@ -1951,21 +1951,21 @@ def test_wrap_transition_drift_includes_annotation() -> None:
 
 def test_wrap_transition_returns_none_for_single_value() -> None:
     prefix = "      + field"
-    change = {"action": "create", "new": "value"}
+    change = make_change(action="create", new="value")
 
     assert _wrap_transition(prefix, change) is None
 
 
 def test_wrap_transition_returns_none_for_noop() -> None:
     prefix = "      ~ field"
-    change = {"action": "update", "old": "same", "new": "same"}
+    change = make_change(action="update", old="same", new="same")
 
     assert _wrap_transition(prefix, change) is None
 
 
 def test_wrap_transition_truncates_long_strings() -> None:
     prefix = "      ~ field"
-    change = {"action": "update", "old": "a" * 50, "new": "b" * 50}
+    change = make_change(action="update", old="a" * 50, new="b" * 50)
 
     result = _wrap_transition(prefix, change)
 
@@ -2003,11 +2003,11 @@ def test_wrap_warning_line_long_wraps_at_word_boundary() -> None:
 
 
 def test_render_field_change_wraps_transition_at_narrow_width() -> None:
-    change = {
-        "action": "update",
-        "old": {"key1": "value1", "key2": "value2"},
-        "new": {"key1": "value1", "key2": "changed"},
-    }
+    change = make_change(
+        action="update",
+        old={"key1": "value1", "key2": "value2"},
+        new={"key1": "value1", "key2": "changed"},
+    )
 
     result = _render_field_change("configuration", change, use_color=False, width=60)
 
@@ -2017,7 +2017,7 @@ def test_render_field_change_wraps_transition_at_narrow_width() -> None:
 
 
 def test_render_field_change_no_wrap_when_line_fits() -> None:
-    change = {"action": "update", "old": 1, "new": 2}
+    change = make_change(action="update", old=1, new=2)
 
     result = _render_field_change("x", change, use_color=False, width=80)
 
@@ -2027,11 +2027,11 @@ def test_render_field_change_no_wrap_when_line_fits() -> None:
 
 def test_render_field_change_no_wrap_below_min_width() -> None:
     """Width below _MIN_WRAP_WIDTH (60) disables smart wrapping."""
-    change = {
-        "action": "update",
-        "old": {"key1": "value1", "key2": "value2"},
-        "new": {"key1": "value1", "key2": "changed"},
-    }
+    change = make_change(
+        action="update",
+        old={"key1": "value1", "key2": "value2"},
+        new={"key1": "value1", "key2": "changed"},
+    )
 
     result = _render_field_change("configuration", change, use_color=False, width=40)
 
@@ -2042,7 +2042,7 @@ def test_render_field_change_no_wrap_below_min_width() -> None:
 
 def test_render_field_change_no_wrap_at_exact_boundary() -> None:
     """Line that exactly equals width should not wrap."""
-    change = {"action": "update", "old": "a", "new": "b"}
+    change = make_change(action="update", old="a", new="b")
 
     result = _render_field_change("f", change, use_color=False, width=None)
     assert result is not None
@@ -2056,11 +2056,11 @@ def test_render_field_change_no_wrap_at_exact_boundary() -> None:
 
 
 def test_render_field_change_color_spans_wrapped_newline() -> None:
-    change = {
-        "action": "update",
-        "old": {"key1": "value1", "key2": "value2"},
-        "new": {"key1": "value1", "key2": "changed"},
-    }
+    change = make_change(
+        action="update",
+        old={"key1": "value1", "key2": "value2"},
+        new={"key1": "value1", "key2": "changed"},
+    )
 
     result = _render_field_change("configuration", change, use_color=True, width=60)
 
@@ -2076,11 +2076,11 @@ def test_render_field_change_color_spans_wrapped_newline() -> None:
 
 def test_render_field_change_width_none_no_wrapping() -> None:
     """Default width=None produces same output as original behavior."""
-    change = {
-        "action": "update",
-        "old": {"key1": "value1", "key2": "value2"},
-        "new": {"key1": "value1", "key2": "changed"},
-    }
+    change = make_change(
+        action="update",
+        old={"key1": "value1", "key2": "value2"},
+        new={"key1": "value1", "key2": "changed"},
+    )
 
     result = _render_field_change("configuration", change, use_color=False, width=None)
 
@@ -2097,17 +2097,19 @@ def test_render_text_default_width_matches_original(
     """render_text with width detection disabled should produce identical output to the original."""
     monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
     monkeypatch.setattr("dagshund.terminal._detect_terminal_width", lambda: 200)
-    plan = {
-        "plan": {
-            "resources.jobs.etl_pipeline": {
-                "action": "update",
-                "changes": {
-                    "owner": {"action": "update", "old": "alice@example.com", "new": "bob@example.com"},
-                    "timeout": {"action": "update", "old": 3600, "new": 7200},
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl_pipeline": {
+                    "action": "update",
+                    "changes": {
+                        "owner": {"action": "update", "old": "alice@example.com", "new": "bob@example.com"},
+                        "timeout": {"action": "update", "old": 3600, "new": 7200},
+                    },
                 },
             },
-        },
-    }
+        }
+    )
 
     render_text(plan)
 
@@ -2123,20 +2125,22 @@ def test_render_text_narrow_width_wraps_transitions(
 ) -> None:
     monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
     monkeypatch.setattr("dagshund.terminal._detect_terminal_width", lambda: 65)
-    plan = {
-        "plan": {
-            "resources.jobs.etl_pipeline": {
-                "action": "update",
-                "changes": {
-                    "config": {
-                        "action": "update",
-                        "old": {"key1": "value1", "key2": "value2"},
-                        "new": {"key1": "changed1", "key2": "changed2"},
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl_pipeline": {
+                    "action": "update",
+                    "changes": {
+                        "config": {
+                            "action": "update",
+                            "old": {"key1": "value1", "key2": "value2"},
+                            "new": {"key1": "changed1", "key2": "changed2"},
+                        },
                     },
                 },
             },
-        },
-    }
+        }
+    )
 
     render_text(plan)
 

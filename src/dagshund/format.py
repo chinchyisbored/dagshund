@@ -5,8 +5,8 @@ from collections import Counter
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from itertools import groupby
-from typing import TypeGuard
 
+from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
 from dagshund.plan import (
     DANGEROUS_ACTIONS,
     STATEFUL_RESOURCE_WARNINGS,
@@ -16,19 +16,10 @@ from dagshund.plan import (
 )
 from dagshund.types import (
     DiffState,
-    FieldChange,
-    ResourceChange,
-    ResourceChanges,
-    ResourceChangesByType,
     ResourceKey,
     ResourceType,
     parse_resource_key,
 )
-
-
-def is_field_changes(value: object) -> TypeGuard[dict[str, FieldChange]]:
-    """Narrow the untyped 'changes' value from a resource entry so iteration preserves key/value types."""
-    return isinstance(value, dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,23 +42,23 @@ class DriftSummary:
     reentries: tuple[tuple[str, str], ...]
 
 
-ACTIONS: dict[str, ActionConfig] = {
-    "": ActionConfig("unchanged", "="),
-    "create": ActionConfig("create", "+"),
-    "delete": ActionConfig("delete", "-"),
-    "update": ActionConfig("update", "~", show_field_changes=True),
-    "recreate": ActionConfig("recreate", "~", show_field_changes=True),
-    "resize": ActionConfig("resize", "~", show_field_changes=True),
-    "update_id": ActionConfig("update_id", "~", show_field_changes=True),
-    "skip": ActionConfig("unchanged", "="),
+ACTIONS: dict[ActionType, ActionConfig] = {
+    ActionType.EMPTY: ActionConfig("unchanged", "="),
+    ActionType.CREATE: ActionConfig("create", "+"),
+    ActionType.DELETE: ActionConfig("delete", "-"),
+    ActionType.UPDATE: ActionConfig("update", "~", show_field_changes=True),
+    ActionType.RECREATE: ActionConfig("recreate", "~", show_field_changes=True),
+    ActionType.RESIZE: ActionConfig("resize", "~", show_field_changes=True),
+    ActionType.UPDATE_ID: ActionConfig("update_id", "~", show_field_changes=True),
+    ActionType.SKIP: ActionConfig("unchanged", "="),
 }
 
 REMOTE_ONLY_ACTION = ActionConfig("remote", "=")
 DEFAULT_ACTION = ActionConfig("unknown", "?")
 
 
-def action_config(action: str) -> ActionConfig:
-    """Return the display config for an action string."""
+def action_config(action: ActionType) -> ActionConfig:
+    """Return the display config for an action."""
     return ACTIONS.get(action, DEFAULT_ACTION)
 
 
@@ -79,19 +70,18 @@ def field_action_config(change: FieldChange) -> ActionConfig:
     Derive the effective action from the data shape: new-only → create, old-only → delete,
     both → update.
     """
-    action = str(change.get("action", ""))
-    base = ACTIONS.get(action, DEFAULT_ACTION)
+    base = ACTIONS.get(change.action, DEFAULT_ACTION)
 
     # Only override for actions that show field changes — resource-level symbols are fine
     if not base.show_field_changes:
         return base
 
-    has_old, has_new = "old" in change, "new" in change
+    has_old, has_new = change.old is not UNSET, change.new is not UNSET
     if has_new and not has_old:
-        return ACTIONS["create"]
+        return ACTIONS[ActionType.CREATE]
     if has_old and not has_new:
-        return ACTIONS["delete"]
-    if not has_old and not has_new and "remote" in change:
+        return ACTIONS[ActionType.DELETE]
+    if not has_old and not has_new and change.remote is not UNSET:
         return REMOTE_ONLY_ACTION
     return base
 
@@ -166,36 +156,34 @@ def _format_collection_summary(value: dict | list) -> str:
 
 def format_field_suffix(change: FieldChange) -> str | None:
     """Compute the display suffix for a field change, or None to suppress."""
-    old, new = change.get("old"), change.get("new")
-    has_old, has_new = "old" in change, "new" in change
-    remote = change.get("remote")
-    has_remote = "remote" in change
+    has_old, has_new = change.old is not UNSET, change.new is not UNSET
+    has_remote = change.remote is not UNSET
 
     # Drift: old == new but remote differs — show what the deploy will overwrite
-    if has_old and has_new and old == new and has_remote and remote != old:
-        return f": {format_value(remote)} -> {format_value(new)} (drift)"
+    if has_old and has_new and change.old == change.new and has_remote and change.remote != change.old:
+        return f": {format_value(change.remote)} -> {format_value(change.new)} (drift)"
 
     # No-op: old == new with no meaningful remote difference — suppress
-    if has_old and has_new and old == new:
+    if has_old and has_new and change.old == change.new:
         return None
 
     # Remote-only: server has a value the bundle doesn't manage
     if not has_old and not has_new and has_remote:
-        return f": {format_value(remote)} (remote)"
+        return f": {format_value(change.remote)} (remote)"
 
     if has_old and has_new:
-        return format_transition(old, new)
+        return format_transition(change.old, change.new)
     if has_new:
-        return f": {format_display_value(new)}"
+        return f": {format_display_value(change.new)}"
     if has_old:
-        return f": {format_display_value(old)}"
+        return f": {format_display_value(change.old)}"
     return ""
 
 
 # --- Data pipeline ---
 
 
-def detect_drift_fields(changes: Mapping[str, FieldChange] | None) -> list[str]:
+def detect_drift_fields(changes: Mapping[str, FieldChange]) -> list[str]:
     """Detect fields where the server state diverged from the bundle's expectation.
 
     A field has drifted when old and new are both defined and equal (bundle didn't
@@ -203,9 +191,7 @@ def detect_drift_fields(changes: Mapping[str, FieldChange] | None) -> list[str]:
     """
     if not changes:
         return []
-    return sorted(
-        field_name for field_name, change in changes.items() if isinstance(change, dict) and has_drifted_field(change)
-    )
+    return sorted(field_name for field_name, change in changes.items() if has_drifted_field(change))
 
 
 # Captures optional noun segment + single-quoted label in final bracket group.
@@ -241,15 +227,13 @@ def _extract_drift_label_noun(key: str) -> tuple[str, str]:
 
 
 def detect_drift_reentries(
-    changes: Mapping[str, FieldChange] | None,
+    changes: Mapping[str, FieldChange],
 ) -> list[tuple[str, str]]:
     """Return topology-drift ``(noun, label)`` pairs, sorted for stable output."""
     if not changes:
         return []
     pairs: list[tuple[str, str]] = []
     for key, change in changes.items():
-        if not isinstance(change, dict):
-            continue
         if not is_topology_drift_change(change):
             continue
         pairs.append(_extract_drift_label_noun(key))
@@ -266,8 +250,6 @@ def iter_non_topology_field_changes(
     terminal and markdown renderers.
     """
     for name, change in sorted(changes.items()):
-        if not isinstance(change, dict):
-            continue
         if is_topology_drift_change(change):
             continue
         yield name, change
@@ -278,7 +260,9 @@ def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType
     return parse_resource_key(entry[0])[0]
 
 
-def group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType:
+def group_by_resource_type(
+    resources: Mapping[ResourceKey, ResourceChange],
+) -> dict[ResourceType, dict[ResourceKey, ResourceChange]]:
     """Group plan entries by their resource type (jobs, schemas, etc.)."""
     sorted_entries = sorted(resources.items(), key=_resource_type_of)
     grouped = groupby(sorted_entries, key=_resource_type_of)
@@ -286,14 +270,14 @@ def group_by_resource_type(resources: ResourceChanges) -> ResourceChangesByType:
 
 
 def iter_visible_resources(
-    resources: ResourceChanges,
+    resources: Mapping[ResourceKey, ResourceChange],
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> Iterator[tuple[ResourceKey, ResourceChange]]:
     """Yield (key, entry) pairs matching the visibility filters."""
     for key, entry in sorted(resources.items()):
-        if visible_states is not None and action_to_diff_state(entry.get("action", "")) not in visible_states:
+        if visible_states is not None and action_to_diff_state(entry.action) not in visible_states:
             continue
         if resource_filter is not None and not resource_filter(key, entry):
             continue
@@ -301,11 +285,11 @@ def iter_visible_resources(
 
 
 def filter_resources(
-    entries: ResourceChanges,
+    entries: Mapping[ResourceKey, ResourceChange],
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
-) -> ResourceChanges:
+) -> dict[ResourceKey, ResourceChange]:
     """Return entries matching both the diff state set and the resource filter predicate."""
     return dict(
         iter_visible_resources(
@@ -316,9 +300,9 @@ def filter_resources(
     )
 
 
-def count_by_action(entries: ResourceChanges) -> dict[ActionConfig, int]:
+def count_by_action(entries: Mapping[ResourceKey, ResourceChange]) -> dict[ActionConfig, int]:
     """Count resources grouped by action config."""
-    return dict(Counter(action_config(entry.get("action", "")) for entry in entries.values()))
+    return dict(Counter(action_config(entry.action) for entry in entries.values()))
 
 
 def format_group_header(resource_type: ResourceType, total: int, visible: int) -> str:
@@ -328,7 +312,7 @@ def format_group_header(resource_type: ResourceType, total: int, visible: int) -
 
 
 def collect_warnings(
-    resources: ResourceChanges,
+    resources: Mapping[ResourceKey, ResourceChange],
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
@@ -340,25 +324,21 @@ def collect_warnings(
         visible_states=visible_states,
         resource_filter=resource_filter,
     ):
-        action = entry.get("action", "")
-        if action not in DANGEROUS_ACTIONS:
+        if entry.action not in DANGEROUS_ACTIONS:
             continue
         resource_type, resource_name = parse_resource_key(key)
         risk = STATEFUL_RESOURCE_WARNINGS.get(resource_type)
         if risk is None:
             continue
-        action_display = action_config(action).display
+        action_display = action_config(entry.action).display
         warnings.append(f"{resource_type}/{resource_name} will be {action_display}d \u2014 {risk}")
     return warnings
 
 
 def _summarize_resource_drift(key: ResourceKey, entry: ResourceChange) -> DriftSummary | None:
     """Build a DriftSummary for one resource, or None when nothing drifted."""
-    changes = entry.get("changes", {})
-    if not is_field_changes(changes):
-        return None
-    overwritten = len(detect_drift_fields(changes))
-    reentries = tuple(detect_drift_reentries(changes))
+    overwritten = len(detect_drift_fields(entry.changes))
+    reentries = tuple(detect_drift_reentries(entry.changes))
     if overwritten == 0 and not reentries:
         return None
     resource_type, resource_name = parse_resource_key(key)
@@ -371,7 +351,7 @@ def _summarize_resource_drift(key: ResourceKey, entry: ResourceChange) -> DriftS
 
 
 def collect_drift_summaries(
-    resources: ResourceChanges,
+    resources: Mapping[ResourceKey, ResourceChange],
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
