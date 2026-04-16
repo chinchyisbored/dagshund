@@ -21,7 +21,7 @@ variables:
 # --- Top-level workflow rules ---
 # Three-lane pipeline model:
 #   1. Merge request  → full CI (quality, golden, security, dependency-scan)
-#   2. Push to main   → pages deploy only (MR already validated the code)
+#   2. Push to main   → quality (for coverage badge) → pages deploy
 #   3. Tag push       → release (version-check, build, smoke-wheel, publish)
 # Feature-branch pushes produce no pipeline — the MR is the gate.
 workflow:
@@ -117,6 +117,8 @@ quality:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    # Main push: feeds the coverage badge and gates `pages` below.
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
   script:
     - bun run --cwd js biome check src/ tests/
     - uv run ruff check src/ tests/
@@ -265,6 +267,8 @@ publish:
 pages:
   extends: .release-setup
   stage: pages
+  needs:
+    - quality
   rules:
     # Only re-deploy when something that affects the rendered site changed.
     # js/**          → bun-built template
