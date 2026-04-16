@@ -1,5 +1,3 @@
-"""Plan parsing, change detection, and drift predicates."""
-
 from collections.abc import Mapping
 
 from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
@@ -36,12 +34,6 @@ STATEFUL_RESOURCE_TYPES: frozenset[str] = frozenset(STATEFUL_RESOURCE_WARNINGS)
 
 
 def action_to_diff_state(action: ActionType) -> DiffState:
-    """Map an action to its diff state category.
-
-    Action vocabulary is duplicated in two other locations:
-    - format.py: ACTIONS dict (display config per action)
-    - js/src/types/plan-schema.ts: knownActionTypes (Zod schema)
-    """
     match action:
         case ActionType.CREATE:
             return DiffState.ADDED
@@ -56,7 +48,6 @@ def action_to_diff_state(action: ActionType) -> DiffState:
 
 
 def detect_changes(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
-    """Check whether any resource has a non-skip action (i.e., drift detected)."""
     return any(entry.action not in (ActionType.SKIP, ActionType.EMPTY) for entry in resources.values())
 
 
@@ -102,12 +93,10 @@ def is_topology_drift_change(change: FieldChange) -> bool:
 
 
 def detect_manual_edits(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
-    """Check whether any resource has fields that were manually edited outside the bundle."""
     return any(has_drifted_field(change) for entry in resources.values() for change in entry.changes.values())
 
 
 def detect_dangerous_actions(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
-    """Check whether any stateful resource has a dangerous action (delete or recreate)."""
     return any(
         entry.action in DANGEROUS_ACTIONS and parse_resource_key(key)[0] in STATEFUL_RESOURCE_TYPES
         for key, entry in resources.items()

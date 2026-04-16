@@ -1,5 +1,3 @@
-"""Markdown rendering of plan diffs for PR/MR comments."""
-
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from itertools import groupby
@@ -36,7 +34,6 @@ from dagshund.types import (
 
 
 def _render_field_change(field_name: str, change: FieldChange) -> str | None:
-    """Render a single field-level change as a markdown list item, or None if unchanged/no-op."""
     if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return None
 
@@ -52,7 +49,6 @@ def _render_resource(
     key: ResourceKey,
     entry: ResourceChange,
 ) -> Iterator[str]:
-    """Render a single resource entry as markdown list items."""
     cfg = action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
 
@@ -81,7 +77,6 @@ def _render_resource(
 
 
 def _render_header(plan: Plan) -> Iterator[str]:
-    """Render the plan version header."""
     cli_version = plan.cli_version or "unknown"
     plan_version = plan.plan_version if plan.plan_version is not None else "?"
     yield f"### dagshund plan (v{plan_version}, cli {cli_version})"
@@ -94,7 +89,6 @@ def _render_resource_groups(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> Iterator[str]:
-    """Render each resource type group with its entries."""
     for resource_type, entries in resource_groups.items():
         visible = filter_resources(entries, visible_states=visible_states, resource_filter=resource_filter)
         if not visible:
@@ -112,7 +106,6 @@ def _render_summary(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> Iterator[str]:
-    """Render the action count summary line."""
     filtered = filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
     sorted_counts = sorted(count_by_action(filtered).items(), key=lambda item: item[0].display)
     parts = ", ".join(f"**{cfg.symbol}{count}** {cfg.display}" for cfg, count in sorted_counts)
@@ -121,7 +114,6 @@ def _render_summary(
 
 
 def _render_warnings(warnings: list[str]) -> Iterator[str]:
-    """Render data-loss warnings as a GitHub/GitLab alert block."""
     yield ""
     yield "> [!CAUTION]"
     yield "> **Dangerous Actions**"
@@ -145,7 +137,6 @@ def _iter_drift_warning_md_lines(summary: DriftSummary) -> Iterator[str]:
 
 
 def _render_drift_warnings(summaries: list[DriftSummary]) -> Iterator[str]:
-    """Render drift warnings as a GitHub/GitLab alert block."""
     yield ""
     yield "> [!WARNING]"
     yield "> **Manual Edits Detected**"
@@ -159,11 +150,6 @@ def render_markdown(
     visible_states: frozenset[DiffState] | None = None,
     filter_query: str | None = None,
 ) -> str:
-    """Render plan diff as markdown suitable for PR/MR comments.
-
-    Returns the complete markdown string. The caller decides whether to print it,
-    write it to a file, or post it to an API.
-    """
     resources = merge_sub_resources(plan.resources)
     if not resources:
         raise DagshundError("plan is empty")

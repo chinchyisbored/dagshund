@@ -1,5 +1,3 @@
-"""Shared formatting and data pipeline functions used by text and markdown renderers."""
-
 import re
 from collections import Counter
 from collections.abc import Callable, Iterator, Mapping
@@ -24,8 +22,6 @@ from dagshund.types import (
 
 @dataclass(frozen=True, slots=True)
 class ActionConfig:
-    """Format-neutral action display configuration."""
-
     display: str
     symbol: str
     show_field_changes: bool = False
@@ -33,8 +29,6 @@ class ActionConfig:
 
 @dataclass(frozen=True, slots=True)
 class DriftSummary:
-    """Structured summary of drift on one resource: field overwrites + sub-entity re-adds."""
-
     resource_type: str
     resource_name: str
     overwritten_field_count: int
@@ -58,7 +52,6 @@ DEFAULT_ACTION = ActionConfig("unknown", "?")
 
 
 def action_config(action: ActionType) -> ActionConfig:
-    """Return the display config for an action."""
     return ACTIONS.get(action, DEFAULT_ACTION)
 
 
@@ -86,17 +79,10 @@ def field_action_config(change: FieldChange) -> ActionConfig:
     return base
 
 
-# --- Value formatting ---
-
-
-_INLINE_LIMIT = 60  # collections exceeding this inline length render as multiline blocks
+_INLINE_LIMIT = 60
 
 
 def _format_collection_inline(value: object) -> str:
-    """Render a dict or list in human-readable form (unquoted keys, spaces).
-
-    Caller guarantees value is a dict or list (from format_value's match).
-    """
     if isinstance(value, dict):
         parts = [f"{k}: {format_value(v)}" for k, v in value.items()]
         return "{" + ", ".join(parts) + "}"
@@ -106,7 +92,6 @@ def _format_collection_inline(value: object) -> str:
 
 
 def format_value(value: object) -> str:
-    """Format a value for human-readable display."""
     match value:
         case None:
             return "null"
@@ -124,16 +109,10 @@ def format_value(value: object) -> str:
 
 
 def is_long_string(value: object) -> bool:
-    """Check if a value is a string too long to display inline."""
     return isinstance(value, str) and len(value) > 40
 
 
 def format_display_value(value: object) -> str:
-    """Format a value for display, collapsing long strings and large collections.
-
-    Mirrors the collapse behavior of format_single_value so that transitions
-    (old -> new) render consistently with single-value add/delete cases.
-    """
     if is_long_string(value):
         return "..."
     inline = format_value(value)
@@ -143,19 +122,16 @@ def format_display_value(value: object) -> str:
 
 
 def format_transition(old: object, new: object) -> str:
-    """Format an old -> new value transition, collapsing long strings and large collections per side."""
     return f": {format_display_value(old)} -> {format_display_value(new)}"
 
 
 def _format_collection_summary(value: dict | list) -> str:
-    """Summarize a large collection as '{N fields}' or '[N items]'."""
     if isinstance(value, dict):
         return f"{{{len(value)} fields}}"
     return f"[{len(value)} items]"
 
 
 def format_field_suffix(change: FieldChange) -> str | None:
-    """Compute the display suffix for a field change, or None to suppress."""
     has_old, has_new = change.old is not UNSET, change.new is not UNSET
     has_remote = change.remote is not UNSET
 
@@ -180,15 +156,7 @@ def format_field_suffix(change: FieldChange) -> str | None:
     return ""
 
 
-# --- Data pipeline ---
-
-
 def detect_drift_fields(changes: Mapping[str, FieldChange]) -> list[str]:
-    """Detect fields where the server state diverged from the bundle's expectation.
-
-    A field has drifted when old and new are both defined and equal (bundle didn't
-    intend to change it), and remote is present with a different value (server was edited).
-    """
     if not changes:
         return []
     return sorted(field_name for field_name, change in changes.items() if has_drifted_field(change))
@@ -215,10 +183,6 @@ def _singularize(plural: str) -> str:
 
 
 def _extract_drift_label_noun(key: str) -> tuple[str, str]:
-    """Extract a (noun, label) pair from a topology-drift change key.
-
-    Unknown shape falls back to ``("entity", key)``.
-    """
     match = _DRIFT_KEY_RE.search(key)
     if match is None:
         return "entity", key
@@ -229,7 +193,6 @@ def _extract_drift_label_noun(key: str) -> tuple[str, str]:
 def detect_drift_reentries(
     changes: Mapping[str, FieldChange],
 ) -> list[tuple[str, str]]:
-    """Return topology-drift ``(noun, label)`` pairs, sorted for stable output."""
     if not changes:
         return []
     pairs: list[tuple[str, str]] = []
@@ -256,14 +219,12 @@ def iter_non_topology_field_changes(
 
 
 def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType:
-    """Extract the resource type from a (key, change) pair."""
     return parse_resource_key(entry[0])[0]
 
 
 def group_by_resource_type(
     resources: Mapping[ResourceKey, ResourceChange],
 ) -> dict[ResourceType, dict[ResourceKey, ResourceChange]]:
-    """Group plan entries by their resource type (jobs, schemas, etc.)."""
     sorted_entries = sorted(resources.items(), key=_resource_type_of)
     grouped = groupby(sorted_entries, key=_resource_type_of)
     return {resource_type: dict(group) for resource_type, group in grouped}
@@ -275,7 +236,6 @@ def iter_visible_resources(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> Iterator[tuple[ResourceKey, ResourceChange]]:
-    """Yield (key, entry) pairs matching the visibility filters."""
     for key, entry in sorted(resources.items()):
         if visible_states is not None and action_to_diff_state(entry.action) not in visible_states:
             continue
@@ -290,7 +250,6 @@ def filter_resources(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> dict[ResourceKey, ResourceChange]:
-    """Return entries matching both the diff state set and the resource filter predicate."""
     return dict(
         iter_visible_resources(
             entries,
@@ -301,7 +260,6 @@ def filter_resources(
 
 
 def count_by_action(entries: Mapping[ResourceKey, ResourceChange]) -> dict[ActionConfig, int]:
-    """Count resources grouped by action config."""
     return dict(Counter(action_config(entry.action) for entry in entries.values()))
 
 
@@ -317,7 +275,6 @@ def collect_warnings(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> list[str]:
-    """Collect warning messages for dangerous actions on stateful resources."""
     warnings: list[str] = []
     for key, entry in iter_visible_resources(
         resources,
@@ -336,7 +293,6 @@ def collect_warnings(
 
 
 def _summarize_resource_drift(key: ResourceKey, entry: ResourceChange) -> DriftSummary | None:
-    """Build a DriftSummary for one resource, or None when nothing drifted."""
     overwritten = len(detect_drift_fields(entry.changes))
     reentries = tuple(detect_drift_reentries(entry.changes))
     if overwritten == 0 and not reentries:
@@ -356,7 +312,6 @@ def collect_drift_summaries(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> list[DriftSummary]:
-    """Collect structured drift summaries for resources edited outside the bundle."""
     visible = iter_visible_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
     return [summary for key, entry in visible if (summary := _summarize_resource_drift(key, entry))]
 

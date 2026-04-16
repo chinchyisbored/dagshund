@@ -1,13 +1,6 @@
-"""Typed domain model for dagshund plan data.
+"""Parse boundary: `Any` tax is paid once here, nowhere else.
 
-The parser sits at the boundary: `parse_plan` takes a raw JSON string and
-returns a `Plan` built from frozen dataclasses. Downstream code walks
-`Plan.resources`, `ResourceChange.changes`, and `FieldChange` fields directly —
-the `Any` tax is paid once, here, and nowhere else.
-
-Mirrors the TS schema at `js/src/types/plan-schema.ts`:
-- typed skeleton around `unknown` payload leaves (`new_state`, `remote_state`, old/new/remote)
-- `UNSET` sentinel preserves the JSON distinction between "key omitted" and "key present with null"
+Mirrors the TS schema at ``js/src/types/plan-schema.ts``.
 """
 
 import json
@@ -20,10 +13,7 @@ from dagshund.types import DagshundError, ResourceKey
 
 
 class ActionType(StrEnum):
-    """Action vocabulary mirroring knownActionTypes in js/src/types/plan-schema.ts.
-
-    Cross-file drift lives at plan.py:36 (dagshund-mx55 tracks consolidation).
-    """
+    """Mirrors ``knownActionTypes`` in ``js/src/types/plan-schema.ts``."""
 
     EMPTY = ""
     SKIP = "skip"
@@ -40,7 +30,6 @@ _ACTION_VALUES: frozenset[str] = frozenset(a.value for a in ActionType)
 
 
 def parse_action(value: object) -> ActionType:
-    """Coerce a raw action string to an ActionType; unknown strings fall back to UNKNOWN."""
     if isinstance(value, str) and value in _ACTION_VALUES:
         return ActionType(value)
     return ActionType.UNKNOWN
@@ -73,11 +62,7 @@ class FieldChange:
 
 
 def parse_field_change(raw: object) -> FieldChange:
-    """Build a FieldChange from a raw change dict, preserving key-presence semantics.
-
-    Accepts `object` so callers can pass unchecked JSON payloads; non-dict input
-    yields a default-constructed FieldChange.
-    """
+    """Signature is ``object`` so callers can pass unchecked JSON payloads."""
     if not isinstance(raw, dict):
         return FieldChange()
     raw_map = cast("dict[str, Any]", raw)
@@ -96,8 +81,6 @@ def _parse_optional_str(value: object) -> str | None:
 
 @dataclass(frozen=True, slots=True)
 class ResourceChange:
-    """A single resource entry in a plan."""
-
     key: ResourceKey
     action: ActionType = ActionType.EMPTY
     depends_on: tuple[tuple[str, str | None], ...] = ()
@@ -107,7 +90,6 @@ class ResourceChange:
 
 
 def parse_resource_change(key: ResourceKey, raw: object) -> ResourceChange:
-    """Build a ResourceChange from a raw entry dict."""
     if not isinstance(raw, dict):
         return ResourceChange(key=key)
     raw_map = cast("dict[str, Any]", raw)
@@ -129,7 +111,6 @@ def parse_resource_change(key: ResourceKey, raw: object) -> ResourceChange:
 
 
 def _parse_depends_on(value: object) -> tuple[tuple[str, str | None], ...]:
-    """Parse the depends_on list into a tuple of (node, label?) tuples."""
     if not isinstance(value, list):
         return ()
     result: list[tuple[str, str | None]] = []
@@ -163,7 +144,6 @@ class Plan:
 
 
 def parse_plan(raw: str) -> Plan:
-    """Parse a raw JSON string into a typed Plan."""
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -178,7 +158,6 @@ def parse_plan(raw: str) -> Plan:
 
 
 def parse_plan_data(raw: Mapping[str, object]) -> Plan:
-    """Build a Plan from an already-decoded mapping."""
     raw_resources = raw.get("plan")
     resources: dict[ResourceKey, ResourceChange] = {}
     if isinstance(raw_resources, dict):

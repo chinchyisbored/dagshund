@@ -1,5 +1,3 @@
-"""Browser-based HTML visualization."""
-
 import json
 import sys
 from pathlib import Path
@@ -11,7 +9,6 @@ PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
 
 
 def _find_template() -> Path:
-    """Locate the template.html asset bundled with the package."""
     template_path = Path(__file__).parent / "_assets" / "template.html"
     if not template_path.exists():
         raise DagshundError("template.html not found. Run 'just template' in the repo root first.")
@@ -35,7 +32,6 @@ def _escape_for_script_tag(content: str) -> str:
 
 
 def _inject_plan(template: str, plan: Plan) -> str:
-    """Replace the placeholder in template HTML with actual plan JSON."""
     count = template.count(PLACEHOLDER)
     if count == 0:
         raise DagshundError(
@@ -61,7 +57,6 @@ def _validate_output_path(raw: str) -> Path:
 
 
 def render_browser(plan: Plan, *, output_path: str) -> None:
-    """Render plan as interactive HTML and export to file."""
     resolved = _validate_output_path(output_path)
     template_path = _find_template()
     template = template_path.read_text(encoding="utf-8")

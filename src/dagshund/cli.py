@@ -1,5 +1,3 @@
-"""CLI entry point for dagshund."""
-
 import argparse
 import logging
 import os
@@ -144,7 +142,6 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _read_plan(plan_file: str | None) -> str:
-    """Read plan JSON from file or stdin."""
     if plan_file is not None:
         try:
             with open(plan_file, encoding="utf-8") as f:
@@ -169,7 +166,6 @@ def _read_plan(plan_file: str | None) -> str:
 
 
 def _install_skill(target_dir: str) -> None:
-    """Copy the bundled SKILL.md into target_dir/dagshund/SKILL.md."""
     from importlib.resources import files
 
     source = files("dagshund._assets").joinpath("SKILL.md")
@@ -180,7 +176,6 @@ def _install_skill(target_dir: str) -> None:
 
 
 def _build_visible_states(args: argparse.Namespace) -> frozenset[DiffState] | None:
-    """Build the set of visible diff states from CLI flags, or None to show all."""
     if args.changes_only:
         return frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED, DiffState.UNKNOWN})
 

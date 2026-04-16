@@ -48,12 +48,10 @@ type _SearchToken = _TypeToken | _StatusToken | _FieldToken | _ExactToken | _Fuz
 
 
 def _tokenize(query: str) -> list[str]:
-    """Split query into raw tokens, respecting quoted phrases."""
     return re.findall(r'"[^"]*"|\S+', query)
 
 
 def _classify_token(raw: str) -> _SearchToken | None:
-    """Classify a raw token string into a typed search token, or None to drop it."""
     if raw.startswith('"') and raw.endswith('"') and len(raw) > 2:
         return _ExactToken(value=raw[1:-1])
     if raw.startswith("type:"):
@@ -69,18 +67,15 @@ def _classify_token(raw: str) -> _SearchToken | None:
 
 
 def _parse_filter_query(query: str) -> list[_SearchToken]:
-    """Parse a filter query string into structured search tokens."""
     lowered = query.lower().strip()
     return [token for raw in _tokenize(lowered) if (token := _classify_token(raw)) is not None]
 
 
 def _has_matching_field_key(value: str, entry: ResourceChange) -> bool:
-    """Check if any field change key contains the search value."""
     return any(value in field_key.lower() for field_key in entry.changes)
 
 
 def _match_token(token: _SearchToken, key: ResourceKey, entry: ResourceChange) -> bool:
-    """Test whether a single token matches a resource entry."""
     resource_type, resource_name = parse_resource_key(key)
     match token:
         case _TypeToken(value=value):
@@ -96,10 +91,7 @@ def _match_token(token: _SearchToken, key: ResourceKey, entry: ResourceChange) -
 
 
 def build_query_predicate(query: str) -> Callable[[ResourceKey, ResourceChange], bool] | None:
-    """Build a predicate from a filter DSL query string.
-
-    Returns None if the query produces no tokens.
-    """
+    """Returns None if the query produces no usable tokens."""
     tokens = _parse_filter_query(query)
     if not tokens:
         return None

@@ -1,5 +1,3 @@
-"""Merge sub-resources into their parent entries."""
-
 from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, cast
@@ -32,7 +30,6 @@ def _prefix_changes(
     suffix: str,
     changes: Mapping[str, FieldChange],
 ) -> dict[str, FieldChange] | None:
-    """Prefix each change key with `suffix.` so merged changes are namespaced."""
     if not changes:
         return None
     return {f"{suffix}.{key}": value for key, value in changes.items()}
@@ -49,7 +46,6 @@ def _extract_state_value(state: object) -> dict[str, object] | None:
 
 
 def _resolve_sub_state(sub_entry: ResourceChange) -> dict[str, object] | None:
-    """Resolve the best available state from a sub-resource: prefer new_state.value, fall back to remote_state."""
     new_value = _extract_state_value(sub_entry.new_state)
     if new_value is not None:
         return new_value
@@ -93,8 +89,7 @@ def _merge_external_deps(
     sub_deps: tuple[tuple[str, str | None], ...],
     parent_key: ResourceKey,
 ) -> tuple[tuple[str, str | None], ...]:
-    """Merge external depends_on from sub into parent, dropping self-referential entries
-    and rewriting sub-resource-key targets to their parent key."""
+    """Drop self-refs (cycles) and rewrite sub-resource-key targets to parent keys (gone post-merge)."""
     if not sub_deps:
         return parent_deps
     external: list[tuple[str, str | None]] = []
@@ -109,7 +104,6 @@ def _merge_external_deps(
 
 
 def _promote_action(parent_action: ActionType, sub_action: ActionType) -> ActionType:
-    """Promote parent action if it's skip/empty and sub has a real action."""
     parent_inactive = parent_action in (ActionType.EMPTY, ActionType.SKIP)
     sub_active = sub_action not in (ActionType.EMPTY, ActionType.SKIP)
     return ActionType.UPDATE if parent_inactive and sub_active else parent_action

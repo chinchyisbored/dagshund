@@ -1,5 +1,3 @@
-"""Profile-based debug tracing for all dagshund function calls."""
-
 import logging
 import sys
 import time
@@ -9,7 +7,6 @@ logger = logging.getLogger("dagshund")
 
 
 def _summarize_value(value: object) -> str:
-    """Create a concise summary of a value for debug logging."""
     match value:
         case str():
             if len(value) <= 20:
@@ -30,11 +27,9 @@ def _summarize_value(value: object) -> str:
 
 
 def enable_profile_tracing() -> None:
-    """Enable sys.setprofile-based tracing for all dagshund functions."""
     call_stack: list[float] = []
 
     def profile_hook(frame: FrameType, event: str, arg: object) -> None:
-        """Profile callback that traces all dagshund function calls."""
         module: str | None = frame.f_globals.get("__name__")
         if module is None or not module.startswith("dagshund") or module == "dagshund.debug":
             return

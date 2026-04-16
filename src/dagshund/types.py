@@ -1,5 +1,3 @@
-"""Type aliases, enums, and domain primitives for dagshund plan data."""
-
 from enum import StrEnum
 
 type ResourceKey = str

@@ -1,5 +1,3 @@
-"""Terminal text rendering of plan diffs."""
-
 import os
 import sys
 import textwrap
@@ -46,7 +44,6 @@ _BLOCK_INDENT = 10  # 6 (field indent) + 4 (content offset for wrapped continuat
 # Unrelated to format._INLINE_LIMIT (which controls inline-vs-block for collection values).
 _MIN_WRAP_WIDTH = 60
 
-# ANSI color codes
 RESET = "\033[0m"
 _BOLD = "\033[1m"
 DIM = "\033[2m"
@@ -55,7 +52,6 @@ RED = "\033[31m"
 YELLOW = "\033[33m"
 _CYAN = "\033[36m"
 
-# Maps action display name to ANSI color
 _DISPLAY_COLORS: dict[str, str] = {
     "create": GREEN,
     "delete": RED,
@@ -70,7 +66,6 @@ _DISPLAY_COLORS: dict[str, str] = {
 
 
 def _action_color(cfg: ActionConfig) -> str:
-    """Look up the ANSI color for an action config."""
     return _DISPLAY_COLORS.get(cfg.display, RESET)
 
 
@@ -96,7 +91,6 @@ def _colorize(text: str, color: str, *, use_color: bool) -> str:
 
 
 def _detect_terminal_width() -> int:
-    """Detect the terminal width in columns, falling back to 80 when not connected to a tty."""
     try:
         return os.get_terminal_size().columns
     except (ValueError, OSError):
@@ -104,11 +98,6 @@ def _detect_terminal_width() -> int:
 
 
 def _wrap_transition(prefix: str, change: FieldChange) -> str | None:
-    """Build a two-line wrapped transition from the change, breaking at ->.
-
-    Returns None if the change is not a wrappable transition (single value, no-op, etc.).
-    Uses format_display_value/format_value directly — no string parsing.
-    """
     if change.old is UNSET or change.new is UNSET:
         return None
 
@@ -121,11 +110,9 @@ def _wrap_transition(prefix: str, change: FieldChange) -> str | None:
         cont = f"{' ' * _BLOCK_INDENT}-> {right} (drift)"
         return f"{first}\n{cont}"
 
-    # No-op: old == new — nothing to wrap
     if change.old == change.new:
         return None
 
-    # Normal transition: old -> new
     left = format_display_value(change.old)
     right = format_display_value(change.new)
     first = f"{prefix}: {left}"
@@ -134,7 +121,6 @@ def _wrap_transition(prefix: str, change: FieldChange) -> str | None:
 
 
 def _wrap_warning_line(line: str, width: int) -> str:
-    """Wrap a warning line to fit within width, with 4-space continuation indent."""
     if len(line) <= width:
         return line
     return textwrap.fill(line, width=width, subsequent_indent="    ")
@@ -143,7 +129,6 @@ def _wrap_warning_line(line: str, width: int) -> str:
 def _render_field_change(
     field_name: str, change: FieldChange, *, use_color: bool, width: int | None = None
 ) -> str | None:
-    """Render a single field-level change, or None if unchanged/no-op."""
     if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return None
 
@@ -170,7 +155,6 @@ def _render_resource(
     use_color: bool,
     width: int | None = None,
 ) -> Iterator[str]:
-    """Render a single resource entry as lines of text."""
     cfg = action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
 
@@ -202,7 +186,6 @@ def _render_resource(
 
 
 def _print_header(plan: Plan, *, use_color: bool) -> None:
-    """Print the plan version header line."""
     cli_version = plan.cli_version or "unknown"
     plan_version = plan.plan_version if plan.plan_version is not None else "?"
     print(
@@ -223,7 +206,6 @@ def _print_resource_groups(
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
     width: int | None = None,
 ) -> None:
-    """Print each resource type group with its entries."""
     for resource_type, entries in resource_groups.items():  # already sorted by group_by_resource_type
         visible = filter_resources(entries, visible_states=visible_states, resource_filter=resource_filter)
         if not visible:
@@ -238,7 +220,6 @@ def _print_resource_groups(
 
 
 def _format_action_count(cfg: ActionConfig, count: int, *, use_color: bool) -> str:
-    """Format a single action count like '+3 create' with color."""
     return _colorize(f"{cfg.symbol}{count} {cfg.display}", _action_color(cfg), use_color=use_color)
 
 
@@ -249,7 +230,6 @@ def _print_summary(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> None:
-    """Print the action count summary line, filtered to visible states when provided."""
     filtered = filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
     sorted_counts = sorted(count_by_action(filtered).items(), key=lambda item: item[0].display)
     parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in sorted_counts)
@@ -258,7 +238,6 @@ def _print_summary(
 
 
 def _print_warnings(warnings: list[str], *, use_color: bool, width: int | None = None) -> None:
-    """Print data-loss warnings below the summary line."""
     print()
     print(_colorize("  Dangerous Actions:", RED + _BOLD, use_color=use_color))
     for warning in warnings:
@@ -269,7 +248,6 @@ def _print_warnings(warnings: list[str], *, use_color: bool, width: int | None =
 
 
 def _iter_drift_warning_lines(summary: DriftSummary) -> Iterator[str]:
-    """Yield the header + six-space indented sub-lines for a single drift summary."""
     yield f"  \u26a0 {summary.resource_type}/{summary.resource_name} was edited outside the bundle"
     if summary.overwritten_field_count > 0:
         yield f"      {format_drift_subline_body(summary.overwritten_field_count, 'field', 'overwritten')}"
@@ -280,7 +258,6 @@ def _iter_drift_warning_lines(summary: DriftSummary) -> Iterator[str]:
 
 
 def _print_drift_warnings(summaries: list[DriftSummary], *, use_color: bool, width: int | None = None) -> None:
-    """Print drift warnings below the summary line."""
     print()
     print(_colorize("  Manual Edits Detected:", YELLOW + _BOLD, use_color=use_color))
     for summary in summaries:
@@ -296,7 +273,6 @@ def render_text(
     visible_states: frozenset[DiffState] | None = None,
     filter_query: str | None = None,
 ) -> None:
-    """Render colored diff summary to terminal."""
     resources = merge_sub_resources(plan.resources)
     if not resources:
         raise DagshundError("plan is empty")
