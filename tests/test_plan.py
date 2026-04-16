@@ -3,16 +3,17 @@
 import pytest
 from factories import make_change, make_resource, resources_from_dict
 
-from dagshund import (
-    DagshundError,
+from dagshund.model import parse_plan
+from dagshund.plan import (
+    DANGEROUS_ACTIONS,
+    STATEFUL_RESOURCE_TYPES,
     detect_changes,
     detect_dangerous_actions,
     detect_manual_edits,
     has_drifted_field,
     is_topology_drift_change,
-    parse_plan,
 )
-from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES
+from dagshund.types import DagshundError
 
 # --- parse_plan ---
 

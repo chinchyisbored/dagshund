@@ -3,31 +3,40 @@ from pathlib import Path
 import pytest
 from factories import plan_from_dict
 
-from dagshund import DagshundError
 from dagshund.browser import (
     PLACEHOLDER,
     _escape_for_script_tag,
-    _find_template,
     _inject_plan,
+    _load_template,
     render_browser,
 )
+from dagshund.types import DagshundError
 
-# --- _find_template ---
-
-
-def test_find_template_returns_existing_path(require_template: None) -> None:
-    result = _find_template()
-
-    assert result.name == "template.html"
-    assert result.exists()
+# --- _load_template ---
 
 
-def test_find_template_raises_when_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_load_template_returns_html_string(require_template: None) -> None:
+    result = _load_template()
+
+    assert isinstance(result, str)
+    lowered = result.lower()
+    assert "<!doctype" in lowered or "<html" in lowered
+
+
+def test_load_template_raises_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     import dagshund.browser as browser_mod
 
-    monkeypatch.setattr(browser_mod, "__file__", str(tmp_path / "browser.py"))
+    class _FakeResource:
+        def is_file(self) -> bool:
+            return False
+
+    class _FakePackage:
+        def joinpath(self, _name: str) -> _FakeResource:
+            return _FakeResource()
+
+    monkeypatch.setattr(browser_mod, "files", lambda _pkg: _FakePackage())
     with pytest.raises(DagshundError, match=r"template\.html not found"):
-        _find_template()
+        _load_template()
 
 
 # --- _escape_for_script_tag ---

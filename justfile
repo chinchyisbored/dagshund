@@ -73,7 +73,7 @@ typecheck-js:
 
 # Run Python tests (optional filter: -k expression or file::test path)
 test-py filter="":
-    uv run pytest {{ if filter == "" { "--cov=dagshund --cov-report=term-missing" } else { "-xvs -k " + quote(filter) } }}
+    uv run pytest -v {{ if filter == "" { "--cov=dagshund --cov-report=term-missing" } else { "-xvs -k " + quote(filter) } }}
 
 # Lint Python with ruff
 lint-py:

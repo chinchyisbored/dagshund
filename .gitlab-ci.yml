@@ -290,7 +290,7 @@ pages:
       for dir in fixtures/golden/*/; do
         name=$(basename "$dir")
         if [[ -f "$dir/plan.json" ]]; then
-          uv run dagshund "$dir/plan.json" -o "public/$name.html"
+          uv run dagshund -q "$dir/plan.json" -o "public/$name.html"
         fi
       done
   artifacts:

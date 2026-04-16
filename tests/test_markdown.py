@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 from factories import make_change, make_plan, make_resource, plan_from_dict
 
-from dagshund import DagshundError, DiffState
 from dagshund.format import DriftSummary
 from dagshund.markdown import (
     _render_drift_warnings,
@@ -16,6 +15,7 @@ from dagshund.markdown import (
     _render_warnings,
     render_markdown,
 )
+from dagshund.types import DagshundError, DiffState
 
 # --- _render_field_change ---
 

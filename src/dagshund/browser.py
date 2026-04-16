@@ -1,5 +1,6 @@
 import json
 import sys
+from importlib.resources import files
 from pathlib import Path
 
 from dagshund.model import Plan
@@ -8,11 +9,11 @@ from dagshund.types import DagshundError
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
 
 
-def _find_template() -> Path:
-    template_path = Path(__file__).parent / "_assets" / "template.html"
-    if not template_path.exists():
-        raise DagshundError("template.html not found. Run 'just template' in the repo root first.")
-    return template_path
+def _load_template() -> str:
+    resource = files("dagshund._assets").joinpath("template.html")
+    if not resource.is_file():
+        raise DagshundError("template.html not found — run 'just build' in the repo root first")
+    return resource.read_text(encoding="utf-8")
 
 
 def _escape_for_script_tag(content: str) -> str:
@@ -35,7 +36,7 @@ def _inject_plan(template: str, plan: Plan) -> str:
     count = template.count(PLACEHOLDER)
     if count == 0:
         raise DagshundError(
-            f"placeholder {PLACEHOLDER} not found in template — template may be outdated, rebuild with 'just template'"
+            f"placeholder {PLACEHOLDER} not found in template — template may be outdated, rebuild with 'just build'"
         )
     if count > 1:
         raise DagshundError(f"expected 1 placeholder in template, found {count}")
@@ -58,8 +59,7 @@ def _validate_output_path(raw: str) -> Path:
 
 def render_browser(plan: Plan, *, output_path: str) -> None:
     resolved = _validate_output_path(output_path)
-    template_path = _find_template()
-    template = template_path.read_text(encoding="utf-8")
+    template = _load_template()
     html = _inject_plan(template, plan)
 
     try:

@@ -5,17 +5,11 @@ import sys
 from enum import IntEnum
 from pathlib import Path
 
-from dagshund import (
-    DagshundError,
-    DiffState,
-    Plan,
-    __version__,
-    detect_changes,
-    detect_dangerous_actions,
-    detect_manual_edits,
-    merge_sub_resources,
-    parse_plan,
-)
+from dagshund import __version__
+from dagshund.merge import merge_sub_resources
+from dagshund.model import Plan, parse_plan
+from dagshund.plan import detect_changes, detect_dangerous_actions, detect_manual_edits
+from dagshund.types import DagshundError, DiffState
 
 
 class ExitCode(IntEnum):

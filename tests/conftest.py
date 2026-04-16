@@ -18,7 +18,7 @@ def real_plan_json() -> str:
 
 def skip_without_template() -> None:
     if not TEMPLATE_PATH.exists():
-        pytest.skip("template.html not built; run 'just template' first")
+        pytest.skip("template.html not built; run 'just build' first")
 
 
 @pytest.fixture

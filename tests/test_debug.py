@@ -480,7 +480,7 @@ def test_integration_preamble_on_enable(caplog: pytest.LogCaptureFixture) -> Non
 
 
 def test_integration_nested_calls_indented(profile_tracing: pytest.LogCaptureFixture) -> None:
-    from dagshund import parse_plan
+    from dagshund.model import parse_plan
 
     parse_plan('{"plan": {}, "plan_version": 1}')
     msgs = _messages(profile_tracing)
@@ -491,7 +491,8 @@ def test_integration_nested_calls_indented(profile_tracing: pytest.LogCaptureFix
 
 
 def test_integration_exception_emits_unwind_line(profile_tracing: pytest.LogCaptureFixture) -> None:
-    from dagshund import DagshundError, parse_plan
+    from dagshund.model import parse_plan
+    from dagshund.types import DagshundError
 
     with pytest.raises(DagshundError):
         parse_plan("not json")
@@ -502,7 +503,8 @@ def test_integration_exception_emits_unwind_line(profile_tracing: pytest.LogCapt
 
 
 def test_integration_unwind_includes_location(profile_tracing: pytest.LogCaptureFixture) -> None:
-    from dagshund import DagshundError, parse_plan
+    from dagshund.model import parse_plan
+    from dagshund.types import DagshundError
 
     with pytest.raises(DagshundError):
         parse_plan("not json")
@@ -512,7 +514,7 @@ def test_integration_unwind_includes_location(profile_tracing: pytest.LogCapture
 
 
 def test_integration_caught_exception_no_false_unwind(profile_tracing: pytest.LogCaptureFixture) -> None:
-    from dagshund import parse_plan
+    from dagshund.model import parse_plan
 
     parse_plan('{"plan": {}}')
     msgs = _messages(profile_tracing)
@@ -523,8 +525,8 @@ def test_integration_generator_path_balanced(
     profile_tracing: pytest.LogCaptureFixture,
     real_plan_json: str,
 ) -> None:
-    from dagshund import parse_plan
     from dagshund.markdown import render_markdown
+    from dagshund.model import parse_plan
 
     plan = parse_plan(real_plan_json)
     render_markdown(plan)
@@ -542,7 +544,7 @@ def test_integration_generator_path_balanced(
 
 
 def test_integration_enable_disable_cycle_idempotent(caplog: pytest.LogCaptureFixture) -> None:
-    from dagshund import parse_plan
+    from dagshund.model import parse_plan
 
     caplog.set_level(logging.DEBUG, logger="dagshund")
     for _ in range(3):
@@ -590,7 +592,7 @@ def test_integration_poison_flag_stops_further_emits(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from dagshund import parse_plan
+    from dagshund.model import parse_plan
 
     caplog.set_level(logging.DEBUG, logger="dagshund")
     enable_profile_tracing()
@@ -618,7 +620,7 @@ def test_integration_call_budget_truncates(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from dagshund import parse_plan
+    from dagshund.model import parse_plan
 
     caplog.set_level(logging.DEBUG, logger="dagshund")
     enable_profile_tracing()

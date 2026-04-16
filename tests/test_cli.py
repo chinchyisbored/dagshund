@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from dagshund import DagshundError, DiffState, __version__
+from dagshund import __version__
 from dagshund.cli import _build_visible_states, _read_plan, main
+from dagshund.types import DagshundError, DiffState
 
 
 def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
