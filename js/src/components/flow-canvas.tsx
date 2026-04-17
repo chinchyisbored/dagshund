@@ -1,14 +1,16 @@
 import type { NodeMouseHandler, NodeTypes } from "@xyflow/react";
 import { startTransition, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import { InteractionContext } from "../hooks/use-interaction-context.ts";
+import {
+  InteractionContext,
+  LateralIsolationContext,
+  useTabVisibility,
+} from "../hooks/contexts.ts";
 import { useLateralEdgeState } from "../hooks/use-lateral-edge-state.ts";
-import { LateralIsolationContext } from "../hooks/use-lateral-isolation.ts";
 import { useNodeSearch } from "../hooks/use-node-search.ts";
 import { usePhantomLeafState } from "../hooks/use-phantom-leaf-state.ts";
 import type { GraphLayoutState } from "../hooks/use-plan-graph.ts";
 import { useResizeHandle } from "../hooks/use-resize-handle.ts";
 import { useStyledEdges } from "../hooks/use-styled-edges.ts";
-import { useTabVisibility } from "../hooks/use-tab-visibility.ts";
 import { useViewportPositioning } from "../hooks/use-viewport-positioning.ts";
 import type { DiffState } from "../types/diff-state.ts";
 import type { DagNodeData } from "../types/graph-types.ts";

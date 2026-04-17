@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { usePlan } from "../../src/hooks/use-plan-context.ts";
+import { usePlan } from "../../src/hooks/contexts.ts";
 import type { Plan } from "../../src/types/plan-schema.ts";
 import { withPlan } from "../helpers/providers.tsx";
 

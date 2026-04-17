@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { useLateralIsolation } from "../../src/hooks/use-lateral-isolation.ts";
+import { useLateralIsolation } from "../../src/hooks/contexts.ts";
 import { withLateralIsolation } from "../helpers/providers.tsx";
 
 describe("useLateralIsolation", () => {

@@ -1,4 +1,25 @@
 import { createContext, useContext } from "react";
+import type { Plan } from "../types/plan-schema.ts";
+
+export const PlanContext = createContext<Plan | undefined>(undefined);
+
+/** Read the original (pre-merge) plan from the nearest PlanContext provider. */
+export const usePlan = (): Plan | undefined => useContext(PlanContext);
+
+export const TabVisibilityContext = createContext(true);
+
+/** Returns whether the current tab is visible. Defaults to true outside a provider. */
+export const useTabVisibility = (): boolean => useContext(TabVisibilityContext);
+
+export const JobNavigationContext = createContext<((jobResourceKey: string) => void) | null>(null);
+
+/** Returns the job navigation callback, or null if not inside a provider. */
+export const useJobNavigation = () => useContext(JobNavigationContext);
+
+export const LateralIsolationContext = createContext<((nodeId: string) => void) | null>(null);
+
+/** Returns the lateral isolation toggle callback, or null if not inside a provider. */
+export const useLateralIsolation = () => useContext(LateralIsolationContext);
 
 type InteractionState = {
   readonly hoveredNodeId: string | null;

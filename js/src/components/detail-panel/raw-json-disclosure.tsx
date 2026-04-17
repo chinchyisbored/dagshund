@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { usePlan } from "../../hooks/use-plan-context.ts";
+import { usePlan } from "../../hooks/contexts.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import {
   extractRawPlanSlice,

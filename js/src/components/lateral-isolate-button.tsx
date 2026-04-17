@@ -1,5 +1,5 @@
 import { memo, type PointerEvent } from "react";
-import { useLateralIsolation } from "../hooks/use-lateral-isolation.ts";
+import { useLateralIsolation } from "../hooks/contexts.ts";
 
 type LateralIsolateButtonProps = {
   readonly nodeId: string;

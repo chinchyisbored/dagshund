@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { useJobNavigation } from "../../src/hooks/use-job-navigation.ts";
+import { useJobNavigation } from "../../src/hooks/contexts.ts";
 import { withJobNavigation } from "../helpers/providers.tsx";
 
 describe("useJobNavigation", () => {

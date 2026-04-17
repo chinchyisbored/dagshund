@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import type { DiffState } from "../types/diff-state.ts";
 import { type DiffStateStyles, getDiffStateStyles } from "../utils/diff-state-styles.ts";
 import { buildGlowStyle } from "../utils/node-dimming.ts";
-import { useInteractionState } from "./use-interaction-context.ts";
+import { useInteractionState } from "./contexts.ts";
 
 const TARGET_HANDLE = { handleType: "target" } as const;
 const SOURCE_HANDLE = { handleType: "source" } as const;

@@ -1,7 +1,7 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
-import { useJobNavigation } from "../hooks/use-job-navigation.ts";
+import { useJobNavigation } from "../hooks/contexts.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffBadge } from "../utils/diff-state-styles.ts";

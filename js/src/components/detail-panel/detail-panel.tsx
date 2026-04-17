@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useJobNavigation } from "../../hooks/use-job-navigation.ts";
+import { useJobNavigation } from "../../hooks/contexts.ts";
 import { ValueFormatContext } from "../../hooks/use-value-format.ts";
 import type { DagNodeData } from "../../types/graph-types.ts";
 import type { LateralContext } from "../../types/lateral-context.ts";

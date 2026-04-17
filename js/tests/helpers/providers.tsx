@@ -1,9 +1,11 @@
 import { type ContextType, createElement, type ReactNode } from "react";
-import { InteractionContext } from "../../src/hooks/use-interaction-context.ts";
-import { JobNavigationContext } from "../../src/hooks/use-job-navigation.ts";
-import { LateralIsolationContext } from "../../src/hooks/use-lateral-isolation.ts";
-import { PlanContext } from "../../src/hooks/use-plan-context.ts";
-import { TabVisibilityContext } from "../../src/hooks/use-tab-visibility.ts";
+import {
+  InteractionContext,
+  JobNavigationContext,
+  LateralIsolationContext,
+  PlanContext,
+  TabVisibilityContext,
+} from "../../src/hooks/contexts.ts";
 import { ValueFormatContext } from "../../src/hooks/use-value-format.ts";
 import type { Plan } from "../../src/types/plan-schema.ts";
 import type { ValueFormat } from "../../src/utils/format-value.ts";

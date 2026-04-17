@@ -9,11 +9,9 @@ import { ResourcesView } from "./components/resources-view.tsx";
 import { TabBar } from "./components/tab-bar.tsx";
 import { TaskNode } from "./components/task-node.tsx";
 import { ThemeToggle } from "./components/theme-toggle.tsx";
-import { JobNavigationContext } from "./hooks/use-job-navigation.ts";
-import { PlanContext } from "./hooks/use-plan-context.ts";
+import { JobNavigationContext, PlanContext, TabVisibilityContext } from "./hooks/contexts.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
-import { TabVisibilityContext } from "./hooks/use-tab-visibility.ts";
 import type { Plan } from "./types/plan-schema.ts";
 import { mergeSubResources } from "./utils/merge-sub-resources.ts";
 

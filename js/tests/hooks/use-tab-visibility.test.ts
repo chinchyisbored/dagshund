@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { useTabVisibility } from "../../src/hooks/use-tab-visibility.ts";
+import { useTabVisibility } from "../../src/hooks/contexts.ts";
 import { withTabVisibility } from "../helpers/providers.tsx";
 
 describe("useTabVisibility", () => {
