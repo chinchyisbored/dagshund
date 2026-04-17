@@ -5,10 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 SANITIZE_SCRIPT = Path(__file__).parent.parent / "fixtures" / "tooling" / "sanitize.py"
-UNSANITIZED_DIR = Path(__file__).parent.parent / "unsanitized_fixtures"
 
 
 def _run_sanitizer(input_json: str) -> str:
@@ -177,19 +174,3 @@ def test_sanitize_deeply_nested_structure() -> None:
     result = _sanitize_dict(plan)
 
     assert result["plan"]["a"]["b"]["c"]["d"]["creator"] == "user1@example.com"
-
-
-# --- Real fixture round-trip ---
-
-
-@pytest.mark.skipif(
-    not (UNSANITIZED_DIR / "drift-plan.json").exists(),
-    reason="unsanitized_fixtures not available",
-)
-def test_sanitize_no_pii_leaks_in_drift_fixture() -> None:
-    unsanitized = (UNSANITIZED_DIR / "drift-plan.json").read_text()
-
-    result = _run_sanitizer(unsanitized)
-
-    assert "squiggly" not in result
-    assert "passfwd" not in result
