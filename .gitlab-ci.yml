@@ -15,14 +15,23 @@ variables:
   AST_ENABLE_MR_PIPELINES: 'true'
   GIT_DEPTH: 1
   UV_CACHE_DIR: .uv-cache
-  # UV_IMAGE, OSV_SCANNER_IMAGE, BUN_VERSION, BUN_SHA256 are CI/CD variables
-  # in GitLab settings. Images must be digest-pinned (@sha256:...).
+  # Pinned toolchain. Every change here is an MR — no out-of-band rotation via
+  # CI/CD variables. Images are digest-pinned; tooling tarballs carry both a
+  # tarball hash (checked on download) and an extracted-binary hash (checked on
+  # every run, so a poisoned cache cannot bypass integrity).
+  UV_IMAGE: ghcr.io/astral-sh/uv@sha256:f3b1d933a49112e15fb02a24f9bfc8fef9986351afc601fcaba4c01a9b6a0eac
+  OSV_SCANNER_IMAGE: ghcr.io/google/osv-scanner@sha256:4d3d1a42ba435ac706286fec518c044f049c9753d21260b5bae60bab8740ed97
+  ALPINE_IMAGE: alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+  BUN_VERSION: "1.3.8"
+  BUN_SHA256: "0322b17f0722da76a64298aad498225aedcbf6df1008a1dee45e16ecb226a3f1"
+  BUN_BIN_SHA256: "0bb81ea882bce5946a1fc0d26d61880276d81fe22714714b5a2b792bdff8ea7a"
 
 # --- Top-level workflow rules ---
 # Three-lane pipeline model:
 #   1. Merge request  → full CI (quality, golden, security, dependency-scan)
 #   2. Push to main   → quality (for coverage badge) → pages deploy
 #   3. Tag push       → release (version-check, build, smoke-wheel, publish)
+#                       plus dependency-scan rerun for fresh CVE disclosures
 # Feature-branch pushes produce no pipeline — the MR is the gate.
 workflow:
   rules:
@@ -49,9 +58,6 @@ secret_detection:
   allow_failure: false
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    # Defense in depth: rescan on tag in case a secret landed between the last
-    # MR and the release cut.
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
 
 # --- Dependency vulnerability scan ---
 # OSV-Scanner against uv.lock + js/bun.lock. Hard-fails on known CVEs.
@@ -98,14 +104,18 @@ dependency-scan:
     - |
       if [ ! -x .cache/bun/bun ]; then
         mkdir -p .cache/bun
-        curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
+        curl -fsSL --max-time 120 -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
         echo "${BUN_SHA256}  /tmp/bun.zip" | sha256sum --check
         unzip -qo /tmp/bun.zip -d /tmp
         mv /tmp/bun-linux-x64/bun .cache/bun/bun
         rm -rf /tmp/bun.zip /tmp/bun-linux-x64
       fi
+    # Verify the binary on every run — a poisoned cache must not slip past.
+    - echo "${BUN_BIN_SHA256}  .cache/bun/bun" | sha256sum --check
     - install -m 0755 .cache/bun/bun /usr/local/bin/bun
     - ln -sf bun /usr/local/bin/bunx
+    - bun --version
+    - uv --version
     - uv sync --locked
     - bun install --frozen-lockfile --cwd js
 
@@ -121,9 +131,9 @@ quality:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
   script:
     - bun run --cwd js biome check src/ tests/
-    - uv run ruff check src/ tests/
+    - uv run ruff check src/ tests/ fixtures/tooling/
     - bun run --cwd js tsc --noEmit
-    - uv run ty check src/ tests/
+    - uv run ty check src/ tests/ fixtures/tooling/
     - bun test --cwd js --coverage --coverage-reporter=text
     - uv run pytest --cov=dagshund --cov-report=term-missing
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
@@ -131,7 +141,7 @@ quality:
 # --- Version check (tag push only) ---
 
 version-check:
-  image: alpine:3.20
+  image: ${ALPINE_IMAGE}
   stage: quality
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
