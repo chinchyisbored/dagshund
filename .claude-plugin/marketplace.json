@@ -1,6 +1,6 @@
 {
 "name": "chinchy-dagshund",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Diff visualizer for Declarative Automation Bundle (formerly Databricks Asset Bundle) deployment plans — colored terminal diffs and interactive DAG diagrams",
   "owner": {
     "name": "Max Lautner"
@@ -9,7 +9,7 @@
     {
       "name": "dagshund",
       "description": "Agent skill that teaches Claude how to install and use dagshund to visualize Databricks bundle plans as terminal diffs and interactive DAGs",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "source": "./plugins/dagshund",
       "category": "development"
     }
