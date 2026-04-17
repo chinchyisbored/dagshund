@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { renderHook } from "@testing-library/react";
 import type { Edge, Node } from "@xyflow/react";
 import { usePhantomLeafState } from "../../src/hooks/use-phantom-leaf-state.ts";
 import type { DagNodeData } from "../../src/types/graph-types.ts";
-import { renderHook } from "../helpers/render-hook.ts";
 
 // ---------------------------------------------------------------------------
 // Test data builders
@@ -62,7 +62,8 @@ const cascadeEdges: readonly Edge[] = [
 
 describe("usePhantomLeafState", () => {
   test("returns all nodes and edges when showPhantomLeaves is true", () => {
-    const result = renderHook(() => usePhantomLeafState(cascadeNodes, cascadeEdges, true));
+    const result = renderHook(() => usePhantomLeafState(cascadeNodes, cascadeEdges, true)).result
+      .current;
     expect(result.visibleNodes).toEqual(cascadeNodes);
     expect(result.visibleEdges).toEqual(cascadeEdges);
     expect(result.phantomLeafCount).toBe(2);
@@ -70,7 +71,8 @@ describe("usePhantomLeafState", () => {
   });
 
   test("hides phantom leaves and cascade-prunes orphaned ancestors", () => {
-    const result = renderHook(() => usePhantomLeafState(cascadeNodes, cascadeEdges, false));
+    const result = renderHook(() => usePhantomLeafState(cascadeNodes, cascadeEdges, false)).result
+      .current;
     // Both source-table phantoms hidden → schema phantom orphaned → catalog phantom orphaned
     // Only uc-root (root nodeKind) survives
     expect(result.visibleNodes.map((n) => n.id)).toEqual(["uc-root"]);
@@ -90,7 +92,7 @@ describe("usePhantomLeafState", () => {
       makeEdge("schema::prod.staging", "resources.volumes.data_vol"),
     ];
 
-    const result = renderHook(() => usePhantomLeafState(nodes, edges, false));
+    const result = renderHook(() => usePhantomLeafState(nodes, edges, false)).result.current;
     const visibleIds = result.visibleNodes.map((n) => n.id);
     // Phantom leaves hidden, but schema + catalog survive because schema has a real child
     expect(visibleIds).toContain("uc-root");
@@ -110,7 +112,7 @@ describe("usePhantomLeafState", () => {
     ];
     const edges: readonly Edge[] = [makeEdge("uc-root", "source-table::x.y.z")];
 
-    const result = renderHook(() => usePhantomLeafState(nodes, edges, false));
+    const result = renderHook(() => usePhantomLeafState(nodes, edges, false)).result.current;
     // Root is preserved (nodeKind "root", not "phantom")
     expect(result.visibleNodes.map((n) => n.id)).toEqual(["uc-root"]);
     expect(result.hiddenPhantomIds.size).toBe(1);
@@ -123,7 +125,7 @@ describe("usePhantomLeafState", () => {
     ];
     const edges: readonly Edge[] = [makeEdge("workspace-root", "database-instance::my_db")];
 
-    const result = renderHook(() => usePhantomLeafState(nodes, edges, false));
+    const result = renderHook(() => usePhantomLeafState(nodes, edges, false)).result.current;
     expect(result.visibleNodes.map((n) => n.id)).toEqual(["workspace-root"]);
     expect(result.phantomLeafCount).toBe(1);
     expect(result.hiddenPhantomIds.has("database-instance::my_db")).toBe(true);
@@ -140,7 +142,7 @@ describe("usePhantomLeafState", () => {
       makeEdge("catalog::prod", "resources.schemas.analytics"),
     ];
 
-    const result = renderHook(() => usePhantomLeafState(nodes, edges, false));
+    const result = renderHook(() => usePhantomLeafState(nodes, edges, false)).result.current;
     expect(result.visibleNodes).toEqual(nodes);
     expect(result.visibleEdges).toEqual(edges);
     expect(result.phantomLeafCount).toBe(0);
@@ -148,7 +150,8 @@ describe("usePhantomLeafState", () => {
   });
 
   test("removes edges touching hidden nodes", () => {
-    const result = renderHook(() => usePhantomLeafState(cascadeNodes, cascadeEdges, false));
+    const result = renderHook(() => usePhantomLeafState(cascadeNodes, cascadeEdges, false)).result
+      .current;
     // All four edges touch at least one hidden node
     expect(result.visibleEdges).toEqual([]);
   });
@@ -176,7 +179,7 @@ describe("usePhantomLeafState", () => {
       makeEdge("schema::prod.b", "source-table::prod.b.t2"),
     ];
 
-    const result = renderHook(() => usePhantomLeafState(nodes, edges, false));
+    const result = renderHook(() => usePhantomLeafState(nodes, edges, false)).result.current;
     // Both leaves hidden → both schemas orphaned → catalog orphaned → only root survives
     expect(result.visibleNodes.map((n) => n.id)).toEqual(["uc-root"]);
     expect(result.visibleEdges).toEqual([]);
@@ -184,7 +187,7 @@ describe("usePhantomLeafState", () => {
   });
 
   test("handles empty graph", () => {
-    const result = renderHook(() => usePhantomLeafState([], [], false));
+    const result = renderHook(() => usePhantomLeafState([], [], false)).result.current;
     expect(result.visibleNodes).toEqual([]);
     expect(result.visibleEdges).toEqual([]);
     expect(result.phantomLeafCount).toBe(0);
