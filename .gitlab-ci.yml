@@ -25,9 +25,9 @@ variables:
   OSV_SCANNER_IMAGE: ghcr.io/google/osv-scanner@sha256:4d3d1a42ba435ac706286fec518c044f049c9753d21260b5bae60bab8740ed97
   # alpine 3.20.10
   ALPINE_IMAGE: alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
-  BUN_VERSION: "1.3.8"
-  BUN_SHA256: "0322b17f0722da76a64298aad498225aedcbf6df1008a1dee45e16ecb226a3f1"
-  BUN_BIN_SHA256: "0bb81ea882bce5946a1fc0d26d61880276d81fe22714714b5a2b792bdff8ea7a"
+  BUN_VERSION: "1.3.12"
+  BUN_SHA256: "11dc3ee11bc1695e149737c6ca3d5619302cf4346e6b8a6ec7988967ef01ddc5"
+  BUN_BIN_SHA256: "92a1cd8b6185f676010bb18e767dfc65c772273e79ae9984480843261939eeaa"
 
 # --- Top-level workflow rules ---
 # Four-lane pipeline model:
