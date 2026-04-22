@@ -221,7 +221,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 21,
+      "total_change_entries": 23,
       "with_resource_state": 4,
       "task_change_summary_total": 0,
       "entries": [
@@ -280,6 +280,10 @@
               "action": "skip"
             },
             {
+              "key": "lifecycle",
+              "action": "skip"
+            },
+            {
               "key": "oauth2_app_client_id",
               "action": "skip"
             },
@@ -301,6 +305,10 @@
             },
             {
               "key": "service_principal_name",
+              "action": "skip"
+            },
+            {
+              "key": "source_code_path",
               "action": "skip"
             },
             {

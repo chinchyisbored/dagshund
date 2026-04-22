@@ -1,4 +1,4 @@
-### dagshund plan (v2, cli 0.296.0)
+### dagshund plan (v2, cli 0.298.0)
 
 #### alerts (1)
 - `+` `alerts/stale_pipeline_alert` — create

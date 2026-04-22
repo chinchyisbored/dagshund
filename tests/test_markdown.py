@@ -357,9 +357,9 @@ def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
     assert "Manual Edits Detected" in result
 
     # Footer: both kinds of drift surfaced with nested sub-bullets
-    assert ">   - 2 fields will be overwritten" in result
-    assert ">   - 1 task will be re-added (transform)" in result
     assert ">   - 1 field will be overwritten" in result
+    assert ">   - 1 depends_on will be re-added (transform)" in result
+    assert ">   - 1 task will be re-added (transform)" in result
     assert ">   - 1 grant will be re-added (data_engineers)" in result
 
     # Body: re-added sub-entities rendered as create-style list items

@@ -68,7 +68,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 55,
+      "total_change_entries": 56,
       "with_resource_state": 18,
       "task_change_summary_total": 12,
       "entries": [
@@ -146,7 +146,11 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='aggregate_results'].depends_on",
+              "key": "tasks[task_key='aggregate_results'].depends_on[task_key='check_duplicates']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='aggregate_results'].depends_on[task_key='check_referential_integrity']",
               "action": "update"
             },
             {
@@ -254,7 +258,7 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='compute_statistics'].depends_on",
+              "key": "tasks[task_key='compute_statistics'].depends_on[task_key='check_duplicates']",
               "action": "update"
             },
             {
@@ -286,7 +290,7 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='generate_report'].depends_on",
+              "key": "tasks[task_key='generate_report'].depends_on[task_key='anomaly_detection']",
               "action": "update"
             },
             {

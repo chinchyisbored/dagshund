@@ -12,8 +12,8 @@
       "by_diff_state": {
         "added": 2,
         "removed": 3,
-        "modified": 13,
-        "unchanged": 4,
+        "modified": 12,
+        "unchanged": 5,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -27,8 +27,8 @@
         "task": {
           "added": 2,
           "removed": 3,
-          "modified": 11,
-          "unchanged": 4,
+          "modified": 10,
+          "unchanged": 5,
           "unknown": 0
         },
         "resource": {
@@ -68,9 +68,9 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 84,
+      "total_change_entries": 89,
       "with_resource_state": 22,
-      "task_change_summary_total": 16,
+      "task_change_summary_total": 15,
       "entries": [
         {
           "id": "resources.jobs.data_pipeline",
@@ -112,11 +112,6 @@
             },
             {
               "taskKey": "clean",
-              "diffState": "modified",
-              "isDrift": false
-            },
-            {
-              "taskKey": "combine",
               "diffState": "modified",
               "isDrift": false
             },
@@ -182,7 +177,11 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='clean'].depends_on[0].task_key",
+              "key": "tasks[task_key='clean'].depends_on[task_key='ingest']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='clean'].depends_on[task_key='normalize']",
               "action": "update"
             },
             {
@@ -226,17 +225,9 @@
           "resourceKey": "resources.jobs.data_pipeline",
           "label": "combine",
           "kind": "task",
-          "diffState": "modified",
+          "diffState": "unchanged",
           "isDrift": false,
           "changes": [
-            {
-              "key": "tasks[task_key='combine'].depends_on[0].task_key",
-              "action": "update"
-            },
-            {
-              "key": "tasks[task_key='combine'].depends_on[1].task_key",
-              "action": "update"
-            },
             {
               "key": "tasks[task_key='combine'].email_notifications",
               "action": "skip"
@@ -266,7 +257,7 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='enrich'].depends_on",
+              "key": "tasks[task_key='enrich'].depends_on[task_key='clean']",
               "action": "update"
             },
             {
@@ -298,7 +289,11 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='filter'].depends_on[0].task_key",
+              "key": "tasks[task_key='filter'].depends_on[task_key='ingest']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='filter'].depends_on[task_key='standby']",
               "action": "update"
             },
             {
@@ -450,7 +445,11 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='process_a'].depends_on[1].task_key",
+              "key": "tasks[task_key='process_a'].depends_on[task_key='filter']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='process_a'].depends_on[task_key='validate']",
               "action": "update"
             },
             {
@@ -482,11 +481,19 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='process_b'].depends_on[0].task_key",
+              "key": "tasks[task_key='process_b'].depends_on[task_key='clean']",
               "action": "update"
             },
             {
-              "key": "tasks[task_key='process_b'].depends_on[1].task_key",
+              "key": "tasks[task_key='process_b'].depends_on[task_key='filter']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='process_b'].depends_on[task_key='ingest']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='process_b'].depends_on[task_key='validate']",
               "action": "update"
             },
             {
@@ -534,7 +541,11 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='validate'].depends_on[0].task_key",
+              "key": "tasks[task_key='validate'].depends_on[task_key='clean']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='validate'].depends_on[task_key='clean_v2']",
               "action": "update"
             },
             {
@@ -655,7 +666,11 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='full_validation'].depends_on[0].task_key",
+              "key": "tasks[task_key='full_validation'].depends_on[task_key='check_row_count']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='full_validation'].depends_on[task_key='load']",
               "action": "update"
             },
             {
@@ -715,7 +730,7 @@
           "isDrift": false,
           "changes": [
             {
-              "key": "tasks[task_key='publish'].depends_on",
+              "key": "tasks[task_key='publish'].depends_on[task_key='skip_validation']",
               "action": "update"
             },
             {
@@ -1022,7 +1037,7 @@
       },
       "total_change_entries": 6,
       "with_resource_state": 2,
-      "task_change_summary_total": 16,
+      "task_change_summary_total": 15,
       "entries": [
         {
           "id": "resources.jobs.data_pipeline",
@@ -1064,11 +1079,6 @@
             },
             {
               "taskKey": "clean",
-              "diffState": "modified",
-              "isDrift": false
-            },
-            {
-              "taskKey": "combine",
               "diffState": "modified",
               "isDrift": false
             },

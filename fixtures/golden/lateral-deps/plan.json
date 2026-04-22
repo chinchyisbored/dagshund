@@ -1,13 +1,13 @@
 {
   "plan_version": 2,
-  "cli_version": "0.296.0",
-  "lineage": "fc08bb58-81c7-487d-b91c-a5b36f5840a1",
+  "cli_version": "0.298.0",
+  "lineage": "82ce08b0-687f-43ef-9afb-4e700e9d6c7e",
   "serial": 1,
   "plan": {
     "resources.alerts.data_freshness": {
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-04-14T17:25:01Z",
+        "create_time": "2026-04-22T21:52:14Z",
         "display_name": "lateral_deps_data_freshness",
         "effective_run_as": {
           "user_name": "user1@example.com"
@@ -23,7 +23,7 @@
             }
           }
         },
-        "id": "1327732220789226",
+        "id": "2506632454067022",
         "lifecycle_state": "ACTIVE",
         "owner_user_name": "user1@example.com",
         "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-lateral-deps/default/resources",
@@ -32,14 +32,14 @@
           "quartz_cron_schedule": "0 0 8 * * ?",
           "timezone_id": "UTC"
         },
-        "update_time": "2026-04-14T17:25:01Z",
+        "update_time": "2026-04-22T21:52:14Z",
         "warehouse_id": "9d0afa601cb95187"
       },
       "changes": {
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-04-14T17:25:01Z"
+          "remote": "2026-04-22T21:52:14Z"
         },
         "effective_run_as": {
           "action": "skip",
@@ -51,7 +51,7 @@
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "1327732220789226"
+          "remote": "2506632454067022"
         },
         "lifecycle_state": {
           "action": "skip",
@@ -66,32 +66,32 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-04-14T17:25:01Z"
+          "remote": "2026-04-22T21:52:14Z"
         }
       }
     },
     "resources.dashboards.metrics": {
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-04-14T17:25:01.289Z",
-        "dashboard_id": "01f13826de2e109487a2d4f3e06c5a07",
+        "create_time": "2026-04-22T21:52:14.015Z",
+        "dashboard_id": "01f13e9585bb1025916ec604d1149e05",
         "display_name": "lateral_deps_metrics",
         "embed_credentials": false,
-        "etag": "-338592165",
+        "etag": "549283594",
         "lifecycle_state": "ACTIVE",
         "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-lateral-deps/default/resources",
         "path": "/Users/user1@example.com/.bundle/dagshund-golden-lateral-deps/default/resources/lateral_deps_metrics.lvdash.json",
         "published": true,
         "serialized_dashboard": "{\n  \"pages\": [\n    {\n      \"name\": \"page_1\",\n      \"displayName\": \"Overview\",\n      \"pageType\": \"PAGE_TYPE_CANVAS\"\n    }\n  ]\n}\n",
-        "update_time": "2026-04-14T17:25:01.354Z",
+        "update_time": "2026-04-22T21:52:14.060Z",
         "warehouse_id": "9d0afa601cb95187"
       },
       "changes": {
         "etag": {
           "action": "skip",
           "reason": "custom",
-          "old": "-338592165",
-          "remote": "-338592165"
+          "old": "549283594",
+          "remote": "549283594"
         },
         "serialized_dashboard": {
           "action": "skip",
@@ -115,7 +115,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "created_time": 1776187503028,
+        "created_time": 1776894736136,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -124,7 +124,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 1058103852368419,
+        "job_id": 870711356850240,
         "max_concurrent_runs": 1,
         "name": "lateral_deps_orchestrator",
         "queue": {
@@ -136,7 +136,7 @@
             "email_notifications": {},
             "run_if": "ALL_SUCCESS",
             "run_job_task": {
-              "job_id": 454346838690959
+              "job_id": 6897040249374
             },
             "task_key": "run_worker_a",
             "timeout_seconds": 0
@@ -145,7 +145,7 @@
             "email_notifications": {},
             "run_if": "ALL_SUCCESS",
             "run_job_task": {
-              "job_id": 925323268692232
+              "job_id": 400402993887576
             },
             "task_key": "run_worker_b",
             "timeout_seconds": 0
@@ -215,7 +215,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "created_time": 1776187502146,
+        "created_time": 1776894735487,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -224,7 +224,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 454346838690959,
+        "job_id": 6897040249374,
         "max_concurrent_runs": 1,
         "name": "lateral_deps_worker_a",
         "queue": {
@@ -234,7 +234,7 @@
         "tasks": [
           {
             "dashboard_task": {
-              "dashboard_id": "01f13826de2e109487a2d4f3e06c5a07",
+              "dashboard_id": "01f13e9585bb1025916ec604d1149e05",
               "warehouse_id": "9d0afa601cb95187"
             },
             "email_notifications": {},
@@ -255,7 +255,7 @@
           {
             "email_notifications": {},
             "pipeline_task": {
-              "pipeline_id": "f6412c47-18eb-436c-8616-c7066e8e7d65"
+              "pipeline_id": "7225d1df-3294-45d5-a7cd-0f0365b740da"
             },
             "run_if": "ALL_SUCCESS",
             "task_key": "run_etl",
@@ -394,7 +394,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "created_time": 1776187502382,
+        "created_time": 1776894735032,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -411,7 +411,7 @@
           }
         ],
         "format": "MULTI_TASK",
-        "job_id": 925323268692232,
+        "job_id": 400402993887576,
         "max_concurrent_runs": 1,
         "name": "lateral_deps_worker_b",
         "queue": {
@@ -421,7 +421,7 @@
         "tasks": [
           {
             "alert_task": {
-              "alert_id": "1327732220789226",
+              "alert_id": "2506632454067022",
               "warehouse_id": "9d0afa601cb95187"
             },
             "email_notifications": {},
@@ -541,7 +541,7 @@
             "config_version": 1,
             "served_entities": [
               {
-                "creation_timestamp": 1776187502000,
+                "creation_timestamp": 1776894735000,
                 "creator": "user1@example.com",
                 "entity_name": "dagshund.phantom_schema.phantom_model",
                 "entity_version": "1",
@@ -557,7 +557,7 @@
             ],
             "served_models": [
               {
-                "creation_timestamp": 1776187502000,
+                "creation_timestamp": 1776894735000,
                 "creator": "user1@example.com",
                 "model_name": "dagshund.phantom_schema.phantom_model",
                 "model_version": "1",
@@ -581,11 +581,11 @@
               ]
             }
           },
-          "creation_timestamp": 1776187502000,
+          "creation_timestamp": 1776894735000,
           "creator": "user1@example.com",
           "description": "",
-          "id": "34c42548f6314d7487d2d63e73de1a1b",
-          "last_updated_timestamp": 1776187502000,
+          "id": "ebaa788e5d7d46dd9c0fdb0ea454a3ea",
+          "last_updated_timestamp": 1776894735000,
           "name": "lateral_deps_phantom_endpoint",
           "permission_level": "CAN_MANAGE",
           "route_optimized": false,
@@ -594,7 +594,7 @@
             "ready": "READY"
           }
         },
-        "endpoint_id": "34c42548f6314d7487d2d63e73de1a1b"
+        "endpoint_id": "ebaa788e5d7d46dd9c0fdb0ea454a3ea"
       },
       "changes": {
         "config.served_entities[0].name": {
@@ -644,8 +644,8 @@
         },
         "edition": "ADVANCED",
         "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
-        "id": "f6412c47-18eb-436c-8616-c7066e8e7d65",
-        "last_modified": 1776187501577,
+        "id": "7225d1df-3294-45d5-a7cd-0f0365b740da",
+        "last_modified": 1776894734705,
         "libraries": [
           {
             "notebook": {
@@ -654,7 +654,7 @@
           }
         ],
         "name": "lateral_deps_etl_pipeline",
-        "pipeline_id": "f6412c47-18eb-436c-8616-c7066e8e7d65",
+        "pipeline_id": "7225d1df-3294-45d5-a7cd-0f0365b740da",
         "run_as_user_name": "user1@example.com",
         "serverless": true,
         "state": "IDLE",
@@ -678,7 +678,7 @@
       },
       "remote_state": {
         "assets_dir": "/Workspace/monitoring/lateral_deps",
-        "dashboard_id": "01f13826de5b1268b67b0bac1dacfacf",
+        "dashboard_id": "01f13e95864113868a5648ce2a7077fa",
         "drift_metrics_table_name": "dagshund.phantom_schema.phantom_table_drift_metrics",
         "monitor_version": 0,
         "output_schema_name": "dagshund.phantom_schema",

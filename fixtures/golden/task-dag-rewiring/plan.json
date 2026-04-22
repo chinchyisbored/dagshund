@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "0.296.0",
-  "lineage": "9531150e-a88b-4df8-80a7-3271c0d081b1",
+  "cli_version": "0.298.0",
+  "lineage": "b6b1793d-e97a-4832-acd5-5e56de8242f6",
   "serial": 1,
   "plan": {
     "resources.jobs.data_pipeline": {
@@ -164,7 +164,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1775778173122,
+        "created_time": 1776894955513,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -173,7 +173,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 825477903303676,
+        "job_id": 474934557301601,
         "max_concurrent_runs": 1,
         "name": "data_pipeline_dep_test",
         "queue": {
@@ -374,11 +374,20 @@
             "task_key": "audit"
           }
         },
-        "tasks[task_key='clean'].depends_on[0].task_key": {
+        "tasks[task_key='clean'].depends_on[task_key='ingest']": {
           "action": "update",
-          "old": "normalize",
-          "new": "ingest",
-          "remote": "normalize"
+          "new": {
+            "task_key": "ingest"
+          }
+        },
+        "tasks[task_key='clean'].depends_on[task_key='normalize']": {
+          "action": "update",
+          "old": {
+            "task_key": "normalize"
+          },
+          "remote": {
+            "task_key": "normalize"
+          }
         },
         "tasks[task_key='clean'].email_notifications": {
           "action": "skip",
@@ -414,18 +423,6 @@
             "task_key": "clean_v2"
           }
         },
-        "tasks[task_key='combine'].depends_on[0].task_key": {
-          "action": "update",
-          "old": "process_a",
-          "new": "process_b",
-          "remote": "process_a"
-        },
-        "tasks[task_key='combine'].depends_on[1].task_key": {
-          "action": "update",
-          "old": "process_b",
-          "new": "process_a",
-          "remote": "process_b"
-        },
         "tasks[task_key='combine'].email_notifications": {
           "action": "skip",
           "reason": "empty",
@@ -446,26 +443,11 @@
           "reason": "empty",
           "remote": 0
         },
-        "tasks[task_key='enrich'].depends_on": {
+        "tasks[task_key='enrich'].depends_on[task_key='clean']": {
           "action": "update",
-          "old": [
-            {
-              "task_key": "validate"
-            }
-          ],
-          "new": [
-            {
-              "task_key": "validate"
-            },
-            {
-              "task_key": "clean"
-            }
-          ],
-          "remote": [
-            {
-              "task_key": "validate"
-            }
-          ]
+          "new": {
+            "task_key": "clean"
+          }
         },
         "tasks[task_key='enrich'].email_notifications": {
           "action": "skip",
@@ -487,11 +469,20 @@
           "reason": "empty",
           "remote": 0
         },
-        "tasks[task_key='filter'].depends_on[0].task_key": {
+        "tasks[task_key='filter'].depends_on[task_key='ingest']": {
           "action": "update",
-          "old": "standby",
-          "new": "ingest",
-          "remote": "standby"
+          "new": {
+            "task_key": "ingest"
+          }
+        },
+        "tasks[task_key='filter'].depends_on[task_key='standby']": {
+          "action": "update",
+          "old": {
+            "task_key": "standby"
+          },
+          "remote": {
+            "task_key": "standby"
+          }
         },
         "tasks[task_key='filter'].email_notifications": {
           "action": "skip",
@@ -614,11 +605,20 @@
           "reason": "empty",
           "remote": 0
         },
-        "tasks[task_key='process_a'].depends_on[1].task_key": {
+        "tasks[task_key='process_a'].depends_on[task_key='filter']": {
           "action": "update",
-          "old": "filter",
-          "new": "validate",
-          "remote": "filter"
+          "old": {
+            "task_key": "filter"
+          },
+          "remote": {
+            "task_key": "filter"
+          }
+        },
+        "tasks[task_key='process_a'].depends_on[task_key='validate']": {
+          "action": "update",
+          "new": {
+            "task_key": "validate"
+          }
         },
         "tasks[task_key='process_a'].email_notifications": {
           "action": "skip",
@@ -640,17 +640,35 @@
           "reason": "empty",
           "remote": 0
         },
-        "tasks[task_key='process_b'].depends_on[0].task_key": {
+        "tasks[task_key='process_b'].depends_on[task_key='clean']": {
           "action": "update",
-          "old": "clean",
-          "new": "ingest",
-          "remote": "clean"
+          "old": {
+            "task_key": "clean"
+          },
+          "remote": {
+            "task_key": "clean"
+          }
         },
-        "tasks[task_key='process_b'].depends_on[1].task_key": {
+        "tasks[task_key='process_b'].depends_on[task_key='filter']": {
           "action": "update",
-          "old": "filter",
-          "new": "validate",
-          "remote": "filter"
+          "old": {
+            "task_key": "filter"
+          },
+          "remote": {
+            "task_key": "filter"
+          }
+        },
+        "tasks[task_key='process_b'].depends_on[task_key='ingest']": {
+          "action": "update",
+          "new": {
+            "task_key": "ingest"
+          }
+        },
+        "tasks[task_key='process_b'].depends_on[task_key='validate']": {
+          "action": "update",
+          "new": {
+            "task_key": "validate"
+          }
         },
         "tasks[task_key='process_b'].email_notifications": {
           "action": "skip",
@@ -691,11 +709,20 @@
             "timeout_seconds": 0
           }
         },
-        "tasks[task_key='validate'].depends_on[0].task_key": {
+        "tasks[task_key='validate'].depends_on[task_key='clean']": {
           "action": "update",
-          "old": "clean",
-          "new": "clean_v2",
-          "remote": "clean"
+          "old": {
+            "task_key": "clean"
+          },
+          "remote": {
+            "task_key": "clean"
+          }
+        },
+        "tasks[task_key='validate'].depends_on[task_key='clean_v2']": {
+          "action": "update",
+          "new": {
+            "task_key": "clean_v2"
+          }
         },
         "tasks[task_key='validate'].email_notifications": {
           "action": "skip",
@@ -788,7 +815,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1775778173128,
+        "created_time": 1776894955507,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -797,7 +824,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 489585240434879,
+        "job_id": 1006631005699756,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline_dag_test",
         "queue": {
@@ -952,11 +979,20 @@
           "reason": "empty",
           "remote": 0
         },
-        "tasks[task_key='full_validation'].depends_on[0].task_key": {
+        "tasks[task_key='full_validation'].depends_on[task_key='check_row_count']": {
           "action": "update",
-          "old": "check_row_count",
-          "new": "load",
-          "remote": "check_row_count"
+          "old": {
+            "task_key": "check_row_count"
+          },
+          "remote": {
+            "task_key": "check_row_count"
+          }
+        },
+        "tasks[task_key='full_validation'].depends_on[task_key='load']": {
+          "action": "update",
+          "new": {
+            "task_key": "load"
+          }
         },
         "tasks[task_key='full_validation'].email_notifications": {
           "action": "skip",
@@ -998,29 +1034,14 @@
           "reason": "empty",
           "remote": 0
         },
-        "tasks[task_key='publish'].depends_on": {
+        "tasks[task_key='publish'].depends_on[task_key='skip_validation']": {
           "action": "update",
-          "old": [
-            {
-              "task_key": "full_validation"
-            },
-            {
-              "task_key": "skip_validation"
-            }
-          ],
-          "new": [
-            {
-              "task_key": "full_validation"
-            }
-          ],
-          "remote": [
-            {
-              "task_key": "full_validation"
-            },
-            {
-              "task_key": "skip_validation"
-            }
-          ]
+          "old": {
+            "task_key": "skip_validation"
+          },
+          "remote": {
+            "task_key": "skip_validation"
+          }
         },
         "tasks[task_key='publish'].email_notifications": {
           "action": "skip",

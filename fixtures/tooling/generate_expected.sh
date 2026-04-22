@@ -28,6 +28,12 @@ TMPDIR_RUN="$(mktemp -d)"
 # Cleanup on normal exit, errexit trip, or signal.
 trap 'rm -rf "$TMPDIR_RUN"' EXIT INT TERM HUP
 
+# Mask the CLI version in dagshund output so golden checks don't fail on
+# routine Databricks CLI upgrades. Only the header line contains it.
+normalize_cli_version() {
+  sed -E 's/cli [0-9.]+/cli X.Y.Z/'
+}
+
 # Print the header comment block as usage. Stops at first non-comment line,
 # so adding/removing header lines doesn't require updating hardcoded ranges.
 usage() {
@@ -110,11 +116,11 @@ check_one() {
     return 1
   fi
 
-  if ! diff -u "$fixture_dir/expected.txt" "$tmp_txt"; then
+  if ! diff -u <(normalize_cli_version < "$fixture_dir/expected.txt") <(normalize_cli_version < "$tmp_txt"); then
     echo "FAIL: [$name] expected.txt mismatch" >&2
     failed=1
   fi
-  if ! diff -u "$fixture_dir/expected.md" "$tmp_md"; then
+  if ! diff -u <(normalize_cli_version < "$fixture_dir/expected.md") <(normalize_cli_version < "$tmp_md"); then
     echo "FAIL: [$name] expected.md mismatch" >&2
     failed=1
   fi

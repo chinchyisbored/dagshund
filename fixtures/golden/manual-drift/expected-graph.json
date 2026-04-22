@@ -68,7 +68,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 17,
+      "total_change_entries": 18,
       "with_resource_state": 4,
       "task_change_summary_total": 2,
       "entries": [
@@ -156,7 +156,11 @@
           "isDrift": true,
           "changes": [
             {
-              "key": "tasks[task_key='publish'].depends_on[0].task_key",
+              "key": "tasks[task_key='publish'].depends_on[task_key='ingest']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='publish'].depends_on[task_key='transform']",
               "action": "update"
             },
             {
