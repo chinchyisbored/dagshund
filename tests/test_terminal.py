@@ -974,7 +974,7 @@ def test_render_resource_topology_drift_emits_single_reentry_line(change_key: st
     lines = list(_render_resource("resources.jobs.pipeline", entry, use_color=False))
     matching = [line for line in lines if expected_token in line]
     assert len(matching) == 1
-    assert matching[0].endswith("(re-added)")
+    assert matching[0].endswith("(drift) (re-added)")
     assert "+" in matching[0]
     assert any("manually edited outside bundle" in line for line in lines)
 

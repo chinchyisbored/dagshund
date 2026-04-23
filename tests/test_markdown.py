@@ -368,8 +368,8 @@ def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
     assert ">   - 1 grant will be re-added (data_engineers)" in result
 
     # Body: re-added sub-entities rendered as create-style list items
-    assert "`+` `tasks[task_key='transform']` (re-added)" in result
-    assert "`+` `grants.[principal='data_engineers']` (re-added)" in result
+    assert "`+` `tasks[task_key='transform']` (drift) (re-added)" in result
+    assert "`+` `grants.[principal='data_engineers']` (drift) (re-added)" in result
 
     # Old flat parenthetical format must not leak back in
     assert "(2 fields will be overwritten)" not in result
@@ -398,7 +398,7 @@ def test_render_markdown_drift_topology_only() -> None:
     result = render_markdown(plan)
 
     assert ":warning: manually edited outside bundle" in result
-    assert "`+` `tasks[task_key='transform']` (re-added)" in result
+    assert "`+` `tasks[task_key='transform']` (drift) (re-added)" in result
     assert ">   - 1 task will be re-added (transform)" in result
 
 

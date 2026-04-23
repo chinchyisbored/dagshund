@@ -7,15 +7,15 @@
   - `=` `email_notifications`: {no_alert_for_skipped_runs: false} (remote)
   - `=` `performance_target`: "PERFORMANCE_OPTIMIZED" (remote)
   - `-` `tasks[task_key='publish'].depends_on[task_key='ingest']`: {task_key: "ingest"} (drift)
-  - `+` `tasks[task_key='publish'].depends_on[task_key='transform']` (re-added)
-  - `+` `tasks[task_key='transform']` (re-added)
+  - `+` `tasks[task_key='publish'].depends_on[task_key='transform']` (drift) (re-added)
+  - `+` `tasks[task_key='transform']` (drift) (re-added)
 
 #### schemas (2)
 - `+` `schemas/drift_doomed` — create
 - `~` `schemas/drift_grants` — update
   - :warning: manually edited outside bundle
   - `~` `grants.[principal='data_readers'].privileges`: ["USE_SCHEMA"] -> ["SELECT", "USE_SCHEMA"] (drift)
-  - `+` `grants.[principal='data_engineers']` (re-added)
+  - `+` `grants.[principal='data_engineers']` (drift) (re-added)
 
 **+1** create, **~2** update
 

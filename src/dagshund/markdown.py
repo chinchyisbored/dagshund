@@ -92,7 +92,7 @@ def _render_resource(
         for key_name, change in sorted(changes.items()):
             if not is_topology_drift_change(change):
                 continue
-            yield f"  - `{create_cfg.symbol}` `{key_name}` (re-added)"
+            yield f"  - `{create_cfg.symbol}` `{key_name}` (drift) (re-added)"
 
 
 def _render_header(plan: Plan) -> Iterator[str]:

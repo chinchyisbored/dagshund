@@ -200,7 +200,7 @@ def _render_resource(
         for key_name, change in sorted(changes.items()):
             if not is_topology_drift_change(change):
                 continue
-            line = f"      {create_cfg.symbol} {key_name} (re-added)"
+            line = f"      {create_cfg.symbol} {key_name} (drift) (re-added)"
             yield _colorize(line, create_color, use_color=use_color)
 
 

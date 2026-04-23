@@ -7,7 +7,7 @@ describe("DriftPill", () => {
     const { getByText, container } = render(<DriftPill />);
     expect(getByText("drift")).toBeDefined();
     const span = container.querySelector("span") as HTMLElement;
-    expect(span.title).toContain("re-added on apply");
+    expect(span.title).toContain("apply will reconcile");
   });
 
   test("has the dashed-border visual treatment", () => {
