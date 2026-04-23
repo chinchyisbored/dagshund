@@ -1727,3 +1727,52 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
     expect(grantsChange).toHaveProperty("old");
   });
 });
+
+describe("buildResourceGraph ctx-aware drift detection (dagshund-15yh)", () => {
+  // Mirrors the synthetic plan in build-plan-graph.test.ts but exercises the
+  // resource-graph entry point. The job's `taskChangeSummary[publish].isDrift`
+  // is the load-bearing assertion: it proves `buildJobFields` correctly threads
+  // `driftParent` through `buildTaskChangeSummary` even when the consumer is
+  // `buildResourceGraph` (not `buildPlanGraph`). Without ctx threading, the
+  // chip on the job-detail panel's task summary would render `isDrift: false`
+  // for `publish` while the detail panel renders the drift pill on the field.
+  const plan = {
+    plan: {
+      "resources.jobs.drift_pipeline": {
+        action: "update" as const,
+        new_state: {
+          value: {
+            edit_mode: "UI_LOCKED",
+            tasks: [{ task_key: "publish", depends_on: [] }],
+          },
+        },
+        remote_state: {
+          edit_mode: "EDITABLE",
+          tasks: [{ task_key: "publish", depends_on: [{ task_key: "ingest" }] }],
+        },
+        changes: {
+          edit_mode: {
+            action: "update" as const,
+            old: "UI_LOCKED",
+            new: "UI_LOCKED",
+            remote: "EDITABLE",
+          },
+          "tasks[task_key='publish'].depends_on[task_key='ingest']": {
+            action: "update" as const,
+            remote: { task_key: "ingest" },
+          },
+        },
+      },
+    },
+  };
+
+  test("taskChangeSummary entry for publish has isDrift=true", () => {
+    const graph = buildResourceGraph(plan);
+    const job = graph.nodes.find(
+      (n): n is ResourceGraphNode =>
+        n.nodeKind === "resource" && n.resourceKey === "resources.jobs.drift_pipeline",
+    );
+    const publishSummary = job?.taskChangeSummary?.find((e) => e.taskKey === "publish");
+    expect(publishSummary?.isDrift).toBe(true);
+  });
+});

@@ -73,11 +73,20 @@ export const isFieldDriftChange = (change: ChangeDesc): boolean =>
 export const isAnyDriftChange = (change: ChangeDesc): boolean =>
   isTopologyDriftChange(change) || isFieldDriftChange(change);
 
-/** True if any entry in the changes map is drift (topology or field-level).
- *  Must run on the unfiltered map — `filterJobLevelChanges` strips the
- *  `tasks[...]` entries that carry whole-task drift. */
-export const hasAnyDrift = (changes: Readonly<Record<string, ChangeDesc>> | undefined): boolean =>
-  changes !== undefined && Object.values(changes).some(isAnyDriftChange);
+/** True for a list-element-delete change that the parent state reclassifies as
+ *  drift because the enclosing resource shows shape-based drift. Mirrors the
+ *  gate inside `computeStructuralDiff` and Python's `has_drifted_field` ctx
+ *  branch (`src/dagshund/plan.py`). Exported for direct testing and for reuse
+ *  from the ctx-aware predicates below (dagshund-15yh). */
+export const isReclassifiedListElementDriftChange = (
+  change: ChangeDesc,
+  ctx: FieldChangeContext,
+): boolean =>
+  !("old" in change) &&
+  !("new" in change) &&
+  "remote" in change &&
+  ctx.resourceHasShapeDrift &&
+  extractListElementSemantic(ctx) === "delete";
 
 /** True if any entry in the changes map is shape-based field drift (not topology).
  *  Gates list-element-delete → drift reclassification in `FieldChangeContext`
@@ -86,12 +95,38 @@ export const hasAnyDrift = (changes: Readonly<Record<string, ChangeDesc>> | unde
 export const hasFieldDrift = (changes: Readonly<Record<string, ChangeDesc>> | undefined): boolean =>
   changes !== undefined && Object.values(changes).some(isFieldDriftChange);
 
-/** True if any change entry scoped to this task (whole-task or sub-field) is drift. */
-export const hasTaskDrift = (
+/** Per-resource state needed to recognize ctx-aware drift across many changes.
+ *  Same shape as `FieldChangeContext` minus `changeKey`, which the predicates
+ *  fill in per-change as they iterate. */
+export type DriftScanParent = Omit<FieldChangeContext, "changeKey">;
+
+/** Ctx-aware variant of `hasAnyDrift`: also recognizes reclassified-list-element
+ *  delete drift gated on `parent.resourceHasShapeDrift`. Mirrors Python's
+ *  `detect_manual_edits` ctx threading in `src/dagshund/plan.py` (dagshund-15yh). */
+export const hasAnyDriftWithContext = (
+  changes: Readonly<Record<string, ChangeDesc>> | undefined,
+  parent: DriftScanParent,
+): boolean => {
+  if (changes === undefined) return false;
+  for (const [key, change] of Object.entries(changes)) {
+    if (isAnyDriftChange(change)) return true;
+    if (isReclassifiedListElementDriftChange(change, { changeKey: key, ...parent })) return true;
+  }
+  return false;
+};
+
+/** Ctx-aware variant of `hasTaskDrift`. */
+export const hasTaskDriftWithContext = (
   taskKey: string,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
-): boolean =>
-  collectChangesForTask(taskKey, changes).some(([, change]) => isAnyDriftChange(change));
+  parent: DriftScanParent,
+): boolean => {
+  for (const [key, change] of collectChangesForTask(taskKey, changes)) {
+    if (isAnyDriftChange(change)) return true;
+    if (isReclassifiedListElementDriftChange(change, { changeKey: key, ...parent })) return true;
+  }
+  return false;
+};
 
 /**
  * Check whether a candidate key has unique string values within an array of objects.
@@ -310,7 +345,7 @@ export const computeStructuralDiff = (
         kind: "diff",
         diff: { kind: "delete-only", value: change.remote },
         baselineLabel: "remote",
-        semantic: ctx.resourceHasShapeDrift ? "drift" : "normal",
+        semantic: isReclassifiedListElementDriftChange(change, ctx) ? "drift" : "normal",
       };
     }
     if (semantic === "create") {
@@ -354,7 +389,7 @@ export const computeStructuralDiff = (
   // like "skip" are already filtered upstream in `filter-changes.ts` before a
   // change reaches `ChangeEntry` → `computeStructuralDiff`. Deliberately
   // broader than `isFieldDriftChange`, which gates on `action === "update"`
-  // for classification purposes (e.g. `hasTaskDrift`).
+  // for classification purposes (e.g. `hasTaskDriftWithContext`).
   if (isDriftSwapShape(change)) {
     const baseline = change.remote;
     const current = change.new;

@@ -12,7 +12,7 @@ import {
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
-import { hasAnyDrift, hasFieldDrift } from "../utils/structural-diff.ts";
+import { hasAnyDriftWithContext, hasFieldDrift } from "../utils/structural-diff.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { getUnknownProp } from "../utils/unknown-record.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
@@ -84,20 +84,28 @@ export const buildJobFields = (
   resourceKey: string,
   entry: PlanEntry,
   tasks: readonly TaskEntry[],
-) => ({
-  label: extractResourceName(resourceKey),
-  diffState: mapActionToDiffState(entry.action),
-  changes: filterJobLevelChanges(entry.changes),
-  resourceState: resolveJobState(entry.new_state, entry.remote_state),
-  newState: entry.new_state,
-  remoteState: entry.remote_state,
-  resourceHasShapeDrift: hasFieldDrift(entry.changes),
-  taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
-  // Scanned against raw `entry.changes` — `filterJobLevelChanges` above strips
-  // the `tasks[...]` entries that carry whole-task drift, so the scan must
-  // happen here before the filter can hide the signal.
-  isDrift: hasAnyDrift(entry.changes),
-});
+) => {
+  const resourceHasShapeDrift = hasFieldDrift(entry.changes);
+  const driftParent = {
+    newState: entry.new_state,
+    remoteState: entry.remote_state,
+    resourceHasShapeDrift,
+  };
+  return {
+    label: extractResourceName(resourceKey),
+    diffState: mapActionToDiffState(entry.action),
+    changes: filterJobLevelChanges(entry.changes),
+    resourceState: resolveJobState(entry.new_state, entry.remote_state),
+    newState: entry.new_state,
+    remoteState: entry.remote_state,
+    resourceHasShapeDrift,
+    taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes, driftParent),
+    // Scanned against raw `entry.changes` — `filterJobLevelChanges` above strips
+    // the `tasks[...]` entries that carry whole-task drift, so the scan must
+    // happen here before the filter can hide the signal.
+    isDrift: hasAnyDriftWithContext(entry.changes, driftParent),
+  };
+};
 
 /** Build a GraphNode for a real plan resource entry. */
 const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => {
@@ -110,6 +118,7 @@ const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => 
       ...buildJobFields(key, entry, tasks),
     };
   }
+  const resourceHasShapeDrift = hasFieldDrift(entry.changes);
   return {
     id: key,
     label: extractResourceName(key),
@@ -120,9 +129,13 @@ const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => 
     resourceState: extractResourceState(entry),
     newState: entry.new_state,
     remoteState: entry.remote_state,
-    resourceHasShapeDrift: hasFieldDrift(entry.changes),
+    resourceHasShapeDrift,
     taskChangeSummary: undefined,
-    isDrift: hasAnyDrift(entry.changes),
+    isDrift: hasAnyDriftWithContext(entry.changes, {
+      newState: entry.new_state,
+      remoteState: entry.remote_state,
+      resourceHasShapeDrift,
+    }),
   };
 };
 
@@ -131,20 +144,27 @@ const buildContainerResourceNode = (
   hierarchyId: string,
   key: string,
   entry: PlanEntry,
-): ResourceGraphNode => ({
-  id: hierarchyId,
-  label: extractResourceName(key),
-  nodeKind: "resource",
-  diffState: mapActionToDiffState(entry.action),
-  resourceKey: key,
-  changes: entry.changes,
-  resourceState: extractResourceState(entry),
-  newState: entry.new_state,
-  remoteState: entry.remote_state,
-  resourceHasShapeDrift: hasFieldDrift(entry.changes),
-  taskChangeSummary: undefined,
-  isDrift: hasAnyDrift(entry.changes),
-});
+): ResourceGraphNode => {
+  const resourceHasShapeDrift = hasFieldDrift(entry.changes);
+  return {
+    id: hierarchyId,
+    label: extractResourceName(key),
+    nodeKind: "resource",
+    diffState: mapActionToDiffState(entry.action),
+    resourceKey: key,
+    changes: entry.changes,
+    resourceState: extractResourceState(entry),
+    newState: entry.new_state,
+    remoteState: entry.remote_state,
+    resourceHasShapeDrift,
+    taskChangeSummary: undefined,
+    isDrift: hasAnyDriftWithContext(entry.changes, {
+      newState: entry.new_state,
+      remoteState: entry.remote_state,
+      resourceHasShapeDrift,
+    }),
+  };
+};
 
 /** Build a structural root node (UC root, workspace root, etc). */
 const buildRootNode = (id: string, label: string): RootGraphNode => ({

@@ -12,7 +12,7 @@ import {
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
-import { hasAnyDrift, hasFieldDrift, hasTaskDrift } from "../utils/structural-diff.ts";
+import { hasFieldDrift, hasTaskDriftWithContext } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
@@ -41,7 +41,6 @@ const buildJobNode = (
   nodeKind: "job",
   resourceKey,
   ...buildJobFields(resourceKey, entry, tasks),
-  isDrift: hasAnyDrift(entry.changes),
 });
 
 /** Create task-level graph nodes from extracted tasks. */
@@ -50,8 +49,14 @@ const buildTaskNodes = (
   entry: PlanEntry,
   tasks: readonly TaskEntry[],
   jobIdMap: ReadonlyMap<number, string>,
-): readonly TaskGraphNode[] =>
-  tasks.map((task) => {
+): readonly TaskGraphNode[] => {
+  const resourceHasShapeDrift = hasFieldDrift(entry.changes);
+  const driftParent = {
+    newState: entry.new_state,
+    remoteState: entry.remote_state,
+    resourceHasShapeDrift,
+  };
+  return tasks.map((task) => {
     const rawState = extractTaskState(task);
     const jobId = task.run_job_task?.job_id;
     const targetKey =
@@ -81,11 +86,12 @@ const buildTaskNodes = (
       // is drift iff the enclosing job independently shows shape-based drift
       // (e.g. `drift_pipeline.edit_mode`). Matches Python's `_render_resource`
       // which computes `resource_has_shape_drift(entry)` at the job level and
-      // threads it into every field's ctx (dagshund-1naj).
-      resourceHasShapeDrift: hasFieldDrift(entry.changes),
-      isDrift: hasTaskDrift(task.task_key, entry.changes),
+      // threads it into every field's ctx (dagshund-1naj, dagshund-15yh).
+      resourceHasShapeDrift,
+      isDrift: hasTaskDriftWithContext(task.task_key, entry.changes, driftParent),
     };
   });
+};
 
 /** Filter changes to only include entries for a specific task. */
 const filterTaskChanges = (

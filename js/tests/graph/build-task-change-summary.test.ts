@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { buildTaskChangeSummary } from "../../src/graph/build-task-change-summary.ts";
 import type { TaskEntry } from "../../src/graph/extract-tasks.ts";
 import type { ActionType, ChangeDesc } from "../../src/types/plan-schema.ts";
+import type { DriftScanParent } from "../../src/utils/structural-diff.ts";
 
 const makeTask = (taskKey: string): TaskEntry => ({ task_key: taskKey });
 
@@ -11,27 +12,36 @@ const makeChange = (action: ActionType, old?: unknown, newVal?: unknown): Change
   ...(newVal !== undefined ? { new: newVal } : {}),
 });
 
+/** Default ctx for shape-only test cases — none of the existing tests exercise
+ *  the reclassified-list-element-delete path, so absent state + false flag is
+ *  the equivalent of pre-15yh behavior. */
+const NO_DRIFT_CTX: DriftScanParent = {
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
+};
+
 describe("buildTaskChangeSummary", () => {
   test("returns undefined for created resource (all tasks inherit added)", () => {
     const tasks = [makeTask("extract"), makeTask("transform")];
-    const result = buildTaskChangeSummary(tasks, "create", undefined);
+    const result = buildTaskChangeSummary(tasks, "create", undefined, NO_DRIFT_CTX);
     expect(result).toBeUndefined();
   });
 
   test("returns undefined for deleted resource (all tasks inherit removed)", () => {
     const tasks = [makeTask("extract")];
-    const result = buildTaskChangeSummary(tasks, "delete", undefined);
+    const result = buildTaskChangeSummary(tasks, "delete", undefined, NO_DRIFT_CTX);
     expect(result).toBeUndefined();
   });
 
   test("returns undefined when no tasks exist", () => {
-    const result = buildTaskChangeSummary([], "update", undefined);
+    const result = buildTaskChangeSummary([], "update", undefined, NO_DRIFT_CTX);
     expect(result).toBeUndefined();
   });
 
   test("returns undefined when all tasks are unchanged", () => {
     const tasks = [makeTask("extract"), makeTask("transform")];
-    const result = buildTaskChangeSummary(tasks, "update", undefined);
+    const result = buildTaskChangeSummary(tasks, "update", undefined, NO_DRIFT_CTX);
     expect(result).toBeUndefined();
   });
 
@@ -40,7 +50,7 @@ describe("buildTaskChangeSummary", () => {
     const changes = {
       "tasks[task_key='extract'].notebook_task": makeChange("skip"),
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toBeUndefined();
   });
 
@@ -49,7 +59,7 @@ describe("buildTaskChangeSummary", () => {
     const changes: Record<string, ChangeDesc> = {
       "tasks[task_key='new_task']": makeChange("create", undefined, { task_key: "new_task" }),
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(1);
     expect(result?.[0]).toEqual({ taskKey: "new_task", diffState: "added", isDrift: false });
   });
@@ -59,7 +69,7 @@ describe("buildTaskChangeSummary", () => {
     const changes: Record<string, ChangeDesc> = {
       "tasks[task_key='old_task']": makeChange("delete", { task_key: "old_task" }, undefined),
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(1);
     expect(result?.[0]).toEqual({ taskKey: "old_task", diffState: "removed", isDrift: false });
   });
@@ -73,7 +83,7 @@ describe("buildTaskChangeSummary", () => {
         "/new/path",
       ),
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(1);
     expect(result?.[0]).toEqual({ taskKey: "transform", diffState: "modified", isDrift: false });
   });
@@ -85,7 +95,7 @@ describe("buildTaskChangeSummary", () => {
       "tasks[task_key='beta'].notebook_task": makeChange("update", "/old", "/new"),
       "tasks[task_key='alpha']": makeChange("create", undefined, { task_key: "alpha" }),
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(3);
     expect(result?.[0]?.diffState).toBe("added");
     expect(result?.[1]?.diffState).toBe("removed");
@@ -99,7 +109,7 @@ describe("buildTaskChangeSummary", () => {
       "tasks[task_key='alpha'].x": makeChange("update", 1, 2),
       "tasks[task_key='bravo'].x": makeChange("update", 1, 2),
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(3);
     expect(result?.map((e) => e.taskKey)).toEqual(["alpha", "bravo", "charlie"]);
   });
@@ -115,7 +125,7 @@ describe("buildTaskChangeSummary", () => {
         undefined,
       ),
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(3);
     // added first, then removed, then modified
     expect(result?.[0]).toEqual({ taskKey: "new_step", diffState: "added", isDrift: false });
@@ -128,7 +138,7 @@ describe("buildTaskChangeSummary", () => {
     const changes: Record<string, ChangeDesc> = {
       "tasks[task_key='extract'].x": makeChange("update", 1, 2),
     };
-    const result = buildTaskChangeSummary(tasks, undefined, changes);
+    const result = buildTaskChangeSummary(tasks, undefined, changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(1);
     expect(result?.[0]).toEqual({ taskKey: "extract", diffState: "modified", isDrift: false });
   });
@@ -144,7 +154,7 @@ describe("buildTaskChangeSummary", () => {
         remote: "EDITABLE",
       },
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(1);
     expect(result?.[0]).toEqual({ taskKey: "publish", diffState: "modified", isDrift: true });
   });
@@ -160,7 +170,7 @@ describe("buildTaskChangeSummary", () => {
         new: { task_key: "audit_analysis" },
       },
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     expect(result).toHaveLength(1);
     expect(result?.[0]).toEqual({
       taskKey: "audit_analysis",
@@ -182,7 +192,7 @@ describe("buildTaskChangeSummary", () => {
         remote: "EDITABLE",
       },
     };
-    const result = buildTaskChangeSummary(tasks, "update", changes);
+    const result = buildTaskChangeSummary(tasks, "update", changes, NO_DRIFT_CTX);
     // Filtered out entirely — skip actions are unchanged.
     expect(result).toBeUndefined();
   });

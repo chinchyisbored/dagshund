@@ -5,6 +5,9 @@ import {
   diffArrays,
   diffObjects,
   findIdentityKey,
+  hasAnyDriftWithContext,
+  hasTaskDriftWithContext,
+  isReclassifiedListElementDriftChange,
   isTopologyDriftChange,
 } from "../../src/utils/structural-diff.ts";
 
@@ -616,5 +619,112 @@ describe("isTopologyDriftChange", () => {
   test("negative: both missing", () => {
     const change: ChangeDesc = { action: "update" };
     expect(isTopologyDriftChange(change)).toBe(false);
+  });
+});
+
+describe("isReclassifiedListElementDriftChange (dagshund-15yh)", () => {
+  const change: ChangeDesc = { action: "update", remote: { task_key: "ingest" } };
+  const baseCtx = {
+    changeKey: "tasks[task_key='publish'].depends_on[task_key='ingest']",
+    newState: {
+      value: { tasks: [{ task_key: "publish", depends_on: [{ task_key: "transform" }] }] },
+    },
+    remoteState: { tasks: [{ task_key: "publish", depends_on: [{ task_key: "ingest" }] }] },
+  };
+
+  test("true when shape matches and resourceHasShapeDrift gates it", () => {
+    expect(
+      isReclassifiedListElementDriftChange(change, { ...baseCtx, resourceHasShapeDrift: true }),
+    ).toBe(true);
+  });
+
+  test("false when resourceHasShapeDrift is false (gate closed)", () => {
+    expect(
+      isReclassifiedListElementDriftChange(change, { ...baseCtx, resourceHasShapeDrift: false }),
+    ).toBe(false);
+  });
+
+  test("false when change has old (not the reclassified shape)", () => {
+    const c: ChangeDesc = { action: "update", old: "x", remote: "y" };
+    expect(
+      isReclassifiedListElementDriftChange(c, { ...baseCtx, resourceHasShapeDrift: true }),
+    ).toBe(false);
+  });
+
+  test("false when change is a list-element create, not delete", () => {
+    const c: ChangeDesc = { action: "update", remote: { task_key: "transform" } };
+    const ctx = {
+      changeKey: "tasks[task_key='publish'].depends_on[task_key='transform']",
+      newState: {
+        value: { tasks: [{ task_key: "publish", depends_on: [{ task_key: "transform" }] }] },
+      },
+      remoteState: { tasks: [{ task_key: "publish", depends_on: [] }] },
+      resourceHasShapeDrift: true,
+    };
+    expect(isReclassifiedListElementDriftChange(c, ctx)).toBe(false);
+  });
+});
+
+describe("hasAnyDriftWithContext / hasTaskDriftWithContext (dagshund-15yh)", () => {
+  // A reclassified-list-element-delete change: only `remote` present, no old/new.
+  const reclassifiedDelete: ChangeDesc = { action: "update", remote: { task_key: "ingest" } };
+  const reclassifiedKey = "tasks[task_key='publish'].depends_on[task_key='ingest']";
+
+  // A shape-based field-drift change: old == new but remote differs.
+  const fieldDrift: ChangeDesc = {
+    action: "update",
+    old: "UI_LOCKED",
+    new: "UI_LOCKED",
+    remote: "EDITABLE",
+  };
+
+  const driftParent = {
+    newState: {
+      value: { tasks: [{ task_key: "publish", depends_on: [{ task_key: "transform" }] }] },
+    },
+    remoteState: { tasks: [{ task_key: "publish", depends_on: [{ task_key: "ingest" }] }] },
+    resourceHasShapeDrift: true,
+  };
+
+  test("hasAnyDriftWithContext detects reclassified-delete when shape-drift present", () => {
+    expect(hasAnyDriftWithContext({ [reclassifiedKey]: reclassifiedDelete }, driftParent)).toBe(
+      true,
+    );
+  });
+
+  test("hasAnyDriftWithContext returns false when resourceHasShapeDrift is false", () => {
+    expect(
+      hasAnyDriftWithContext(
+        { [reclassifiedKey]: reclassifiedDelete },
+        { ...driftParent, resourceHasShapeDrift: false },
+      ),
+    ).toBe(false);
+  });
+
+  test("hasAnyDriftWithContext still detects shape-based drift (no regression)", () => {
+    expect(hasAnyDriftWithContext({ edit_mode: fieldDrift }, driftParent)).toBe(true);
+  });
+
+  test("hasTaskDriftWithContext scopes ctx-based drift to a single task_key", () => {
+    // `publish` task carries the reclassified-delete; `other` task carries
+    // unrelated field drift. Looking up `other` must NOT see the publish-side
+    // reclassified entry (and vice versa for the field-drift on other).
+    const changes = {
+      [reclassifiedKey]: reclassifiedDelete,
+      "tasks[task_key='other'].edit_mode": fieldDrift,
+    };
+    expect(hasTaskDriftWithContext("publish", changes, driftParent)).toBe(true);
+    expect(hasTaskDriftWithContext("other", changes, driftParent)).toBe(true);
+    // Lookup of a task with no scoped changes returns false even when other
+    // tasks in the map are drifty — proves scoping, not bleed.
+    expect(hasTaskDriftWithContext("nonexistent", changes, driftParent)).toBe(false);
+    // Gate-closed case: same publish-only changes but resourceHasShapeDrift=false.
+    expect(
+      hasTaskDriftWithContext(
+        "publish",
+        { [reclassifiedKey]: reclassifiedDelete },
+        { ...driftParent, resourceHasShapeDrift: false },
+      ),
+    ).toBe(false);
   });
 });

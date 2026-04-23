@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildPlanGraph } from "../../src/graph/build-plan-graph.ts";
-import type { TaskGraphNode } from "../../src/types/graph-types.ts";
+import type { JobGraphNode, TaskGraphNode } from "../../src/types/graph-types.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 describe("buildPlanGraph", () => {
@@ -956,6 +956,77 @@ describe("buildPlanGraph", () => {
       const node = findTaskNode(graph, "trigger_old");
       // job_id=0 with no vars and no jobIdMap match: unresolvable, stays raw.
       expect(runJobTaskJobId(node)).toBe(0);
+    });
+  });
+
+  describe("ctx-aware drift detection (dagshund-15yh)", () => {
+    // Synthetic plan where the only drift signal on the `publish` task is a
+    // reclassified-list-element-delete (a depends_on entry on remote that's
+    // missing from the bundle). Without ctx-aware predicates, the graph
+    // would emit `isDrift: false` even though the detail panel renders the
+    // drift pill via `computeStructuralDiff`. The job-level edit_mode field
+    // drift sets `resourceHasShapeDrift=true` so the gate opens.
+    const plan = {
+      plan: {
+        "resources.jobs.drift_pipeline": {
+          action: "update" as const,
+          new_state: {
+            value: {
+              edit_mode: "UI_LOCKED",
+              tasks: [{ task_key: "publish", depends_on: [] }],
+            },
+          },
+          remote_state: {
+            edit_mode: "EDITABLE",
+            tasks: [{ task_key: "publish", depends_on: [{ task_key: "ingest" }] }],
+          },
+          changes: {
+            edit_mode: {
+              action: "update" as const,
+              old: "UI_LOCKED",
+              new: "UI_LOCKED",
+              remote: "EDITABLE",
+            },
+            "tasks[task_key='publish'].depends_on[task_key='ingest']": {
+              action: "update" as const,
+              remote: { task_key: "ingest" },
+            },
+          },
+        },
+      },
+    };
+
+    test("task node isDrift=true when only signal is reclassified-list-element-delete", () => {
+      const graph = buildPlanGraph(plan);
+      const publish = graph.nodes.find(
+        (n): n is TaskGraphNode => n.nodeKind === "task" && n.taskKey === "publish",
+      );
+      expect(publish?.isDrift).toBe(true);
+    });
+
+    test("job-level taskChangeSummary entry for publish has isDrift=true", () => {
+      const graph = buildPlanGraph(plan);
+      const job = graph.nodes.find(
+        (n): n is JobGraphNode =>
+          n.nodeKind === "job" && n.resourceKey === "resources.jobs.drift_pipeline",
+      );
+      const publishSummary = job?.taskChangeSummary?.find((e) => e.taskKey === "publish");
+      expect(publishSummary?.isDrift).toBe(true);
+    });
+
+    test("job node isDrift=true (covers buildJobFields call site)", () => {
+      // Documentary: at the job-level scan, `edit_mode` field-drift alone
+      // would make both shape-only and ctx-aware predicates return true (the
+      // ctx gate's load-bearing case is at the per-task scan, not the
+      // whole-entry scan). This test pins that the call site emits a value
+      // and that the ctx-aware swap didn't drop it; the bug-fix coverage is
+      // in the two task-level assertions above.
+      const graph = buildPlanGraph(plan);
+      const job = graph.nodes.find(
+        (n): n is JobGraphNode =>
+          n.nodeKind === "job" && n.resourceKey === "resources.jobs.drift_pipeline",
+      );
+      expect(job?.isDrift).toBe(true);
     });
   });
 });
