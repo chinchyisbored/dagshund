@@ -19,4 +19,22 @@ describe("ActionBadge", () => {
     const span = container.querySelector("span") as HTMLElement;
     expect(span.className).toContain("text-badge-text");
   });
+
+  test("known action carries a hover tooltip (dagshund-rkqa)", () => {
+    const { container } = render(<ActionBadge action="recreate" />);
+    const span = container.querySelector("span") as HTMLElement;
+    expect(span.getAttribute("title")).toBe("Will be deleted and recreated");
+  });
+
+  test("update_id tooltip distinguishes it from update", () => {
+    const { container } = render(<ActionBadge action="update_id" />);
+    const span = container.querySelector("span") as HTMLElement;
+    expect(span.getAttribute("title")).toBe("Will be re-keyed (identifier change)");
+  });
+
+  test("unknown action has no tooltip (omitted rather than misleading)", () => {
+    const { container } = render(<ActionBadge action="mystery" />);
+    const span = container.querySelector("span") as HTMLElement;
+    expect(span.getAttribute("title")).toBeNull();
+  });
 });
