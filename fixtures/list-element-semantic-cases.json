@@ -1,0 +1,117 @@
+{
+  "description": "Shared test vectors for extract_list_element_semantic (Python) and extractListElementSemantic (TS). Both test suites iterate this file and assert matching results — protects against algorithm drift between languages (dagshund-1naj).",
+  "cases": [
+    {
+      "name": "delete_nested_task_depends_on",
+      "changeKey": "tasks[task_key='publish'].depends_on[task_key='ingest']",
+      "newState": {"tasks": [{"task_key": "publish", "depends_on": [{"task_key": "transform"}]}]},
+      "remoteState": {"tasks": [{"task_key": "publish", "depends_on": [{"task_key": "ingest"}]}]},
+      "expected": "delete"
+    },
+    {
+      "name": "create_nested_task_depends_on",
+      "changeKey": "tasks[task_key='aggregate'].depends_on[task_key='compute']",
+      "newState": {"tasks": [{"task_key": "aggregate", "depends_on": [{"task_key": "compute"}]}]},
+      "remoteState": {"tasks": [{"task_key": "aggregate", "depends_on": []}]},
+      "expected": "create"
+    },
+    {
+      "name": "update_list_element_different_content",
+      "changeKey": "permissions.[group_name='viewers']",
+      "newState": {"permissions": [{"group_name": "viewers", "level": "CAN_MANAGE"}]},
+      "remoteState": {"permissions": [{"group_name": "viewers", "level": "CAN_VIEW"}]},
+      "expected": "update"
+    },
+    {
+      "name": "noop_identical_content",
+      "changeKey": "permissions.[group_name='viewers']",
+      "newState": {"permissions": [{"group_name": "viewers", "level": "CAN_VIEW"}]},
+      "remoteState": {"permissions": [{"group_name": "viewers", "level": "CAN_VIEW"}]},
+      "expected": null
+    },
+    {
+      "name": "sub_resource_permissions_create",
+      "changeKey": "permissions.[group_name='data_engineers']",
+      "newState": {"permissions": [{"group_name": "data_engineers", "level": "CAN_VIEW"}]},
+      "remoteState": {"permissions": []},
+      "expected": "create"
+    },
+    {
+      "name": "sub_resource_grants_delete",
+      "changeKey": "grants.[principal='data_analysts']",
+      "newState": {"grants": [{"principal": "viewers", "privileges": ["SELECT"]}]},
+      "remoteState": {"grants": [{"principal": "data_analysts", "privileges": ["SELECT"]}]},
+      "expected": "delete"
+    },
+    {
+      "name": "new_state_value_wrapper_is_unwrapped",
+      "changeKey": "depends_on[task_key='ingest']",
+      "newState": {"value": {"depends_on": [{"task_key": "transform"}]}},
+      "remoteState": {"depends_on": [{"task_key": "ingest"}]},
+      "expected": "delete"
+    },
+    {
+      "name": "parent_path_missing_in_both",
+      "changeKey": "nonexistent[task_key='x']",
+      "newState": {},
+      "remoteState": {},
+      "expected": null
+    },
+    {
+      "name": "parent_is_scalar_not_list",
+      "changeKey": "edit_mode[task_key='x']",
+      "newState": {"edit_mode": "UI_LOCKED"},
+      "remoteState": {"edit_mode": "EDITABLE"},
+      "expected": null
+    },
+    {
+      "name": "both_parent_lists_empty",
+      "changeKey": "permissions.[group_name='x']",
+      "newState": {"permissions": []},
+      "remoteState": {"permissions": []},
+      "expected": null
+    },
+    {
+      "name": "plain_field_key_no_bracket",
+      "changeKey": "edit_mode",
+      "newState": {"edit_mode": "UI_LOCKED"},
+      "remoteState": {"edit_mode": "EDITABLE"},
+      "expected": null
+    },
+    {
+      "name": "dict_key_bracket_not_field_filter",
+      "changeKey": "properties['environment']",
+      "newState": {"properties": {"environment": "prod"}},
+      "remoteState": {},
+      "expected": null
+    },
+    {
+      "name": "state_trees_null_both_sides",
+      "changeKey": "depends_on[task_key='x']",
+      "newState": null,
+      "remoteState": null,
+      "expected": null
+    },
+    {
+      "name": "remote_state_null_new_has_element",
+      "changeKey": "depends_on[task_key='ingest']",
+      "newState": {"depends_on": [{"task_key": "ingest"}]},
+      "remoteState": null,
+      "expected": "create"
+    },
+    {
+      "name": "new_state_null_remote_has_element",
+      "changeKey": "depends_on[task_key='ingest']",
+      "newState": null,
+      "remoteState": {"depends_on": [{"task_key": "ingest"}]},
+      "expected": "delete"
+    },
+    {
+      "name": "multi_filter_bracket",
+      "changeKey": "libraries[whl='/path/to/a.whl'][pypi='b']",
+      "newState": {"libraries": [{"whl": "/path/to/a.whl", "pypi": "b", "version": "2"}]},
+      "remoteState": {"libraries": [{"whl": "/path/to/a.whl", "pypi": "b", "version": "1"}]},
+      "expected": "update"
+    }
+  ]
+}

@@ -12,7 +12,7 @@ import {
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
-import { hasAnyDrift } from "../utils/structural-diff.ts";
+import { hasAnyDrift, hasFieldDrift } from "../utils/structural-diff.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { getUnknownProp } from "../utils/unknown-record.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
@@ -89,6 +89,9 @@ export const buildJobFields = (
   diffState: mapActionToDiffState(entry.action),
   changes: filterJobLevelChanges(entry.changes),
   resourceState: resolveJobState(entry.new_state, entry.remote_state),
+  newState: entry.new_state,
+  remoteState: entry.remote_state,
+  resourceHasShapeDrift: hasFieldDrift(entry.changes),
   taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes),
   // Scanned against raw `entry.changes` — `filterJobLevelChanges` above strips
   // the `tasks[...]` entries that carry whole-task drift, so the scan must
@@ -115,6 +118,9 @@ const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => 
     resourceKey: key,
     changes: entry.changes,
     resourceState: extractResourceState(entry),
+    newState: entry.new_state,
+    remoteState: entry.remote_state,
+    resourceHasShapeDrift: hasFieldDrift(entry.changes),
     taskChangeSummary: undefined,
     isDrift: hasAnyDrift(entry.changes),
   };
@@ -133,6 +139,9 @@ const buildContainerResourceNode = (
   resourceKey: key,
   changes: entry.changes,
   resourceState: extractResourceState(entry),
+  newState: entry.new_state,
+  remoteState: entry.remote_state,
+  resourceHasShapeDrift: hasFieldDrift(entry.changes),
   taskChangeSummary: undefined,
   isDrift: hasAnyDrift(entry.changes),
 });
@@ -146,6 +155,9 @@ const buildRootNode = (id: string, label: string): RootGraphNode => ({
   resourceKey: id,
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 });
 
 /** Build a phantom node for an inferred ancestor not in the plan. */
@@ -157,6 +169,9 @@ const buildPhantomNode = (id: string, label: string): PhantomGraphNode => ({
   resourceKey: id,
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 });
 
 // ---------------------------------------------------------------------------

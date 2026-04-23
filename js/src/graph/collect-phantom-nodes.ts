@@ -38,6 +38,9 @@ const buildPhantomNodesFromEntries = (
     resourceKey,
     changes: undefined,
     resourceState: undefined,
+    newState: undefined,
+    remoteState: undefined,
+    resourceHasShapeDrift: false,
   }));
   const edges = filterDefinedEdges(nodes.map((node) => buildEdge(parentId, node.id)));
   return { nodes, edges };

@@ -116,6 +116,54 @@ def test_has_drifted_field_missing_new_returns_false() -> None:
     assert has_drifted_field(make_change(action="update", old="A", remote="B")) is False
 
 
+# --- has_drifted_field with FieldChangeContext (list-element reclassification, dagshund-1naj) ---
+
+
+def test_has_drifted_field_list_element_delete_with_shape_drift_returns_true() -> None:
+    """Reclassified list-element delete = drift when resource has shape-based drift."""
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='ingest']",
+        new_state={"depends_on": [{"task_key": "transform"}]},
+        remote_state={"depends_on": [{"task_key": "ingest"}]},
+        resource_has_shape_drift=True,
+    )
+    assert has_drifted_field(make_change(action="update", remote={"task_key": "ingest"}), ctx) is True
+
+
+def test_has_drifted_field_list_element_delete_without_shape_drift_returns_false() -> None:
+    """Without shape drift we cannot tell 'bundle rewire' from 'manual edit' — default to not drift."""
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='ingest']",
+        new_state={"depends_on": [{"task_key": "transform"}]},
+        remote_state={"depends_on": [{"task_key": "ingest"}]},
+        resource_has_shape_drift=False,
+    )
+    assert has_drifted_field(make_change(action="update", remote={"task_key": "ingest"}), ctx) is False
+
+
+def test_has_drifted_field_list_element_create_not_drift_even_with_shape_drift() -> None:
+    """Reclassified list-element create is ambiguous with bundle-planned addition."""
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='transform']",
+        new_state={"depends_on": [{"task_key": "transform"}]},
+        remote_state={"depends_on": []},
+        resource_has_shape_drift=True,
+    )
+    assert has_drifted_field(make_change(action="update", new={"task_key": "transform"}), ctx) is False
+
+
+def test_has_drifted_field_list_element_without_ctx_uses_shape_only() -> None:
+    """Without ctx, only the shape-based predicate fires — legacy callers unchanged."""
+    change = make_change(action="update", remote={"task_key": "ingest"})
+    assert has_drifted_field(change) is False
+
+
 # --- is_topology_drift_change ---
 
 

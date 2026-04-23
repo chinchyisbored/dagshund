@@ -22,6 +22,9 @@ type HierarchyData = {
   readonly resourceKey: string;
   readonly changes: undefined;
   readonly resourceState: undefined;
+  readonly newState: undefined;
+  readonly remoteState: undefined;
+  readonly resourceHasShapeDrift: boolean;
 };
 
 const makeData = (overrides: Partial<HierarchyData> = {}): HierarchyData => ({
@@ -31,6 +34,9 @@ const makeData = (overrides: Partial<HierarchyData> = {}): HierarchyData => ({
   resourceKey: "pipelines",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   ...overrides,
 });
 

@@ -20,6 +20,9 @@ type JobData = {
   readonly resourceKey: string;
   readonly changes: undefined;
   readonly resourceState: undefined;
+  readonly newState: undefined;
+  readonly remoteState: undefined;
+  readonly resourceHasShapeDrift: boolean;
   readonly taskChangeSummary: undefined;
 };
 
@@ -30,6 +33,9 @@ const makeData = (overrides: Partial<JobData> = {}): JobData => ({
   resourceKey: "jobs.etl_pipeline",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
   ...overrides,
 });

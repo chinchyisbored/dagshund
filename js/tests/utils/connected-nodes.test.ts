@@ -21,6 +21,9 @@ const makeNode = (
     taskKey: id,
     changes: undefined,
     resourceState: undefined,
+    newState: undefined,
+    remoteState: undefined,
+    resourceHasShapeDrift: false,
     ...overrides,
   },
 });

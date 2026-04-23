@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from itertools import groupby
 
+from dagshund.change_path import FieldChangeContext
 from dagshund.format import (
     ActionConfig,
     DriftSummary,
@@ -30,6 +31,7 @@ from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
     is_topology_drift_change,
+    resource_has_shape_drift,
 )
 from dagshund.types import (
     DagshundError,
@@ -127,16 +129,21 @@ def _wrap_warning_line(line: str, width: int) -> str:
 
 
 def _render_field_change(
-    field_name: str, change: FieldChange, *, use_color: bool, width: int | None = None
+    field_name: str,
+    change: FieldChange,
+    *,
+    ctx: FieldChangeContext | None = None,
+    use_color: bool,
+    width: int | None = None,
 ) -> str | None:
     if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return None
 
-    suffix = format_field_suffix(change)
+    suffix = format_field_suffix(change, ctx)
     if suffix is None:
         return None
 
-    field_config = field_action_config(change)
+    field_config = field_action_config(change, ctx)
     prefix = f"      {field_config.symbol} {field_name}"
     line = f"{prefix}{suffix}"
 
@@ -167,11 +174,23 @@ def _render_resource(
         return
 
     reentries = detect_drift_reentries(changes)
-    if detect_drift_fields(changes) or reentries:
+    shape_drift = resource_has_shape_drift(entry)
+    drift_fields = detect_drift_fields(
+        changes,
+        new_state=entry.new_state,
+        remote_state=entry.remote_state,
+        shape_drift=shape_drift,
+    )
+    if drift_fields or reentries:
         yield _colorize("      \u26a0 manually edited outside bundle", YELLOW, use_color=use_color)
 
-    for field_name, change in iter_non_topology_field_changes(changes):
-        rendered = _render_field_change(field_name, change, use_color=use_color, width=width)
+    for field_name, change, ctx in iter_non_topology_field_changes(
+        changes,
+        new_state=entry.new_state,
+        remote_state=entry.remote_state,
+        shape_drift=shape_drift,
+    ):
+        rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=width)
         if rendered is not None:
             yield rendered
 

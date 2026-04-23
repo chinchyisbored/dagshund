@@ -7,6 +7,7 @@ import {
   topLevelFieldName,
 } from "../../utils/change-path.ts";
 import { filterUnchangedEmbedEntries, stripEmbedFromRecord } from "../../utils/embed-entries.ts";
+import { deriveFieldAction, type FieldChangeContext } from "../../utils/field-action.ts";
 import { isUnknownRecord } from "../../utils/unknown-record.ts";
 import { ChangeEntry } from "./change-entry.tsx";
 import { ResourceStateView } from "./resource-state-view.tsx";
@@ -82,37 +83,44 @@ const filterUnmodifiedState = (
   return result;
 };
 
-const ADDED_ACTIONS: ReadonlySet<string> = new Set(["create"]);
-const REMOVED_ACTIONS: ReadonlySet<string> = new Set(["delete"]);
+type ChangeEntryWithCtx = {
+  readonly fieldPath: string;
+  readonly change: ChangeDesc;
+  readonly ctx: FieldChangeContext;
+};
 
 type ChangeGroup = {
   readonly label: string;
-  readonly entries: readonly (readonly [string, ChangeDesc])[];
+  readonly entries: readonly ChangeEntryWithCtx[];
 };
 
-/** Group meaningful changes into Added / Modified / Removed sections. */
-const groupChangesByCategory = (
-  changes: readonly (readonly [string, ChangeDesc])[],
-): readonly ChangeGroup[] => {
-  const added: (readonly [string, ChangeDesc])[] = [];
-  const modified: (readonly [string, ChangeDesc])[] = [];
-  const removed: (readonly [string, ChangeDesc])[] = [];
+/** Group meaningful changes into Added / Modified / Removed / Remote-only sections.
+ *
+ *  Groups by the shape-derived action (same source of truth as the per-entry
+ *  `ActionBadge`) so the section header and the badge agree. Before this fix
+ *  the header grouped on raw `change.action` while the badge used
+ *  `deriveFieldAction` — the CLI's per-field `action: "update"` pushed every
+ *  derived create/delete/remote entry into "Modified" (dagshund-1naj).
+ */
+const groupChangesByCategory = (entries: readonly ChangeEntryWithCtx[]): readonly ChangeGroup[] => {
+  const added: ChangeEntryWithCtx[] = [];
+  const modified: ChangeEntryWithCtx[] = [];
+  const removed: ChangeEntryWithCtx[] = [];
+  const remoteOnly: ChangeEntryWithCtx[] = [];
 
-  for (const entry of changes) {
-    const action = entry[1].action;
-    if (ADDED_ACTIONS.has(action)) {
-      added.push(entry);
-    } else if (REMOVED_ACTIONS.has(action)) {
-      removed.push(entry);
-    } else {
-      modified.push(entry);
-    }
+  for (const entry of entries) {
+    const action = deriveFieldAction(entry.change, entry.ctx);
+    if (action === "create") added.push(entry);
+    else if (action === "delete") removed.push(entry);
+    else if (action === "remote") remoteOnly.push(entry);
+    else modified.push(entry);
   }
 
   return [
     { label: "Added", entries: added },
     { label: "Modified", entries: modified },
     { label: "Removed", entries: removed },
+    { label: "Remote-only (not managed by bundle)", entries: remoteOnly },
   ].filter((group) => group.entries.length > 0);
 };
 
@@ -123,7 +131,21 @@ export function ModifiedBody({
   readonly data: DagNodeData;
   readonly fieldChanges: readonly (readonly [string, ChangeDesc])[];
 }) {
-  const changeGroups = groupChangesByCategory(fieldChanges);
+  // `data.resourceHasShapeDrift` is computed at graph-build time over the full
+  // enclosing plan entry (see BaseGraphNode), so task nodes correctly inherit
+  // their parent job's drift state. A local recompute over `fieldChanges`
+  // would miss job-level drift signals when rendering a task panel.
+  const entriesWithCtx: readonly ChangeEntryWithCtx[] = fieldChanges.map(([fieldPath, change]) => ({
+    fieldPath,
+    change,
+    ctx: {
+      changeKey: fieldPath,
+      newState: data.newState,
+      remoteState: data.remoteState,
+      resourceHasShapeDrift: data.resourceHasShapeDrift,
+    },
+  }));
+  const changeGroups = groupChangesByCategory(entriesWithCtx);
   const { exact, subFieldPaths } = categorizeChangedFields(fieldChanges);
   const unmodifiedState = data.resourceState
     ? filterUnmodifiedState(data.resourceState, exact, subFieldPaths)
@@ -136,8 +158,8 @@ export function ModifiedBody({
         <div key={group.label}>
           <SectionDivider label={group.label} />
           <div className="flex flex-col gap-2">
-            {group.entries.map(([fieldPath, change]) => (
-              <ChangeEntry key={fieldPath} fieldPath={fieldPath} change={change} />
+            {group.entries.map(({ fieldPath, change, ctx }) => (
+              <ChangeEntry key={fieldPath} fieldPath={fieldPath} change={change} ctx={ctx} />
             ))}
           </div>
         </div>

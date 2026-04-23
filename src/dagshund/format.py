@@ -4,6 +4,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from itertools import groupby
 
+from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
 from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
 from dagshund.plan import (
     DANGEROUS_ACTIONS,
@@ -11,6 +12,7 @@ from dagshund.plan import (
     action_to_diff_state,
     has_drifted_field,
     is_topology_drift_change,
+    resource_has_shape_drift,
 )
 from dagshund.types import (
     DiffState,
@@ -55,19 +57,32 @@ def action_config(action: ActionType) -> ActionConfig:
     return ACTIONS.get(action, DEFAULT_ACTION)
 
 
-def field_action_config(change: FieldChange) -> ActionConfig:
+def field_action_config(change: FieldChange, ctx: FieldChangeContext | None = None) -> ActionConfig:
     """Derive the display config for a field change from data presence, not the action label.
 
     The Databricks CLI reports 'update' for fields within an updated resource even when
     the field itself is new (only 'new', no 'old') or removed (only 'old', no 'new').
     Derive the effective action from the data shape: new-only → create, old-only → delete,
     both → update.
+
+    When ``ctx`` is provided, per-element list changes (keys ending in
+    ``[field='value']``) consult the parent state to disambiguate shapes that
+    are structurally identical to unrelated semantics — e.g. a list element
+    present only on the remote looks like a remote-only field, but is actually
+    a delete. See ``change_path.extract_list_element_semantic``.
     """
     base = ACTIONS.get(change.action, DEFAULT_ACTION)
 
     # Only override for actions that show field changes — resource-level symbols are fine
     if not base.show_field_changes:
         return base
+
+    if ctx is not None:
+        semantic = extract_list_element_semantic(ctx)
+        if semantic is not None:
+            # ListElementSemantic values ("create" / "delete" / "update") are
+            # exact ActionType string values — StrEnum constructor does the mapping.
+            return ACTIONS[ActionType(semantic)]
 
     has_old, has_new = change.old is not UNSET, change.new is not UNSET
     if has_new and not has_old:
@@ -131,9 +146,31 @@ def _format_collection_summary(value: dict | list) -> str:
     return f"[{len(value)} items]"
 
 
-def format_field_suffix(change: FieldChange) -> str | None:
+def format_field_suffix(change: FieldChange, ctx: FieldChangeContext | None = None) -> str | None:
     has_old, has_new = change.old is not UNSET, change.new is not UNSET
     has_remote = change.remote is not UNSET
+
+    # List-element reclassification: for bundle-managed lists the CLI emits
+    # shapes that are ambiguous with unrelated semantics. When ctx lets us
+    # disambiguate, take over ONLY when the shape would otherwise misclassify —
+    # i.e. remote-only shape on a list-element path. When old/new are populated
+    # the shape-based logic below already renders correctly (delete body from
+    # change.old, create body from change.new, etc.), including collection
+    # summaries via format_display_value. Tag drift on reclassified deletes
+    # when the enclosing resource independently shows shape-based drift.
+    #
+    # Note: this gate differs from `field_action_config`, which tries ctx
+    # unconditionally. The suffix branch preserves the existing old→new body
+    # formatting path for legitimate transitions; action-config has no such
+    # competing path — the override there always agrees with shape when shape
+    # is not remote-only, so an ungated ctx lookup is safe.
+    if ctx is not None and not has_old and not has_new and has_remote:
+        semantic = extract_list_element_semantic(ctx)
+        if semantic == "delete":
+            tag = " (drift)" if ctx.resource_has_shape_drift else ""
+            return f": {format_value(change.remote)}{tag}"
+        if semantic == "create":
+            return f": {format_display_value(change.remote)}"
 
     # Drift: old == new but remote differs — show what the deploy will overwrite
     if has_old and has_new and change.old == change.new and has_remote and change.remote != change.old:
@@ -156,10 +193,28 @@ def format_field_suffix(change: FieldChange) -> str | None:
     return ""
 
 
-def detect_drift_fields(changes: Mapping[str, FieldChange]) -> list[str]:
+def detect_drift_fields(
+    changes: Mapping[str, FieldChange],
+    *,
+    new_state: object | None = None,
+    remote_state: object | None = None,
+    shape_drift: bool = False,
+) -> list[str]:
     if not changes:
         return []
-    return sorted(field_name for field_name, change in changes.items() if has_drifted_field(change))
+    return sorted(
+        field_name
+        for field_name, change in changes.items()
+        if has_drifted_field(
+            change,
+            FieldChangeContext(
+                change_key=field_name,
+                new_state=new_state,
+                remote_state=remote_state,
+                resource_has_shape_drift=shape_drift,
+            ),
+        )
+    )
 
 
 # Captures optional noun segment + single-quoted label in final bracket group.
@@ -206,16 +261,30 @@ def detect_drift_reentries(
 
 def iter_non_topology_field_changes(
     changes: Mapping[str, FieldChange],
-) -> Iterator[tuple[str, FieldChange]]:
-    """Yield sorted field changes with topology-drift entries excluded.
+    *,
+    new_state: object | None = None,
+    remote_state: object | None = None,
+    shape_drift: bool = False,
+) -> Iterator[tuple[str, FieldChange, FieldChangeContext]]:
+    """Yield sorted ``(name, change, ctx)`` with topology-drift entries excluded.
 
     Single source of truth for the ``field vs re-add`` partition shared by the
-    terminal and markdown renderers.
+    terminal and markdown renderers. The context travels alongside each change
+    so the per-renderer plumbing stays identical.
     """
     for name, change in sorted(changes.items()):
         if is_topology_drift_change(change):
             continue
-        yield name, change
+        yield (
+            name,
+            change,
+            FieldChangeContext(
+                change_key=name,
+                new_state=new_state,
+                remote_state=remote_state,
+                resource_has_shape_drift=shape_drift,
+            ),
+        )
 
 
 def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType:
@@ -293,7 +362,15 @@ def collect_warnings(
 
 
 def _summarize_resource_drift(key: ResourceKey, entry: ResourceChange) -> DriftSummary | None:
-    overwritten = len(detect_drift_fields(entry.changes))
+    shape_drift = resource_has_shape_drift(entry)
+    overwritten = len(
+        detect_drift_fields(
+            entry.changes,
+            new_state=entry.new_state,
+            remote_state=entry.remote_state,
+            shape_drift=shape_drift,
+        )
+    )
     reentries = tuple(detect_drift_reentries(entry.changes))
     if overwritten == 0 and not reentries:
         return None

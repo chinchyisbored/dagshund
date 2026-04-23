@@ -78,6 +78,48 @@ def test_field_action_config_unknown_action_returns_default() -> None:
     assert result.symbol == "?"
 
 
+# --- field_action_config with FieldChangeContext (list-element reclassification, dagshund-1naj) ---
+
+
+def test_field_action_config_list_element_delete_reclassified() -> None:
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='ingest']",
+        new_state={"depends_on": []},
+        remote_state={"depends_on": [{"task_key": "ingest"}]},
+    )
+    result = field_action_config(make_change(action="update", remote={"task_key": "ingest"}), ctx)
+    assert result.display == "delete"
+    assert result.symbol == "-"
+
+
+def test_field_action_config_list_element_create_reclassified() -> None:
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='transform']",
+        new_state={"depends_on": [{"task_key": "transform"}]},
+        remote_state={"depends_on": []},
+    )
+    result = field_action_config(make_change(action="update", new={"task_key": "transform"}), ctx)
+    assert result.display == "create"
+    assert result.symbol == "+"
+
+
+def test_field_action_config_non_list_element_path_falls_back_to_shape() -> None:
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="edit_mode",
+        new_state={"edit_mode": "UI_LOCKED"},
+        remote_state={"edit_mode": "EDITABLE"},
+    )
+    result = field_action_config(make_change(action="update", remote="EDITABLE"), ctx)
+    # Remote-only shape → remote badge (shape-based fallback — ctx didn't match a list element)
+    assert result.display == "remote"
+
+
 # --- format_field_suffix ---
 
 
@@ -121,6 +163,47 @@ def test_format_field_suffix_no_values_returns_empty() -> None:
     result = format_field_suffix(make_change())
 
     assert result == ""
+
+
+# --- format_field_suffix with FieldChangeContext (list-element reclassification, dagshund-1naj) ---
+
+
+def test_format_field_suffix_list_element_delete_with_shape_drift_tags_drift() -> None:
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='ingest']",
+        new_state={"depends_on": []},
+        remote_state={"depends_on": [{"task_key": "ingest"}]},
+        resource_has_shape_drift=True,
+    )
+    result = format_field_suffix(make_change(action="update", remote={"task_key": "ingest"}), ctx)
+    assert result == ': {task_key: "ingest"} (drift)'
+
+
+def test_format_field_suffix_list_element_delete_without_shape_drift_no_tag() -> None:
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='ingest']",
+        new_state={"depends_on": []},
+        remote_state={"depends_on": [{"task_key": "ingest"}]},
+        resource_has_shape_drift=False,
+    )
+    result = format_field_suffix(make_change(action="update", remote={"task_key": "ingest"}), ctx)
+    assert result == ': {task_key: "ingest"}'
+
+
+def test_format_field_suffix_list_element_create_uses_new_value() -> None:
+    from dagshund.change_path import FieldChangeContext
+
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='transform']",
+        new_state={"depends_on": [{"task_key": "transform"}]},
+        remote_state={"depends_on": []},
+    )
+    result = format_field_suffix(make_change(action="update", new={"task_key": "transform"}), ctx)
+    assert result == ': {task_key: "transform"}'
 
 
 # --- format_display_value ---
@@ -773,7 +856,7 @@ def test_iter_non_topology_field_changes_sorts_and_skips_topology() -> None:
         "tasks[task_key='t']": make_change(action="update", old={"a": 1}, new={"a": 1}),
     }
     result = list(iter_non_topology_field_changes(changes))
-    assert [name for name, _ in result] == ["alpha", "zeta"]
+    assert [name for name, _, _ in result] == ["alpha", "zeta"]
 
 
 def test_iter_non_topology_field_changes_retains_field_drift_entries() -> None:

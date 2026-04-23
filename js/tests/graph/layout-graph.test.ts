@@ -26,6 +26,9 @@ const JOB_NODE: JobGraphNode = {
   resourceKey: "resources.jobs.etl",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
 };
 
@@ -38,6 +41,9 @@ const TASK_EXTRACT: TaskGraphNode = {
   taskKey: "extract",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 };
 
 const TASK_TRANSFORM: TaskGraphNode = {
@@ -49,6 +55,9 @@ const TASK_TRANSFORM: TaskGraphNode = {
   taskKey: "transform",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 };
 
 const SINGLE_JOB_GRAPH: PlanGraph = {

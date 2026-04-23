@@ -356,10 +356,15 @@ def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
     assert "> [!WARNING]" in result
     assert "Manual Edits Detected" in result
 
-    # Footer: both kinds of drift surfaced with nested sub-bullets
-    assert ">   - 1 field will be overwritten" in result
+    # Footer: both kinds of drift surfaced with nested sub-bullets.
+    # drift_pipeline: shape-drift (edit_mode) + reclassified list-element-delete
+    # (publish.depends_on[ingest]) — both count toward "fields will be overwritten"
+    # once the parent resource has independent shape drift (dagshund-1naj Step 5).
+    assert ">   - 2 fields will be overwritten" in result
     assert ">   - 1 depends_on will be re-added (transform)" in result
     assert ">   - 1 task will be re-added (transform)" in result
+    # schemas/drift_grants has only one shape-drifted field (privileges)
+    assert ">   - 1 field will be overwritten" in result
     assert ">   - 1 grant will be re-added (data_engineers)" in result
 
     # Body: re-added sub-entities rendered as create-style list items

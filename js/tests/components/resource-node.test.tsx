@@ -22,6 +22,9 @@ type ResourceData = {
   readonly resourceKey: string;
   readonly changes: undefined;
   readonly resourceState: undefined;
+  readonly newState: undefined;
+  readonly remoteState: undefined;
+  readonly resourceHasShapeDrift: boolean;
   readonly taskChangeSummary: undefined;
   readonly isDrift?: boolean;
 };
@@ -33,6 +36,9 @@ const makeData = (overrides: Partial<ResourceData> = {}): ResourceData => ({
   resourceKey: "resources.pipelines.etl_pipeline",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
   ...overrides,
 });

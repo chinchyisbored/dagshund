@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 
+from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
 from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
 from dagshund.types import DiffState, ResourceKey, parse_resource_key
 
@@ -13,6 +14,7 @@ __all__ = [
     "detect_manual_edits",
     "has_drifted_field",
     "is_topology_drift_change",
+    "resource_has_shape_drift",
 ]
 
 DANGEROUS_ACTIONS: frozenset[ActionType] = frozenset({ActionType.DELETE, ActionType.RECREATE})
@@ -51,20 +53,36 @@ def detect_changes(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
     return any(entry.action not in (ActionType.SKIP, ActionType.EMPTY) for entry in resources.values())
 
 
-def has_drifted_field(change: FieldChange) -> bool:
+def has_drifted_field(change: FieldChange, ctx: FieldChangeContext | None = None) -> bool:
     """Check whether a single field change represents manual drift.
 
-    A field has drifted when old and new are both defined and equal (the bundle
-    didn't intend to change it), and remote is present with a different value
-    (someone edited the server state directly).
+    Two paths classify a change as drift:
+
+    * **Shape-based** — ``old`` and ``new`` both defined and equal (the bundle
+      did not intend to change it), and ``remote`` differs. Someone edited the
+      server state directly.
+    * **List-element reclassification** (``ctx`` with ``resource_has_shape_drift``) —
+      a bundle-managed list-element entry that exists on the remote but not in
+      ``new_state``. Gated on the enclosing resource also showing shape-based
+      drift, because without ``old`` we cannot tell "bundle rewired this list"
+      from "server was manually edited." Only reclassified *deletes* qualify.
     """
     if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return False
-    if change.old is UNSET or change.new is UNSET:
-        return False
-    if change.old != change.new:
-        return False
-    return change.remote is not UNSET and change.remote != change.old
+    if (
+        change.old is not UNSET
+        and change.new is not UNSET
+        and change.old == change.new
+        and change.remote is not UNSET
+        and change.remote != change.old
+    ):
+        return True
+    return ctx is not None and ctx.resource_has_shape_drift and extract_list_element_semantic(ctx) == "delete"
+
+
+def resource_has_shape_drift(entry: ResourceChange) -> bool:
+    """Whether any change in ``entry`` is shape-based drift (ignoring list-element reclassification)."""
+    return any(has_drifted_field(change) for change in entry.changes.values())
 
 
 def is_topology_drift_change(change: FieldChange) -> bool:
@@ -93,7 +111,18 @@ def is_topology_drift_change(change: FieldChange) -> bool:
 
 
 def detect_manual_edits(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
-    return any(has_drifted_field(change) for entry in resources.values() for change in entry.changes.values())
+    for entry in resources.values():
+        shape_drift = resource_has_shape_drift(entry)
+        for change_key, change in entry.changes.items():
+            ctx = FieldChangeContext(
+                change_key=change_key,
+                new_state=entry.new_state,
+                remote_state=entry.remote_state,
+                resource_has_shape_drift=shape_drift,
+            )
+            if has_drifted_field(change, ctx):
+                return True
+    return False
 
 
 def detect_dangerous_actions(resources: Mapping[ResourceKey, ResourceChange]) -> bool:

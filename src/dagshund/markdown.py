@@ -2,6 +2,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from itertools import groupby
 
+from dagshund.change_path import FieldChangeContext
 from dagshund.format import (
     DriftSummary,
     action_config,
@@ -24,6 +25,7 @@ from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
     is_topology_drift_change,
+    resource_has_shape_drift,
 )
 from dagshund.types import (
     DagshundError,
@@ -33,15 +35,20 @@ from dagshund.types import (
 )
 
 
-def _render_field_change(field_name: str, change: FieldChange) -> str | None:
+def _render_field_change(
+    field_name: str,
+    change: FieldChange,
+    *,
+    ctx: FieldChangeContext | None = None,
+) -> str | None:
     if action_to_diff_state(change.action) == DiffState.UNCHANGED:
         return None
 
-    suffix = format_field_suffix(change)
+    suffix = format_field_suffix(change, ctx)
     if suffix is None:
         return None
 
-    cfg = field_action_config(change)
+    cfg = field_action_config(change, ctx)
     return f"  - `{cfg.symbol}` `{field_name}`{suffix}"
 
 
@@ -60,11 +67,23 @@ def _render_resource(
         return
 
     reentries = detect_drift_reentries(changes)
-    if detect_drift_fields(changes) or reentries:
+    shape_drift = resource_has_shape_drift(entry)
+    drift_fields = detect_drift_fields(
+        changes,
+        new_state=entry.new_state,
+        remote_state=entry.remote_state,
+        shape_drift=shape_drift,
+    )
+    if drift_fields or reentries:
         yield "  - :warning: manually edited outside bundle"
 
-    for field_name, change in iter_non_topology_field_changes(changes):
-        rendered = _render_field_change(field_name, change)
+    for field_name, change, ctx in iter_non_topology_field_changes(
+        changes,
+        new_state=entry.new_state,
+        remote_state=entry.remote_state,
+        shape_drift=shape_drift,
+    ):
+        rendered = _render_field_change(field_name, change, ctx=ctx)
         if rendered is not None:
             yield rendered
 

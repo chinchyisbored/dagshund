@@ -19,6 +19,21 @@ type BaseGraphNode = {
   readonly resourceKey: string;
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
   readonly resourceState: Readonly<Record<string, unknown>> | undefined;
+  /** Raw pre-fuse `entry.new_state` — the bundle-side state tree before any fusion
+   *  with remote. Scoped to the enclosing plan entry: task nodes carry the parent
+   *  job's state because their change keys (`tasks[task_key='X'].depends_on[...]`)
+   *  are rooted at the job level. Consumed by `extractListElementSemantic` to
+   *  disambiguate per-element list changes (dagshund-1naj). Must stay pre-fuse —
+   *  the list-element algorithm needs the two sources separate. */
+  readonly newState: unknown;
+  /** Raw pre-fuse `entry.remote_state` — the server-side state tree. See `newState`. */
+  readonly remoteState: unknown;
+  /** Whether the enclosing plan entry has shape-based field drift anywhere
+   *  (`old == new != remote` on any change). Gates the reclassification of
+   *  list-element-delete entries as drift (dagshund-1naj). Computed at
+   *  graph-build time over the full `entry.changes`, so task nodes inherit
+   *  the parent job's flag — matches Python's behavior. */
+  readonly resourceHasShapeDrift: boolean;
 };
 
 export type JobGraphNode = BaseGraphNode & {

@@ -1,5 +1,5 @@
 import type { ChangeDesc } from "../../types/plan-schema.ts";
-import { deriveFieldAction } from "../../utils/field-action.ts";
+import { deriveFieldAction, type FieldChangeContext } from "../../utils/field-action.ts";
 import { computeStructuralDiff } from "../../utils/structural-diff.ts";
 import { stripTaskPrefix } from "../../utils/task-key.ts";
 import { StructuralDiffView } from "../structural-diff-view.tsx";
@@ -9,12 +9,14 @@ import { DriftPill } from "./drift-pill.tsx";
 export function ChangeEntry({
   fieldPath,
   change,
+  ctx,
 }: {
   readonly fieldPath: string;
   readonly change: ChangeDesc;
+  readonly ctx: FieldChangeContext;
 }) {
-  const diffResult = computeStructuralDiff(change);
-  const fieldAction = deriveFieldAction(change);
+  const diffResult = computeStructuralDiff(change, ctx);
+  const fieldAction = deriveFieldAction(change, ctx);
   // Drift treatment at every level: graph nodes, topology re-entry section,
   // and field-level drift cards. Dashed border in the `modified` palette
   // (not the subtle outline which is invisible), plus the drift pill next

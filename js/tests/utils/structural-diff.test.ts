@@ -460,6 +460,90 @@ describe("computeStructuralDiff", () => {
     const result = asDiff(computeStructuralDiff(change));
     expect(result.diff.kind).toBe("delete-only");
   });
+
+  describe("list-element reclassification via FieldChangeContext (dagshund-1naj)", () => {
+    test("remote-only list-element shape with ctx → delete-only with baselineLabel=remote", () => {
+      const change: ChangeDesc = { action: "update", remote: { task_key: "ingest" } };
+      const ctx = {
+        changeKey: "depends_on[task_key='ingest']",
+        newState: { depends_on: [] },
+        remoteState: { depends_on: [{ task_key: "ingest" }] },
+        resourceHasShapeDrift: false,
+      };
+      const result = asDiff(computeStructuralDiff(change, ctx));
+      expect(result.diff.kind).toBe("delete-only");
+      expect(result.baselineLabel).toBe("remote");
+    });
+
+    test("drift tag applied when resourceHasShapeDrift is true", () => {
+      const change: ChangeDesc = { action: "update", remote: { task_key: "ingest" } };
+      const ctx = {
+        changeKey: "depends_on[task_key='ingest']",
+        newState: { depends_on: [] },
+        remoteState: { depends_on: [{ task_key: "ingest" }] },
+        resourceHasShapeDrift: true,
+      };
+      const result = asDiff(computeStructuralDiff(change, ctx));
+      expect(result.semantic).toBe("drift");
+    });
+
+    test("no drift tag when resourceHasShapeDrift is false", () => {
+      const change: ChangeDesc = { action: "update", remote: { task_key: "ingest" } };
+      const ctx = {
+        changeKey: "depends_on[task_key='ingest']",
+        newState: { depends_on: [] },
+        remoteState: { depends_on: [{ task_key: "ingest" }] },
+        resourceHasShapeDrift: false,
+      };
+      const result = asDiff(computeStructuralDiff(change, ctx));
+      expect(result.semantic).toBe("normal");
+    });
+
+    test("remote-only list-element classified as create when element is in new, not remote", () => {
+      const change: ChangeDesc = { action: "update", remote: { task_key: "transform" } };
+      const ctx = {
+        changeKey: "depends_on[task_key='transform']",
+        newState: { depends_on: [{ task_key: "transform" }] },
+        remoteState: { depends_on: [] },
+        resourceHasShapeDrift: false,
+      };
+      const result = asDiff(computeStructuralDiff(change, ctx));
+      expect(result.diff.kind).toBe("create-only");
+    });
+
+    test("non-list-element path falls through to shape-based rendering", () => {
+      const change: ChangeDesc = { action: "update", remote: "EDITABLE" };
+      const ctx = {
+        changeKey: "edit_mode",
+        newState: { edit_mode: "UI_LOCKED" },
+        remoteState: { edit_mode: "EDITABLE" },
+        resourceHasShapeDrift: false,
+      };
+      const result = computeStructuralDiff(change, ctx);
+      expect(result.kind).toBe("remote-only");
+    });
+
+    test("whole-task delete shape (has old + remote) is not overridden — keeps existing rendering", () => {
+      // Regression: my first pass over-triggered on any key ending in [field='value'].
+      // Whole-task deletes carry old+remote and should still use the shape-based
+      // delete-only branch (which picks baselineLabel=old via the format_display_value path).
+      const change: ChangeDesc = {
+        action: "update",
+        old: { task_key: "standby", notebook_task: { notebook_path: "/x" } },
+        remote: { task_key: "standby", notebook_task: { notebook_path: "/x" } },
+      };
+      const ctx = {
+        changeKey: "tasks[task_key='standby']",
+        newState: { tasks: [] },
+        remoteState: { tasks: [{ task_key: "standby" }] },
+        resourceHasShapeDrift: false,
+      };
+      const result = asDiff(computeStructuralDiff(change, ctx));
+      // Shape-based logic: old is present, current is undefined → delete-only with baselineLabel=old.
+      expect(result.diff.kind).toBe("delete-only");
+      expect(result.baselineLabel).toBe("old");
+    });
+  });
 });
 
 describe("isTopologyDriftChange", () => {

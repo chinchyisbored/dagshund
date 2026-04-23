@@ -19,6 +19,9 @@ const buildResourceData = (resourceKey: string): DagNodeData => ({
   resourceKey,
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
 });
 
@@ -29,6 +32,9 @@ const buildJobData = (resourceKey: string): DagNodeData => ({
   resourceKey,
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
 });
 
@@ -40,6 +46,9 @@ const buildTaskData = (resourceKey: string, taskKey: string): DagNodeData => ({
   taskKey,
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 });
 
 const buildRootData = (): DagNodeData => ({
@@ -49,6 +58,9 @@ const buildRootData = (): DagNodeData => ({
   resourceKey: "uc-root",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 });
 
 const buildPhantomData = (): DagNodeData => ({
@@ -58,6 +70,9 @@ const buildPhantomData = (): DagNodeData => ({
   resourceKey: "catalog::missing",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 });
 
 const SIMPLE_ENTRY: PlanEntry = {

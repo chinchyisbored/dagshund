@@ -13,6 +13,9 @@ const makeTaskNode = (
   taskKey: "extract",
   changes: undefined,
   resourceState: resourceState ?? undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 });
 
 const makeJobNode = (label: string): DagNodeData => ({
@@ -22,6 +25,9 @@ const makeJobNode = (label: string): DagNodeData => ({
   resourceKey: "resources.jobs.etl_pipeline",
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
 });
 
@@ -32,6 +38,9 @@ const makePhantomNode = (label: string, resourceKey: string): DagNodeData => ({
   resourceKey,
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
 });
 
 const makeResourceNode = (label: string, resourceKey: string): DagNodeData => ({
@@ -41,6 +50,9 @@ const makeResourceNode = (label: string, resourceKey: string): DagNodeData => ({
   resourceKey,
   changes: undefined,
   resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
 });
 

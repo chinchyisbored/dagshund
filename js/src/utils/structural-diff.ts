@@ -7,6 +7,7 @@ import type {
   ObjectEntryStatus,
   StructuralDiffResult,
 } from "../types/structural-diff.ts";
+import { extractListElementSemantic, type FieldChangeContext } from "./field-action.ts";
 import { collectChangesForTask } from "./task-key.ts";
 import { isUnknownRecord } from "./unknown-record.ts";
 
@@ -77,6 +78,13 @@ export const isAnyDriftChange = (change: ChangeDesc): boolean =>
  *  `tasks[...]` entries that carry whole-task drift. */
 export const hasAnyDrift = (changes: Readonly<Record<string, ChangeDesc>> | undefined): boolean =>
   changes !== undefined && Object.values(changes).some(isAnyDriftChange);
+
+/** True if any entry in the changes map is shape-based field drift (not topology).
+ *  Gates list-element-delete → drift reclassification in `FieldChangeContext`
+ *  so bundle rewires don't get over-flagged (dagshund-1naj). Mirrors Python's
+ *  `resource_has_shape_drift` in `src/dagshund/plan.py`. */
+export const hasFieldDrift = (changes: Readonly<Record<string, ChangeDesc>> | undefined): boolean =>
+  changes !== undefined && Object.values(changes).some(isFieldDriftChange);
 
 /** True if any change entry scoped to this task (whole-task or sub-field) is drift. */
 export const hasTaskDrift = (
@@ -286,7 +294,35 @@ export const diffObjects = (
  *   4. drift swap when old == new != remote,
  *   5. normal baseline-vs-current diff.
  */
-export const computeStructuralDiff = (change: ChangeDesc): StructuralDiffResult => {
+export const computeStructuralDiff = (
+  change: ChangeDesc,
+  ctx?: FieldChangeContext,
+): StructuralDiffResult => {
+  // List-element reclassification: for bundle-managed lists the CLI emits
+  // shapes that are ambiguous with unrelated semantics. When ctx lets us
+  // disambiguate, take over ONLY when the shape would otherwise misclassify —
+  // remote-only shape on a list-element path. Tag as drift when the enclosing
+  // resource independently shows shape-based drift (dagshund-1naj).
+  if (ctx !== undefined && !("old" in change) && !("new" in change) && "remote" in change) {
+    const semantic = extractListElementSemantic(ctx);
+    if (semantic === "delete") {
+      return {
+        kind: "diff",
+        diff: { kind: "delete-only", value: change.remote },
+        baselineLabel: "remote",
+        semantic: ctx.resourceHasShapeDrift ? "drift" : "normal",
+      };
+    }
+    if (semantic === "create") {
+      return {
+        kind: "diff",
+        diff: { kind: "create-only", value: change.remote },
+        baselineLabel: "old",
+        semantic: "normal",
+      };
+    }
+  }
+
   // Create-only: no baseline to compare
   if (change.action === "create" && change.old === undefined && change.remote === undefined) {
     return {

@@ -18,6 +18,9 @@ const makeNode = (id: string, nodeKind: DagNodeData["nodeKind"]): Node => ({
     resourceKey: id,
     changes: undefined,
     resourceState: undefined,
+    newState: undefined,
+    remoteState: undefined,
+    resourceHasShapeDrift: false,
     // as: DagNodeData is a discriminated union — TS can't narrow from a generic nodeKind param
   } as DagNodeData,
 });

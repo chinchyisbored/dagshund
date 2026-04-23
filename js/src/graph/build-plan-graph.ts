@@ -12,7 +12,7 @@ import {
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
-import { hasAnyDrift, hasTaskDrift } from "../utils/structural-diff.ts";
+import { hasAnyDrift, hasFieldDrift, hasTaskDrift } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
@@ -72,6 +72,17 @@ const buildTaskNodes = (
       taskKey: task.task_key,
       changes: filterTaskChanges(task.task_key, entry.changes),
       resourceState,
+      // Task nodes carry the parent job's raw pre-fuse state because their change
+      // keys (`tasks[task_key='X'].depends_on[...]`) are rooted at the job level.
+      // See BaseGraphNode.newState for why pre-fuse matters (dagshund-1naj).
+      newState: entry.new_state,
+      remoteState: entry.remote_state,
+      // Inherit the parent job's drift flag — a task-level list-element delete
+      // is drift iff the enclosing job independently shows shape-based drift
+      // (e.g. `drift_pipeline.edit_mode`). Matches Python's `_render_resource`
+      // which computes `resource_has_shape_drift(entry)` at the job level and
+      // threads it into every field's ctx (dagshund-1naj).
+      resourceHasShapeDrift: hasFieldDrift(entry.changes),
       isDrift: hasTaskDrift(task.task_key, entry.changes),
     };
   });
