@@ -96,11 +96,13 @@ describe("ModifiedBody groupChangesByCategory (dagshund-1naj)", () => {
     expect(labels).not.toContain("Remote-only (not managed by bundle)");
   });
 
-  test("task node inherits parent job's shape-drift flag for drift styling (dagshund-1naj)", () => {
-    // The publish task's own fieldChanges have no shape-drift signal (the
-    // edit_mode drift lives at the job level). `resourceHasShapeDrift` on the
-    // node data carries the job-level flag down so the list-element delete
-    // below renders with drift styling — matches Python's terminal output.
+  test("reclassified drift-delete in isolation still groups under Removed (dagshund-3hdx)", () => {
+    // Under dagshund-3hdx, `splitMeaningfulChanges` partitions this entry out
+    // of `fieldChanges` upstream, so in production `ModifiedBody` never sees
+    // it. This test holds the grouping contract: if a caller does pass such
+    // an entry in isolation, the derived-action grouping still routes it to
+    // Removed (not Remote-only). The positive drift rendering assertion lives
+    // in drift-removal-section.test.tsx.
     const change: ChangeDesc = { action: "update", remote: { task_key: "ingest" } };
     const data = makeData({
       newState: {
@@ -113,7 +115,9 @@ describe("ModifiedBody groupChangesByCategory (dagshund-1naj)", () => {
       [["tasks[task_key='publish'].depends_on[task_key='ingest']", change]],
       data,
     );
-    expect(container.textContent).toContain("drift");
+    const labels = sectionLabels(container);
+    expect(labels).toContain("Removed");
+    expect(labels).not.toContain("Remote-only (not managed by bundle)");
   });
 
   test("mixed entries split into all applicable sections", () => {

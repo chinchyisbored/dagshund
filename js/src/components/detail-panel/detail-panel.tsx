@@ -9,6 +9,7 @@ import type { ValueFormat } from "../../utils/format-value.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { DriftPill } from "./drift-pill.tsx";
 import { DriftReentrySection } from "./drift-reentry-section.tsx";
+import { DriftRemovalSection } from "./drift-removal-section.tsx";
 import { splitMeaningfulChanges } from "./filter-changes.ts";
 import { FormatToggle, NEXT_FORMAT } from "./format-toggle.tsx";
 import { LateralDependencies } from "./lateral-dependencies.tsx";
@@ -56,8 +57,14 @@ export function DetailPanel({
   onNavigateToNode,
 }: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
-  const { driftChanges, fieldChanges } = splitMeaningfulChanges(data.changes);
-  const hasDriftEntries = Object.keys(driftChanges).length > 0;
+  const { driftReentryChanges, driftRemovalChanges, fieldChanges, allChangePaths } =
+    splitMeaningfulChanges(data.changes, {
+      newState: data.newState,
+      remoteState: data.remoteState,
+      resourceHasShapeDrift: data.resourceHasShapeDrift,
+    });
+  const hasDriftReentries = Object.keys(driftReentryChanges).length > 0;
+  const hasDriftRemovals = Object.keys(driftRemovalChanges).length > 0;
   const isDriftNode = nodeCanDrift(data);
   const expandedState = useMemo(
     () => expandEmbedEntries(data.resourceState ?? {}),
@@ -81,7 +88,8 @@ export function DetailPanel({
   const showNoChanges =
     data.diffState === "modified" &&
     fieldChanges.length === 0 &&
-    !hasDriftEntries &&
+    !hasDriftReentries &&
+    !hasDriftRemovals &&
     data.resourceState === undefined &&
     !hasTaskSummary;
 
@@ -155,15 +163,17 @@ export function DetailPanel({
             <ViewInJobsTabButton resourceKey={data.resourceKey} />
           )}
 
-          {/* Drift re-entry section is hoisted above the diffState body switch so
-             it renders for any body path (added/modified/unchanged) — a node can
-             be `isDrift: true` while its own diffState is any value. Suppressed
-             when the node itself is a drift re-add (`isDrift` + `added`): the
-             green ObjectStateCard already shows the exact same definition, so a
-             separate section would duplicate content. */}
-          {hasDriftEntries && !(isDriftNode && data.diffState === "added") && (
-            <DriftReentrySection driftChanges={driftChanges} />
+          {/* Drift sections are hoisted above the diffState body switch so they
+             render for any body path (added/modified/unchanged) — a node can
+             be `isDrift: true` while its own diffState is any value. Re-entry
+             is suppressed when the node itself is a drift re-add
+             (`isDrift` + `added`): the green ObjectStateCard already shows the
+             exact same definition, so a separate section would duplicate
+             content. */}
+          {hasDriftReentries && !(isDriftNode && data.diffState === "added") && (
+            <DriftReentrySection driftReentryChanges={driftReentryChanges} />
           )}
+          {hasDriftRemovals && <DriftRemovalSection driftRemovalChanges={driftRemovalChanges} />}
 
           {(data.diffState === "added" || data.diffState === "removed") && (
             <ObjectStateCard
@@ -179,11 +189,10 @@ export function DetailPanel({
             <ModifiedBody
               data={data}
               fieldChanges={fieldChanges}
-              // Pass drift-entry paths alongside field-change paths so
-              // `DriftReentrySection` (rendered above) and the Unchanged
-              // section don't double-render the same list element
-              // (dagshund-93lv).
-              excludePaths={[...fieldChanges.map(([p]) => p), ...Object.keys(driftChanges)]}
+              // Pass every partitioned path so drift sections (rendered above)
+              // and the Unchanged section don't double-render the same list
+              // element (dagshund-93lv / dagshund-3hdx).
+              excludePaths={allChangePaths}
             />
           )}
 
