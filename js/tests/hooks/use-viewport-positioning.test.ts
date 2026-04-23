@@ -5,6 +5,8 @@ import { useViewportPositioning } from "../../src/hooks/use-viewport-positioning
 
 type InstanceSpies = {
   readonly fitView: ReturnType<typeof mock>;
+  readonly zoomIn: ReturnType<typeof mock>;
+  readonly zoomOut: ReturnType<typeof mock>;
   readonly setCenter: ReturnType<typeof mock>;
   readonly getZoom: ReturnType<typeof mock>;
   readonly getInternalNode: ReturnType<typeof mock>;
@@ -22,6 +24,8 @@ const makeFakeInstance = (
 ): { readonly instance: ReactFlowInstance; readonly spies: InstanceSpies } => {
   const spies: InstanceSpies = {
     fitView: mock(() => true),
+    zoomIn: mock(() => {}),
+    zoomOut: mock(() => {}),
     setCenter: mock(() => {}),
     getZoom: mock(() => 1),
     getInternalNode: mock((id: string) => internalNodesById.get(id)),
@@ -66,6 +70,36 @@ describe("useViewportPositioning", () => {
     act(() => result.current.handleInit(instance));
     act(() => result.current.handleFitView());
     expect(spies.fitView).toHaveBeenCalledTimes(1);
+  });
+
+  test("handleZoomIn delegates to the stored instance", () => {
+    const { instance, spies } = makeFakeInstance();
+    const { result } = renderHook(() =>
+      useViewportPositioning({
+        baseNodes: [],
+        isVisible: true,
+        isLayoutReady: false,
+        directMatchIds: null,
+      }),
+    );
+    act(() => result.current.handleInit(instance));
+    act(() => result.current.handleZoomIn());
+    expect(spies.zoomIn).toHaveBeenCalledTimes(1);
+  });
+
+  test("handleZoomOut delegates to the stored instance", () => {
+    const { instance, spies } = makeFakeInstance();
+    const { result } = renderHook(() =>
+      useViewportPositioning({
+        baseNodes: [],
+        isVisible: true,
+        isLayoutReady: false,
+        directMatchIds: null,
+      }),
+    );
+    act(() => result.current.handleInit(instance));
+    act(() => result.current.handleZoomOut());
+    expect(spies.zoomOut).toHaveBeenCalledTimes(1);
   });
 
   test("centerOnNode delegates to instance.setCenter when the node exists", () => {

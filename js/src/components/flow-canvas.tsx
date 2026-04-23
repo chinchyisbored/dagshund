@@ -254,6 +254,8 @@ export function FlowCanvas({
     hasFitted,
     handleInit,
     handleFitView,
+    handleZoomIn,
+    handleZoomOut,
     centerOnNode: centerViewportOnNode,
   } = useViewportPositioning({
     baseNodes,
@@ -393,6 +395,8 @@ export function FlowCanvas({
             showPhantomLeaves={state.showPhantomLeaves}
             onTogglePhantomLeaves={handleTogglePhantomLeaves}
             onFitView={handleFitView}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
           />
         </LateralIsolationContext.Provider>
       </InteractionContext.Provider>

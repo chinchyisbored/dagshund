@@ -15,6 +15,8 @@ type ViewportPositioningResult = {
   readonly hasFitted: boolean;
   readonly handleInit: (instance: ReactFlowInstance) => void;
   readonly handleFitView: () => void;
+  readonly handleZoomIn: () => void;
+  readonly handleZoomOut: () => void;
   readonly centerOnNode: (nodeId: string) => void;
 };
 
@@ -39,6 +41,14 @@ export function useViewportPositioning({
 
   const handleFitView = useCallback(() => {
     rfInstanceRef.current?.fitView();
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    rfInstanceRef.current?.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    rfInstanceRef.current?.zoomOut();
   }, []);
 
   const handleCenterOnNode = useCallback((nodeId: string) => {
@@ -112,5 +122,12 @@ export function useViewportPositioning({
     centerOnNode(instance, target);
   }, [baseNodes, directMatchIds]);
 
-  return { hasFitted, handleInit, handleFitView, centerOnNode: handleCenterOnNode };
+  return {
+    hasFitted,
+    handleInit,
+    handleFitView,
+    handleZoomIn,
+    handleZoomOut,
+    centerOnNode: handleCenterOnNode,
+  };
 }
