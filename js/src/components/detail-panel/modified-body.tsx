@@ -13,9 +13,9 @@ import { ChangeEntry } from "./change-entry.tsx";
 import { ResourceStateView } from "./resource-state-view.tsx";
 import { SectionDivider } from "./section-divider.tsx";
 
-/** Categorize changes by top-level field: direct (exact match) vs sub-field (dotted path). */
+/** Categorize change paths by top-level field: direct (exact match) vs sub-field (dotted path). */
 const categorizeChangedFields = (
-  changes: readonly (readonly [string, ChangeDesc])[],
+  paths: readonly string[],
 ): {
   readonly exact: ReadonlySet<string>;
   readonly subFieldPaths: ReadonlyMap<string, readonly string[]>;
@@ -23,7 +23,7 @@ const categorizeChangedFields = (
   const exact = new Set<string>();
   const subFieldPaths = new Map<string, string[]>();
 
-  for (const [path] of changes) {
+  for (const path of paths) {
     const topLevel = topLevelFieldName(path);
     const relative = extractRelativeChangePath(path);
     if (relative === undefined) {
@@ -127,9 +127,15 @@ const groupChangesByCategory = (entries: readonly ChangeEntryWithCtx[]): readonl
 export function ModifiedBody({
   data,
   fieldChanges,
+  excludePaths,
 }: {
   readonly data: DagNodeData;
   readonly fieldChanges: readonly (readonly [string, ChangeDesc])[];
+  /** Paths to strip from the Unchanged section. When omitted, defaults to the
+   *  keys of `fieldChanges` (historical behavior). Callers that also render
+   *  drift entries elsewhere pass a merged list so those paths don't double up
+   *  in Unchanged (dagshund-93lv). */
+  readonly excludePaths?: readonly string[];
 }) {
   // `data.resourceHasShapeDrift` is computed at graph-build time over the full
   // enclosing plan entry (see BaseGraphNode), so task nodes correctly inherit
@@ -146,7 +152,8 @@ export function ModifiedBody({
     },
   }));
   const changeGroups = groupChangesByCategory(entriesWithCtx);
-  const { exact, subFieldPaths } = categorizeChangedFields(fieldChanges);
+  const stripPaths = excludePaths ?? fieldChanges.map(([path]) => path);
+  const { exact, subFieldPaths } = categorizeChangedFields(stripPaths);
   const unmodifiedState = data.resourceState
     ? filterUnmodifiedState(data.resourceState, exact, subFieldPaths)
     : {};

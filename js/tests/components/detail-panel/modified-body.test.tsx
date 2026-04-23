@@ -24,8 +24,9 @@ const makeData = (overrides: Partial<DagNodeData> = {}): DagNodeData =>
 const renderBody = (
   fieldChanges: readonly (readonly [string, ChangeDesc])[],
   data: DagNodeData = makeData(),
+  excludePaths?: readonly string[],
 ) =>
-  render(<ModifiedBody data={data} fieldChanges={fieldChanges} />, {
+  render(<ModifiedBody data={data} fieldChanges={fieldChanges} excludePaths={excludePaths} />, {
     wrapper: compose(withValueFormat()),
   });
 
@@ -132,5 +133,78 @@ describe("ModifiedBody groupChangesByCategory (dagshund-1naj)", () => {
     expect(labels).toContain("Modified");
     expect(labels).toContain("Removed");
     expect(labels).toContain("Remote-only (not managed by bundle)");
+  });
+});
+
+describe("ModifiedBody Unchanged exclude-paths (dagshund-93lv)", () => {
+  // Detail-panel context: topology-drift entries are partitioned out by
+  // splitMeaningfulChanges and rendered separately in DriftReentrySection.
+  // Without passing those paths to ModifiedBody, the same list element gets
+  // re-rendered under "Unchanged" because the strip pass only sees
+  // fieldChanges. The fix passes a merged path list via `excludePaths`.
+  //
+  // Mirrors the real publish-task-panel shape from the manual-drift fixture:
+  // change keys carry the `tasks[task_key='publish'].` job-prefix while the
+  // task's resourceState is the task object itself (`topLevelFieldName` calls
+  // `stripTaskPrefix` to bridge the two).
+
+  const driftPath = "tasks[task_key='publish'].depends_on[task_key='transform']";
+  const taskPanelData = makeData({
+    nodeKind: "task",
+    label: "publish",
+    resourceState: {
+      task_key: "publish",
+      depends_on: [{ task_key: "transform" }],
+    },
+  });
+
+  test("excludePaths strips drift-rendered list element from Unchanged section", () => {
+    // No fieldChanges, only an external drift path. Without the fix, the
+    // `transform` element would render in the Unchanged dump of resourceState.
+    const { container } = renderBody([], taskPanelData, [driftPath]);
+    // depends_on is fully stripped → only task_key remains in Unchanged.
+    expect(container.textContent ?? "").not.toContain("depends_on");
+  });
+
+  test("back-compat: omitting excludePaths keeps fieldChanges-derived strip pass", () => {
+    // Pre-93lv behavior: when excludePaths is absent, paths derive from
+    // fieldChanges. With no field changes and no exclude list, depends_on
+    // remains in the resourceState (renders under Unchanged with transform).
+    const { container } = renderBody([], taskPanelData);
+    expect(container.textContent ?? "").toContain("depends_on");
+    expect(container.textContent ?? "").toContain("transform");
+  });
+
+  test("merged excludePaths preserves field-change rendering AND strips drift paths", () => {
+    // Field change on notebook_task.notebook_path, drift path on transform.
+    // Modified section still renders the field change; Unchanged drops the
+    // depends_on entry covered by the drift path.
+    const fieldChange: ChangeDesc = { action: "update", old: "/old", new: "/new" };
+    const fieldChanges: readonly (readonly [string, ChangeDesc])[] = [
+      ["tasks[task_key='publish'].notebook_task.notebook_path", fieldChange],
+    ];
+    const data = makeData({
+      nodeKind: "task",
+      label: "publish",
+      resourceState: {
+        task_key: "publish",
+        notebook_task: { notebook_path: "/new" },
+        depends_on: [{ task_key: "transform" }],
+      },
+    });
+    const { container } = renderBody(fieldChanges, data, [
+      ...fieldChanges.map(([p]) => p),
+      driftPath,
+    ]);
+    const labels = sectionLabels(container);
+    expect(labels).toContain("Modified");
+    expect(labels).toContain("Unchanged");
+    // Slice the rendered text at the "Unchanged" divider — assertions on the
+    // Unchanged region only, not on the Modified change-entry display where
+    // notebook_path legitimately appears as the changed-field label.
+    const text = container.textContent ?? "";
+    const unchangedRegion = text.slice(text.indexOf("Unchanged"));
+    expect(unchangedRegion).not.toContain("depends_on");
+    expect(unchangedRegion).not.toContain("notebook_task");
   });
 });

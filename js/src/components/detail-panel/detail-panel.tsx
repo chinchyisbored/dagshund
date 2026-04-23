@@ -176,7 +176,15 @@ export function DetailPanel({
           )}
 
           {data.diffState === "modified" && (
-            <ModifiedBody data={data} fieldChanges={fieldChanges} />
+            <ModifiedBody
+              data={data}
+              fieldChanges={fieldChanges}
+              // Pass drift-entry paths alongside field-change paths so
+              // `DriftReentrySection` (rendered above) and the Unchanged
+              // section don't double-render the same list element
+              // (dagshund-93lv).
+              excludePaths={[...fieldChanges.map(([p]) => p), ...Object.keys(driftChanges)]}
+            />
           )}
 
           {(data.diffState === "unchanged" || data.diffState === "unknown") && (
