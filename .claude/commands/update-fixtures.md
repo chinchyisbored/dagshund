@@ -78,9 +78,15 @@ deploy and plan. Follow `fixtures/golden/manual-drift/README.md` literally:
    - On `dagshund.drift_grants`, revoke every privilege from `data_engineers`
    - On `dagshund.drift_grants`, revoke only `SELECT` from `data_readers` (leave `USE_SCHEMA`)
 3. **Wait for explicit confirmation** from the user that all 6 edits are done.
-4. `cd ../after && databricks bundle plan -o json | python3 ../../../tooling/sanitize.py > ../plan.json`
-5. `databricks bundle deploy` (optional — reconciles the drift cleanly before destroy)
-6. `databricks bundle destroy --auto-approve`
+4. **Wipe stale local state in `after/.databricks/` before planning** — `just regen` populates `after/.databricks/` during its own pass and leaves it behind. With stale local state present, `databricks bundle plan` consults the local cache instead of fetching the live workspace, and emits everything as `action: create` with no `remote_state` block. `regen.sh` avoids this by `rm -rf`'ing both `before/.databricks/` and `after/.databricks/` at the start of each fixture run; the manual flow has to do it explicitly:
+
+   ```bash
+   rm -rf fixtures/golden/manual-drift/after/.databricks
+   ```
+
+5. `cd ../after && databricks bundle plan -o json | python3 ../../../tooling/sanitize.py > ../plan.json` — sanity-check that drift_pipeline is `update` (not `create`) and drift_grants.grants has a `remote_state` block. If you see all-creates with only `new_state`, step 4 was missed.
+6. `databricks bundle deploy` (optional — reconciles the drift cleanly before destroy)
+7. `databricks bundle destroy --auto-approve`
 
 ## Step 7: Classify drift
 
@@ -141,8 +147,9 @@ match the new (correct) shape — **never weaken the test** to make it pass.
 
 ## Step 11: Update the README
 
-Edit `README.md` — bump the "Tested against Databricks CLI X.Y" line to the
-new major.minor.
+Edit `README.md` — bump the "Tested against Databricks CLI >=X.Y.Z" line.
+Use the previously-tested version as the floor (e.g. after validating
+0.299.0, the line reads `>=0.298.0`).
 
 ## Step 12: Audit screenshots
 
