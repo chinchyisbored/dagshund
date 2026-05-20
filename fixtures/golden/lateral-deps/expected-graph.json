@@ -68,7 +68,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 42,
+      "total_change_entries": 52,
       "with_resource_state": 13,
       "task_change_summary_total": 0,
       "entries": [
@@ -105,6 +105,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='run_worker_a'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='run_worker_a'].email_notifications",
               "action": "skip"
             },
@@ -128,6 +132,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='run_worker_b'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='run_worker_b'].email_notifications",
               "action": "skip"
@@ -177,6 +185,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='refresh_bundled_dashboard'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='refresh_bundled_dashboard'].email_notifications",
               "action": "skip"
             },
@@ -200,6 +212,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='refresh_external_dashboard'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='refresh_external_dashboard'].email_notifications",
               "action": "skip"
@@ -225,6 +241,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='run_etl'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='run_etl'].email_notifications",
               "action": "skip"
             },
@@ -249,6 +269,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='run_external_pipeline'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='run_external_pipeline'].email_notifications",
               "action": "skip"
             },
@@ -272,6 +296,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='run_query'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='run_query'].email_notifications",
               "action": "skip"
@@ -325,6 +353,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='evaluate_alert'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='evaluate_alert'].email_notifications",
               "action": "skip"
             },
@@ -353,6 +385,10 @@
               "action": "skip"
             },
             {
+              "key": "tasks[task_key='run_dbt'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='run_dbt'].email_notifications",
               "action": "skip"
             },
@@ -376,6 +412,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='run_sql_notebook'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='run_sql_notebook'].email_notifications",
               "action": "skip"

@@ -1,13 +1,13 @@
 {
   "plan_version": 2,
-  "cli_version": "0.299.0",
-  "lineage": "5dc263e3-f556-4429-a423-152b61581239",
+  "cli_version": "0.299.2",
+  "lineage": "356731da-aeaf-40f6-841c-56166b9f8b66",
   "serial": 1,
   "plan": {
     "resources.jobs.job_noop": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1777579997096,
+        "created_time": 1779303701139,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -16,7 +16,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 137029930134788,
+        "job_id": 296832637125032,
         "max_concurrent_runs": 1,
         "name": "job_noop",
         "queue": {
@@ -25,6 +25,7 @@
         "run_as_user_name": "user1@example.com",
         "tasks": [
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/jobs/run",
@@ -43,6 +44,11 @@
           "action": "skip",
           "reason": "empty",
           "remote": {}
+        },
+        "tasks[task_key='run'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='run'].email_notifications": {
           "action": "skip",
@@ -85,7 +91,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "object_id": "/jobs/137029930134788",
+        "object_id": "/jobs/296832637125032",
         "__embed__": [
           {
             "level": "IS_OWNER",
@@ -127,7 +133,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1777579997103,
+        "created_time": 1779303701132,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -136,7 +142,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 441235001953683,
+        "job_id": 458302175293682,
         "max_concurrent_runs": 1,
         "name": "job_perm_change",
         "queue": {
@@ -145,6 +151,7 @@
         "run_as_user_name": "user1@example.com",
         "tasks": [
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/jobs/run",
@@ -169,6 +176,11 @@
           "new": {
             "user_name": "user2@example.com"
           }
+        },
+        "tasks[task_key='run'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='run'].email_notifications": {
           "action": "skip",
@@ -212,7 +224,7 @@
       "action": "update",
       "new_state": {
         "value": {
-          "object_id": "/jobs/441235001953683",
+          "object_id": "/jobs/458302175293682",
           "__embed__": [
             {
               "level": "CAN_MANAGE",
@@ -234,7 +246,7 @@
         }
       },
       "remote_state": {
-        "object_id": "/jobs/441235001953683",
+        "object_id": "/jobs/458302175293682",
         "__embed__": [
           {
             "level": "IS_OWNER",
@@ -287,7 +299,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1777579997101,
+        "created_at": 1779303701216,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -299,8 +311,8 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "schema_noop",
         "owner": "user1@example.com",
-        "schema_id": "618cc488-4390-4964-bd32-75232400ae89",
-        "updated_at": 1777579997797,
+        "schema_id": "49e11725-90b5-4517-81ca-9734c07701ef",
+        "updated_at": 1779303701639,
         "updated_by": "user1@example.com"
       }
     },
@@ -338,7 +350,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1777579997087,
+        "created_at": 1779303701200,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -350,8 +362,8 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "schema_perm_change",
         "owner": "user1@example.com",
-        "schema_id": "9dcdcc5f-5233-47b6-8e68-f3eed8edb4d3",
-        "updated_at": 1777579997844,
+        "schema_id": "d59432b7-a0ac-44d0-b5ec-facea93f48bf",
+        "updated_at": 1779303701673,
         "updated_by": "user1@example.com"
       }
     },

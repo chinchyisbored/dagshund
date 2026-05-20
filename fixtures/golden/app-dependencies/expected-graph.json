@@ -68,7 +68,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 7,
+      "total_change_entries": 8,
       "with_resource_state": 2,
       "task_change_summary_total": 0,
       "entries": [
@@ -104,6 +104,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='run'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='run'].email_notifications",
               "action": "skip"
@@ -221,7 +225,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 23,
+      "total_change_entries": 25,
       "with_resource_state": 4,
       "task_change_summary_total": 0,
       "entries": [
@@ -276,6 +280,10 @@
               "action": "skip"
             },
             {
+              "key": "effective_user_api_scopes",
+              "action": "skip"
+            },
+            {
               "key": "id",
               "action": "skip"
             },
@@ -309,6 +317,10 @@
             },
             {
               "key": "source_code_path",
+              "action": "skip"
+            },
+            {
+              "key": "thumbnail_url",
               "action": "skip"
             },
             {

@@ -68,7 +68,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 56,
+      "total_change_entries": 65,
       "with_resource_state": 18,
       "task_change_summary_total": 12,
       "entries": [
@@ -154,6 +154,10 @@
               "action": "update"
             },
             {
+              "key": "tasks[task_key='aggregate_results'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='aggregate_results'].email_notifications",
               "action": "skip"
             },
@@ -214,6 +218,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='check_nulls'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='check_nulls'].email_notifications",
               "action": "skip"
             },
@@ -262,6 +270,10 @@
               "action": "update"
             },
             {
+              "key": "tasks[task_key='compute_statistics'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='compute_statistics'].email_notifications",
               "action": "skip"
             },
@@ -292,6 +304,10 @@
             {
               "key": "tasks[task_key='generate_report'].depends_on[task_key='anomaly_detection']",
               "action": "update"
+            },
+            {
+              "key": "tasks[task_key='generate_report'].disabled",
+              "action": "skip"
             },
             {
               "key": "tasks[task_key='generate_report'].email_notifications",
@@ -338,6 +354,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='setup_env'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='setup_env'].email_notifications",
               "action": "skip"
             },
@@ -365,6 +385,10 @@
           "diffState": "modified",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='validate_schema'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='validate_schema'].email_notifications",
               "action": "skip"
@@ -463,6 +487,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='extract'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='extract'].email_notifications",
               "action": "skip"
             },
@@ -491,6 +519,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='load'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='load'].email_notifications",
               "action": "skip"
             },
@@ -518,6 +550,10 @@
           "diffState": "modified",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='transform'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='transform'].email_notifications",
               "action": "skip"

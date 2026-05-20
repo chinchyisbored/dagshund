@@ -68,7 +68,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 89,
+      "total_change_entries": 104,
       "with_resource_state": 22,
       "task_change_summary_total": 15,
       "entries": [
@@ -185,6 +185,10 @@
               "action": "update"
             },
             {
+              "key": "tasks[task_key='clean'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='clean'].email_notifications",
               "action": "skip"
             },
@@ -229,6 +233,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='combine'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='combine'].email_notifications",
               "action": "skip"
             },
@@ -259,6 +267,10 @@
             {
               "key": "tasks[task_key='enrich'].depends_on[task_key='clean']",
               "action": "update"
+            },
+            {
+              "key": "tasks[task_key='enrich'].disabled",
+              "action": "skip"
             },
             {
               "key": "tasks[task_key='enrich'].email_notifications",
@@ -297,6 +309,10 @@
               "action": "update"
             },
             {
+              "key": "tasks[task_key='filter'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='filter'].email_notifications",
               "action": "skip"
             },
@@ -324,6 +340,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='ingest'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='ingest'].email_notifications",
               "action": "skip"
@@ -355,6 +375,10 @@
             {
               "key": "tasks[task_key='monitor'].depends_on",
               "action": "update"
+            },
+            {
+              "key": "tasks[task_key='monitor'].disabled",
+              "action": "skip"
             },
             {
               "key": "tasks[task_key='monitor'].email_notifications",
@@ -389,6 +413,10 @@
               "action": "update"
             },
             {
+              "key": "tasks[task_key='normalize'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='normalize'].email_notifications",
               "action": "skip"
             },
@@ -416,6 +444,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='output'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='output'].email_notifications",
               "action": "skip"
@@ -451,6 +483,10 @@
             {
               "key": "tasks[task_key='process_a'].depends_on[task_key='validate']",
               "action": "update"
+            },
+            {
+              "key": "tasks[task_key='process_a'].disabled",
+              "action": "skip"
             },
             {
               "key": "tasks[task_key='process_a'].email_notifications",
@@ -495,6 +531,10 @@
             {
               "key": "tasks[task_key='process_b'].depends_on[task_key='validate']",
               "action": "update"
+            },
+            {
+              "key": "tasks[task_key='process_b'].disabled",
+              "action": "skip"
             },
             {
               "key": "tasks[task_key='process_b'].email_notifications",
@@ -547,6 +587,10 @@
             {
               "key": "tasks[task_key='validate'].depends_on[task_key='clean_v2']",
               "action": "update"
+            },
+            {
+              "key": "tasks[task_key='validate'].disabled",
+              "action": "skip"
             },
             {
               "key": "tasks[task_key='validate'].email_notifications",
@@ -638,6 +682,10 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "tasks[task_key='extract'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='extract'].email_notifications",
               "action": "skip"
             },
@@ -674,6 +722,10 @@
               "action": "update"
             },
             {
+              "key": "tasks[task_key='full_validation'].disabled",
+              "action": "skip"
+            },
+            {
               "key": "tasks[task_key='full_validation'].email_notifications",
               "action": "skip"
             },
@@ -701,6 +753,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='load'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='load'].email_notifications",
               "action": "skip"
@@ -732,6 +788,10 @@
             {
               "key": "tasks[task_key='publish'].depends_on[task_key='skip_validation']",
               "action": "update"
+            },
+            {
+              "key": "tasks[task_key='publish'].disabled",
+              "action": "skip"
             },
             {
               "key": "tasks[task_key='publish'].email_notifications",

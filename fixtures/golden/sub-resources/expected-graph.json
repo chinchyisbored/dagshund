@@ -68,7 +68,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 18,
+      "total_change_entries": 20,
       "with_resource_state": 4,
       "task_change_summary_total": 0,
       "entries": [
@@ -104,6 +104,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='run'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='run'].email_notifications",
               "action": "skip"
@@ -172,6 +176,10 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [
+            {
+              "key": "tasks[task_key='run'].disabled",
+              "action": "skip"
+            },
             {
               "key": "tasks[task_key='run'].email_notifications",
               "action": "skip"

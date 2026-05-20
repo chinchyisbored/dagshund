@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "0.299.0",
-  "lineage": "40343c3d-7681-43a3-b0e4-b842d1dd2724",
+  "cli_version": "0.299.2",
+  "lineage": "e7543a8e-6826-4e9b-a4aa-db17fc8a7d3c",
   "serial": 1,
   "plan": {
     "resources.jobs.data_pipeline": {
@@ -164,7 +164,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1777580012698,
+        "created_time": 1779303716535,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -173,7 +173,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 389851450788304,
+        "job_id": 381624554436956,
         "max_concurrent_runs": 1,
         "name": "data_pipeline_dep_test",
         "queue": {
@@ -187,6 +187,7 @@
                 "task_key": "normalize"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/clean",
@@ -205,6 +206,7 @@
                 "task_key": "process_b"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/combine",
@@ -220,6 +222,7 @@
                 "task_key": "validate"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/enrich",
@@ -235,6 +238,7 @@
                 "task_key": "standby"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/filter",
@@ -245,6 +249,7 @@
             "timeout_seconds": 0
           },
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/ingest",
@@ -255,6 +260,7 @@
             "timeout_seconds": 0
           },
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/monitor",
@@ -270,6 +276,7 @@
                 "task_key": "ingest"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/normalize",
@@ -285,6 +292,7 @@
                 "task_key": "combine"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/output",
@@ -303,6 +311,7 @@
                 "task_key": "filter"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/process_a",
@@ -321,6 +330,7 @@
                 "task_key": "filter"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/process_b",
@@ -331,6 +341,7 @@
             "timeout_seconds": 0
           },
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/standby",
@@ -346,6 +357,7 @@
                 "task_key": "clean"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/validate",
@@ -389,6 +401,11 @@
             "task_key": "normalize"
           }
         },
+        "tasks[task_key='clean'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
         "tasks[task_key='clean'].email_notifications": {
           "action": "skip",
           "reason": "empty",
@@ -423,6 +440,11 @@
             "task_key": "clean_v2"
           }
         },
+        "tasks[task_key='combine'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
         "tasks[task_key='combine'].email_notifications": {
           "action": "skip",
           "reason": "empty",
@@ -448,6 +470,11 @@
           "new": {
             "task_key": "clean"
           }
+        },
+        "tasks[task_key='enrich'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='enrich'].email_notifications": {
           "action": "skip",
@@ -484,6 +511,11 @@
             "task_key": "standby"
           }
         },
+        "tasks[task_key='filter'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
         "tasks[task_key='filter'].email_notifications": {
           "action": "skip",
           "reason": "empty",
@@ -503,6 +535,11 @@
           "action": "skip",
           "reason": "empty",
           "remote": 0
+        },
+        "tasks[task_key='ingest'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='ingest'].email_notifications": {
           "action": "skip",
@@ -531,6 +568,11 @@
               "task_key": "ingest"
             }
           ]
+        },
+        "tasks[task_key='monitor'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='monitor'].email_notifications": {
           "action": "skip",
@@ -565,6 +607,11 @@
             }
           ]
         },
+        "tasks[task_key='normalize'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
         "tasks[task_key='normalize'].email_notifications": {
           "action": "skip",
           "reason": "empty",
@@ -584,6 +631,11 @@
           "action": "skip",
           "reason": "empty",
           "remote": 0
+        },
+        "tasks[task_key='output'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='output'].email_notifications": {
           "action": "skip",
@@ -619,6 +671,11 @@
           "new": {
             "task_key": "validate"
           }
+        },
+        "tasks[task_key='process_a'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='process_a'].email_notifications": {
           "action": "skip",
@@ -670,6 +727,11 @@
             "task_key": "validate"
           }
         },
+        "tasks[task_key='process_b'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
         "tasks[task_key='process_b'].email_notifications": {
           "action": "skip",
           "reason": "empty",
@@ -699,6 +761,7 @@
             "task_key": "standby"
           },
           "remote": {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/data/standby",
@@ -723,6 +786,11 @@
           "new": {
             "task_key": "clean_v2"
           }
+        },
+        "tasks[task_key='validate'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='validate'].email_notifications": {
           "action": "skip",
@@ -815,7 +883,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1777580012711,
+        "created_time": 1779303716507,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -824,7 +892,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 969115959093739,
+        "job_id": 873585757167383,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline_dag_test",
         "queue": {
@@ -838,6 +906,7 @@
                 "task_key": "load"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/check_row_count",
@@ -848,6 +917,7 @@
             "timeout_seconds": 0
           },
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/extract",
@@ -863,6 +933,7 @@
                 "task_key": "check_row_count"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/full_validation",
@@ -878,6 +949,7 @@
                 "task_key": "extract"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/load",
@@ -896,6 +968,7 @@
                 "task_key": "skip_validation"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/publish",
@@ -911,6 +984,7 @@
                 "task_key": "check_row_count"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/skip_validation",
@@ -949,6 +1023,7 @@
                 "task_key": "load"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/check_row_count",
@@ -958,6 +1033,11 @@
             "task_key": "check_row_count",
             "timeout_seconds": 0
           }
+        },
+        "tasks[task_key='extract'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='extract'].email_notifications": {
           "action": "skip",
@@ -994,6 +1074,11 @@
             "task_key": "load"
           }
         },
+        "tasks[task_key='full_validation'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
         "tasks[task_key='full_validation'].email_notifications": {
           "action": "skip",
           "reason": "empty",
@@ -1013,6 +1098,11 @@
           "action": "skip",
           "reason": "empty",
           "remote": 0
+        },
+        "tasks[task_key='load'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='load'].email_notifications": {
           "action": "skip",
@@ -1042,6 +1132,11 @@
           "remote": {
             "task_key": "skip_validation"
           }
+        },
+        "tasks[task_key='publish'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
         },
         "tasks[task_key='publish'].email_notifications": {
           "action": "skip",
@@ -1082,6 +1177,7 @@
                 "task_key": "check_row_count"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/skip_validation",

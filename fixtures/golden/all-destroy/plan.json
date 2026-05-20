@@ -1,13 +1,13 @@
 {
   "plan_version": 2,
-  "cli_version": "0.299.0",
-  "lineage": "aa60e326-733c-4eee-966b-410eece2443e",
+  "cli_version": "0.299.2",
+  "lineage": "a9aa3f1b-f115-4033-91e2-7d8b2d6ecb08",
   "serial": 1,
   "plan": {
     "resources.alerts.stale_pipeline_alert": {
       "action": "delete",
       "remote_state": {
-        "create_time": "2026-04-30T20:07:28Z",
+        "create_time": "2026-05-20T18:50:36Z",
         "display_name": "stale_pipeline_alert",
         "effective_run_as": {
           "user_name": "user1@example.com"
@@ -23,7 +23,7 @@
             }
           }
         },
-        "id": "4439057554531945",
+        "id": "2296235248532106",
         "lifecycle_state": "ACTIVE",
         "owner_user_name": "user1@example.com",
         "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-destroy/default/resources",
@@ -32,17 +32,17 @@
           "quartz_cron_schedule": "0 0 8 * * ?",
           "timezone_id": "UTC"
         },
-        "update_time": "2026-04-30T20:07:28Z",
+        "update_time": "2026-05-20T18:50:36Z",
         "warehouse_id": "9d0afa601cb95187"
       }
     },
     "resources.experiments.audit_analysis": {
       "action": "delete",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/4439057554531944",
-        "creation_time": 1777579648480,
-        "experiment_id": "4439057554531944",
-        "last_update_time": 1777579648480,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/511378487262341",
+        "creation_time": 1779303036270,
+        "experiment_id": "511378487262341",
+        "last_update_time": 1779303036270,
         "lifecycle_stage": "active",
         "name": "/experiments/audit_analysis",
         "tags": [
@@ -72,7 +72,7 @@
     "resources.jobs.data_quality_pipeline": {
       "action": "delete",
       "remote_state": {
-        "created_time": 1777579648471,
+        "created_time": 1779303036405,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -81,7 +81,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 366247622187,
+        "job_id": 1028120947385417,
         "max_concurrent_runs": 1,
         "name": "data_quality_pipeline",
         "queue": {
@@ -95,6 +95,7 @@
                 "task_key": "setup_env"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/quality/check_nulls",
@@ -113,6 +114,7 @@
                 "task_key": "check_nulls"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/quality/generate_report",
@@ -123,6 +125,7 @@
             "timeout_seconds": 0
           },
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/quality/setup_env",
@@ -138,6 +141,7 @@
                 "task_key": "setup_env"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/quality/validate_schema",
@@ -155,7 +159,7 @@
     "resources.jobs.etl_pipeline": {
       "action": "delete",
       "remote_state": {
-        "created_time": 1777579648611,
+        "created_time": 1779303036392,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -164,7 +168,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 745138147192733,
+        "job_id": 1122040816636530,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline",
         "queue": {
@@ -173,6 +177,7 @@
         "run_as_user_name": "user1@example.com",
         "tasks": [
           {
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/extract",
@@ -188,6 +193,7 @@
                 "task_key": "transform"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/load",
@@ -203,6 +209,7 @@
                 "task_key": "extract"
               }
             ],
+            "disabled": false,
             "email_notifications": {},
             "notebook_task": {
               "notebook_path": "/Workspace/etl/transform",
@@ -221,15 +228,15 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1777579648528,
+        "created_at": 1779303036603,
         "created_by": "user1@example.com",
         "full_name": "dagshund.models.quality_metrics",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "quality_metrics",
         "owner": "user1@example.com",
         "schema_name": "models",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/d53cfe7d-af70-4c5b-a731-fa24c05378f0",
-        "updated_at": 1777579648528,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/8c8708ac-3ddd-410d-8457-22bad8b062f9",
+        "updated_at": 1779303036603,
         "updated_by": "user1@example.com"
       }
     },
@@ -239,7 +246,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1777579648464,
+        "created_at": 1779303036253,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -251,8 +258,8 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics",
         "owner": "user1@example.com",
-        "schema_id": "202fb368-74c9-4209-9761-a5f72761def2",
-        "updated_at": 1777579648464,
+        "schema_id": "68ecb6d8-b9fd-4221-be6b-7f8fe3d5b736",
+        "updated_at": 1779303036253,
         "updated_by": "user1@example.com"
       }
     },
@@ -262,7 +269,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1777579648449,
+        "created_at": 1779303036231,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -274,8 +281,8 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics_staging",
         "owner": "user1@example.com",
-        "schema_id": "5699d722-74ad-437a-a140-bf42cb5f3b56",
-        "updated_at": 1777579648449,
+        "schema_id": "d6cb63d8-2546-4cdb-9e22-9b1a22bca2c8",
+        "updated_at": 1779303036231,
         "updated_by": "user1@example.com"
       }
     },
@@ -289,7 +296,7 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1777579649232,
+        "created_at": 1779303037118,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics_staging.external_imports",
@@ -297,10 +304,10 @@
         "name": "external_imports",
         "owner": "user1@example.com",
         "schema_name": "analytics_staging",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/09848536-5f1a-46a7-a0dc-85a91df409bc",
-        "updated_at": 1777579649232,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/0fba8337-2e09-4c05-9ce7-7853065ee01c",
+        "updated_at": 1779303037118,
         "updated_by": "user1@example.com",
-        "volume_id": "09848536-5f1a-46a7-a0dc-85a91df409bc",
+        "volume_id": "0fba8337-2e09-4c05-9ce7-7853065ee01c",
         "volume_type": "MANAGED"
       }
     },
@@ -314,7 +321,7 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1777579649290,
+        "created_at": 1779303037195,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics.raw_data",
@@ -322,10 +329,10 @@
         "name": "raw_data",
         "owner": "user1@example.com",
         "schema_name": "analytics",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/f5bda67f-b280-4a87-97a7-fc49bd527962",
-        "updated_at": 1777579649290,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/19c9ee22-4eba-4f57-8ecc-13781272746a",
+        "updated_at": 1779303037195,
         "updated_by": "user1@example.com",
-        "volume_id": "f5bda67f-b280-4a87-97a7-fc49bd527962",
+        "volume_id": "19c9ee22-4eba-4f57-8ecc-13781272746a",
         "volume_type": "MANAGED"
       }
     }
