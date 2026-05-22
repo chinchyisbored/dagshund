@@ -143,7 +143,7 @@ Include the devil's advocate argument with every finding. The human decides whet
 - Would this break existing functionality?
 
 **Pass 2 — Code Philosophy Alignment:**
-- Review against CLAUDE.md rules: immutability, no classes, small composable functions, no `any`, no global state, descriptive names, explicit code
+- Review against AGENTS.md rules: immutability, no classes, small composable functions, no `any`, no global state, descriptive names, explicit code
 
 **Pass 3 — Quality & Polish:**
 - TODO comments that should be `br` issues?

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dagshund Update Fixtures"
+  short_description: "Regenerate dagshund golden fixtures"
+  default_prompt: "Use $dagshund-update-fixtures to regenerate dagshund fixtures."

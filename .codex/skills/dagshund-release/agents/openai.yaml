@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dagshund Release"
+  short_description: "Run the dagshund release workflow"
+  default_prompt: "Use $dagshund-release to release dagshund."
