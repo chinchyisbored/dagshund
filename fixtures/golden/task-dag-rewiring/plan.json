@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "0.299.2",
-  "lineage": "e7543a8e-6826-4e9b-a4aa-db17fc8a7d3c",
+  "cli_version": "1.0.0",
+  "lineage": "5fe9ae0f-1e3f-4eba-857a-340846353339",
   "serial": 1,
   "plan": {
     "resources.jobs.data_pipeline": {
@@ -164,7 +164,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1779303716535,
+        "created_time": 1779483444292,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -173,7 +173,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 381624554436956,
+        "job_id": 451804910621808,
         "max_concurrent_runs": 1,
         "name": "data_pipeline_dep_test",
         "queue": {
@@ -883,7 +883,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1779303716507,
+        "created_time": 1779483444293,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -892,7 +892,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 873585757167383,
+        "job_id": 938735257135233,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline_dag_test",
         "queue": {

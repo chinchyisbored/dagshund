@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "0.299.2",
-  "lineage": "8183c9a0-248d-4fe5-9488-b43d6fae9c97",
+  "cli_version": "1.0.0",
+  "lineage": "a4ba7a10-7588-45ed-ba21-ffbc8a3279fb",
   "serial": 2,
   "plan": {
     "resources.jobs.drift_pipeline": {
@@ -52,7 +52,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1779303776062,
+        "created_time": 1779483615378,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -63,7 +63,7 @@
           "no_alert_for_skipped_runs": false
         },
         "format": "MULTI_TASK",
-        "job_id": 612769455021873,
+        "job_id": 629595120697851,
         "max_concurrent_runs": 1,
         "name": "drift_pipeline",
         "performance_target": "PERFORMANCE_OPTIMIZED",
@@ -249,7 +249,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1779303776038,
+        "created_at": 1779483615237,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -261,8 +261,8 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "drift_grants",
         "owner": "user1@example.com",
-        "schema_id": "0d226208-11cd-4a35-851f-b0e1829c468f",
-        "updated_at": 1779303841365,
+        "schema_id": "59284c88-3a43-425b-8b36-d0a385d2df62",
+        "updated_at": 1779483690082,
         "updated_by": "user1@example.com"
       }
     },

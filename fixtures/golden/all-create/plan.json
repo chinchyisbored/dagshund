@@ -1,6 +1,6 @@
 {
   "plan_version": 2,
-  "cli_version": "0.299.2",
+  "cli_version": "1.0.0",
   "plan": {
     "resources.alerts.stale_pipeline_alert": {
       "action": "create",

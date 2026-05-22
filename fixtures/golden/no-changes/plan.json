@@ -1,13 +1,13 @@
 {
   "plan_version": 2,
-  "cli_version": "0.299.2",
-  "lineage": "7d918685-f654-4b08-b3ff-73748c025347",
+  "cli_version": "1.0.0",
+  "lineage": "d2b96d5c-233a-4a5c-bb6b-e78c12aef1f6",
   "serial": 1,
   "plan": {
     "resources.alerts.stale_pipeline_alert": {
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-05-20T19:01:26Z",
+        "create_time": "2026-05-22T20:56:56Z",
         "display_name": "stale_pipeline_alert",
         "effective_run_as": {
           "user_name": "user1@example.com"
@@ -23,7 +23,7 @@
             }
           }
         },
-        "id": "2296235248532184",
+        "id": "3682083563793166",
         "lifecycle_state": "ACTIVE",
         "owner_user_name": "user1@example.com",
         "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-no-changes/default/resources",
@@ -32,14 +32,14 @@
           "quartz_cron_schedule": "0 0 8 * * ?",
           "timezone_id": "UTC"
         },
-        "update_time": "2026-05-20T19:01:26Z",
+        "update_time": "2026-05-22T20:56:56Z",
         "warehouse_id": "9d0afa601cb95187"
       },
       "changes": {
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-05-20T19:01:26Z"
+          "remote": "2026-05-22T20:56:56Z"
         },
         "effective_run_as": {
           "action": "skip",
@@ -51,7 +51,7 @@
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2296235248532184"
+          "remote": "3682083563793166"
         },
         "lifecycle_state": {
           "action": "skip",
@@ -66,17 +66,17 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-05-20T19:01:26Z"
+          "remote": "2026-05-22T20:56:56Z"
         }
       }
     },
     "resources.experiments.audit_analysis": {
       "action": "skip",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/511378487262347",
-        "creation_time": 1779303686733,
-        "experiment_id": "511378487262347",
-        "last_update_time": 1779303686733,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/3927040135868582",
+        "creation_time": 1779483416882,
+        "experiment_id": "3927040135868582",
+        "last_update_time": 1779483416882,
         "lifecycle_stage": "active",
         "name": "/experiments/audit_analysis",
         "tags": [
@@ -106,7 +106,7 @@
         "artifact_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "dbfs:/databricks/mlflow-tracking/511378487262347"
+          "remote": "dbfs:/databricks/mlflow-tracking/3927040135868582"
         },
         "name": {
           "action": "skip",
@@ -146,7 +146,7 @@
     "resources.jobs.etl_pipeline": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1779303686755,
+        "created_time": 1779483416921,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -155,7 +155,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 874933067446030,
+        "job_id": 78944554728846,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline",
         "queue": {
@@ -309,7 +309,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1779303687001,
+        "created_at": 1779483416901,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -321,8 +321,8 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics",
         "owner": "user1@example.com",
-        "schema_id": "569b1f55-563f-465d-94e7-834c4e255bff",
-        "updated_at": 1779303687001,
+        "schema_id": "38c582f1-8f78-44b2-b3e9-a1e3120c2f45",
+        "updated_at": 1779483416901,
         "updated_by": "user1@example.com"
       }
     },
@@ -336,7 +336,7 @@
       "action": "skip",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1779303687744,
+        "created_at": 1779483417728,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics.raw_data",
@@ -344,17 +344,17 @@
         "name": "raw_data",
         "owner": "user1@example.com",
         "schema_name": "analytics",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/af8367f0-338d-4879-acb9-53aa5b986d69",
-        "updated_at": 1779303687744,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/5a94e430-0467-43c6-ba76-0234d796341e",
+        "updated_at": 1779483417728,
         "updated_by": "user1@example.com",
-        "volume_id": "af8367f0-338d-4879-acb9-53aa5b986d69",
+        "volume_id": "5a94e430-0467-43c6-ba76-0234d796341e",
         "volume_type": "MANAGED"
       },
       "changes": {
         "storage_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/af8367f0-338d-4879-acb9-53aa5b986d69"
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/5a94e430-0467-43c6-ba76-0234d796341e"
         }
       }
     }
