@@ -12,6 +12,27 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GOLDEN_DIR="$SCRIPT_DIR/../golden"
 
+prepare_destroy() {
+  local name="$1"
+
+  if [[ "$name" == "lakebase-autoscaling" ]]; then
+    echo "==> [$name] Unprotecting Lakebase root branch before destroy..."
+    databricks postgres update-branch \
+      projects/dagshund/branches/prd \
+      spec.is_protected \
+      --json '{"spec":{"is_protected":false}}' >/dev/null
+  fi
+}
+
+purge_destroyed_fixture() {
+  local name="$1"
+
+  if [[ "$name" == "lakebase-autoscaling" ]]; then
+    echo "==> [$name] Purging soft-deleted Lakebase project..."
+    databricks postgres delete-project projects/dagshund --purge || true
+  fi
+}
+
 # Source .env for BUNDLE_VAR_* overrides (gitignored, contains PII like emails).
 if [[ -f "$GOLDEN_DIR/.env" ]]; then
   set -a
@@ -41,7 +62,9 @@ regen_one() (
   # shellcheck disable=SC2329
   cleanup() {
     echo "==> [$name] Cleanup: destroying deployed state..." >&2
+    prepare_destroy "$name" || true
     cd "$fixture_dir/after" && databricks bundle destroy --force-lock --auto-approve || true
+    purge_destroyed_fixture "$name" || true
   }
   trap cleanup EXIT
 
@@ -59,9 +82,12 @@ regen_one() (
   cd "$fixture_dir/after"
   databricks bundle deploy --force-lock --auto-approve
 
+  prepare_destroy "$name"
+
   echo "==> [$name] Destroying deployed state..."
   cd "$fixture_dir/after"
   databricks bundle destroy --force-lock --auto-approve
+  purge_destroyed_fixture "$name"
 
   trap - EXIT
   echo "==> [$name] Done: $fixture_dir/plan.json"

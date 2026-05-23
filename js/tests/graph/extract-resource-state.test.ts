@@ -244,24 +244,6 @@ describe("fixture-based extraction", () => {
     }
   });
 
-  test("extracts source_table_full_name from all-hierarchies synced tables", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const entries = Object.entries(plan.plan ?? {});
-
-    const syncedTableEntries = entries.filter(([key]) => key.includes("synced_database_tables."));
-    expect(syncedTableEntries.length).toBeGreaterThan(0);
-
-    for (const [, entry] of syncedTableEntries) {
-      const name = extractSourceTableFullName(entry);
-      expect(name).toBeDefined();
-
-      // biome-ignore lint/style/noNonNullAssertion: asserted above
-      const parsed = parseThreePartName(name!);
-      expect(parsed).toBeDefined();
-      expect(parsed?.catalog).toBe("dagshund");
-    }
-  });
-
   test("returns undefined for entries without state", async () => {
     const plan = await loadFixture("all-create");
     const entries = Object.entries(plan.plan ?? {});

@@ -109,12 +109,10 @@ Bucket each fixture as:
 - **Substantive** — real output changes (e.g. `depends_on` shape shifts, new
   fields, renamed keys).
 
-Some fixtures are **synthetic** — their `plan.json` is hand-authored with a
-pinned `cli_version` (e.g. `all-hierarchies/plan.json` pins `0.290.0`). These
-will not change on a CLI bump because they were never regenerated against it,
-and their `expected.txt` stays on the pinned version. The
-`normalize_cli_version` helper is what lets them coexist with the regenerated
-fixtures. Don't try to "fix" them.
+Fixture directories with `before/` and `after/` bundle configs are expected to
+be regenerated from Databricks CLI output. Loose files under `fixtures/golden/`
+such as `broken-json.json` and `bundle_config_schema.json` are support inputs,
+not golden fixture directories.
 
 Present the breakdown to the user. For substantive changes, walk through the
 diff and explain whether each is a CLI improvement, a regression, or a

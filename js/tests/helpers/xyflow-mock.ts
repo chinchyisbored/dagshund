@@ -1,4 +1,4 @@
-import { type CSSProperties, createElement, type ReactElement } from "react";
+import { type CSSProperties, createElement, type ReactElement, useEffect } from "react";
 
 // Shared @xyflow/react module mock for tests that render node components or
 // exercise useNodeConnections.
@@ -45,6 +45,56 @@ type HandleProps = {
   readonly style?: CSSProperties;
 };
 
+type MockFlowNode = {
+  readonly id: string;
+  readonly data?: {
+    readonly label?: string;
+  };
+};
+
+type ReactFlowProps = {
+  readonly nodes?: readonly MockFlowNode[];
+  readonly children?: ReactElement | readonly ReactElement[];
+  readonly onInit?: (instance: {
+    readonly fitView: () => void;
+    readonly zoomIn: () => void;
+    readonly zoomOut: () => void;
+    readonly setCenter: () => void;
+    readonly getNodes: () => readonly MockFlowNode[];
+  }) => void;
+};
+
+const ReactFlow = ({ nodes = [], children, onInit }: ReactFlowProps): ReactElement => {
+  useEffect(() => {
+    onInit?.({
+      fitView: () => undefined,
+      zoomIn: () => undefined,
+      zoomOut: () => undefined,
+      setCenter: () => undefined,
+      getNodes: () => nodes,
+    });
+  }, [nodes, onInit]);
+
+  return createElement(
+    "div",
+    { "data-testid": "react-flow" },
+    nodes.map((node) =>
+      createElement(
+        "div",
+        { key: node.id, "data-testid": `flow-node-${node.id}` },
+        node.data?.label ?? node.id,
+      ),
+    ),
+    children,
+  );
+};
+
+const Panel = ({
+  children,
+}: {
+  readonly children?: ReactElement | readonly ReactElement[];
+}): ReactElement => createElement("div", { "data-testid": "flow-panel" }, children);
+
 // Stub that spreads all props (including style, className) so tests can assert
 // on the real production style.visibility conditional used by resource/task/
 // hierarchy-node. The type+position compose into a stable testid.
@@ -65,6 +115,8 @@ const useNodeConnections = (opts: {
 
 export const xyflowMockFactory = (): Record<string, unknown> => ({
   Handle,
+  Panel,
   Position,
+  ReactFlow,
   useNodeConnections,
 });

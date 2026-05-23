@@ -132,6 +132,120 @@ describe("extractDatabaseInstanceEdges", () => {
 });
 
 // ---------------------------------------------------------------------------
+// postgres_catalog.branch (postgres_catalog → postgres_branch)
+// ---------------------------------------------------------------------------
+
+describe("extractPostgresCatalogBranchEdges", () => {
+  test("postgres catalog links to branch via bundle resource ref", () => {
+    const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_catalogs.dev_catalog",
+        makeEntry({ branch: branchIdRef, catalog_id: "dagshund_lakebase" }),
+      ],
+      [
+        "resources.postgres_branches.dev_branch",
+        makeEntry({ branch_id: "dev", parent: "projects/dagshund" }),
+      ],
+    ];
+    const overrides = new Map([
+      ["resources.postgres_catalogs.dev_catalog", "catalog::dagshund_lakebase"],
+    ]);
+
+    const edges = extractLateralEdges(makeContext(entries, overrides));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "catalog::dagshund_lakebase",
+      target: "resources.postgres_branches.dev_branch",
+    });
+  });
+
+  test("postgres catalog links to branch via concrete branch path", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_catalogs.dev_catalog",
+        makeEntry({ branch: "projects/dagshund/branches/dev", catalog_id: "dagshund_lakebase" }),
+      ],
+      [
+        "resources.postgres_branches.dev_branch",
+        makeEntry({ branch_id: "dev", parent: "projects/dagshund" }),
+      ],
+    ];
+    const overrides = new Map([
+      ["resources.postgres_catalogs.dev_catalog", "catalog::dagshund_lakebase"],
+    ]);
+
+    const edges = extractLateralEdges(makeContext(entries, overrides));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "catalog::dagshund_lakebase",
+      target: "resources.postgres_branches.dev_branch",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// postgres_branch.source_branch (derived postgres_branch → source postgres_branch)
+// ---------------------------------------------------------------------------
+
+describe("extractPostgresBranchSourceEdges", () => {
+  test("derived branch links to source branch via concrete branch path", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_branches.dev_branch",
+        makeEntry({
+          branch_id: "dev",
+          parent: "projects/dagshund",
+          source_branch: "projects/dagshund/branches/prd",
+        }),
+      ],
+      [
+        "resources.postgres_branches.prd_branch",
+        makeEntry({ branch_id: "prd", parent: "projects/dagshund" }),
+      ],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.postgres_branches.dev_branch",
+      target: "resources.postgres_branches.prd_branch",
+    });
+  });
+
+  test("derived branch links to phantom source branch via concrete branch path", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_branches.dev_branch",
+        makeEntry({
+          branch_id: "dev",
+          parent: "projects/dagshund",
+          source_branch: "projects/phantom-lineage-lakebase/branches/production",
+        }),
+      ],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.postgres_branches.dev_branch", "resources.postgres_branches.dev_branch"],
+    ]);
+    const nodeIds = new Set([
+      "resources.postgres_branches.dev_branch",
+      "postgres-branch::phantom-lineage-lakebase/production",
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.postgres_branches.dev_branch",
+      target: "postgres-branch::phantom-lineage-lakebase/production",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // warehouse_id (alert → sql_warehouse via API ID)
 // ---------------------------------------------------------------------------
 
@@ -1226,69 +1340,6 @@ describe("extractAppResourceEdges", () => {
       source: "resources.apps.my_app",
       target: "resources.jobs.etl",
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Integration: all-hierarchies-plan.json
-// ---------------------------------------------------------------------------
-
-describe("all-hierarchies-plan integration", () => {
-  test("extracts database instance edges from fixture", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const dbInstanceEdges = graph.lateralEdges.filter(
-      (e) => e.target.includes("database_instances") || e.target.startsWith("database-instance::"),
-    );
-
-    // customer_360 → analytics_db, product_events → analytics_db, lakebase_analytics → analytics_db,
-    // partner_metrics → reporting_db (phantom)
-    expect(dbInstanceEdges).toHaveLength(4);
-
-    const sourceIds = dbInstanceEdges.map((e) => e.source).toSorted();
-    expect(sourceIds).toContain("resources.synced_database_tables.customer_360");
-    expect(sourceIds).toContain("resources.synced_database_tables.product_events");
-    expect(sourceIds).toContain("resources.synced_database_tables.partner_metrics");
-  });
-
-  test("partner_metrics → reporting_db links to phantom database instance", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const reportingEdges = graph.lateralEdges.filter(
-      (e) =>
-        e.source === "resources.synced_database_tables.partner_metrics" &&
-        e.target.startsWith("database-instance::"),
-    );
-
-    expect(reportingEdges).toHaveLength(1);
-    expect(reportingEdges[0]).toMatchObject({
-      source: "resources.synced_database_tables.partner_metrics",
-      target: "database-instance::reporting_db",
-    });
-
-    // The target should be a phantom node
-    const phantomNode = graph.nodes.find((n) => n.id === "database-instance::reporting_db");
-    expect(phantomNode).toBeDefined();
-    expect(phantomNode?.nodeKind).toBe("phantom");
-  });
-
-  test("synced tables produce source-table edges to phantoms", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const sourceTableEdges = graph.lateralEdges.filter((e) =>
-      e.target.startsWith("source-table::"),
-    );
-
-    // customer_360 → customer_profiles, product_events → product_interactions, partner_metrics → partner_rollup
-    expect(sourceTableEdges).toHaveLength(3);
-
-    const targets = sourceTableEdges.map((e) => e.target).toSorted();
-    expect(targets).toContain("source-table::dagshund.analytics.customer_profiles");
-    expect(targets).toContain("source-table::dagshund.analytics.product_interactions");
-    expect(targets).toContain("source-table::dagshund.integrations.partner_rollup");
   });
 });
 

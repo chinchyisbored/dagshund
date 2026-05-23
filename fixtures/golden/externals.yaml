@@ -23,5 +23,17 @@ variables:
   external_dashboard_id:
     description: Pre-existing Lakeview dashboard ID for phantom dashboard_task references
     default: "01f10382fb111e3e9d8132f891c5b179"
+  external_postgres_project_id:
+    description: Pre-existing Lakebase project for phantom endpoint parent references
+    default: phantom-lakebase
+  external_postgres_branch_id:
+    description: Pre-existing branch in external_postgres_project_id
+    default: production
+  external_lineage_postgres_project_id:
+    description: Pre-existing Lakebase project for phantom source_branch lineage references
+    default: phantom-lineage-lakebase
+  external_lineage_postgres_branch_id:
+    description: Pre-existing branch in external_lineage_postgres_project_id
+    default: production
   secondary_user:
     description: Second user for ownership/run_as fixture scenarios (no default — set via BUNDLE_VAR_secondary_user)

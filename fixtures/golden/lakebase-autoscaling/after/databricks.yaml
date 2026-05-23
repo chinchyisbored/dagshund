@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Adds a dev branch from protected prd, manages dev's implicit primary endpoint,
+# and registers a Postgres catalog for the dev branch.
+bundle:
+  name: dagshund-golden-lakebase-autoscaling
+  databricks_cli_version: ">=1.0.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  postgres_projects:
+    dagshund_project:
+      project_id: dagshund
+      display_name: Dagshund
+      pg_version: 17
+      default_branch: projects/dagshund/branches/prd
+      custom_tags:
+        - key: env
+          value: prd
+      permissions:
+        - group_name: data_engineers
+          level: CAN_MANAGE
+        - group_name: data_analysts
+          level: CAN_USE
+
+  postgres_branches:
+    prd_branch:
+      parent: ${resources.postgres_projects.dagshund_project.id}
+      branch_id: prd
+      is_protected: true
+      no_expiry: true
+      replace_existing: true
+
+    dev_branch:
+      parent: ${resources.postgres_projects.dagshund_project.id}
+      branch_id: dev
+      source_branch: ${resources.postgres_branches.prd_branch.id}
+      no_expiry: true
+
+    external_lineage_branch:
+      parent: projects/${var.external_lineage_postgres_project_id}
+      branch_id: external-lineage
+      source_branch: projects/${var.external_lineage_postgres_project_id}/branches/${var.external_lineage_postgres_branch_id}
+      no_expiry: true
+
+  postgres_endpoints:
+    prd_endpoint:
+      parent: ${resources.postgres_branches.prd_branch.id}
+      endpoint_id: primary
+      endpoint_type: ENDPOINT_TYPE_READ_WRITE
+      autoscaling_limit_min_cu: 0.5
+      autoscaling_limit_max_cu: 1
+      replace_existing: true
+
+    dev_endpoint:
+      parent: ${resources.postgres_branches.dev_branch.id}
+      endpoint_id: primary
+      endpoint_type: ENDPOINT_TYPE_READ_WRITE
+      autoscaling_limit_min_cu: 0.5
+      autoscaling_limit_max_cu: 1
+      replace_existing: true
+
+    external_reader_endpoint:
+      parent: projects/${var.external_postgres_project_id}/branches/${var.external_postgres_branch_id}
+      endpoint_id: dagshund-reader
+      endpoint_type: ENDPOINT_TYPE_READ_ONLY
+      autoscaling_limit_min_cu: 0.5
+      autoscaling_limit_max_cu: 1
+
+  postgres_catalogs:
+    dev_catalog:
+      branch: ${resources.postgres_branches.dev_branch.id}
+      catalog_id: dagshund_lakebase
+      postgres_database: dagshund_lakebase
+      create_database_if_missing: true

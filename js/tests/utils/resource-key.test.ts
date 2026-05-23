@@ -75,7 +75,7 @@ describe("isPhantomLeaf", () => {
     expect(isPhantomLeaf("catalog::prod")).toBe(false);
     expect(isPhantomLeaf("schema::prod.staging")).toBe(false);
     expect(isPhantomLeaf("postgres-project::my_project")).toBe(false);
-    expect(isPhantomLeaf("postgres-branch::main")).toBe(false);
+    expect(isPhantomLeaf("postgres-branch::my_project/main")).toBe(false);
   });
 
   test("returns false for real resource keys", () => {

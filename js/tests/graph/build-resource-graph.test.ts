@@ -45,6 +45,7 @@ describe("isUnityCatalogType", () => {
     expect(isUnityCatalogType("registered_models")).toBe(true);
     expect(isUnityCatalogType("catalogs")).toBe(true);
     expect(isUnityCatalogType("database_catalogs")).toBe(true);
+    expect(isUnityCatalogType("postgres_catalogs")).toBe(true);
     expect(isUnityCatalogType("synced_database_tables")).toBe(true);
   });
 
@@ -665,6 +666,7 @@ describe("isPostgresType", () => {
     expect(isPostgresType("jobs")).toBe(false);
     expect(isPostgresType("database_instances")).toBe(false);
     expect(isPostgresType("schemas")).toBe(false);
+    expect(isPostgresType("postgres_catalogs")).toBe(false);
   });
 });
 
@@ -744,6 +746,126 @@ describe("postgres hierarchy", () => {
     );
     expect(edgePairs).toContain(
       "postgres-branch::some-project/missing-branch→resources.postgres_endpoints.my_endpoint",
+    );
+  });
+
+  test("endpoint bundle parent ref resolves to branch resource", () => {
+    const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_branches.dev_branch": {
+          action: "create",
+          new_state: { value: { branch_id: "dev", parent: "projects/dagshund" } },
+        },
+        "resources.postgres_endpoints.dev_endpoint": {
+          action: "create",
+          new_state: {
+            value: {
+              endpoint_id: "primary",
+              parent: branchIdRef,
+              endpoint_type: "ENDPOINT_TYPE_READ_WRITE",
+            },
+          },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain(
+      "resources.postgres_branches.dev_branch→resources.postgres_endpoints.dev_endpoint",
+    );
+    expect(edgePairs).not.toContain("postgres-root→resources.postgres_endpoints.dev_endpoint");
+  });
+
+  test("derived branch has lateral lineage edge to source branch", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_branches.dev_branch": {
+          action: "create",
+          new_state: {
+            value: {
+              branch_id: "dev",
+              parent: "projects/dagshund",
+              source_branch: "projects/dagshund/branches/prd",
+            },
+          },
+        },
+        "resources.postgres_branches.prd_branch": {
+          action: "update",
+          new_state: { value: { branch_id: "prd", parent: "projects/dagshund" } },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain(
+      "postgres-project::dagshund→resources.postgres_branches.dev_branch",
+    );
+    expect(edgePairs).toContain(
+      "postgres-project::dagshund→resources.postgres_branches.prd_branch",
+    );
+    expect(edgePairs).not.toContain(
+      "resources.postgres_branches.prd_branch→resources.postgres_branches.dev_branch",
+    );
+
+    const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
+    expect(lateralEdgePairs).toContain(
+      "resources.postgres_branches.dev_branch→resources.postgres_branches.prd_branch",
+    );
+  });
+
+  test("derived branch creates phantom source branch when source is external", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_branches.dev_branch": {
+          action: "create",
+          new_state: {
+            value: {
+              branch_id: "dev",
+              parent: "projects/dagshund",
+              source_branch: "projects/phantom-lineage-lakebase/branches/production",
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("postgres-project::phantom-lineage-lakebase");
+    expect(nodeIds).toContain("postgres-branch::phantom-lineage-lakebase/production");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("postgres-root→postgres-project::phantom-lineage-lakebase");
+    expect(edgePairs).toContain(
+      "postgres-project::phantom-lineage-lakebase→postgres-branch::phantom-lineage-lakebase/production",
+    );
+
+    const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
+    expect(lateralEdgePairs).toContain(
+      "resources.postgres_branches.dev_branch→postgres-branch::phantom-lineage-lakebase/production",
+    );
+  });
+
+  test("lakebase-autoscaling fixture creates external branch and endpoint phantoms", async () => {
+    const graph = buildResourceGraph(await loadFixture("lakebase-autoscaling"));
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("postgres-project::phantom-lakebase");
+    expect(nodeIds).toContain("postgres-branch::phantom-lakebase/production");
+    expect(nodeIds).toContain("postgres-project::phantom-lineage-lakebase");
+    expect(nodeIds).toContain("postgres-branch::phantom-lineage-lakebase/production");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain(
+      "postgres-branch::phantom-lakebase/production→resources.postgres_endpoints.external_reader_endpoint",
+    );
+    expect(edgePairs).toContain(
+      "postgres-project::phantom-lineage-lakebase→resources.postgres_branches.external_lineage_branch",
+    );
+
+    const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
+    expect(lateralEdgePairs).toContain(
+      "resources.postgres_branches.external_lineage_branch→postgres-branch::phantom-lineage-lakebase/production",
     );
   });
 
@@ -1023,6 +1145,46 @@ describe("database_catalogs in UC", () => {
   });
 });
 
+describe("postgres_catalogs in UC", () => {
+  test("postgres catalog renders as UC catalog with lateral edge to branch", () => {
+    const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_branches.dev_branch": {
+          action: "create",
+          new_state: { value: { branch_id: "dev", parent: "projects/dagshund" } },
+        },
+        "resources.postgres_catalogs.dev_catalog": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: branchIdRef,
+              catalog_id: "dagshund_lakebase",
+              postgres_database: "dagshund_lakebase",
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("catalog::dagshund_lakebase");
+    expect(nodeIds).not.toContain("resources.postgres_catalogs.dev_catalog");
+
+    const catalogNode = graph.nodes.find((n) => n.id === "catalog::dagshund_lakebase");
+    expect(catalogNode?.label).toBe("dagshund_lakebase");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("uc-root→catalog::dagshund_lakebase");
+    expect(edgePairs).not.toContain("other-resources-root→resources.postgres_catalogs.dev_catalog");
+
+    const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
+    expect(lateralEdgePairs).toContain(
+      "catalog::dagshund_lakebase→resources.postgres_branches.dev_branch",
+    );
+  });
+});
+
 describe("mixed plan with UC + workspace + postgres", () => {
   test("creates correct structure with synced tables in UC and instances in workspace", () => {
     const graph = buildResourceGraph({
@@ -1090,172 +1252,6 @@ describe("mixed plan with UC + workspace + postgres", () => {
     expect(edgePairs).toContain("workspace-root→postgres-root");
     expect(edgePairs).toContain("postgres-root→postgres-project::pg-proj");
     expect(edgePairs).toContain("postgres-project::pg-proj→resources.postgres_branches.pg_branch");
-  });
-});
-
-describe("all-hierarchies-plan.json fixture", () => {
-  test("creates UC, workspace, and postgres root sections (no lakebase-root)", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const rootIds = graph.nodes.filter((n) => n.nodeKind === "root").map((n) => n.id);
-
-    expect(rootIds).toContain("uc-root");
-    expect(rootIds).toContain("workspace-root");
-    expect(rootIds).toContain("other-resources-root");
-    expect(rootIds).toContain("postgres-root");
-    expect(rootIds).not.toContain("lakebase-root");
-  });
-
-  test("UC hierarchy includes catalogs, schemas, leaf resources, and synced tables", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    // Deployed catalogs
-    expect(nodeIds).toContain("catalog::production");
-    expect(nodeIds).toContain("catalog::lakebase_analytics");
-    expect(nodeIds).toContain("resources.schemas.reporting");
-    // Phantom catalog (dagshund inferred from schemas)
-    expect(nodeIds).toContain("catalog::dagshund");
-    // Phantom schema for partner_feeds volume
-    expect(nodeIds).toContain("schema::dagshund.integrations");
-    // Phantom schema for synced tables under lakebase_analytics
-    expect(nodeIds).toContain("schema::lakebase_analytics.analytics_data");
-    // Phantom schema for partner_metrics under production
-    expect(nodeIds).toContain("schema::production.warehouse");
-
-    // Phantom source table nodes from spec.source_table_full_name
-    expect(nodeIds).toContain("source-table::dagshund.analytics.customer_profiles");
-    expect(nodeIds).toContain("source-table::dagshund.analytics.product_interactions");
-    expect(nodeIds).toContain("source-table::dagshund.integrations.partner_rollup");
-
-    // Synced tables are UC leaf nodes
-    expect(nodeIds).toContain("resources.synced_database_tables.customer_360");
-    expect(nodeIds).toContain("resources.synced_database_tables.product_events");
-    expect(nodeIds).toContain("resources.synced_database_tables.partner_metrics");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Deployed catalog hierarchy
-    expect(edgePairs).toContain("uc-root→catalog::production");
-    expect(edgePairs).toContain("catalog::production→resources.schemas.reporting");
-    // Phantom dagshund catalog
-    expect(edgePairs).toContain("uc-root→catalog::dagshund");
-    expect(edgePairs).toContain("catalog::dagshund→resources.schemas.analytics");
-    expect(edgePairs).toContain("catalog::dagshund→resources.schemas.ml_features");
-    // Volume links
-    expect(edgePairs).toContain("resources.schemas.analytics→resources.volumes.raw_data");
-    expect(edgePairs).toContain("catalog::dagshund→schema::dagshund.integrations");
-    expect(edgePairs).toContain("schema::dagshund.integrations→resources.volumes.partner_feeds");
-    // Deleted model
-    expect(edgePairs).toContain(
-      "resources.schemas.analytics→resources.registered_models.churn_predictor",
-    );
-    // Synced tables under lakebase_analytics catalog → phantom analytics_data schema
-    expect(edgePairs).toContain(
-      "catalog::lakebase_analytics→schema::lakebase_analytics.analytics_data",
-    );
-    expect(edgePairs).toContain(
-      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
-    );
-    expect(edgePairs).toContain(
-      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
-    );
-    // partner_metrics under production catalog → phantom warehouse schema
-    expect(edgePairs).toContain("catalog::production→schema::production.warehouse");
-    expect(edgePairs).toContain(
-      "schema::production.warehouse→resources.synced_database_tables.partner_metrics",
-    );
-
-    // Source table phantoms under existing schemas
-    expect(edgePairs).toContain(
-      "resources.schemas.analytics→source-table::dagshund.analytics.customer_profiles",
-    );
-    expect(edgePairs).toContain(
-      "resources.schemas.analytics→source-table::dagshund.analytics.product_interactions",
-    );
-    expect(edgePairs).toContain(
-      "schema::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
-    );
-
-    // Node kinds
-    const prodCatalog = graph.nodes.find((n) => n.id === "catalog::production");
-    expect(prodCatalog?.nodeKind).toBe("resource");
-    const lbCatalog = graph.nodes.find((n) => n.id === "catalog::lakebase_analytics");
-    expect(lbCatalog?.nodeKind).toBe("resource");
-    const dagshundCatalog = graph.nodes.find((n) => n.id === "catalog::dagshund");
-    expect(dagshundCatalog?.nodeKind).toBe("phantom");
-  });
-
-  test("postgres hierarchy has 3-tier chain with phantom branch", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("postgres-project::warehouse-replica");
-    expect(nodeIds).toContain("resources.postgres_branches.staging");
-    expect(nodeIds).toContain("resources.postgres_branches.production");
-    expect(nodeIds).toContain("resources.postgres_endpoints.staging_read");
-    expect(nodeIds).toContain("resources.postgres_endpoints.production_rw");
-    expect(nodeIds).toContain("postgres-branch::warehouse-replica/archive");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("workspace-root→postgres-root");
-    expect(edgePairs).toContain("postgres-root→postgres-project::warehouse-replica");
-    expect(edgePairs).toContain(
-      "postgres-project::warehouse-replica→resources.postgres_branches.staging",
-    );
-    expect(edgePairs).toContain(
-      "postgres-project::warehouse-replica→resources.postgres_branches.production",
-    );
-    expect(edgePairs).toContain(
-      "resources.postgres_branches.staging→resources.postgres_endpoints.staging_read",
-    );
-    expect(edgePairs).toContain(
-      "resources.postgres_branches.production→resources.postgres_endpoints.production_rw",
-    );
-    expect(edgePairs).toContain(
-      "postgres-project::warehouse-replica→postgres-branch::warehouse-replica/archive",
-    );
-    expect(edgePairs).toContain(
-      "postgres-branch::warehouse-replica/archive→resources.postgres_endpoints.legacy_reader",
-    );
-  });
-
-  test("database_instance is a flat workspace resource", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("resources.database_instances.analytics_db");
-
-    // Under other-resources-root (postgres hierarchy triggers wrapper)
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("workspace-root→other-resources-root");
-    expect(edgePairs).toContain("other-resources-root→resources.database_instances.analytics_db");
-  });
-
-  test("workspace flat resources are wrapped in other-resources-root", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("workspace-root→other-resources-root");
-    expect(edgePairs).toContain("other-resources-root→resources.jobs.etl_pipeline");
-    expect(edgePairs).toContain("other-resources-root→resources.alerts.data_freshness");
-    expect(edgePairs).toContain("other-resources-root→resources.experiments.ab_test_v2");
-    expect(edgePairs).toContain(
-      "other-resources-root→resources.external_locations.raw_landing_zone",
-    );
-  });
-
-  test("has correct total resource count", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
-    // 11 UC (8 original + 3 synced tables) + 5 workspace (4 original + 1 database_instance) + 6 postgres = 22
-    expect(resourceNodes).toHaveLength(22);
   });
 });
 
@@ -1356,57 +1352,6 @@ describe("parseThreePartName", () => {
 
   test("returns undefined for four-part name", () => {
     expect(parseThreePartName("a.b.c.d")).toBeUndefined();
-  });
-});
-
-describe("all-hierarchies synced tables in UC", () => {
-  test("synced_database_tables placed under correct catalogs and schemas", async () => {
-    const plan = await loadFixture("all-hierarchies");
-    const graph = buildResourceGraph(plan);
-
-    const nodeIds = graph.nodes.map((n) => n.id);
-    // Synced tables are UC leaf nodes
-    expect(nodeIds).toContain("resources.synced_database_tables.customer_360");
-    expect(nodeIds).toContain("resources.synced_database_tables.product_events");
-    expect(nodeIds).toContain("resources.synced_database_tables.partner_metrics");
-    // Phantom schemas for synced table parent resolution
-    expect(nodeIds).toContain("schema::lakebase_analytics.analytics_data");
-    expect(nodeIds).toContain("schema::production.warehouse");
-    // No sync-target:: phantom nodes
-    const syncTargets = nodeIds.filter((id) => id.startsWith("sync-target::"));
-    expect(syncTargets).toHaveLength(0);
-
-    // Phantom source table nodes from spec.source_table_full_name
-    expect(nodeIds).toContain("source-table::dagshund.analytics.customer_profiles");
-    expect(nodeIds).toContain("source-table::dagshund.analytics.product_interactions");
-    expect(nodeIds).toContain("source-table::dagshund.integrations.partner_rollup");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    // Synced tables under lakebase_analytics catalog → phantom analytics_data schema
-    expect(edgePairs).toContain(
-      "catalog::lakebase_analytics→schema::lakebase_analytics.analytics_data",
-    );
-    expect(edgePairs).toContain(
-      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.customer_360",
-    );
-    expect(edgePairs).toContain(
-      "schema::lakebase_analytics.analytics_data→resources.synced_database_tables.product_events",
-    );
-    // partner_metrics under production catalog → phantom warehouse schema
-    expect(edgePairs).toContain("catalog::production→schema::production.warehouse");
-    expect(edgePairs).toContain(
-      "schema::production.warehouse→resources.synced_database_tables.partner_metrics",
-    );
-    // Source table phantoms under existing real/phantom schemas
-    expect(edgePairs).toContain(
-      "resources.schemas.analytics→source-table::dagshund.analytics.customer_profiles",
-    );
-    expect(edgePairs).toContain(
-      "resources.schemas.analytics→source-table::dagshund.analytics.product_interactions",
-    );
-    expect(edgePairs).toContain(
-      "schema::dagshund.integrations→source-table::dagshund.integrations.partner_rollup",
-    );
   });
 });
 

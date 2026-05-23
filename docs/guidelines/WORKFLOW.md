@@ -6,8 +6,6 @@ All tracking uses `br` (beads_rust). Do NOT use markdown files for plans, TODOs,
 
 **Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
 
-Run `br onboard` at the start of a new engagement with the project.
-
 ## Session Start
 
 1. `br ready --json` — see what's unblocked

@@ -34,6 +34,14 @@ import {
   parseThreePartName,
 } from "./extract-resource-state.ts";
 import { resolveJobState, resolveTaskEntries, type TaskEntry } from "./extract-tasks.ts";
+import {
+  extractBundleResourceIdRef,
+  formatPostgresBranchIdentity,
+  parsePostgresBranchPath,
+  parsePostgresProjectPath,
+  resolvePostgresBranchIdentity,
+  resolvePostgresBranchRefIdentity,
+} from "./postgres-paths.ts";
 import { buildJobIdMap } from "./resolve-run-job-target.ts";
 
 // ---------------------------------------------------------------------------
@@ -41,7 +49,11 @@ import { buildJobIdMap } from "./resolve-run-job-target.ts";
 // ---------------------------------------------------------------------------
 
 /** Catalog-tier types — direct children of uc-root. */
-const CATALOG_TIER_TYPES: ReadonlySet<string> = new Set(["catalogs", "database_catalogs"]);
+const CATALOG_TIER_TYPES: ReadonlySet<string> = new Set([
+  "catalogs",
+  "database_catalogs",
+  "postgres_catalogs",
+]);
 
 /** Schema-tier types — nest under catalogs. */
 const SCHEMA_TIER_TYPES: ReadonlySet<string> = new Set(["schemas"]);
@@ -144,11 +156,12 @@ const buildContainerResourceNode = (
   hierarchyId: string,
   key: string,
   entry: PlanEntry,
+  label = extractResourceName(key),
 ): ResourceGraphNode => {
   const resourceHasShapeDrift = hasFieldDrift(entry.changes);
   return {
     id: hierarchyId,
-    label: extractResourceName(key),
+    label,
     nodeKind: "resource",
     diffState: mapActionToDiffState(entry.action),
     resourceKey: key,
@@ -208,10 +221,29 @@ const resolveEntryEdgeDiffState = (entry: PlanEntry) =>
 
 /**
  * Return type for resolveParentRef:
- * - string: identity at the tier immediately above (tier - 1)
- * - object: identity at a specific tier (for skipping tiers, e.g. volume → catalog when schema is missing)
+ * - parent-identity: identity at the tier immediately above (tier - 1)
+ * - tier-identity: identity at a specific tier (for skipping tiers, e.g. volume → catalog)
+ * - resource-key: semantic bundle resource-id ref to a real node at a specific tier
  */
-type ParentRef = string | { readonly identity: string; readonly tierIndex: number };
+type ParentRef =
+  | { readonly kind: "parent-identity"; readonly identity: string }
+  | { readonly kind: "tier-identity"; readonly identity: string; readonly tierIndex: number }
+  | { readonly kind: "resource-key"; readonly resourceKey: string; readonly tierIndex: number };
+
+const parentIdentityRef = (identity: string | undefined): ParentRef | undefined =>
+  identity !== undefined ? { kind: "parent-identity", identity } : undefined;
+
+const tierIdentityRef = (identity: string, tierIndex: number): ParentRef => ({
+  kind: "tier-identity",
+  identity,
+  tierIndex,
+});
+
+const resourceKeyRef = (resourceKey: string, tierIndex: number): ParentRef => ({
+  kind: "resource-key",
+  resourceKey,
+  tierIndex,
+});
 
 /** A single tier in a hierarchy chain (e.g. catalog, schema, project, branch). */
 type TierSpec = {
@@ -229,8 +261,7 @@ type TierSpec = {
   readonly buildHierarchyId: (identity: string) => string;
   /** When true, real plan entries at this tier use buildHierarchyId as their node ID (containers). */
   readonly useHierarchyId?: boolean;
-  /** Extract lateral references from entries at this tier.
-   *  Each returned identity becomes a phantom leaf if not already in the graph. */
+  /** Extract non-hierarchy references at this tier that should create phantom ancestors. */
   readonly resolveLateralRefs?: (entry: PlanEntry) => readonly string[];
 };
 
@@ -264,7 +295,10 @@ const UC_CHAIN: ChainSpec = {
     {
       name: "catalog",
       resourceTypes: CATALOG_TIER_TYPES,
-      resolveIdentity: (entry) => extractStateField(entry, "name"),
+      resolveIdentity: (entry, key) =>
+        extractResourceType(key) === "postgres_catalogs"
+          ? extractStateField(entry, "catalog_id")
+          : extractStateField(entry, "name"),
       resolveParentRef: () => undefined, // root-adjacent
       buildHierarchyId: (name) => `catalog::${name}`,
       useHierarchyId: true,
@@ -277,7 +311,7 @@ const UC_CHAIN: ChainSpec = {
         const name = extractStateField(entry, "name");
         return catalog !== undefined && name !== undefined ? `${catalog}.${name}` : undefined;
       },
-      resolveParentRef: (entry) => extractStateField(entry, "catalog_name"),
+      resolveParentRef: (entry) => parentIdentityRef(extractStateField(entry, "catalog_name")),
       deriveParentRef: (identity) => identity.split(".")[0],
       buildHierarchyId: (identity) => `schema::${identity}`,
     },
@@ -288,13 +322,14 @@ const UC_CHAIN: ChainSpec = {
       resolveParentRef: (entry) => {
         const catalog = extractStateField(entry, "catalog_name");
         const schema = extractStateField(entry, "schema_name");
-        if (schema !== undefined && catalog !== undefined) return `${catalog}.${schema}`;
-        if (catalog !== undefined) return { identity: catalog, tierIndex: 0 };
+        if (schema !== undefined && catalog !== undefined)
+          return parentIdentityRef(`${catalog}.${schema}`);
+        if (catalog !== undefined) return tierIdentityRef(catalog, 0);
         // Fall back to three-part name parsing (synced_database_tables)
         const name = extractStateField(entry, "name");
         if (name !== undefined) {
           const parsed = parseThreePartName(name);
-          if (parsed !== undefined) return `${parsed.catalog}.${parsed.schema}`;
+          if (parsed !== undefined) return parentIdentityRef(`${parsed.catalog}.${parsed.schema}`);
         }
         return undefined;
       },
@@ -312,10 +347,27 @@ const UC_CHAIN: ChainSpec = {
   ],
 };
 
-/** Extract the last segment from a Databricks resource path (e.g., "projects/foo/branches/bar" → "bar"). */
-const extractLastPathSegment = (resourcePath: string): string | undefined => {
-  const segment = resourcePath.split("/").at(-1);
-  return segment !== undefined && segment.length > 0 ? segment : undefined;
+const resolvePostgresProjectParentRef = (parent: string): ParentRef | undefined => {
+  const resourceKey = extractBundleResourceIdRef(parent);
+  if (resourceKey !== undefined) {
+    return extractResourceType(resourceKey) === "postgres_projects"
+      ? resourceKeyRef(resourceKey, 0)
+      : undefined;
+  }
+  return parentIdentityRef(parsePostgresProjectPath(parent));
+};
+
+const resolvePostgresBranchParentRef = (parent: string): ParentRef | undefined => {
+  const resourceKey = extractBundleResourceIdRef(parent);
+  if (resourceKey !== undefined) {
+    return extractResourceType(resourceKey) === "postgres_branches"
+      ? resourceKeyRef(resourceKey, 1)
+      : undefined;
+  }
+  const branchPath = parsePostgresBranchPath(parent);
+  return branchPath !== undefined
+    ? parentIdentityRef(formatPostgresBranchIdentity(branchPath))
+    : undefined;
 };
 
 const POSTGRES_CHAIN: ChainSpec = {
@@ -333,19 +385,19 @@ const POSTGRES_CHAIN: ChainSpec = {
     {
       name: "branch",
       resourceTypes: new Set(["postgres_branches"]),
-      resolveIdentity: (entry) => {
-        const branchId = extractStateField(entry, "branch_id");
-        if (branchId === undefined) return undefined;
-        const parent = extractStateField(entry, "parent");
-        const projectId = parent !== undefined ? extractLastPathSegment(parent) : undefined;
-        return projectId !== undefined ? `${projectId}/${branchId}` : undefined;
-      },
+      resolveIdentity: (entry) => resolvePostgresBranchIdentity(entry),
       resolveParentRef: (entry) => {
         const parent = extractStateField(entry, "parent");
-        return parent !== undefined ? extractLastPathSegment(parent) : undefined;
+        return parent !== undefined ? resolvePostgresProjectParentRef(parent) : undefined;
       },
       deriveParentRef: (identity) => identity.split("/")[0],
       buildHierarchyId: (name) => `postgres-branch::${name}`,
+      resolveLateralRefs: (entry) => {
+        const sourceBranch = extractStateField(entry, "source_branch");
+        if (sourceBranch === undefined) return [];
+        const identity = resolvePostgresBranchRefIdentity(sourceBranch);
+        return identity !== undefined ? [identity] : [];
+      },
     },
     {
       name: "endpoint",
@@ -353,13 +405,7 @@ const POSTGRES_CHAIN: ChainSpec = {
       resolveIdentity: () => undefined,
       resolveParentRef: (entry) => {
         const parent = extractStateField(entry, "parent");
-        if (parent === undefined) return undefined;
-        const segments = parent.split("/");
-        // "projects/{project}/branches/{branch}" → "{project}/{branch}"
-        if (segments.length >= 4 && segments[0] === "projects" && segments[2] === "branches") {
-          return `${segments[1]}/${segments[3]}`;
-        }
-        return undefined;
+        return parent !== undefined ? resolvePostgresBranchParentRef(parent) : undefined;
       },
       deriveParentRef: undefined,
       buildHierarchyId: () => "",
@@ -371,8 +417,11 @@ const POSTGRES_CHAIN: ChainSpec = {
 // Generic chain traversal
 // ---------------------------------------------------------------------------
 
-/** Index of real plan entries per tier: identity → nodeId. */
-type TierIndex = ReadonlyMap<string, string>;
+/** Index of real plan entries per tier for semantic parent resolution. */
+type TierIndex = {
+  readonly byIdentity: ReadonlyMap<string, string>;
+  readonly byResourceKey: ReadonlyMap<string, string>;
+};
 
 /** Build per-tier indexes mapping identity → node ID for real plan entries. */
 const buildTierIndexes = (
@@ -380,16 +429,20 @@ const buildTierIndexes = (
   tiers: readonly TierSpec[],
 ): readonly TierIndex[] =>
   tiers.map((tier) => {
-    const pairs: [string, string][] = [];
+    const identityPairs: [string, string][] = [];
+    const resourceKeyPairs: [string, string][] = [];
     for (const [key, entry] of entries) {
       const resourceType = extractResourceType(key);
       if (resourceType === undefined || !tier.resourceTypes.has(resourceType)) continue;
       const identity = tier.resolveIdentity(entry, key);
-      if (identity === undefined) continue;
-      const nodeId = tier.useHierarchyId === true ? tier.buildHierarchyId(identity) : key;
-      pairs.push([identity, nodeId]);
+      const nodeId =
+        tier.useHierarchyId === true && identity !== undefined
+          ? tier.buildHierarchyId(identity)
+          : key;
+      resourceKeyPairs.push([key, nodeId]);
+      if (identity !== undefined) identityPairs.push([identity, nodeId]);
     }
-    return new Map(pairs);
+    return { byIdentity: new Map(identityPairs), byResourceKey: new Map(resourceKeyPairs) };
   });
 
 /**
@@ -414,7 +467,7 @@ const resolveParentChain = (
   if (tier === undefined || index === undefined) return spec.rootId;
 
   // Real node exists at this tier → use it
-  const existingNodeId = index.get(identity);
+  const existingNodeId = index.byIdentity.get(identity);
   if (existingNodeId !== undefined) return existingNodeId;
 
   // Create phantom — use last segment of identity as label (e.g. "missing" from "dagshund.missing")
@@ -454,7 +507,11 @@ const resolveEntryNode = (
     const identity = tier.resolveIdentity(entry, key);
     if (identity !== undefined) {
       const hierarchyId = tier.buildHierarchyId(identity);
-      return { node: buildContainerResourceNode(hierarchyId, key, entry), nodeId: hierarchyId };
+      const label = extractResourceType(key) === "postgres_catalogs" ? identity : undefined;
+      return {
+        node: buildContainerResourceNode(hierarchyId, key, entry, label),
+        nodeId: hierarchyId,
+      };
     }
   }
   return { node: buildResourceNode(key, entry), nodeId: key };
@@ -475,12 +532,17 @@ const resolveEntryParent = (
   const rawParentRef = tier.resolveParentRef(entry, key);
   if (rawParentRef === undefined) return spec.rootId;
 
-  const parentIdentity = typeof rawParentRef === "string" ? rawParentRef : rawParentRef.identity;
-  const parentTier = typeof rawParentRef === "string" ? tierIndex - 1 : rawParentRef.tierIndex;
+  if (rawParentRef.kind === "resource-key") {
+    const parentIndex = tierIndexes[rawParentRef.tierIndex];
+    return parentIndex?.byResourceKey.get(rawParentRef.resourceKey) ?? spec.rootId;
+  }
+
+  const parentTier =
+    rawParentRef.kind === "parent-identity" ? tierIndex - 1 : rawParentRef.tierIndex;
 
   return parentTier >= 0
     ? resolveParentChain(
-        parentIdentity,
+        rawParentRef.identity,
         parentTier,
         spec,
         tierIndexes,
@@ -538,34 +600,30 @@ const buildChainGraph = (
     hierarchyEdges.push(buildEdge(parentNodeId, nodeId, resolveEntryEdgeDiffState(entry)));
   }
 
-  // Lateral refs: create phantom leaf nodes for referenced identities not already in the graph
-  const leafTierIndex = spec.tiers.length - 1;
-  const leafTier = spec.tiers[leafTierIndex];
-  if (leafTier !== undefined && leafTier.resolveLateralRefs !== undefined) {
-    // Build dedup set from real leaf-tier entry names (resolveIdentity returns undefined for leaves,
-    // so tierIndexes won't contain them — collect three-part names directly)
-    const realLeafNames = new Set<string>();
+  // Lateral refs: create phantom nodes for referenced identities not already in the graph.
+  for (const [lateralTierIndex, lateralTier] of spec.tiers.entries()) {
+    if (lateralTier.resolveLateralRefs === undefined) continue;
+    const realNames = new Set<string>();
     for (const [key, entry] of entries) {
       const resourceType = extractResourceType(key);
-      if (resourceType === undefined || !leafTier.resourceTypes.has(resourceType)) continue;
-      const name = extractStateField(entry, "name");
-      if (name !== undefined) realLeafNames.add(name);
+      if (resourceType === undefined || !lateralTier.resourceTypes.has(resourceType)) continue;
+      const identity = lateralTier.resolveIdentity(entry, key) ?? extractStateField(entry, "name");
+      if (identity !== undefined) realNames.add(identity);
     }
 
-    const resolveLateral = leafTier.resolveLateralRefs;
+    const resolveLateral = lateralTier.resolveLateralRefs;
     for (const [, entry] of entries) {
       for (const ref of resolveLateral(entry)) {
-        if (realLeafNames.has(ref)) continue;
+        if (realNames.has(ref)) continue;
         const phantomId = resolveParentChain(
           ref,
-          leafTierIndex,
+          lateralTierIndex,
           spec,
           tierIndexes,
           phantomNodes,
           phantomEdges,
         );
-        // Edge from phantom's parent is created by resolveParentChain;
-        // phantomId itself is the leaf phantom — no further edges needed
+        // Edge from phantom's parent is created by resolveParentChain.
         void phantomId;
       }
     }

@@ -134,6 +134,32 @@ describe("usePhantomLeafState", () => {
     expect(result.hiddenPhantomIds.has("database-instance::my_db")).toBe(true);
   });
 
+  test("preserves postgres branch hierarchy phantoms by default", () => {
+    const nodes: readonly Node[] = [
+      makeNode("postgres-root", "root"),
+      makeNode("postgres-project::phantom-lineage-lakebase", "phantom"),
+      makeNode("postgres-branch::phantom-lineage-lakebase/production", "phantom"),
+      makeNode("resources.postgres_branches.external_lineage_branch", "resource"),
+    ];
+    const edges: readonly Edge[] = [
+      makeEdge("postgres-root", "postgres-project::phantom-lineage-lakebase"),
+      makeEdge(
+        "postgres-project::phantom-lineage-lakebase",
+        "postgres-branch::phantom-lineage-lakebase/production",
+      ),
+      makeEdge(
+        "postgres-project::phantom-lineage-lakebase",
+        "resources.postgres_branches.external_lineage_branch",
+      ),
+    ];
+
+    const result = renderHook(() => usePhantomLeafState(nodes, edges, false)).result.current;
+    expect(result.visibleNodes).toEqual(nodes);
+    expect(result.visibleEdges).toEqual(edges);
+    expect(result.phantomLeafCount).toBe(0);
+    expect(result.hiddenPhantomIds.size).toBe(0);
+  });
+
   test("returns unfiltered when no phantom leaves exist", () => {
     const nodes: readonly Node[] = [
       makeNode("uc-root", "root"),

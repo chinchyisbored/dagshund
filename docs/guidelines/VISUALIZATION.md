@@ -42,6 +42,13 @@ The "Other Resources" group only appears when Postgres or Lakebase hierarchies a
 
 Group nodes that represent inferred/external entities (not in the plan) render with dashed borders.
 
+`postgres_catalogs` render as Unity Catalog catalog nodes because that is where users see the
+catalog. Their semantic `branch` field is shown as a lateral edge to the Lakebase Postgres branch
+when it resolves to a branch resource in the plan.
+
+Branches created from another branch keep their project hierarchy placement. Their semantic
+`source_branch` lineage is shown as a lateral edge from the derived branch to the source branch.
+
 ## File Structure
 
 ```

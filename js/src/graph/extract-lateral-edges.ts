@@ -16,6 +16,10 @@ import {
   parseThreePartName,
 } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
+import {
+  resolvePostgresBranchRefIdentity,
+  resolvePostgresBranchResourceKey,
+} from "./postgres-paths.ts";
 import { resolveRunJobTarget } from "./resolve-run-job-target.ts";
 
 // ---------------------------------------------------------------------------
@@ -253,6 +257,42 @@ const QUALITY_MONITOR_TABLE_SPEC: LateralEdgeSpec = {
   },
 };
 
+const resolvePostgresBranchTargetIds = (
+  branchRef: string,
+  context: LateralEdgeContext,
+): readonly string[] => {
+  const targetKey = resolvePostgresBranchResourceKey(branchRef, context.entries);
+  if (targetKey !== undefined) {
+    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+  }
+
+  const targetIdentity = resolvePostgresBranchRefIdentity(branchRef);
+  if (targetIdentity === undefined) return [];
+  const phantomId = `postgres-branch::${targetIdentity}`;
+  return context.nodeIds.has(phantomId) ? [phantomId] : [];
+};
+
+/** postgres_catalog → postgres_branch via semantic branch field. */
+const POSTGRES_CATALOG_BRANCH_SPEC: LateralEdgeSpec = {
+  sourceTypes: new Set(["postgres_catalogs"]),
+  extractTargetIds: (entry, context) => {
+    const branch = extractStateField(entry, "branch");
+    if (branch === undefined) return [];
+    return resolvePostgresBranchTargetIds(branch, context);
+  },
+};
+
+/** postgres_branch → source postgres_branch via semantic source_branch lineage. */
+const POSTGRES_BRANCH_SOURCE_SPEC: LateralEdgeSpec = {
+  sourceTypes: new Set(["postgres_branches"]),
+  extractTargetIds: (entry, context) => {
+    const sourceBranch = extractStateField(entry, "source_branch");
+    if (sourceBranch === undefined) return [];
+    return resolvePostgresBranchTargetIds(sourceBranch, context);
+  },
+};
+
 /** Factory: alert/dashboard/quality_monitor → sql_warehouse (API-ID resolution via pre-built reverse index). */
 const createWarehouseSpec = (warehouseIndex: ReadonlyMap<string, string>): LateralEdgeSpec => ({
   sourceTypes: WAREHOUSE_SOURCE_TYPES,
@@ -418,6 +458,8 @@ const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
   SOURCE_TABLE_SPEC,
   PIPELINE_TARGET_SPEC,
   QUALITY_MONITOR_TABLE_SPEC,
+  POSTGRES_CATALOG_BRANCH_SPEC,
+  POSTGRES_BRANCH_SOURCE_SPEC,
 ];
 
 type LateralEdgeIndexes = {

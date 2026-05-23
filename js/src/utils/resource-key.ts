@@ -94,6 +94,7 @@ const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {
   registered_models: "model",
   catalogs: "catalog",
   database_catalogs: "database catalog",
+  postgres_catalogs: "postgres catalog",
   database_instances: "database instance",
   dashboards: "dashboard",
   genie_spaces: "genie",
