@@ -1,7 +1,9 @@
 ---
 name: release
 description: >
-  Run the dagshund release workflow.
+  Use when releasing dagshund, including version bumps, release branches,
+  GitLab MRs, tags, release notes, and publish pipeline handoff. Do not use for
+  ordinary feature work, bug fixes, fixture regeneration, or local testing.
 ---
 
 # Release Workflow

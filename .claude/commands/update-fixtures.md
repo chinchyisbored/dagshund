@@ -1,7 +1,10 @@
 ---
 name: update-fixtures
 description: >
-  Regenerate dagshund golden fixtures against a new Databricks CLI version.
+  Use when regenerating or blessing dagshund golden fixtures against a
+  Databricks CLI version, including manual-drift handling, expected output,
+  README updates, screenshots, and follow-up beads. Do not use for ordinary
+  unit-test fixture edits or graph/UI bug fixes outside a CLI fixture run.
 ---
 
 # Update Fixtures Workflow

@@ -107,8 +107,8 @@ When code is working, follow this exact order. No skipping steps.
 - NEVER combine `git add` and `git commit` — stage first, verify, then commit
 - NEVER run `git reset HEAD` or `git checkout --` on working files
 - Activate venv before committing: `source .venv/bin/activate && git commit ...`
-- `br sync --flush-only` exports JSONL but does NOT commit or stage — always follow with `git add .beads/` and `git commit`
-- NEVER run `br sync --flush-only` before committing source code — commit source first, then sync beads
+- `br sync --flush-only` is the final JSONL export and merge-base snapshot check before staging `.beads/`; it does NOT commit or stage
+- For source changes, commit source first. Then run `br sync --flush-only`, `git add .beads/`, and `git commit -m "chore(beads): sync"`
 - Beads-only commits (no source changes): `br sync --flush-only && git add .beads/ && git commit -m "chore(beads): sync"`
 
 ## Review Process
@@ -181,7 +181,7 @@ After all work is complete:
 1. File issues for any loose threads discussed but not implemented
 2. Commit all code (follow Completing Work above)
 3. Close all finished beads
-4. Sync and commit beads — source commits first, then: `br sync --flush-only && git add .beads/ && git commit -m "chore(beads): sync"`
+4. Sync and commit beads — source commits first, then run the final export check and commit: `br sync --flush-only && git add .beads/ && git commit -m "chore(beads): sync"`
 5. `git pull --rebase` then `git push`
 6. `git status` — must show clean tree, up to date with origin
 7. Hand off — session summary: what got done, what's open, suggested next starting point
