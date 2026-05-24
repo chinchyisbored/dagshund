@@ -2,7 +2,7 @@
 
 ## Task Tracking
 
-All tracking uses `br` (beads_rust). Do NOT use markdown files for plans, TODOs, or task lists.
+All tracking of work to do uses `br` (beads_rust). Do NOT use markdown files for plans, TODOs, or task lists.
 
 **Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
 
@@ -26,13 +26,16 @@ All tracking uses `br` (beads_rust). Do NOT use markdown files for plans, TODOs,
 **Always use `just` commands.** Never call `pytest`, `ruff`, `biome`, or `tsc` directly.
 Never manually edit code to fix lint/format issues — let the tools do it.
 
+**Sandboxed agents:** if a required workflow command is known to write outside
+the workspace (for example `uv` cache, Just runtime state, Git refs, or dev
+server runtime files), request the needed approval before running it. Do not
+run a command only to hit a predictable sandbox failure and then retry.
+
 ### Testing
 ```bash
 just test              # All tests (JS + Python)
 just test-py           # All Python tests with coverage
-just test-py "filter"  # Single Python test (-k expression or file::test)
 just test-js           # All JS tests with coverage
-just test-js "filter"  # Single JS test (name pattern)
 ```
 
 ### Fixing lint & format issues
@@ -76,13 +79,23 @@ When code is working, follow this exact order. No skipping steps.
 
 1. `just check` — lint + typecheck + all tests
 2. `just build` — verify production build
-3. **Browser verification** — `just dev` and check in the browser (`just dev-down` to stop). `just build` and `just dev` use different Bun code paths; a passing build doesn't guarantee a working app.
+3. **Browser verification** — ask the human to run `just dev`, check the browser, and stop it with `just dev-down`. `just build` and `just dev` use different Bun code paths; a passing build doesn't guarantee a working app.
 4. **3-pass review** (see below) — present findings to human for decision
 5. Fix what human approves, file beads for the rest
 6. `git add <specific files>` — stage changes, verify with `git status`
 7. `source .venv/bin/activate && git commit -m "..."`
 8. `git push -u origin <feature-branch>` — push the feature branch
-9. `glab mr create --source-branch <feature-branch> --target-branch main --remove-source-branch --squash` — open the MR
+9. Open the MR non-interactively:
+   ```bash
+   glab mr create \
+     --source-branch <feature-branch> \
+     --target-branch main \
+     --remove-source-branch \
+     --squash-before-merge \
+     --title "<title>" \
+     --description "<summary and verification>" \
+     --yes
+   ```
 10. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `glab mr merge <iid> --squash --yes`
 11. `git checkout main && git pull --ff-only origin main`
 12. `br close <id>` — only AFTER the MR is merged and main is up to date
@@ -117,7 +130,10 @@ Combine and deduplicate into a single file list.
 
 ### Step 2: Spawn a single review subagent
 
-Use `model: "opus"` and `subagent_type: "Explore"`. The subagent receives:
+Use a single review/exploration subagent with the strongest available reasoning model.
+For Claude Code, use `model: "opus"` and `subagent_type: "Explore"`. For Codex,
+use the available explorer/review subagent and do not request unsupported model
+or agent-type names. The subagent receives:
 - The file list from Step 1
 - All three review criteria below
 - Instruction to read the changed files once, then evaluate against all criteria

@@ -261,8 +261,8 @@ type TierSpec = {
   readonly buildHierarchyId: (identity: string) => string;
   /** When true, real plan entries at this tier use buildHierarchyId as their node ID (containers). */
   readonly useHierarchyId?: boolean;
-  /** Extract non-hierarchy references at this tier that should create phantom ancestors. */
-  readonly resolveLateralRefs?: (entry: PlanEntry) => readonly string[];
+  /** Extract semantic references that may need phantom nodes before lateral edges are built. */
+  readonly resolveMissingHierarchyRefs?: (entry: PlanEntry) => readonly string[];
 };
 
 /** A complete hierarchy definition: root + ordered tiers from root-adjacent to leaf. */
@@ -338,7 +338,7 @@ const UC_CHAIN: ChainSpec = {
         return parsed !== undefined ? `${parsed.catalog}.${parsed.schema}` : undefined;
       },
       buildHierarchyId: (identity) => `source-table::${identity}`,
-      resolveLateralRefs: (entry) => {
+      resolveMissingHierarchyRefs: (entry) => {
         const name = extractSourceTableFullName(entry);
         if (name === undefined) return [];
         return parseThreePartName(name) !== undefined ? [name] : [];
@@ -392,7 +392,7 @@ const POSTGRES_CHAIN: ChainSpec = {
       },
       deriveParentRef: (identity) => identity.split("/")[0],
       buildHierarchyId: (name) => `postgres-branch::${name}`,
-      resolveLateralRefs: (entry) => {
+      resolveMissingHierarchyRefs: (entry) => {
         const sourceBranch = extractStateField(entry, "source_branch");
         if (sourceBranch === undefined) return [];
         const identity = resolvePostgresBranchRefIdentity(sourceBranch);
@@ -600,24 +600,25 @@ const buildChainGraph = (
     hierarchyEdges.push(buildEdge(parentNodeId, nodeId, resolveEntryEdgeDiffState(entry)));
   }
 
-  // Lateral refs: create phantom nodes for referenced identities not already in the graph.
-  for (const [lateralTierIndex, lateralTier] of spec.tiers.entries()) {
-    if (lateralTier.resolveLateralRefs === undefined) continue;
+  // Missing hierarchy refs create phantom targets before lateral edge extraction runs.
+  for (const [referencedTierIndex, referencedTier] of spec.tiers.entries()) {
+    if (referencedTier.resolveMissingHierarchyRefs === undefined) continue;
     const realNames = new Set<string>();
     for (const [key, entry] of entries) {
       const resourceType = extractResourceType(key);
-      if (resourceType === undefined || !lateralTier.resourceTypes.has(resourceType)) continue;
-      const identity = lateralTier.resolveIdentity(entry, key) ?? extractStateField(entry, "name");
+      if (resourceType === undefined || !referencedTier.resourceTypes.has(resourceType)) continue;
+      const identity =
+        referencedTier.resolveIdentity(entry, key) ?? extractStateField(entry, "name");
       if (identity !== undefined) realNames.add(identity);
     }
 
-    const resolveLateral = lateralTier.resolveLateralRefs;
+    const resolveMissingHierarchyRefs = referencedTier.resolveMissingHierarchyRefs;
     for (const [, entry] of entries) {
-      for (const ref of resolveLateral(entry)) {
+      for (const ref of resolveMissingHierarchyRefs(entry)) {
         if (realNames.has(ref)) continue;
         const phantomId = resolveParentChain(
           ref,
-          lateralTierIndex,
+          referencedTierIndex,
           spec,
           tierIndexes,
           phantomNodes,
@@ -880,7 +881,8 @@ export const buildResourceGraph = (
     ...phantomExternalRefs.nodes,
   ];
 
-  // Build lookup maps for lateral edge extraction
+  // Lateral specs only emit edges to node IDs that already exist, so build
+  // lookup maps after all real and phantom nodes have been materialized.
   const nodeIdByResourceKey = new Map<string, string>(
     allNodes.map((node) => [node.resourceKey, node.id]),
   );

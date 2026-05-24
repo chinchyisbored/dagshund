@@ -17,7 +17,6 @@
 ```bash
 just test          # All tests (JS + Python)
 just test-py       # Python only
-just test-py "filter"  # -k expression or file::test (NOT a file path)
 just check         # lint + typecheck + all tests
 ```
 
@@ -42,7 +41,6 @@ just check         # lint + typecheck + all tests
 
 ```bash
 just test-js             # All JS tests
-just test-js "filter"    # Name pattern filter
 ```
 
 ### Conventions

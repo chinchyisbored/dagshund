@@ -55,9 +55,9 @@ build:
     cp {{root}}/plugins/dagshund/skills/dagshund/SKILL.md {{py_src}}/dagshund/_assets/SKILL.md
     uv build
 
-# Run JS tests (optional filter: test file or name pattern)
-test-js filter="":
-    bun test --cwd {{js_dir}} {{ if filter == "" { "--coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir " + root / ".cache/coverage-js" } else { "-t " + quote(filter) } }}
+# Run JS tests
+test-js:
+    AGENT=1 bun test --cwd {{js_dir}} --coverage --coverage-reporter=lcov --coverage-dir {{root}}/.cache/coverage-js
 
 # Lint JS with biome (applies safe fixes)
 lint-js:
@@ -71,9 +71,9 @@ format-js:
 typecheck-js:
     bun run --cwd {{js_dir}} tsc --noEmit
 
-# Run Python tests (optional filter: -k expression or file::test path)
-test-py filter="":
-    uv run pytest -v {{ if filter == "" { "--cov=dagshund --cov-report=term-missing" } else { "-xvs -k " + quote(filter) } }}
+# Run Python tests
+test-py:
+    uv run pytest -q --cov=dagshund --cov-report=
 
 # Lint Python with ruff
 lint-py:

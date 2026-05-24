@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "dagshund"
 dynamic = ["version"]
-description = "Diff visualizer for Databricks bundle plans — resources and job DAGs"
+description = "Visualizer for databricks bundle plan output, colored terminal diffs and interactive DAG diagrams."
 authors = [{ name = "Max Lautner" }]
 readme = "README.md"
 license = "MIT"
