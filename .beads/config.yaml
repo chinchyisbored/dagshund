@@ -1,1 +1,3 @@
 actor: 6337146-chinchy@users.noreply.gitlab.com
+sync:
+  history_enabled: false

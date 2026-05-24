@@ -17,6 +17,7 @@ redirect
 
 # Sync state (local-only, per-machine)
 # These files are machine-specific and should not be shared across clones
+.br_history/
 .sync.lock
 .jsonl.lock
 sync_base.jsonl
