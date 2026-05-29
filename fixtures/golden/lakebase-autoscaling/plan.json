@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.0.0",
-  "lineage": "3bdde89d-4db4-4d01-8e3f-027092fd046a",
+  "cli_version": "1.1.0",
+  "lineage": "c9c9477c-1abc-436b-a949-9cf411c564f1",
   "serial": 1,
   "plan": {
     "resources.postgres_branches.dev_branch": {
@@ -46,7 +46,7 @@
       "action": "skip",
       "remote_state": {
         "branch_id": "prd",
-        "create_time": "2026-05-23T20:49:46Z",
+        "create_time": "2026-05-29T22:03:24Z",
         "name": "projects/dagshund/branches/prd",
         "parent": "projects/dagshund",
         "status": {
@@ -55,10 +55,10 @@
           "default": true,
           "is_protected": true,
           "logical_size_bytes": 0,
-          "state_change_time": "2026-05-23T20:49:48Z"
+          "state_change_time": "2026-05-29T22:03:26Z"
         },
-        "uid": "br-plain-queen-d8vc6bhf",
-        "update_time": "2026-05-23T20:49:54Z"
+        "uid": "br-dark-mode-d8lzz5sw",
+        "update_time": "2026-05-29T22:03:30Z"
       },
       "changes": {
         "is_protected": {
@@ -144,7 +144,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-05-23T20:49:46Z",
+        "create_time": "2026-05-29T22:03:24Z",
         "endpoint_id": "primary",
         "endpoint_type": "",
         "name": "projects/dagshund/branches/prd/endpoints/primary",
@@ -162,13 +162,13 @@
             "min": 1
           },
           "hosts": {
-            "host": "ep-crimson-frost-d87piuo1.database.us-east-2.cloud.databricks.com"
+            "host": "ep-summer-bar-d8oo3usx.database.us-east-2.cloud.databricks.com"
           },
           "settings": {},
           "suspend_timeout_duration": "86400s"
         },
-        "uid": "ep-crimson-frost-d87piuo1",
-        "update_time": "2026-05-23T20:49:55Z"
+        "uid": "ep-summer-bar-d8oo3usx",
+        "update_time": "2026-05-29T22:03:32Z"
       },
       "changes": {
         "autoscaling_limit_max_cu": {
@@ -215,7 +215,7 @@
         }
       },
       "remote_state": {
-        "create_time": "2026-05-23T20:49:46Z",
+        "create_time": "2026-05-29T22:03:24Z",
         "name": "projects/dagshund",
         "project_id": "dagshund",
         "status": {
@@ -234,8 +234,8 @@
           "project_id": "dagshund",
           "synthetic_storage_size_bytes": 0
         },
-        "uid": "1a897ad7-ecd9-439d-abb9-9be0fdc0096d",
-        "update_time": "2026-05-23T20:49:48Z"
+        "uid": "cfd62a5d-23c2-445f-8374-51ada7d9004d",
+        "update_time": "2026-05-29T22:03:26Z"
       },
       "changes": {
         "custom_tags": {

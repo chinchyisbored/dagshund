@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.0.0",
-  "lineage": "3cbffa6e-f92e-4774-88d1-ee55180b4e03",
+  "cli_version": "1.1.0",
+  "lineage": "238ba8a5-41b7-471d-8bb4-ab4c2c259b1d",
   "serial": 1,
   "plan": {
     "resources.apps.my_test_app": {
@@ -27,7 +27,7 @@
           "resources": [
             {
               "job": {
-                "id": "571597839728452",
+                "id": "1038883995124960",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -49,7 +49,7 @@
             },
             {
               "experiment": {
-                "experiment_id": "3927040135868577",
+                "experiment_id": "2552048190374065",
                 "permission": "CAN_READ"
               },
               "name": "experiment_tracker"
@@ -83,24 +83,24 @@
           "message": "Start the app compute to deploy the app.",
           "state": "STOPPED"
         },
-        "create_time": "2026-05-22T20:52:05Z",
+        "create_time": "2026-05-29T21:42:40Z",
         "creator": "user1@example.com",
         "description": "Test app with all resource dependency types",
         "effective_user_api_scopes": [
           "iam.current-user:read",
           "iam.access-control:read"
         ],
-        "id": "ba2af1a6-096e-4d10-a3e4-0efb3114c415",
+        "id": "f561dfbd-a146-436d-a738-9bab8768c5d1",
         "lifecycle": {
           "started": false
         },
         "name": "my-test-app",
-        "oauth2_app_client_id": "96b777fd-9e2a-48a4-8412-34c3efba7500",
-        "oauth2_app_integration_id": "96b777fd-9e2a-48a4-8412-34c3efba7500",
+        "oauth2_app_client_id": "36162e5f-325d-4b29-9449-7c2c565c837c",
+        "oauth2_app_integration_id": "36162e5f-325d-4b29-9449-7c2c565c837c",
         "resources": [
           {
             "job": {
-              "id": "571597839728452",
+              "id": "1038883995124960",
               "permission": "CAN_MANAGE_RUN"
             },
             "name": "etl_job"
@@ -121,11 +121,11 @@
             }
           }
         ],
-        "service_principal_client_id": "ba2af1a6-096e-4d10-a3e4-0efb3114c415",
-        "service_principal_id": 71318525424663,
+        "service_principal_client_id": "f561dfbd-a146-436d-a738-9bab8768c5d1",
+        "service_principal_id": 76904687652935,
         "service_principal_name": "app-4u0gcs my-test-app",
         "thumbnail_url": "",
-        "update_time": "2026-05-22T20:52:36Z",
+        "update_time": "2026-05-29T21:43:15Z",
         "updater": "user1@example.com",
         "url": "https://my-test-app-7474654640708173.aws.databricksapps.com"
       },
@@ -154,7 +154,7 @@
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-05-22T20:52:05Z"
+          "remote": "2026-05-29T21:42:40Z"
         },
         "creator": {
           "action": "skip",
@@ -172,7 +172,7 @@
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "ba2af1a6-096e-4d10-a3e4-0efb3114c415"
+          "remote": "f561dfbd-a146-436d-a738-9bab8768c5d1"
         },
         "lifecycle": {
           "action": "skip",
@@ -184,19 +184,19 @@
         "oauth2_app_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "96b777fd-9e2a-48a4-8412-34c3efba7500"
+          "remote": "36162e5f-325d-4b29-9449-7c2c565c837c"
         },
         "oauth2_app_integration_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "96b777fd-9e2a-48a4-8412-34c3efba7500"
+          "remote": "36162e5f-325d-4b29-9449-7c2c565c837c"
         },
         "resources": {
           "action": "update",
           "old": [
             {
               "job": {
-                "id": "571597839728452",
+                "id": "1038883995124960",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -220,7 +220,7 @@
           "new": [
             {
               "job": {
-                "id": "571597839728452",
+                "id": "1038883995124960",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -242,7 +242,7 @@
             },
             {
               "experiment": {
-                "experiment_id": "3927040135868577",
+                "experiment_id": "2552048190374065",
                 "permission": "CAN_READ"
               },
               "name": "experiment_tracker"
@@ -266,7 +266,7 @@
           "remote": [
             {
               "job": {
-                "id": "571597839728452",
+                "id": "1038883995124960",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -291,12 +291,12 @@
         "service_principal_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "ba2af1a6-096e-4d10-a3e4-0efb3114c415"
+          "remote": "f561dfbd-a146-436d-a738-9bab8768c5d1"
         },
         "service_principal_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": 71318525424663
+          "remote": 76904687652935
         },
         "service_principal_name": {
           "action": "skip",
@@ -317,7 +317,7 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-05-22T20:52:36Z"
+          "remote": "2026-05-29T21:43:15Z"
         },
         "updater": {
           "action": "skip",
@@ -334,10 +334,10 @@
     "resources.experiments.my_experiment": {
       "action": "skip",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/3927040135868577",
-        "creation_time": 1779483123688,
-        "experiment_id": "3927040135868577",
-        "last_update_time": 1779483123688,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/2552048190374065",
+        "creation_time": 1780090958773,
+        "experiment_id": "2552048190374065",
+        "last_update_time": 1780090958773,
         "lifecycle_stage": "active",
         "name": "/experiments/my_experiment",
         "tags": [
@@ -367,7 +367,7 @@
         "artifact_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "dbfs:/databricks/mlflow-tracking/3927040135868577"
+          "remote": "dbfs:/databricks/mlflow-tracking/2552048190374065"
         },
         "name": {
           "action": "skip",
@@ -407,7 +407,7 @@
     "resources.jobs.my_etl_job": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1779483123707,
+        "created_time": 1780090958868,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -416,7 +416,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 571597839728452,
+        "job_id": 1038883995124960,
         "max_concurrent_runs": 1,
         "name": "my_etl_job",
         "queue": {
