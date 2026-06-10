@@ -3,7 +3,7 @@
 All agents working in this repository MUST follow this file and the referenced
 guidelines. These are project instructions, not optional background reading.
 
-You MUST read and follow [WORKFLOW.md](docs/guidelines/WORKFLOW.md) before
+You MUST read and follow [WORKFLOW.md](.agents/guidelines/WORKFLOW.md) before
 choosing work, creating or updating beads, running quality gates, committing,
 opening MRs, merging, or closing a session.
 
@@ -39,17 +39,7 @@ Practical functional style. Readable, composable, explicit.
 You MUST load and follow the relevant guideline before changing, reviewing, or
 discussing code in that area:
 
-- Python code, Python tests, Python packaging, or Python tooling: follow [PYTHON.md](docs/guidelines/PYTHON.md).
-- TypeScript, React, Bun, Zod, graph-building, or frontend utility code: follow [TYPESCRIPT.md](docs/guidelines/TYPESCRIPT.md).
-- Browser UI, React Flow graph behavior, visual styling, screenshots, or interactive visualization work: follow [VISUALIZATION.md](docs/guidelines/VISUALIZATION.md).
-- Any test creation, test edits, fixture expectations, or test review: follow [TESTING.md](docs/guidelines/TESTING.md).
-
-## Reusable Workflows
-
-You MUST follow the workflow runbook for these recurring operations:
-
-- Releases, version bumps, release MRs, tags, release notes, or publish handoff: follow [release.md](docs/workflows/release.md).
-- Databricks CLI upgrades, golden fixture regeneration, expected output blessing, screenshot audits, or manual-drift fixture work: follow [update-fixtures.md](docs/workflows/update-fixtures.md).
-
-Agent-specific entry points live under `.claude/` and `.codex/`. They must stay
-thin and point back to the neutral workflow docs.
+- Python code, Python tests, Python packaging, or Python tooling: follow [PYTHON.md](.agents/guidelines/PYTHON.md).
+- TypeScript, React, Bun, Zod, graph-building, or frontend utility code: follow [TYPESCRIPT.md](.agents/guidelines/TYPESCRIPT.md).
+- Browser UI, React Flow graph behavior, visual styling, screenshots, or interactive visualization work: follow [VISUALIZATION.md](.agents/guidelines/VISUALIZATION.md).
+- Any test creation, test edits, fixture expectations, or test review: follow [TESTING.md](.agents/guidelines/TESTING.md).

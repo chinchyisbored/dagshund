@@ -18,7 +18,7 @@ Dagshund sits between `databricks bundle plan` and `databricks bundle deploy`. T
 
 ## Install
 
-Requires Python 3.12+. Tested against Databricks CLI >=1.0.0 (the plan JSON shape is what dagshund reads).
+Requires Python 3.12+. Last validated against Databricks CLI 1.0.0. Dagshund reads `databricks bundle plan -o json`, whose JSON shape can change between CLI releases.
 
 ```bash
 # Install (recommended for regular use)
@@ -166,21 +166,20 @@ Without `-e`, dagshund always exits 0 on success.
 
 ## Agent Skill
 
-Dagshund ships as a [Claude Code plugin](https://code.claude.com/docs/en/plugins) with an agent skill that teaches AI coding agents how to use it. Once installed, your agent can answer questions like *"what's changing in my deploy?"* by running dagshund automatically.
+Dagshund ships an [Agent Skill](https://agentskills.io) at `skills/dagshund/SKILL.md`. Once installed, your agent can answer questions like *"what's changing in my deploy?"* by running dagshund automatically.
 
-Install as a Claude Code plugin:
-
-```
-/plugin marketplace add https://github.com/chinchyisbored/dagshund.git
-/plugin install dagshund@chinchy-dagshund
-```
-
-Or use the CLI to install the skill into any agent harness:
+Install through dagshund itself:
 
 ```bash
-dagshund --install-skill .claude/skills     # Claude Code
-dagshund --install-skill .cursor/skills     # Cursor
-dagshund --install-skill .agents/skills     # Codex / Gemini CLI
+uvx dagshund --install-skill .agents/skills   # Codex / Gemini CLI
+uvx dagshund --install-skill .cursor/skills   # Cursor
+uvx dagshund --install-skill .claude/skills   # Claude Code
+```
+
+Or install from an open skill indexer such as skills.sh:
+
+```bash
+npx skills add chinchyisbored/dagshund
 ```
 
 Re-running `--install-skill` overwrites any existing `SKILL.md` at the target path without prompting.

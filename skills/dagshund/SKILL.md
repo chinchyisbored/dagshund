@@ -1,13 +1,11 @@
 ---
 name: dagshund
 description: >
-  TRIGGER when: user asks about DAB deployment, bundle plan, what will change
-  in a deploy, databricks bundle changes, pending deployments, deployment diff,
-  schemas/jobs/resources being deployed, or wants to visualize a bundle plan.
-  Visualizes Declarative Automation Bundle (formerly Databricks Asset Bundle)
-  deployment plans as colored terminal diffs, markdown summaries, or a
-  self-contained HTML report with an interactive resource graph and per-job
-  task DAGs.
+  Use when a user asks what will change in a Databricks bundle deployment,
+  DAB deployment, or `databricks bundle plan`; wants a deployment diff,
+  pending deployment summary, resource/schema/job change summary, dangerous
+  action or manual-edit warning, markdown summary, or interactive Dagshund
+  visualization of bundle plan JSON.
 ---
 
 # Dagshund
@@ -18,19 +16,18 @@ Verify both tools are available before proceeding:
 
 1. `which databricks` — if missing, tell the user to install the Databricks
    CLI first and stop here.
-2. Check for dagshund. Choose the first match:
-   - `uv run dagshund --version` succeeds → use `uv run dagshund` (available as project dependency)
-   - `which uvx` succeeds → use `uvx dagshund` (ephemeral, no permanent install)
-   - `which pipx` succeeds → use `pipx run dagshund`
-   - `which pip` succeeds → `pip install dagshund`
+2. Check for dagshund. Choose the first match and use it as `<dagshund>`
+   in all commands below:
+   - `uv run dagshund --version` succeeds → `<dagshund>` is `uv run dagshund`
+   - `which dagshund` succeeds → `<dagshund>` is `dagshund`
+   - `which uvx` succeeds → `<dagshund>` is `uvx dagshund`
    - None available or Python <3.12 → tell the user dagshund requires
-     Python >=3.12 and a Python package runner.
+     Python >=3.12 and a Python package runner such as uv.
 
 ## Step 2: Find deployment targets
 
 Collect ALL targets from ALL config files before making any decision.
-These are small YAML files — read them directly, do not delegate to a
-subagent.
+These are small YAML files; read them directly before choosing a target.
 
 1. Read `databricks.yml` (or `databricks.yaml`).
 2. Read EVERY file listed in the `include:` block. Each one may define
@@ -41,8 +38,8 @@ subagent.
 
 **Choosing a target and confirming intent:**
 
-NEVER run `databricks bundle plan` without explicit user approval. It hits
-a live API and takes time. Always ask first — combine the target and the
+Do not run `databricks bundle plan` without explicit user approval. It hits
+a live API and takes time. Always ask first; combine the target and the
 intent into one question so the user only confirms once.
 
 - If only one target exists or one has `default: true`, propose it:
@@ -54,8 +51,9 @@ intent into one question so the user only confirms once.
 
 **Security rules — apply while running this skill unless the user explicitly asks otherwise:**
 
-- Do not read `~/.databrickscfg` or inspect environment variables for auth
-  tokens — authentication is handled entirely by the Databricks CLI.
+- Do not inspect Databricks credentials, tokens, `~/.databrickscfg`, or
+  auth-related environment variables unless the user explicitly asks —
+  authentication is handled entirely by the Databricks CLI.
 - If auth fails, tell the user to check their Databricks CLI auth setup.
   Do not investigate credentials on your own initiative.
 
@@ -68,13 +66,13 @@ For ambiguous requests, default to text mode.
 ### Quick text summary (default)
 
 ```bash
-databricks bundle plan -t <target> -o json | dagshund
+databricks bundle plan -t <target> -o json | <dagshund>
 ```
 
 ### Interactive HTML report
 
 ```bash
-databricks bundle plan -t <target> -o json | dagshund -o plan.html -b
+databricks bundle plan -t <target> -o json | <dagshund> -o plan.html -b
 ```
 
 Self-contained HTML with a resource graph and per-job task DAGs. Suggest
@@ -86,13 +84,13 @@ was written.
 ### Filtered views
 
 ```bash
-databricks bundle plan -t <target> -o json | dagshund -c          # changes only
-databricks bundle plan -t <target> -o json | dagshund -a          # added only
-databricks bundle plan -t <target> -o json | dagshund -m          # modified only
-databricks bundle plan -t <target> -o json | dagshund -r          # removed only
-databricks bundle plan -t <target> -o json | dagshund -c -f 'type:jobs'
-databricks bundle plan -t <target> -o json | dagshund -f '"exact_name"'
-databricks bundle plan -t <target> -o json | dagshund -f 'field:email_notifications'
+databricks bundle plan -t <target> -o json | <dagshund> -c          # changes only
+databricks bundle plan -t <target> -o json | <dagshund> -a          # added only
+databricks bundle plan -t <target> -o json | <dagshund> -m          # modified only
+databricks bundle plan -t <target> -o json | <dagshund> -r          # removed only
+databricks bundle plan -t <target> -o json | <dagshund> -c -f 'type:jobs'
+databricks bundle plan -t <target> -o json | <dagshund> -f '"exact_name"'
+databricks bundle plan -t <target> -o json | <dagshund> -f 'field:email_notifications'
 ```
 
 `-f` accepts `type:`, `status:`, `field:` (substring match against changed
@@ -102,25 +100,25 @@ expression AND together, and `-f` composes with `-c`/`-a`/`-m`/`-r`.
 ### Quiet mode (suppress terminal output)
 
 ```bash
-databricks bundle plan -t <target> -o json | dagshund -q -o report.html -e
+databricks bundle plan -t <target> -o json | <dagshund> -q -o report.html -e
 ```
 
 ### Save plan for later
 
 ```bash
 databricks bundle plan -t <target> -o json > plan.json
-dagshund plan.json
-dagshund plan.json -o report.html -b
+<dagshund> plan.json
+<dagshund> plan.json -o report.html -b
 ```
 
 ### CI / automation
 
 ```bash
-databricks bundle plan -t <target> -o json | dagshund -e
+databricks bundle plan -t <target> -o json | <dagshund> -e
 # Exit 0 = no changes, 2 = changes, 3 = dangerous actions or manual edits, 1 = error
 
 # HTML report + markdown for PR comment + exit code
-databricks bundle plan -t <target> -o json | dagshund -o report.html --format md -e > summary.md
+databricks bundle plan -t <target> -o json | <dagshund> -o report.html --format md -e > summary.md
 ```
 
 ## Interpreting the output
@@ -148,7 +146,7 @@ user's awareness.
 Tell the user to check their CLI installation, auth, and target config.
 
 **dagshund exits with an error:** Plan JSON may be malformed or from an
-unsupported version. Add `-d` for debug: `dagshund -d plan.json`.
+unsupported version. Add `-d` for debug: `<dagshund> -d plan.json`.
 
 **No changes shown but user expects changes:** The plan itself may report
 all resources as unchanged. Run without `-c` to see the full list.

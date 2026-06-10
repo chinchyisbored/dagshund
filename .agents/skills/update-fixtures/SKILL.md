@@ -2,9 +2,9 @@
 name: update-fixtures
 description: >
   Regenerate dagshund golden fixtures against a new Databricks CLI version.
-  Upgrades the CLI binary, re-runs `just regen`, walks the user through the
-  manual-drift fixture, triages cosmetic vs substantive drift, blesses new
-  expected output, updates README + screenshots, and commits.
+  Re-runs `just regen`, walks the user through the manual-drift fixture,
+  triages cosmetic vs substantive drift, blesses new expected output, updates
+  README + screenshots, and commits.
 ---
 
 # Update Fixtures Workflow
@@ -15,10 +15,7 @@ regeneration hits a real Databricks workspace — be deliberate.
 ## Step 1: Guards
 
 1. Run `git status` — working tree must be clean (stash or commit first).
-2. Run `databricks --version` — note the current CLI version.
-3. Ask the user which CLI version to upgrade to (e.g. `0.298.0`). Verify the
-   release exists on GitHub: `curl -s https://api.github.com/repos/databricks/cli/releases/tags/vX.Y.Z | grep tag_name`.
-4. Run `databricks auth profiles` — the DEFAULT profile must show `Valid: YES`.
+2. Run `databricks auth profiles` — the DEFAULT profile must show `Valid: YES`.
    If not, ask the user to run `! databricks auth login --host <workspace-url>`
    from the session prompt, then re-verify.
 
@@ -32,16 +29,7 @@ regeneration hits a real Databricks workspace — be deliberate.
 
 Mark `in_progress`.
 
-## Step 3: Upgrade the Databricks CLI binary
-
-1. Download `databricks_cli_X.Y.Z_linux_amd64.tar.gz` from the GitHub release.
-2. Extract to `/tmp`, verify `./databricks --version` prints the new version.
-3. Back up the old binary: `mv ~/.local/bin/databricks ~/.local/bin/databricks.OLD.bak`.
-4. Move the new binary into place: `mv /tmp/.../databricks ~/.local/bin/databricks && chmod +x ~/.local/bin/databricks`.
-5. Verify: `databricks --version` prints the new version.
-6. Clean up `/tmp` artifacts.
-
-## Step 4: Regenerate the bundle schema
+## Step 3: Regenerate the bundle schema
 
 ```bash
 databricks bundle schema > fixtures/golden/bundle_config_schema.json
@@ -50,7 +38,7 @@ databricks bundle schema > fixtures/golden/bundle_config_schema.json
 This file is gitignored — not committed, but regenerate to keep the
 yaml-language-server validation accurate.
 
-## Step 5: Regenerate all fixtures
+## Step 4: Regenerate all fixtures
 
 ```bash
 just regen
@@ -58,12 +46,12 @@ just regen
 
 This runs a full deploy/plan/destroy cycle for every fixture. Timeout
 liberally (600s). The `manual-drift` fixture will be clobbered — that's fine,
-step 6 fixes it.
+step 5 fixes it.
 
 **Do not run `just regen` or `just dev` as background tasks** — they hang on
 TaskOutput polling.
 
-## Step 6: Redo the manual-drift fixture (together)
+## Step 5: Redo the manual-drift fixture (together)
 
 `regen.sh` can't generate manual-drift because it requires UI edits between
 deploy and plan. Follow `fixtures/golden/manual-drift/README.md` literally:
@@ -88,7 +76,7 @@ deploy and plan. Follow `fixtures/golden/manual-drift/README.md` literally:
 6. `databricks bundle deploy` (optional — reconciles the drift cleanly before destroy)
 7. `databricks bundle destroy --auto-approve`
 
-## Step 7: Classify drift
+## Step 6: Classify drift
 
 ```bash
 just test-golden
@@ -118,13 +106,13 @@ Present the breakdown to the user. For substantive changes, walk through the
 diff and explain whether each is a CLI improvement, a regression, or a
 dagshund bug. Link to any known CLI PR that caused the change.
 
-## Step 8: Review with the user before blessing
+## Step 7: Review with the user before blessing
 
 **Do not run `just gen-expected` without explicit user approval.** Confirmation
 of analysis is not approval for action (see memory
 `feedback_context_is_not_approval`). Wait for a clear go-ahead word.
 
-## Step 9: Bless new expected output
+## Step 8: Bless new expected output
 
 ```bash
 just gen-expected
@@ -133,7 +121,7 @@ just gen-expected
 Writes fresh `expected.txt`, `expected.md`, `expected-exit.txt`, and
 `expected-graph.json` for every fixture.
 
-## Step 10: Run the full quality gate
+## Step 9: Run the full quality gate
 
 ```bash
 just check
@@ -143,13 +131,16 @@ Expect occasional test failures: Python or JS unit tests that hardcoded the
 old CLI's output shape will break. Fix each by updating the assertion to
 match the new (correct) shape — **never weaken the test** to make it pass.
 
-## Step 11: Update the README
+## Step 10: Update the README
 
-Edit `README.md` — bump the "Tested against Databricks CLI >=X.Y.Z" line.
-Use the previously-tested version as the floor (e.g. after validating
-0.299.0, the line reads `>=0.298.0`).
+Edit `README.md` — update the "Last validated against Databricks CLI X.Y.Z"
+line to the exact CLI version used for this fixture refresh.
 
-## Step 12: Audit screenshots
+Do not describe this as a minimum supported version. The fixture run validates
+one Databricks CLI version, while nearby older or newer versions may still work
+if their `databricks bundle plan -o json` shape is compatible.
+
+## Step 11: Audit screenshots
 
 Identify which `docs/pictures/*.png` are impacted by the CLI change. Common
 cases:
@@ -162,7 +153,7 @@ cases:
 - `resources.png` — resource graph
 - `phantom_node.png` — phantom node rendering
 - `lateral_dependencies.png` — lateral-deps fixture view
-- `pr_comment.png` — PR comment rendering (special workflow, see step 15)
+- `pr_comment.png` — PR comment rendering (special workflow, see step 14)
 
 For the browser-based screenshots (`drift_web.png`, `schem_detail.png`,
 `dag.png`, `resources.png`, `phantom_node.png`, `lateral_dependencies.png`):
@@ -172,16 +163,16 @@ tell the user they need a refresh and pause for them to recapture via
 For terminal screenshots (`terminal.png`, `drift.png`): same — user captures
 manually from a terminal running dagshund against the relevant fixture.
 
-`pr_comment.png` has a special MR-based workflow — see step 15.
+`pr_comment.png` has a special MR-based workflow — see step 14.
 
-## Step 13: Browser verification
+## Step 12: Browser verification
 
 `just dev <path-to-plan.json>` — load a substantive fixture and confirm
 the browser rendering looks sane. `just dev-down` to stop. Per
 `docs/guidelines/WORKFLOW.md`, a passing `just build` does not guarantee a
 working app.
 
-## Step 14: File follow-up beads
+## Step 13: File follow-up beads
 
 If the CLI change exposed any dagshund code that was passively propagating
 upstream bugs (e.g. lossy summaries, misleading framings), file a follow-up
@@ -189,7 +180,7 @@ bead for an audit pass. Example from CLI 0.298.0: `depends_on` shape fix
 (PR #4990) dramatically improved the task-dag-rewiring fixture but the
 detail-panel grouping logic needed review.
 
-## Step 15: Commit and refresh pr_comment.png via the MR
+## Step 14: Commit and refresh pr_comment.png via the MR
 
 `pr_comment.png` is captured from a real GitLab MR so the screenshot matches
 what a user would actually see. Follow this extended flow:

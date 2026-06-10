@@ -36,15 +36,13 @@ If any guard fails, stop and explain what failed. Do not proceed.
 
 ## Step 4: Bump version
 
-Update the version in all 4 locations (3 files):
+Update the version in 1 location:
 
 1. `src/dagshund/__init__.py` — the `__version__ = "X.Y.Z"` line
-2. `.claude-plugin/marketplace.json` — both the root `"version"` field AND `plugins[0].version`
-3. `plugins/dagshund/.claude-plugin/plugin.json` — the `"version"` field
 
 ## Step 5: Commit version bump
 
-1. Stage the 3 modified files
+1. Stage the modified file
 2. Verify with `git status`
 3. Commit with message: `chore: bump version to X.Y.Z`
 

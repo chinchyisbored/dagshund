@@ -219,7 +219,7 @@ build:
     - version-check  # cheapest possible gate against publishing a mismatched wheel — never make optional
   script:
     - bun run --cwd js build:template
-    - cp plugins/dagshund/skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
+    - cp skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
     - uv build
     - sha256sum dist/* > dist/SHA256SUMS
   artifacts:
