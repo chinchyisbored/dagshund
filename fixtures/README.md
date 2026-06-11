@@ -59,8 +59,15 @@ Regeneration runs a full deploy/plan/capture/destroy cycle against a real worksp
 
 ```bash
 just regen <fixture-name>   # One fixture
-just regen                  # All fixtures
+just regen                  # All unattended fixtures
 ```
+
+`just regen` skips fixtures that need human supervision:
+
+| Fixture | Regeneration path |
+|---|---|
+| `lakebase-autoscaling` | Run separately with `just regen lakebase-autoscaling`. Lakebase can leave the external `dagshund-reader` endpoint list-visible but not get/delete-addressable, so this fixture needs manual workspace oversight. |
+| `manual-drift` | Follow `fixtures/golden/manual-drift/README.md`. It requires workspace UI edits between deploy and plan. |
 
 After regenerating, update the expected dagshund output:
 

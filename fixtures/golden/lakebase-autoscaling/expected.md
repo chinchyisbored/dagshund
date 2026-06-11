@@ -1,9 +1,10 @@
-### dagshund plan (v2, cli 1.0.0)
+### dagshund plan (v2, cli 1.3.0)
 
 #### postgres_branches (3)
 - `+` `postgres_branches/dev_branch` — create
 - `+` `postgres_branches/external_lineage_branch` — create
-- `=` `postgres_branches/prd_branch`
+- `~` `postgres_branches/prd_branch` — update
+  - `~` `is_protected`: true -> false
 
 #### postgres_catalogs (1)
 - `+` `postgres_catalogs/dev_catalog` — create
@@ -18,4 +19,4 @@
   - `+` `custom_tags`: [{key: "env", value: "prd"}]
   - `+` `permissions.[group_name='data_analysts']`: {level: "CAN_USE", group_name: "data_analysts"}
 
-**+5** create, **=2** unchanged, **~1** update
+**+5** create, **=1** unchanged, **~2** update

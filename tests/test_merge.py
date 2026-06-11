@@ -270,6 +270,55 @@ def test_merge_sub_resources_multiple_subs_on_same_parent() -> None:
     assert "grants.user_name" in merged.changes
 
 
+def test_merge_sub_resources_preserves_sub_remote_state_when_new_state_differs() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.schemas.drift_grants": {
+                "action": "skip",
+                "new_state": {"value": {"name": "drift_grants"}},
+                "remote_state": {"name": "drift_grants"},
+            },
+            "resources.schemas.drift_grants.grants": {
+                "action": "update",
+                "new_state": {
+                    "value": {
+                        "__embed__": [
+                            {"principal": "data_readers", "privileges": ["SELECT", "USE_SCHEMA"]},
+                        ],
+                    },
+                },
+                "remote_state": {
+                    "__embed__": [
+                        {"principal": "account users", "privileges": ["SELECT", "USE_SCHEMA"]},
+                    ],
+                },
+                "changes": {
+                    "[principal='account users']": {
+                        "action": "update",
+                        "remote": {"principal": "account users", "privileges": ["SELECT", "USE_SCHEMA"]},
+                    },
+                },
+            },
+        }
+    )
+
+    result = merge_sub_resources(resources)
+
+    merged = result["resources.schemas.drift_grants"]
+    new_state = merged.new_state
+    remote_state = merged.remote_state
+    assert isinstance(new_state, dict)
+    assert isinstance(remote_state, dict)
+    new_state_mapping = cast("dict[str, Any]", new_state)
+    remote_state_mapping = cast("dict[str, Any]", remote_state)
+    assert new_state_mapping["value"]["grants"]["__embed__"] == [
+        {"principal": "data_readers", "privileges": ["SELECT", "USE_SCHEMA"]},
+    ]
+    assert remote_state_mapping["grants"]["__embed__"] == [
+        {"principal": "account users", "privileges": ["SELECT", "USE_SCHEMA"]},
+    ]
+
+
 def test_merge_sub_resources_delete_sub_no_changes_synthesizes_whole_field() -> None:
     resources = resources_from_dict(
         {

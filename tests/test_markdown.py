@@ -360,20 +360,22 @@ def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
     # drift_pipeline: shape-drift (edit_mode) + reclassified list-element-delete
     # (publish.depends_on[ingest]) — both count toward "fields will be overwritten"
     # once the parent resource has independent shape drift (dagshund-1naj Step 5).
-    assert ">   - 2 fields will be overwritten" in result
+    assert result.count(">   - 2 fields will be overwritten") == 2
+    assert "> - jobs/drift_pipeline was edited outside the bundle\n>   - 2 fields will be overwritten" in result
     assert ">   - 1 depends_on will be re-added (transform)" in result
     assert ">   - 1 task will be re-added (transform)" in result
-    # schemas/drift_grants has only one shape-drifted field (privileges)
-    assert ">   - 1 field will be overwritten" in result
+    # schemas/drift_grants has two overwritten fields: remote-only account users
+    # is removed, and data_readers.SELECT is restored.
+    assert "> - schemas/drift_grants was edited outside the bundle\n>   - 2 fields will be overwritten" in result
     assert ">   - 1 grant will be re-added (data_engineers)" in result
 
     # Body: re-added sub-entities rendered as create-style list items
+    assert "`-` `grants.[principal='account users']`" in result
     assert "`+` `tasks[task_key='transform']` (drift) (re-added)" in result
     assert "`+` `grants.[principal='data_engineers']` (drift) (re-added)" in result
 
     # Old flat parenthetical format must not leak back in
     assert "(2 fields will be overwritten)" not in result
-    assert "(1 field will be overwritten)" not in result
 
 
 def test_render_markdown_drift_topology_only() -> None:

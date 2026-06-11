@@ -54,6 +54,16 @@ def _resolve_sub_state(sub_entry: ResourceChange) -> dict[str, object] | None:
     return None
 
 
+def _resolve_sub_new_state(sub_entry: ResourceChange) -> dict[str, object] | None:
+    return _extract_state_value(sub_entry.new_state)
+
+
+def _resolve_sub_remote_state(sub_entry: ResourceChange) -> dict[str, object] | None:
+    if isinstance(sub_entry.remote_state, dict):
+        return cast("dict[str, object]", sub_entry.remote_state)
+    return None
+
+
 def _inject_state(
     parent_entry: ResourceChange,
     suffix: str,
@@ -66,20 +76,21 @@ def _inject_state(
     wrapper that we can't fabricate. remote_state below is more lenient: it's
     a bare object, so we can create one from scratch.
     """
-    sub_state = _resolve_sub_state(sub_entry)
+    sub_new_state = _resolve_sub_new_state(sub_entry)
+    sub_remote_state = _resolve_sub_remote_state(sub_entry)
 
     new_state: object = parent_entry.new_state
     parent_new_value = _extract_state_value(parent_entry.new_state)
-    if parent_new_value is not None and sub_state is not None and isinstance(parent_entry.new_state, dict):
+    if parent_new_value is not None and sub_new_state is not None and isinstance(parent_entry.new_state, dict):
         new_state = {
             **parent_entry.new_state,
-            "value": {**parent_new_value, suffix: sub_state},
+            "value": {**parent_new_value, suffix: sub_new_state},
         }
 
     remote_state: object = parent_entry.remote_state
-    if sub_state is not None:
+    if sub_remote_state is not None:
         base = parent_entry.remote_state if isinstance(parent_entry.remote_state, dict) else {}
-        remote_state = {**base, suffix: sub_state}
+        remote_state = {**base, suffix: sub_remote_state}
 
     return new_state, remote_state
 

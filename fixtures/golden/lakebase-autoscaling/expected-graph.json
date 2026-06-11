@@ -112,8 +112,8 @@
       "by_diff_state": {
         "added": 5,
         "removed": 0,
-        "modified": 1,
-        "unchanged": 9,
+        "modified": 2,
+        "unchanged": 8,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -134,8 +134,8 @@
         "resource": {
           "added": 5,
           "removed": 0,
-          "modified": 1,
-          "unchanged": 2,
+          "modified": 2,
+          "unchanged": 1,
           "unknown": 0
         },
         "root": {
@@ -168,7 +168,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 12,
+      "total_change_entries": 13,
       "with_resource_state": 8,
       "task_change_summary_total": 0,
       "entries": [
@@ -231,6 +231,10 @@
             },
             {
               "key": "pg_version",
+              "action": "skip"
+            },
+            {
+              "key": "purge_on_delete",
               "action": "skip"
             }
           ],
@@ -297,12 +301,12 @@
           "resourceKey": "resources.postgres_branches.prd_branch",
           "label": "prd_branch",
           "kind": "resource",
-          "diffState": "unchanged",
+          "diffState": "modified",
           "isDrift": false,
           "changes": [
             {
               "key": "is_protected",
-              "action": "skip"
+              "action": "update"
             },
             {
               "key": "no_expiry",

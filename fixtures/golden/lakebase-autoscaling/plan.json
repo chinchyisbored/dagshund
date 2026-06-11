@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.1.0",
-  "lineage": "c9c9477c-1abc-436b-a949-9cf411c564f1",
+  "cli_version": "1.3.0",
+  "lineage": "809c61b8-a8af-4b80-bd80-ca75bcd01164",
   "serial": 1,
   "plan": {
     "resources.postgres_branches.dev_branch": {
@@ -43,10 +43,19 @@
           "label": "${resources.postgres_projects.dagshund_project.id}"
         }
       ],
-      "action": "skip",
+      "action": "update",
+      "new_state": {
+        "value": {
+          "branch_id": "prd",
+          "is_protected": false,
+          "no_expiry": true,
+          "parent": "projects/dagshund",
+          "replace_existing": true
+        }
+      },
       "remote_state": {
         "branch_id": "prd",
-        "create_time": "2026-05-29T22:03:24Z",
+        "create_time": "2026-06-11T18:20:52Z",
         "name": "projects/dagshund/branches/prd",
         "parent": "projects/dagshund",
         "status": {
@@ -55,17 +64,16 @@
           "default": true,
           "is_protected": true,
           "logical_size_bytes": 0,
-          "state_change_time": "2026-05-29T22:03:26Z"
+          "state_change_time": "2026-06-11T18:20:54Z"
         },
-        "uid": "br-dark-mode-d8lzz5sw",
-        "update_time": "2026-05-29T22:03:30Z"
+        "uid": "br-muddy-mode-d8vgw3vv",
+        "update_time": "2026-06-11T18:21:02Z"
       },
       "changes": {
         "is_protected": {
-          "action": "skip",
-          "reason": "spec:input_only",
+          "action": "update",
           "old": true,
-          "new": true
+          "new": false
         },
         "no_expiry": {
           "action": "skip",
@@ -144,7 +152,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-05-29T22:03:24Z",
+        "create_time": "2026-06-11T18:20:52Z",
         "endpoint_id": "primary",
         "endpoint_type": "",
         "name": "projects/dagshund/branches/prd/endpoints/primary",
@@ -162,13 +170,13 @@
             "min": 1
           },
           "hosts": {
-            "host": "ep-summer-bar-d8oo3usx.database.us-east-2.cloud.databricks.com"
+            "host": "ep-ancient-dream-d806cku2.database.us-east-2.cloud.databricks.com"
           },
           "settings": {},
           "suspend_timeout_duration": "86400s"
         },
-        "uid": "ep-summer-bar-d8oo3usx",
-        "update_time": "2026-05-29T22:03:32Z"
+        "uid": "ep-ancient-dream-d806cku2",
+        "update_time": "2026-06-11T18:21:04Z"
       },
       "changes": {
         "autoscaling_limit_max_cu": {
@@ -211,11 +219,12 @@
           "default_branch": "projects/dagshund/branches/prd",
           "display_name": "Dagshund",
           "pg_version": 17,
-          "project_id": "dagshund"
+          "project_id": "dagshund",
+          "purge_on_delete": true
         }
       },
       "remote_state": {
-        "create_time": "2026-05-29T22:03:24Z",
+        "create_time": "2026-06-11T18:20:52Z",
         "name": "projects/dagshund",
         "project_id": "dagshund",
         "status": {
@@ -234,8 +243,8 @@
           "project_id": "dagshund",
           "synthetic_storage_size_bytes": 0
         },
-        "uid": "cfd62a5d-23c2-445f-8374-51ada7d9004d",
-        "update_time": "2026-05-29T22:03:26Z"
+        "uid": "b680cf78-1c79-4c49-a0fb-fb11803a035a",
+        "update_time": "2026-06-11T18:20:54Z"
       },
       "changes": {
         "custom_tags": {
@@ -264,6 +273,12 @@
           "reason": "spec:input_only",
           "old": 17,
           "new": 17
+        },
+        "purge_on_delete": {
+          "action": "skip",
+          "reason": "input_only",
+          "old": true,
+          "new": true
         }
       }
     },

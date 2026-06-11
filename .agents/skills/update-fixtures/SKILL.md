@@ -38,35 +38,52 @@ databricks bundle schema > fixtures/golden/bundle_config_schema.json
 This file is gitignored — not committed, but regenerate to keep the
 yaml-language-server validation accurate.
 
-## Step 4: Regenerate all fixtures
+## Step 4: Regenerate unattended fixtures
 
 ```bash
 just regen
 ```
 
-This runs a full deploy/plan/destroy cycle for every fixture. Timeout
-liberally (600s). The `manual-drift` fixture will be clobbered — that's fine,
-step 5 fixes it.
+This runs a full deploy/plan/destroy cycle for fixtures that can regenerate
+without human intervention. Timeout liberally (600s). `regen.sh --all` skips
+supervised fixtures and prints their follow-up commands.
 
 **Do not run `just regen` or `just dev` as background tasks** — they hang on
 TaskOutput polling.
 
-## Step 5: Redo the manual-drift fixture (together)
+## Step 5: Regenerate supervised fixtures (together)
+
+### lakebase-autoscaling
+
+Run `just regen lakebase-autoscaling` separately and watch it with the user.
+This fixture intentionally exercises an external Lakebase endpoint on
+`projects/phantom-lakebase/branches/production`. The Lakebase control plane can
+leave `dagshund-reader` list-visible while direct get/delete returns
+`NOT_FOUND`; if that happens, pause and have the user clean up or inspect the
+workspace before retrying.
+
+The fixture sets `purge_on_delete: true` on `postgres_projects.dagshund_project`
+and changes the after-state `prd` branch to `is_protected: false`, so bundle
+destroy should remove the fixture-owned `projects/dagshund` project without
+script-specific unprotect/purge cleanup.
+
+### manual-drift
 
 `regen.sh` can't generate manual-drift because it requires UI edits between
 deploy and plan. Follow `fixtures/golden/manual-drift/README.md` literally:
 
 1. `cd fixtures/golden/manual-drift/before && databricks bundle deploy`
    (source `fixtures/golden/.env` first so `BUNDLE_VAR_secondary_user` is set).
-2. Tell the user to make **6 UI edits** in the workspace:
+2. Tell the user to make **7 UI edits** in the workspace:
    - Delete the `transform` task from `drift_pipeline`
    - Change `publish`'s dep from `transform` → `ingest`
    - Unlock edit mode on the job (set editable)
    - Drop `dagshund.drift_doomed` schema entirely
    - On `dagshund.drift_grants`, revoke every privilege from `data_engineers`
    - On `dagshund.drift_grants`, revoke only `SELECT` from `data_readers` (leave `USE_SCHEMA`)
-3. **Wait for explicit confirmation** from the user that all 6 edits are done.
-4. **Wipe stale local state in `after/.databricks/` before planning** — `just regen` populates `after/.databricks/` during its own pass and leaves it behind. With stale local state present, `databricks bundle plan` consults the local cache instead of fetching the live workspace, and emits everything as `action: create` with no `remote_state` block. `regen.sh` avoids this by `rm -rf`'ing both `before/.databricks/` and `after/.databricks/` at the start of each fixture run; the manual flow has to do it explicitly:
+   - On `dagshund.drift_grants`, grant `USE_SCHEMA` and `SELECT` to `account users`
+3. **Wait for explicit confirmation** from the user that all 7 edits are done.
+4. **Wipe stale local state in `after/.databricks/` before planning**. If `after/.databricks/` contains state from a previous run, `databricks bundle plan` can emit everything as `action: create` with no `remote_state` block. `regen.sh` avoids this by `rm -rf`'ing both `before/.databricks/` and `after/.databricks/` at the start of each fixture run; the manual flow has to do it explicitly:
 
    ```bash
    rm -rf fixtures/golden/manual-drift/after/.databricks
@@ -209,8 +226,11 @@ what a user would actually see. Follow this extended flow:
 8. Wait for the user to confirm, then **delete the markdown-dump MR note**
    (via the MR UI or `glab mr note delete <iid> <note-id>`). The screenshot
    lives in the repo now; the raw markdown comment was only a fixture.
-9. Wait for the pipeline to go green, then `glab mr merge --squash` (with
+9. Before merging, verify the MR title is a conventional commit subject
+   (for example `fixtures(cli X.Y.Z): regenerate goldens`). GitLab uses the
+   MR title as the squash commit subject on `main`.
+10. Wait for the pipeline to go green, then `glab mr merge --squash` (with
    explicit user approval — see `feedback_context_is_not_approval`).
-10. `br close <tracking-bead-id>` only after merge.
+11. `br close <tracking-bead-id>` only after merge.
 
 Never push to `main`. Never skip the MR.

@@ -17,6 +17,7 @@ implicit `primary` read-write endpoint with `replace_existing: true`.
 The `after/` state adds:
 
 - `data_analysts` project access at `CAN_USE`
+- `prd` branch protection disabled so bundle destroy can remove the fixture project
 - `dev` branch cloned from protected `prd`
 - `external-lineage` branch in the external lineage project, cloned from its production branch
 - `dev` branch's implicit `primary` read-write endpoint
@@ -24,12 +25,9 @@ The `after/` state adds:
 - Unity Catalog Postgres catalog `dagshund_lakebase` bound to the `dev` branch
 
 Regeneration requires Lakebase Autoscaling availability in the target workspace.
-It also expects two pre-existing external Lakebase projects:
+The fixture project sets `purge_on_delete: true` so repeated regeneration does
+not collide with a soft-deleted `projects/dagshund` project. It also expects
+two pre-existing external Lakebase projects:
 
 - `projects/phantom-lakebase` with branch `production`, used for endpoint parent phantom coverage
 - `projects/phantom-lineage-lakebase` with branch `production`, used for source branch phantom coverage
-
-Because `prd` is protected, `regen.sh` has fixture-specific cleanup that
-temporarily unprotects it before `bundle destroy`. The script then purges the
-soft-deleted `projects/dagshund` project so the fixture can be regenerated
-again immediately.

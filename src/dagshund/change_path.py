@@ -120,11 +120,20 @@ def _resolve_list_element(
         if current is None:
             return _MISSING
 
+    current = _unwrap_embed_list(current)
     if not isinstance(current, list):
         return _MISSING
 
     found = _find_in_list_by_filters(current, filters)
     return _MISSING if found is None else found
+
+
+def _unwrap_embed_list(value: object) -> object:
+    """Databricks sub-resources store authoritative list elements in ``__embed__``."""
+    if not isinstance(value, dict):
+        return value
+    embedded = cast("Mapping[str, object]", value).get("__embed__")
+    return embedded if isinstance(embedded, list) else value
 
 
 def _split_segments(path: str) -> list[str]:

@@ -32,11 +32,15 @@ Open the workspace and make these changes.
    disappears from the remote entirely.
 6. **Partial sub-entity drift.** Also on `dagshund.drift_grants`, revoke only
    `SELECT` from `data_readers`, leaving `USE_SCHEMA` in place.
+7. **Negative sub-entity drift.** Also on `dagshund.drift_grants`, grant
+   `USE_SCHEMA` and `SELECT` to `account users` so the remote has an extra
+   principal that is not present in the bundle config.
 
 ### 3. Capture the plan
 
 ```bash
 cd fixtures/golden/manual-drift/after
+rm -rf .databricks
 databricks bundle plan -o json \
   | python3 ../../../tooling/sanitize.py > ../plan.json
 ```

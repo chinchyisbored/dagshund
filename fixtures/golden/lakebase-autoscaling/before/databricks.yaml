@@ -16,6 +16,7 @@ resources:
       project_id: dagshund
       display_name: Dagshund
       pg_version: 17
+      purge_on_delete: true
       default_branch: projects/dagshund/branches/prd
       permissions:
         - group_name: data_engineers

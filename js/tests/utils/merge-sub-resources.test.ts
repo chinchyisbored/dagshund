@@ -233,6 +233,45 @@ describe("mergeSubResources", () => {
     expect(merged?.changes?.["grants.grants[principal='data_team'].privileges"]).toBeDefined();
   });
 
+  test("preserves sub-resource remote_state when new_state differs", () => {
+    const entries: Record<string, PlanEntry> = {
+      "resources.schemas.drift_grants": {
+        action: "skip",
+        new_state: { value: { name: "drift_grants" } },
+        remote_state: { name: "drift_grants" },
+      },
+      "resources.schemas.drift_grants.grants": {
+        action: "update",
+        new_state: {
+          value: {
+            __embed__: [{ principal: "data_readers", privileges: ["SELECT", "USE_SCHEMA"] }],
+          },
+        },
+        remote_state: {
+          __embed__: [{ principal: "account users", privileges: ["SELECT", "USE_SCHEMA"] }],
+        },
+        changes: {
+          "[principal='account users']": {
+            action: "update",
+            remote: { principal: "account users", privileges: ["SELECT", "USE_SCHEMA"] },
+          },
+        },
+      },
+    };
+
+    const result = mergeSubResources(entries);
+    const merged = result["resources.schemas.drift_grants"];
+    const newState = merged?.new_state as { value: Record<string, unknown> } | undefined;
+    const remoteState = merged?.remote_state as Record<string, unknown> | undefined;
+
+    expect(newState?.value["grants"]).toEqual({
+      __embed__: [{ principal: "data_readers", privileges: ["SELECT", "USE_SCHEMA"] }],
+    });
+    expect(remoteState?.["grants"]).toEqual({
+      __embed__: [{ principal: "account users", privileges: ["SELECT", "USE_SCHEMA"] }],
+    });
+  });
+
   test("synthesizes whole-field change for delete sub with no field changes", () => {
     const entries: Record<string, PlanEntry> = {
       "resources.jobs.my_job": {

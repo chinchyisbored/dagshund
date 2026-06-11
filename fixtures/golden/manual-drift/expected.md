@@ -1,4 +1,4 @@
-### dagshund plan (v2, cli 0.299.2)
+### dagshund plan (v2, cli 1.3.0)
 
 #### jobs (1)
 - `~` `jobs/drift_pipeline` — update
@@ -14,6 +14,7 @@
 - `+` `schemas/drift_doomed` — create
 - `~` `schemas/drift_grants` — update
   - :warning: manually edited outside bundle
+  - `-` `grants.[principal='account users']`: {principal: "account users", privileges: ["SELECT", "USE_SCHEMA"]} (drift)
   - `~` `grants.[principal='data_readers'].privileges`: ["USE_SCHEMA"] -> ["SELECT", "USE_SCHEMA"] (drift)
   - `+` `grants.[principal='data_engineers']` (drift) (re-added)
 
@@ -26,5 +27,5 @@
 >   - 1 depends_on will be re-added (transform)
 >   - 1 task will be re-added (transform)
 > - schemas/drift_grants was edited outside the bundle
->   - 1 field will be overwritten
+>   - 2 fields will be overwritten
 >   - 1 grant will be re-added (data_engineers)

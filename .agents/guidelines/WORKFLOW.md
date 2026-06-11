@@ -96,9 +96,12 @@ When code is working, follow this exact order. No skipping steps.
      --description "<summary and verification>" \
      --yes
    ```
-10. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `glab mr merge <iid> --squash --yes`
-11. `git checkout main && git pull --ff-only origin main`
-12. `br close <id>` — only AFTER the MR is merged and main is up to date
+10. Before merging, verify the MR title is a conventional commit subject
+    (for example `chore(agents): make skill layout neutral`). GitLab uses the
+    MR title as the squash commit subject on `main`.
+11. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `glab mr merge <iid> --squash --yes`
+12. `git checkout main && git pull --ff-only origin main`
+13. `br close <id>` — only AFTER the MR is merged and main is up to date
 
 **`main` is MR-only and history is linear.** Never push directly to `main`. Every feature branch lands via `glab mr create` followed by `glab mr merge --squash` — always squash, never a merge commit. The git commit IS the deliverable; the squash-merge IS the handoff.
 

@@ -1,4 +1,4 @@
-### dagshund plan (v2, cli 0.299.2)
+### dagshund plan (v2, cli 1.3.0)
 
 #### alerts (1)
 - `=` `alerts/data_freshness`

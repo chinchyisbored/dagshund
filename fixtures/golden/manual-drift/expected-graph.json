@@ -327,7 +327,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 7,
+      "total_change_entries": 8,
       "with_resource_state": 3,
       "task_change_summary_total": 2,
       "entries": [
@@ -404,6 +404,10 @@
           "diffState": "modified",
           "isDrift": true,
           "changes": [
+            {
+              "key": "grants.[principal='account users']",
+              "action": "update"
+            },
             {
               "key": "grants.[principal='data_engineers']",
               "action": "update"

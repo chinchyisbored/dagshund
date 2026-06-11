@@ -44,6 +44,13 @@
       "expected": "delete"
     },
     {
+      "name": "embedded_sub_resource_grants_delete",
+      "changeKey": "grants.[principal='account users']",
+      "newState": {"grants": {"__embed__": [{"principal": "data_readers", "privileges": ["SELECT", "USE_SCHEMA"]}]}},
+      "remoteState": {"grants": {"__embed__": [{"principal": "account users", "privileges": ["SELECT", "USE_SCHEMA"]}]}},
+      "expected": "delete"
+    },
+    {
       "name": "new_state_value_wrapper_is_unwrapped",
       "changeKey": "depends_on[task_key='ingest']",
       "newState": {"value": {"depends_on": [{"task_key": "transform"}]}},

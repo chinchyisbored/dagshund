@@ -39,6 +39,12 @@ const extractBareState = (state: unknown): Record<string, unknown> | undefined =
 const resolveSubState = (subEntry: PlanEntry): Record<string, unknown> | undefined =>
   extractStateValue(subEntry.new_state) ?? extractBareState(subEntry.remote_state);
 
+const resolveSubNewState = (subEntry: PlanEntry): Record<string, unknown> | undefined =>
+  extractStateValue(subEntry.new_state);
+
+const resolveSubRemoteState = (subEntry: PlanEntry): Record<string, unknown> | undefined =>
+  extractBareState(subEntry.remote_state);
+
 /** Inject sub-resource state under `suffix` key in parent's state. */
 const injectState = (
   parentEntry: PlanEntry,
@@ -46,17 +52,18 @@ const injectState = (
   subEntry: PlanEntry,
 ): Pick<PlanEntry, "new_state" | "remote_state"> => {
   const result: { new_state?: unknown; remote_state?: unknown } = {};
-  const subState = resolveSubState(subEntry);
+  const subNewState = resolveSubNewState(subEntry);
+  const subRemoteState = resolveSubRemoteState(subEntry);
 
   // Inject into new_state.value — requires BOTH parent and sub to have state,
   // because new_state uses the { value: ..., vars: ... } wrapper that we can't fabricate.
   // remote_state below is more lenient: it's a bare object, so we can create one from scratch.
   const parentNewValue = extractStateValue(parentEntry.new_state);
-  if (parentNewValue !== undefined && subState !== undefined) {
+  if (parentNewValue !== undefined && subNewState !== undefined) {
     result.new_state = {
       // extractStateValue succeeded, so new_state is a { value: ... } wrapper — safe to spread
       ...(parentEntry.new_state as Record<string, unknown>),
-      value: { ...parentNewValue, [suffix]: subState },
+      value: { ...parentNewValue, [suffix]: subNewState },
     };
   } else {
     result.new_state = parentEntry.new_state;
@@ -64,12 +71,12 @@ const injectState = (
 
   // Inject into remote_state — create or extend as needed
   const parentRemote = parentEntry.remote_state;
-  if (subState !== undefined) {
+  if (subRemoteState !== undefined) {
     const base =
       typeof parentRemote === "object" && parentRemote !== null
         ? (parentRemote as Record<string, unknown>) // narrowed by typeof+null guard
         : {};
-    result.remote_state = { ...base, [suffix]: subState };
+    result.remote_state = { ...base, [suffix]: subRemoteState };
   } else {
     result.remote_state = parentEntry.remote_state;
   }

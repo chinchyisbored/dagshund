@@ -92,9 +92,16 @@ const resolveListElement = (
     if (current === undefined) return MISSING;
   }
 
+  current = unwrapEmbedList(current);
   if (!Array.isArray(current)) return MISSING;
   const match = current.find((item) => matchesAllFilters(item, filters));
   return match ?? MISSING;
+};
+
+const unwrapEmbedList = (value: unknown): unknown => {
+  if (!isUnknownRecord(value)) return value;
+  const embedded = value["__embed__"];
+  return Array.isArray(embedded) ? embedded : value;
 };
 
 /** Split `path` on `.` while respecting brackets (values may contain `.`). */

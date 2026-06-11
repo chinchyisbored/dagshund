@@ -72,8 +72,11 @@ Update the version in 1 location:
 ## Step 10: Squash-merge the MR
 
 1. **Get explicit user approval before merging.**
-2. `glab mr merge <mr-iid> --squash --yes`
-3. Main stays linear — one squashed commit per MR, no merge commits.
+2. Verify the MR title is a conventional commit subject before merging. GitLab
+   uses the MR title as the squash commit subject on `main`; for releases it
+   should stay `chore: release vX.Y.Z`.
+3. `glab mr merge <mr-iid> --squash --yes`
+4. Main stays linear — one squashed commit per MR, no merge commits.
 
 ## Step 11: Resolve the squashed merge commit SHA
 

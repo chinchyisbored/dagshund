@@ -15,6 +15,7 @@ resources:
       project_id: dagshund
       display_name: Dagshund
       pg_version: 17
+      purge_on_delete: true
       default_branch: projects/dagshund/branches/prd
       custom_tags:
         - key: env
@@ -29,7 +30,7 @@ resources:
     prd_branch:
       parent: ${resources.postgres_projects.dagshund_project.id}
       branch_id: prd
-      is_protected: true
+      is_protected: false
       no_expiry: true
       replace_existing: true
 
