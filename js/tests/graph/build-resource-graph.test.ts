@@ -1333,6 +1333,46 @@ describe("other-resources-root grouping", () => {
   });
 });
 
+describe("phantom node deduplication", () => {
+  test("app and genie space sharing an external warehouse create one phantom node", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.apps.taxi_app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "app_warehouse",
+                  sql_warehouse: { id: "external-warehouse", permission: "CAN_USE" },
+                },
+              ],
+            },
+          },
+        },
+        "resources.genie_spaces.taxi_genie": {
+          action: "create",
+          new_state: {
+            value: {
+              title: "Taxi Genie",
+              warehouse_id: "external-warehouse",
+            },
+          },
+        },
+      },
+    });
+
+    const warehouseNodes = graph.nodes.filter((n) => n.id === "sql-warehouse::external-warehouse");
+    expect(warehouseNodes).toHaveLength(1);
+
+    const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
+    expect(lateralEdgePairs).toContain("resources.apps.taxi_app→sql-warehouse::external-warehouse");
+    expect(lateralEdgePairs).toContain(
+      "resources.genie_spaces.taxi_genie→sql-warehouse::external-warehouse",
+    );
+  });
+});
+
 describe("parseThreePartName", () => {
   test("parses valid three-part name", () => {
     expect(parseThreePartName("catalog.schema.table")).toEqual({

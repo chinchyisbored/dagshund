@@ -3,6 +3,7 @@ import {
   buildEdge,
   filterDefinedEdges,
   type GraphEdge,
+  type GraphNode,
   type PhantomGraphNode,
   type PlanGraph,
   type ResourceGraphNode,
@@ -24,6 +25,7 @@ import {
 import {
   buildApiIdIndex,
   extractAppResourceReferences,
+  extractGenieSpaceApiId,
   extractLateralEdges,
 } from "./extract-lateral-edges.ts";
 import {
@@ -206,6 +208,18 @@ const buildPhantomNode = (id: string, label: string): PhantomGraphNode => ({
   remoteState: undefined,
   resourceHasShapeDrift: false,
 });
+
+/** Keep the first node for an ID when multiple phantom collectors infer it. */
+const deduplicateNodes = (nodes: readonly GraphNode[]): readonly GraphNode[] => {
+  const seen = new Set<string>();
+  return nodes.filter((node) => {
+    if (seen.has(node.id)) {
+      return false;
+    }
+    seen.add(node.id);
+    return true;
+  });
+};
 
 // ---------------------------------------------------------------------------
 // Edge helpers
@@ -846,6 +860,7 @@ export const buildResourceGraph = (
   const pipelineIndex = buildApiIdIndex(entries, "pipelines", (e) =>
     extractStateField(e, "pipeline_id"),
   );
+  const genieSpaceIndex = buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId);
   const jobIdMap = buildJobIdMap(entries);
 
   // Create phantom nodes for database instances referenced but not in the plan.
@@ -863,6 +878,7 @@ export const buildResourceGraph = (
     existingKeys,
     workspaceGraph.flatParentId,
     warehouseIndex,
+    genieSpaceIndex,
   );
 
   // Create phantom nodes for external references (warehouses, dashboards, pipelines) from
@@ -874,12 +890,12 @@ export const buildResourceGraph = (
     jobIdMap,
   });
 
-  const allNodes = [
+  const allNodes = deduplicateNodes([
     ...graphNodes,
     ...phantomDbInstances.nodes,
     ...phantomAppDeps.nodes,
     ...phantomExternalRefs.nodes,
-  ];
+  ]);
 
   // Lateral specs only emit edges to node IDs that already exist, so build
   // lookup maps after all real and phantom nodes have been materialized.

@@ -71,6 +71,10 @@ describe("isPhantomLeaf", () => {
     expect(isPhantomLeaf("dashboard::abc123")).toBe(true);
   });
 
+  test("returns true for genie space phantom nodes", () => {
+    expect(isPhantomLeaf("genie-space::space-abc")).toBe(true);
+  });
+
   test("returns false for hierarchy phantom prefixes", () => {
     expect(isPhantomLeaf("catalog::prod")).toBe(false);
     expect(isPhantomLeaf("schema::prod.staging")).toBe(false);
@@ -156,6 +160,7 @@ describe("extractPhantomBadge", () => {
     expect(extractPhantomBadge("source-table::prod.staging.customers")).toBe("table");
     expect(extractPhantomBadge("database-instance::my_db")).toBe("database instance");
     expect(extractPhantomBadge("dashboard::abc123")).toBe("dashboard");
+    expect(extractPhantomBadge("genie-space::space-abc")).toBe("genie");
     expect(extractPhantomBadge("postgres-project::my_project")).toBe("postgres project");
     expect(extractPhantomBadge("postgres-branch::proj/main")).toBe("postgres branch");
   });

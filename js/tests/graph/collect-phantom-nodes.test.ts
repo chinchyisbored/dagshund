@@ -100,6 +100,23 @@ describe("collectPhantomExternalRefs", () => {
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh3");
   });
 
+  test("genie_space with warehouse_id referencing non-existent warehouse creates phantom", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.genie_spaces.taxi", makeEntry({ title: "Taxi Genie", warehouse_id: "wh4" })],
+    ];
+    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
+
+    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
+      warehouseIndex,
+      dashboardIndex,
+      pipelineIndex,
+      jobIdMap,
+    });
+
+    expect(result.nodes).toHaveLength(1);
+    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh4");
+  });
+
   test("alert with warehouse_id referencing existing warehouse creates no phantom", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.alerts.stale", makeEntry({ warehouse_id: "wh1" })],
@@ -624,6 +641,23 @@ describe("collectPhantomAppDependencies", () => {
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
   });
 
+  test("app referencing absent genie_space creates phantom", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.myapp",
+        makeAppEntry([{ genie_space: { name: "taxi", space_id: "space-1" } }]),
+      ],
+    ];
+
+    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+
+    expect(result.nodes).toHaveLength(1);
+    expect(result.nodes[0]).toMatchObject({
+      id: "genie-space::taxi",
+      resourceKey: "resources.genie_spaces.taxi",
+    });
+  });
+
   test("app referencing existing sql_warehouse creates no phantom", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.apps.myapp", makeAppEntry([{ sql_warehouse: { id: "wh1" } }])],
@@ -631,6 +665,20 @@ describe("collectPhantomAppDependencies", () => {
     const warehouseIndex = new Map([["wh1", "resources.sql_warehouses.main"]]);
 
     const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, warehouseIndex);
+
+    expect(result.nodes).toHaveLength(0);
+  });
+
+  test("app referencing existing genie_space creates no phantom", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.myapp",
+        makeAppEntry([{ genie_space: { name: "taxi", space_id: "space-1" } }]),
+      ],
+      ["resources.genie_spaces.taxi", makeEntry({ space_id: "space-1" })],
+    ];
+
+    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
 
     expect(result.nodes).toHaveLength(0);
   });

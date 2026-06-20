@@ -1,9 +1,8 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
 # First deploy: app with 3 lateral dependency types (job, sql_warehouse,
-# uc_securable). Paired with after/ which is a SECOND deploy that adds a
-# secret_scope + model_serving_endpoint resource and wires both into the
-# app's resources list — they show as green (+) creates in the plan while
-# the app shows as (~) update.
+# uc_securable) plus a bundle-owned Genie space. Paired with after/ which is
+# a SECOND deploy that changes the Genie space permission and wires it into
+# the app's resources list alongside secret_scope + model_serving_endpoint.
 bundle:
   name: dagshund-golden-app-deps
   databricks_cli_version: ">=0.296.0"
@@ -32,7 +31,6 @@ resources:
             securable_full_name: ${var.catalog_name}.${var.models_schema}.${var.volume_name}
             securable_type: VOLUME
             permission: READ_VOLUME
-
   jobs:
     my_etl_job:
       name: my_etl_job
@@ -44,3 +42,13 @@ resources:
   experiments:
     my_experiment:
       name: /Workspace/experiments/my_experiment
+
+  genie_spaces:
+    nyc_taxi_genie:
+      title: NYC Taxi Trip Analysis
+      description: Ask questions about NYC taxi trip data in natural language
+      warehouse_id: ${var.warehouse_id}
+      file_path: ./nyc_taxi_genie.geniespace.json
+      permissions:
+        - level: CAN_RUN
+          group_name: users

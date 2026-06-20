@@ -158,18 +158,18 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 13,
+      "total": 14,
       "by_kind": {
         "job": 0,
         "task": 0,
-        "resource": 4,
+        "resource": 5,
         "root": 2,
         "phantom": 7
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
-        "modified": 1,
+        "modified": 2,
         "unchanged": 11,
         "unknown": 0
       },
@@ -191,7 +191,7 @@
         "resource": {
           "added": 1,
           "removed": 0,
-          "modified": 1,
+          "modified": 2,
           "unchanged": 2,
           "unknown": 0
         },
@@ -225,8 +225,8 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 25,
-      "with_resource_state": 4,
+      "total_change_entries": 28,
+      "with_resource_state": 5,
       "task_change_summary_total": 0,
       "entries": [
         {
@@ -364,6 +364,30 @@
           "taskChangeSummary": []
         },
         {
+          "id": "resources.genie_spaces.nyc_taxi_genie",
+          "resourceKey": "resources.genie_spaces.nyc_taxi_genie",
+          "label": "nyc_taxi_genie",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "etag",
+              "action": "skip"
+            },
+            {
+              "key": "permissions.[group_name='users'].level",
+              "action": "update"
+            },
+            {
+              "key": "serialized_space",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
           "id": "resources.jobs.my_etl_job",
           "resourceKey": "resources.jobs.my_etl_job",
           "label": "my_etl_job",
@@ -478,26 +502,26 @@
       ]
     },
     "edges": {
-      "total": 18,
+      "total": 21,
       "by_kind": {
-        "dag": 11,
-        "lateral": 7
+        "dag": 12,
+        "lateral": 9
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
-        "unchanged": 17
+        "unchanged": 20
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 1,
           "removed": 0,
-          "unchanged": 10
+          "unchanged": 11
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 7
+          "unchanged": 9
         }
       },
       "entries": [
@@ -545,6 +569,12 @@
         },
         {
           "source": "workspace-root",
+          "target": "resources.genie_spaces.nyc_taxi_genie",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
           "target": "resources.jobs.my_etl_job",
           "diffState": "unchanged",
           "kind": "dag"
@@ -575,6 +605,12 @@
         },
         {
           "source": "resources.apps.my_test_app",
+          "target": "resources.genie_spaces.nyc_taxi_genie",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.my_test_app",
           "target": "resources.jobs.my_etl_job",
           "diffState": "unchanged",
           "kind": "lateral"
@@ -599,6 +635,12 @@
         },
         {
           "source": "resources.apps.my_test_app",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.genie_spaces.nyc_taxi_genie",
           "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "lateral"

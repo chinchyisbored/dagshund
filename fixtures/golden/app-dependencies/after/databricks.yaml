@@ -1,12 +1,15 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
 # Second deploy: the ETL pipeline has matured enough to plug in experiment
-# tracking, a secret-backed external API call, and LLM inference. Adds a
-# model_serving_endpoint as a bundle-owned resource and wires three new
-# refs into the app: experiment_tracker (bundle-owned experiment),
-# api_token (CLI-managed phantom secret), and chat_model (new endpoint).
+# tracking, a secret-backed external API call, LLM inference, and natural
+# language exploration. Changes the bundle-owned Genie space permission,
+# adds a model_serving_endpoint as a bundle-owned resource, and wires four
+# new refs into the app: taxi_genie (Genie space), experiment_tracker
+# (bundle-owned experiment), api_token (CLI-managed phantom secret), and
+# chat_model (new endpoint).
 # Plan should show:
+#   ~ genie_spaces/nyc_taxi_genie               (permission update)
 #   + model_serving_endpoints/app_chat_endpoint (create)
-#   ~ apps/my_test_app                         (update — 3 resource refs added)
+#   ~ apps/my_test_app                         (update — 4 resource refs added)
 bundle:
   name: dagshund-golden-app-deps
   databricks_cli_version: ">=0.296.0"
@@ -35,6 +38,11 @@ resources:
             securable_full_name: ${var.catalog_name}.${var.models_schema}.${var.volume_name}
             securable_type: VOLUME
             permission: READ_VOLUME
+        - name: taxi_genie
+          genie_space:
+            name: nyc_taxi_genie
+            space_id: ${resources.genie_spaces.nyc_taxi_genie.id}
+            permission: CAN_RUN
         - name: experiment_tracker
           experiment:
             experiment_id: ${resources.experiments.my_experiment.id}
@@ -60,6 +68,16 @@ resources:
   experiments:
     my_experiment:
       name: /Workspace/experiments/my_experiment
+
+  genie_spaces:
+    nyc_taxi_genie:
+      title: NYC Taxi Trip Analysis
+      description: Ask questions about NYC taxi trip data in natural language
+      warehouse_id: ${var.warehouse_id}
+      file_path: ./nyc_taxi_genie.geniespace.json
+      permissions:
+        - level: CAN_MANAGE
+          group_name: users
 
   model_serving_endpoints:
     app_chat_endpoint:

@@ -34,6 +34,7 @@ export const extractPhantomBadge = (resourceKey: string): string | undefined => 
   if (resourceKey.startsWith("serving-endpoint::")) return "serving";
   if (resourceKey.startsWith("job::")) return "job";
   if (resourceKey.startsWith("sql-warehouse::")) return "warehouse";
+  if (resourceKey.startsWith("genie-space::")) return "genie";
   if (resourceKey.startsWith("dashboard::")) return "dashboard";
   if (resourceKey.startsWith("experiment::")) return "experiment";
   if (resourceKey.startsWith("pipeline::")) return "pipeline";
@@ -51,6 +52,7 @@ const PHANTOM_LEAF_PREFIXES: readonly string[] = [
   "serving-endpoint::",
   "job::",
   "sql-warehouse::",
+  "genie-space::",
   "experiment::",
   "dashboard::",
   "pipeline::",
@@ -73,6 +75,7 @@ export const DATABASE_INSTANCE_SOURCE_TYPES: ReadonlySet<string> = new Set([
 export const WAREHOUSE_SOURCE_TYPES: ReadonlySet<string> = new Set([
   "alerts",
   "dashboards",
+  "genie_spaces",
   "quality_monitors",
 ]);
 

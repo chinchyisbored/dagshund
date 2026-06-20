@@ -17,6 +17,7 @@ import {
 } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
 import {
+  extractBundleResourceIdRef,
   resolvePostgresBranchRefIdentity,
   resolvePostgresBranchResourceKey,
 } from "./postgres-paths.ts";
@@ -65,6 +66,7 @@ export const extractJobApiId = (entry: PlanEntry): string | undefined => {
 export type AppResourceRef =
   | { readonly kind: "job"; readonly id: string }
   | { readonly kind: "sql_warehouse"; readonly id: string }
+  | { readonly kind: "genie_space"; readonly id: string; readonly name: string }
   | { readonly kind: "secret_scope"; readonly name: string }
   | { readonly kind: "serving_endpoint"; readonly name: string }
   | { readonly kind: "experiment"; readonly id: string }
@@ -89,6 +91,15 @@ export const extractAppResourceReferences = (entry: PlanEntry): readonly AppReso
       refs.push({ kind: "sql_warehouse", id: warehouse["id"] });
       continue;
     }
+    const genieSpace = resource["genie_space"];
+    if (
+      isUnknownRecord(genieSpace) &&
+      typeof genieSpace["space_id"] === "string" &&
+      typeof genieSpace["name"] === "string"
+    ) {
+      refs.push({ kind: "genie_space", id: genieSpace["space_id"], name: genieSpace["name"] });
+      continue;
+    }
     const secret = resource["secret"];
     if (isUnknownRecord(secret) && typeof secret["scope"] === "string") {
       refs.push({ kind: "secret_scope", name: secret["scope"] });
@@ -110,6 +121,25 @@ export const extractAppResourceReferences = (entry: PlanEntry): readonly AppReso
     }
   }
   return refs;
+};
+
+/** Extract Genie space API ID from state. Created resources may expose either field shape. */
+export const extractGenieSpaceApiId = (entry: PlanEntry): string | undefined =>
+  extractStateField(entry, "space_id") ?? extractStateField(entry, "id");
+
+const resolveGenieSpaceTargetKey = (
+  ref: Extract<AppResourceRef, { readonly kind: "genie_space" }>,
+  context: LateralEdgeContext,
+  genieSpaceIndex: ReadonlyMap<string, string>,
+): string => {
+  const resourceRef = extractBundleResourceIdRef(ref.id);
+  if (resourceRef !== undefined && extractResourceType(resourceRef) === "genie_spaces") {
+    return resourceRef;
+  }
+  const nameKey = `resources.genie_spaces.${ref.name}`;
+  return context.nodeIdByResourceKey.has(nameKey)
+    ? nameKey
+    : (genieSpaceIndex.get(ref.id) ?? nameKey);
 };
 
 // ---------------------------------------------------------------------------
@@ -407,6 +437,7 @@ const createAppResourcesSpec = (
   warehouseIndex: ReadonlyMap<string, string>,
 ): LateralEdgeSpec => {
   const jobIndex = buildApiIdIndex(context.entries, "jobs", extractJobApiId);
+  const genieSpaceIndex = buildApiIdIndex(context.entries, "genie_spaces", extractGenieSpaceApiId);
   const experimentIndex = buildApiIdIndex(context.entries, "experiments", (e) =>
     extractStateField(e, "experiment_id"),
   );
@@ -424,6 +455,10 @@ const createAppResourcesSpec = (
           case "sql_warehouse":
             targetKey = warehouseIndex.get(ref.id) ?? `sql-warehouse::${ref.id}`;
             break;
+          case "genie_space": {
+            targetKey = resolveGenieSpaceTargetKey(ref, context, genieSpaceIndex);
+            break;
+          }
           case "experiment":
             targetKey = experimentIndex.get(ref.id) ?? `experiment::${ref.id}`;
             break;

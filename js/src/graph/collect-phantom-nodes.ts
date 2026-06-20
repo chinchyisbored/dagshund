@@ -14,6 +14,7 @@ import {
   type AppResourceRef,
   buildApiIdIndex,
   extractAppResourceReferences,
+  extractGenieSpaceApiId,
   extractJobApiId,
   extractTaskDashboardId,
   extractTaskPipelineId,
@@ -21,6 +22,7 @@ import {
 } from "./extract-lateral-edges.ts";
 import { extractStateField } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
+import { extractBundleResourceIdRef } from "./postgres-paths.ts";
 
 type PhantomEntry = { readonly id: string; readonly label: string; readonly resourceKey: string };
 
@@ -84,6 +86,7 @@ const resolveAppPhantomRef = (
   existingResourceKeys: ReadonlySet<string>,
   jobIndex: ReadonlyMap<string, string>,
   warehouseIndex: ReadonlyMap<string, string>,
+  genieSpaceIndex: ReadonlyMap<string, string>,
   experimentIndex: ReadonlyMap<string, string>,
 ): PhantomEntry | undefined => {
   switch (ref.kind) {
@@ -109,6 +112,15 @@ const resolveAppPhantomRef = (
       const id = `sql-warehouse::${ref.id}`;
       return { id, resourceKey: id, label: ref.id };
     }
+    case "genie_space": {
+      const resourceRef = extractBundleResourceIdRef(ref.id);
+      if (resourceRef !== undefined) return undefined;
+      const rk = `resources.genie_spaces.${ref.name}`;
+      if (existingResourceKeys.has(rk)) return undefined;
+      if (genieSpaceIndex.has(ref.id)) return undefined;
+      const id = `genie-space::${ref.name}`;
+      return { id, resourceKey: rk, label: ref.name };
+    }
     case "experiment": {
       if (experimentIndex.has(ref.id)) return undefined;
       const id = `experiment::${ref.id}`;
@@ -126,8 +138,13 @@ export const collectPhantomAppDependencies = (
   existingResourceKeys: ReadonlySet<string>,
   parentId: string,
   warehouseIndex: ReadonlyMap<string, string>,
+  genieSpaceIndex: ReadonlyMap<string, string> = new Map(),
 ): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
   const jobIndex = buildApiIdIndex(entries, "jobs", extractJobApiId);
+  const resolvedGenieSpaceIndex =
+    genieSpaceIndex.size > 0
+      ? genieSpaceIndex
+      : buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId);
   const experimentIndex = buildApiIdIndex(entries, "experiments", (e) =>
     extractStateField(e, "experiment_id"),
   );
@@ -141,6 +158,7 @@ export const collectPhantomAppDependencies = (
         existingResourceKeys,
         jobIndex,
         warehouseIndex,
+        resolvedGenieSpaceIndex,
         experimentIndex,
       );
       if (phantom !== undefined) phantoms.set(phantom.id, phantom);

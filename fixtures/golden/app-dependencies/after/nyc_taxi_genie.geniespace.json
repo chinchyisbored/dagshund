@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "11111111111111111111111111111111",
+        "question": ["What is the average fare per trip?"]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "samples.nyctaxi.trips",
+        "column_configs": [
+          { "column_name": "fare_amount" },
+          { "column_name": "pickup_zip" },
+          { "column_name": "tpep_pickup_datetime" },
+          { "column_name": "trip_distance" }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "22222222222222222222222222222222",
+        "content": [
+          "Fare amounts are in USD. When asked about revenue, use SUM(fare_amount)."
+        ]
+      }
+    ]
+  }
+}

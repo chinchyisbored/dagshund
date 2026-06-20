@@ -371,6 +371,21 @@ describe("extractWarehouseEdges", () => {
       target: "sql-warehouse::qm_wh",
     });
   });
+
+  test("genie_space links to warehouse via API ID", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.genie_spaces.taxi", makeEntry({ title: "Taxi Genie", warehouse_id: "wh1" })],
+      ["resources.sql_warehouses.compute", makeEntry({ id: "wh1", name: "compute" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.genie_spaces.taxi",
+      target: "resources.sql_warehouses.compute",
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1056,6 +1071,57 @@ describe("extractAppResourceEdges", () => {
     });
   });
 
+  test("app links to genie space via API ID reverse index", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            {
+              genie_space: { name: "alias_only", space_id: "space-abc", permission: "CAN_RUN" },
+              name: "genie",
+            },
+          ],
+        }),
+      ],
+      ["resources.genie_spaces.taxi", makeEntry({ space_id: "space-abc", title: "Taxi Genie" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.genie_spaces.taxi",
+    });
+  });
+
+  test("app links to genie space via bundle resource ref", () => {
+    const spaceIdRef = "$" + "{resources.genie_spaces.taxi.id}";
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            {
+              genie_space: { name: "taxi", space_id: spaceIdRef, permission: "CAN_RUN" },
+              name: "genie",
+            },
+          ],
+        }),
+      ],
+      ["resources.genie_spaces.taxi", makeEntry({ title: "Taxi Genie" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "resources.genie_spaces.taxi",
+    });
+  });
+
   test("app links to secret scope via name-based key", () => {
     const entries: [string, PlanEntry][] = [
       [
@@ -1196,6 +1262,35 @@ describe("extractAppResourceEdges", () => {
     expect(edges[0]).toMatchObject({
       source: "resources.apps.my_app",
       target: "sql-warehouse::wh-abc",
+    });
+  });
+
+  test("app links to phantom genie space when real space not in plan", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            {
+              genie_space: { name: "taxi", space_id: "space-abc", permission: "CAN_RUN" },
+              name: "genie",
+            },
+          ],
+        }),
+      ],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.apps.my_app", "resources.apps.my_app"],
+      ["resources.genie_spaces.taxi", "genie-space::taxi"],
+    ]);
+    const nodeIds = new Set(nodeIdByResourceKey.values());
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.apps.my_app",
+      target: "genie-space::taxi",
     });
   });
 

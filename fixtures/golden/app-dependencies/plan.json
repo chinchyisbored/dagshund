@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
   "cli_version": "1.3.0",
-  "lineage": "4e5a0204-2564-4283-8054-12cc075cfa79",
+  "lineage": "730cf60e-c303-45cb-ac59-37c5d9419c27",
   "serial": 1,
   "plan": {
     "resources.apps.my_test_app": {
@@ -9,6 +9,10 @@
         {
           "node": "resources.experiments.my_experiment",
           "label": "${resources.experiments.my_experiment.id}"
+        },
+        {
+          "node": "resources.genie_spaces.nyc_taxi_genie",
+          "label": "${resources.genie_spaces.nyc_taxi_genie.id}"
         },
         {
           "node": "resources.jobs.my_etl_job",
@@ -27,7 +31,7 @@
           "resources": [
             {
               "job": {
-                "id": "71419493872955",
+                "id": "1095324626613899",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -48,8 +52,16 @@
               }
             },
             {
+              "genie_space": {
+                "name": "nyc_taxi_genie",
+                "permission": "CAN_RUN",
+                "space_id": "01f16678342d15338c7bf7ad4ddee4dc"
+              },
+              "name": "taxi_genie"
+            },
+            {
               "experiment": {
-                "experiment_id": "4452814250941397",
+                "experiment_id": "2981485989784647",
                 "permission": "CAN_READ"
               },
               "name": "experiment_tracker"
@@ -83,24 +95,24 @@
           "message": "Start the app compute to deploy the app.",
           "state": "STOPPED"
         },
-        "create_time": "2026-06-11T18:32:48Z",
+        "create_time": "2026-06-12T16:03:09Z",
         "creator": "user1@example.com",
         "description": "Test app with all resource dependency types",
         "effective_user_api_scopes": [
           "iam.current-user:read",
           "iam.access-control:read"
         ],
-        "id": "e359ca1a-e29f-47d8-8511-0bcc3cc4a41f",
+        "id": "614260d6-c50e-4146-9ab6-4fecb8626046",
         "lifecycle": {
           "started": false
         },
         "name": "my-test-app",
-        "oauth2_app_client_id": "8bc875ef-782d-4018-8181-8b4b6cf197e5",
-        "oauth2_app_integration_id": "8bc875ef-782d-4018-8181-8b4b6cf197e5",
+        "oauth2_app_client_id": "50eb74b1-17e0-4a0b-b415-2c5706e5ebe2",
+        "oauth2_app_integration_id": "50eb74b1-17e0-4a0b-b415-2c5706e5ebe2",
         "resources": [
           {
             "job": {
-              "id": "71419493872955",
+              "id": "1095324626613899",
               "permission": "CAN_MANAGE_RUN"
             },
             "name": "etl_job"
@@ -121,11 +133,11 @@
             }
           }
         ],
-        "service_principal_client_id": "e359ca1a-e29f-47d8-8511-0bcc3cc4a41f",
-        "service_principal_id": 71288235983511,
+        "service_principal_client_id": "614260d6-c50e-4146-9ab6-4fecb8626046",
+        "service_principal_id": 70946576154206,
         "service_principal_name": "app-4u0gcs my-test-app",
         "thumbnail_url": "",
-        "update_time": "2026-06-11T18:33:12Z",
+        "update_time": "2026-06-12T16:03:28Z",
         "updater": "user1@example.com",
         "url": "https://my-test-app-7474654640708173.aws.databricksapps.com"
       },
@@ -154,7 +166,7 @@
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-06-11T18:32:48Z"
+          "remote": "2026-06-12T16:03:09Z"
         },
         "creator": {
           "action": "skip",
@@ -172,7 +184,7 @@
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "e359ca1a-e29f-47d8-8511-0bcc3cc4a41f"
+          "remote": "614260d6-c50e-4146-9ab6-4fecb8626046"
         },
         "lifecycle": {
           "action": "skip",
@@ -184,19 +196,19 @@
         "oauth2_app_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "8bc875ef-782d-4018-8181-8b4b6cf197e5"
+          "remote": "50eb74b1-17e0-4a0b-b415-2c5706e5ebe2"
         },
         "oauth2_app_integration_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "8bc875ef-782d-4018-8181-8b4b6cf197e5"
+          "remote": "50eb74b1-17e0-4a0b-b415-2c5706e5ebe2"
         },
         "resources": {
           "action": "update",
           "old": [
             {
               "job": {
-                "id": "71419493872955",
+                "id": "1095324626613899",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -220,7 +232,7 @@
           "new": [
             {
               "job": {
-                "id": "71419493872955",
+                "id": "1095324626613899",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -241,8 +253,16 @@
               }
             },
             {
+              "genie_space": {
+                "name": "nyc_taxi_genie",
+                "permission": "CAN_RUN",
+                "space_id": "01f16678342d15338c7bf7ad4ddee4dc"
+              },
+              "name": "taxi_genie"
+            },
+            {
               "experiment": {
-                "experiment_id": "4452814250941397",
+                "experiment_id": "2981485989784647",
                 "permission": "CAN_READ"
               },
               "name": "experiment_tracker"
@@ -266,7 +286,7 @@
           "remote": [
             {
               "job": {
-                "id": "71419493872955",
+                "id": "1095324626613899",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -291,12 +311,12 @@
         "service_principal_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "e359ca1a-e29f-47d8-8511-0bcc3cc4a41f"
+          "remote": "614260d6-c50e-4146-9ab6-4fecb8626046"
         },
         "service_principal_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": 71288235983511
+          "remote": 70946576154206
         },
         "service_principal_name": {
           "action": "skip",
@@ -317,7 +337,7 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-06-11T18:33:12Z"
+          "remote": "2026-06-12T16:03:28Z"
         },
         "updater": {
           "action": "skip",
@@ -334,10 +354,10 @@
     "resources.experiments.my_experiment": {
       "action": "skip",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/4452814250941397",
-        "creation_time": 1781202766694,
-        "experiment_id": "4452814250941397",
-        "last_update_time": 1781202766694,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/2981485989784647",
+        "creation_time": 1781280187862,
+        "experiment_id": "2981485989784647",
+        "last_update_time": 1781280187862,
         "lifecycle_stage": "active",
         "name": "/experiments/my_experiment",
         "tags": [
@@ -367,7 +387,7 @@
         "artifact_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "dbfs:/databricks/mlflow-tracking/4452814250941397"
+          "remote": "dbfs:/databricks/mlflow-tracking/2981485989784647"
         },
         "name": {
           "action": "skip",
@@ -404,10 +424,81 @@
         }
       }
     },
+    "resources.genie_spaces.nyc_taxi_genie": {
+      "action": "skip",
+      "remote_state": {
+        "description": "Ask questions about NYC taxi trip data in natural language",
+        "etag": "c942331dc6348c5a4716c0896337aeeace3b878f512553bc4bafc1cfd2dd05ec",
+        "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-app-deps/default/resources",
+        "serialized_space": "{\n  \"version\": 2,\n  \"config\": {\n    \"sample_questions\": [\n      {\n        \"id\": \"11111111111111111111111111111111\",\n        \"question\": [\n          \"What is the average fare per trip?\"\n        ]\n      }\n    ]\n  },\n  \"data_sources\": {\n    \"tables\": [\n      {\n        \"identifier\": \"samples.nyctaxi.trips\",\n        \"column_configs\": [\n          {\n            \"column_name\": \"fare_amount\"\n          },\n          {\n            \"column_name\": \"pickup_zip\"\n          },\n          {\n            \"column_name\": \"tpep_pickup_datetime\"\n          },\n          {\n            \"column_name\": \"trip_distance\"\n          }\n        ]\n      }\n    ]\n  },\n  \"instructions\": {\n    \"text_instructions\": [\n      {\n        \"id\": \"22222222222222222222222222222222\",\n        \"content\": [\n          \"Fare amounts are in USD. When asked about revenue, use SUM(fare_amount).\"\n        ]\n      }\n    ]\n  }\n}\n",
+        "title": "NYC Taxi Trip Analysis",
+        "warehouse_id": "9d0afa601cb95187"
+      },
+      "changes": {
+        "etag": {
+          "action": "skip",
+          "reason": "custom",
+          "old": "c942331dc6348c5a4716c0896337aeeace3b878f512553bc4bafc1cfd2dd05ec",
+          "remote": "c942331dc6348c5a4716c0896337aeeace3b878f512553bc4bafc1cfd2dd05ec"
+        },
+        "serialized_space": {
+          "action": "skip",
+          "reason": "etag_based",
+          "old": "{\n  \"version\": 2,\n  \"config\": {\n    \"sample_questions\": [\n      {\n        \"id\": \"11111111111111111111111111111111\",\n        \"question\": [\"What is the average fare per trip?\"]\n      }\n    ]\n  },\n  \"data_sources\": {\n    \"tables\": [\n      {\n        \"identifier\": \"samples.nyctaxi.trips\",\n        \"column_configs\": [\n          { \"column_name\": \"fare_amount\" },\n          { \"column_name\": \"pickup_zip\" },\n          { \"column_name\": \"tpep_pickup_datetime\" },\n          { \"column_name\": \"trip_distance\" }\n        ]\n      }\n    ]\n  },\n  \"instructions\": {\n    \"text_instructions\": [\n      {\n        \"id\": \"22222222222222222222222222222222\",\n        \"content\": [\n          \"Fare amounts are in USD. When asked about revenue, use SUM(fare_amount).\"\n        ]\n      }\n    ]\n  }\n}\n",
+          "new": "{\n  \"version\": 2,\n  \"config\": {\n    \"sample_questions\": [\n      {\n        \"id\": \"11111111111111111111111111111111\",\n        \"question\": [\"What is the average fare per trip?\"]\n      }\n    ]\n  },\n  \"data_sources\": {\n    \"tables\": [\n      {\n        \"identifier\": \"samples.nyctaxi.trips\",\n        \"column_configs\": [\n          { \"column_name\": \"fare_amount\" },\n          { \"column_name\": \"pickup_zip\" },\n          { \"column_name\": \"tpep_pickup_datetime\" },\n          { \"column_name\": \"trip_distance\" }\n        ]\n      }\n    ]\n  },\n  \"instructions\": {\n    \"text_instructions\": [\n      {\n        \"id\": \"22222222222222222222222222222222\",\n        \"content\": [\n          \"Fare amounts are in USD. When asked about revenue, use SUM(fare_amount).\"\n        ]\n      }\n    ]\n  }\n}\n",
+          "remote": "{\n  \"version\": 2,\n  \"config\": {\n    \"sample_questions\": [\n      {\n        \"id\": \"11111111111111111111111111111111\",\n        \"question\": [\n          \"What is the average fare per trip?\"\n        ]\n      }\n    ]\n  },\n  \"data_sources\": {\n    \"tables\": [\n      {\n        \"identifier\": \"samples.nyctaxi.trips\",\n        \"column_configs\": [\n          {\n            \"column_name\": \"fare_amount\"\n          },\n          {\n            \"column_name\": \"pickup_zip\"\n          },\n          {\n            \"column_name\": \"tpep_pickup_datetime\"\n          },\n          {\n            \"column_name\": \"trip_distance\"\n          }\n        ]\n      }\n    ]\n  },\n  \"instructions\": {\n    \"text_instructions\": [\n      {\n        \"id\": \"22222222222222222222222222222222\",\n        \"content\": [\n          \"Fare amounts are in USD. When asked about revenue, use SUM(fare_amount).\"\n        ]\n      }\n    ]\n  }\n}\n"
+        }
+      }
+    },
+    "resources.genie_spaces.nyc_taxi_genie.permissions": {
+      "depends_on": [
+        {
+          "node": "resources.genie_spaces.nyc_taxi_genie",
+          "label": "${resources.genie_spaces.nyc_taxi_genie.id}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "object_id": "/genie/01f16678342d15338c7bf7ad4ddee4dc",
+          "__embed__": [
+            {
+              "level": "CAN_MANAGE",
+              "group_name": "users"
+            },
+            {
+              "level": "CAN_MANAGE",
+              "user_name": "user1@example.com"
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "object_id": "/genie/01f16678342d15338c7bf7ad4ddee4dc",
+        "__embed__": [
+          {
+            "level": "CAN_MANAGE",
+            "user_name": "user1@example.com"
+          },
+          {
+            "level": "CAN_RUN",
+            "group_name": "users"
+          }
+        ]
+      },
+      "changes": {
+        "[group_name='users'].level": {
+          "action": "update",
+          "old": "CAN_RUN",
+          "new": "CAN_MANAGE",
+          "remote": "CAN_RUN"
+        }
+      }
+    },
     "resources.jobs.my_etl_job": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1781202766784,
+        "created_time": 1781280187955,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -416,7 +507,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 71419493872955,
+        "job_id": 1095324626613899,
         "max_concurrent_runs": 1,
         "name": "my_etl_job",
         "queue": {
