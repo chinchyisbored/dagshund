@@ -136,18 +136,62 @@ manual `publish-test` → manual `publish`.
 
 3. Present the draft to the user for approval or editing
 4. Wait for user approval before proceeding
+5. Save the approved notes to `/tmp/dagshund-v${NEW_VERSION}-release-notes.md`
+   so both GitLab and GitHub receive real Markdown line breaks.
 
 ## Step 17: Create GitLab release
 
-1. `glab release create "v${NEW_VERSION}" --notes "<approved release notes>"`
+1. `glab release create "v${NEW_VERSION}" --notes-file "/tmp/dagshund-v${NEW_VERSION}-release-notes.md"`
 
-## Step 18: Done
+## Step 18: Create GitHub mirror release
+
+The GitLab remote mirror syncs Git refs, but it does **not** create GitHub
+Release objects. After the GitLab release exists, create the matching GitHub
+release in the configured mirror repository.
+
+1. Resolve the enabled GitHub mirror repo:
+
+   ```bash
+   PROJECT_ID=$(glab repo view --output json | jq -r '.id')
+   MIRROR_URL=$(glab api "projects/${PROJECT_ID}/remote_mirrors" | jq -r '.[] | select(.enabled and (.url | contains("github.com"))) | .url' | head -n1)
+   GITHUB_REPO=$(printf '%s\n' "$MIRROR_URL" | sed -E 's#^(ssh://)?git@github.com[:/]##; s#^https://github.com/##; s#\.git$##')
+   if [ -z "$GITHUB_REPO" ]; then
+     echo "could not resolve GitHub mirror repo"
+     exit 1
+   fi
+   ```
+
+2. Verify the mirrored tag exists before creating the release:
+
+   ```bash
+   gh api "repos/${GITHUB_REPO}/git/refs/tags/v${NEW_VERSION}" >/dev/null
+   ```
+
+   If the tag is missing, inspect the remote mirror status with
+   `glab api "projects/${PROJECT_ID}/remote_mirrors"` and wait for the mirror
+   to finish. Do not create the tag manually in GitHub.
+
+3. Create the GitHub release from the existing mirrored tag:
+
+   ```bash
+   gh release create "v${NEW_VERSION}" \
+     --repo "$GITHUB_REPO" \
+     --title "v${NEW_VERSION}" \
+     --notes-file "/tmp/dagshund-v${NEW_VERSION}-release-notes.md" \
+     --verify-tag \
+     --latest
+   ```
+
+4. Verify it exists: `gh release view "v${NEW_VERSION}" --repo "$GITHUB_REPO"`
+
+## Step 19: Done
 
 Report to the user:
 - Version bumped from OLD to NEW
 - MR squash-merged into main (linear history preserved)
 - Tag `vX.Y.Z` created on the squashed commit and pushed
 - GitLab release published
+- GitHub mirror release published
 - Remind: CI will run `version-check`, `build`, `smoke-wheel`, then the
   manual `publish-test` and `publish` jobs are available on the tag
   pipeline for PyPI
