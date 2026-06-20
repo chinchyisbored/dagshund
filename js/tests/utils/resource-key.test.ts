@@ -44,6 +44,11 @@ describe("extractTypeBadge", () => {
     expect(extractTypeBadge("resources.synced_database_tables.customer_360")).toBe(
       "synced database table",
     );
+    expect(extractTypeBadge("resources.postgres_databases.app_db")).toBe("postgres database");
+    expect(extractTypeBadge("resources.postgres_roles.data_engineers")).toBe("postgres role");
+    expect(extractTypeBadge("resources.postgres_synced_tables.phantom_table")).toBe(
+      "postgres synced table",
+    );
     expect(extractTypeBadge("resources.registered_models.fraud_detector")).toBe("model");
     expect(extractTypeBadge("resources.external_locations.my_loc")).toBe("external location");
   });
@@ -80,6 +85,7 @@ describe("isPhantomLeaf", () => {
     expect(isPhantomLeaf("schema::prod.staging")).toBe(false);
     expect(isPhantomLeaf("postgres-project::my_project")).toBe(false);
     expect(isPhantomLeaf("postgres-branch::my_project/main")).toBe(false);
+    expect(isPhantomLeaf("postgres-database::my_project/main/app_db")).toBe(false);
   });
 
   test("returns false for real resource keys", () => {
@@ -163,6 +169,7 @@ describe("extractPhantomBadge", () => {
     expect(extractPhantomBadge("genie-space::space-abc")).toBe("genie");
     expect(extractPhantomBadge("postgres-project::my_project")).toBe("postgres project");
     expect(extractPhantomBadge("postgres-branch::proj/main")).toBe("postgres branch");
+    expect(extractPhantomBadge("postgres-database::proj/main/app_db")).toBe("postgres database");
   });
 
   test("falls back to extractTypeBadge for real resource keys", () => {

@@ -1,4 +1,4 @@
-dagshund plan (v2, cli 1.3.0)
+dagshund plan (v2, cli 1.4.0)
 
   postgres_branches (3)
   + postgres_branches/dev_branch  (create)
@@ -9,9 +9,11 @@ dagshund plan (v2, cli 1.3.0)
   postgres_catalogs (1)
   + postgres_catalogs/dev_catalog  (create)
 
-  postgres_endpoints (3)
+  postgres_databases (1)
+  = postgres_databases/app_database
+
+  postgres_endpoints (2)
   + postgres_endpoints/dev_endpoint  (create)
-  + postgres_endpoints/external_reader_endpoint  (create)
   = postgres_endpoints/prd_endpoint
 
   postgres_projects (1)
@@ -19,4 +21,10 @@ dagshund plan (v2, cli 1.3.0)
       + custom_tags: [{key: "env", value: "prd"}]
       + permissions.[group_name='data_analysts']: {level: "CAN_USE", group_name: "data_analysts"}
 
-  +5 create, =1 unchanged, ~2 update
+  postgres_roles (1)
+  = postgres_roles/data_engineers
+
+  postgres_synced_tables (1)
+  + postgres_synced_tables/phantom_table  (create)
+
+  +5 create, =3 unchanged, ~2 update

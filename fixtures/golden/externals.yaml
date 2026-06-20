@@ -17,6 +17,9 @@ variables:
   phantom_schema:
     description: Pre-existing schema with phantom test resources (table, model)
     default: phantom_schema
+  phantom_table:
+    description: Pre-existing table in phantom_schema for Lakebase synced-table coverage
+    default: phantom_table
   external_pipeline_id:
     description: Pre-existing DLT pipeline ID for phantom pipeline_task references
     default: "38a5d519-ec0f-4cc7-8431-8435a3824365"

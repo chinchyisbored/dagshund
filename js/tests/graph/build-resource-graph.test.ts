@@ -659,7 +659,10 @@ describe("isPostgresType", () => {
   test("returns true for postgres types", () => {
     expect(isPostgresType("postgres_projects")).toBe(true);
     expect(isPostgresType("postgres_branches")).toBe(true);
+    expect(isPostgresType("postgres_databases")).toBe(true);
     expect(isPostgresType("postgres_endpoints")).toBe(true);
+    expect(isPostgresType("postgres_roles")).toBe(true);
+    expect(isPostgresType("postgres_synced_tables")).toBe(true);
   });
 
   test("returns false for non-postgres types", () => {
@@ -777,6 +780,60 @@ describe("postgres hierarchy", () => {
     expect(edgePairs).not.toContain("postgres-root→resources.postgres_endpoints.dev_endpoint");
   });
 
+  test("branch children resolve to branch resource from parent or branch fields", () => {
+    const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_branches.dev_branch": {
+          action: "create",
+          new_state: { value: { branch_id: "dev", parent: "projects/dagshund" } },
+        },
+        "resources.postgres_databases.app_database": {
+          action: "create",
+          new_state: {
+            value: {
+              parent: branchIdRef,
+              database_id: "app-db",
+              postgres_database: "app_db",
+            },
+          },
+        },
+        "resources.postgres_roles.data_engineers": {
+          action: "create",
+          new_state: {
+            value: {
+              parent: branchIdRef,
+              role_id: "data-engineers",
+              postgres_role: "data_engineers",
+            },
+          },
+        },
+        "resources.postgres_synced_tables.phantom_table": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: branchIdRef,
+              postgres_database: "app_db",
+              source_table_full_name: "dagshund.phantom_schema.phantom_table",
+              synced_table_id: "dagshund_lakebase.public.phantom_table",
+            },
+          },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain(
+      "resources.postgres_branches.dev_branch→resources.postgres_databases.app_database",
+    );
+    expect(edgePairs).toContain(
+      "resources.postgres_branches.dev_branch→resources.postgres_roles.data_engineers",
+    );
+    expect(edgePairs).toContain(
+      "resources.postgres_databases.app_database→resources.postgres_synced_tables.phantom_table",
+    );
+  });
+
   test("derived branch has lateral lineage edge to source branch", () => {
     const graph = buildResourceGraph({
       plan: {
@@ -846,17 +903,18 @@ describe("postgres hierarchy", () => {
     );
   });
 
-  test("lakebase-autoscaling fixture creates external branch and endpoint phantoms", async () => {
+  test("lakebase-autoscaling fixture creates external lineage phantom only", async () => {
     const graph = buildResourceGraph(await loadFixture("lakebase-autoscaling"));
 
     const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("postgres-project::phantom-lakebase");
-    expect(nodeIds).toContain("postgres-branch::phantom-lakebase/production");
+    expect(nodeIds).not.toContain("postgres-project::phantom-lakebase");
+    expect(nodeIds).not.toContain("postgres-branch::phantom-lakebase/production");
     expect(nodeIds).toContain("postgres-project::phantom-lineage-lakebase");
     expect(nodeIds).toContain("postgres-branch::phantom-lineage-lakebase/production");
+    expect(nodeIds).not.toContain("resources.postgres_endpoints.external_reader_endpoint");
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain(
+    expect(edgePairs).not.toContain(
       "postgres-branch::phantom-lakebase/production→resources.postgres_endpoints.external_reader_endpoint",
     );
     expect(edgePairs).toContain(
@@ -1062,6 +1120,49 @@ describe("synced_database_tables in UC", () => {
   });
 });
 
+describe("postgres_synced_tables source phantoms", () => {
+  test("source_table_full_name creates a UC source-table phantom", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.phantom_table": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: "projects/dagshund/branches/dev",
+              postgres_database: "app_db",
+              source_table_full_name: "dagshund.phantom_schema.phantom_table",
+              synced_table_id: "dagshund_lakebase.public.phantom_table",
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((n) => n.id);
+    expect(nodeIds).toContain("source-table::dagshund.phantom_schema.phantom_table");
+    expect(nodeIds).toContain("postgres-database::dagshund/dev/app_db");
+
+    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    expect(edgePairs).toContain("uc-root→catalog::dagshund");
+    expect(edgePairs).toContain("catalog::dagshund→schema::dagshund.phantom_schema");
+    expect(edgePairs).toContain(
+      "schema::dagshund.phantom_schema→source-table::dagshund.phantom_schema.phantom_table",
+    );
+    expect(edgePairs).toContain("postgres-project::dagshund→postgres-branch::dagshund/dev");
+    expect(edgePairs).toContain(
+      "postgres-branch::dagshund/dev→postgres-database::dagshund/dev/app_db",
+    );
+    expect(edgePairs).toContain(
+      "postgres-database::dagshund/dev/app_db→resources.postgres_synced_tables.phantom_table",
+    );
+
+    const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
+    expect(lateralEdgePairs).toContain(
+      "resources.postgres_synced_tables.phantom_table→source-table::dagshund.phantom_schema.phantom_table",
+    );
+  });
+});
+
 describe("database_instances as flat workspace resources", () => {
   test("database_instance appears under workspace-root", () => {
     const graph = buildResourceGraph({
@@ -1146,7 +1247,7 @@ describe("database_catalogs in UC", () => {
 });
 
 describe("postgres_catalogs in UC", () => {
-  test("postgres catalog renders as UC catalog with lateral edge to branch", () => {
+  test("postgres catalog renders as UC catalog with lateral edge to database phantom", () => {
     const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
     const graph = buildResourceGraph({
       plan: {
@@ -1169,6 +1270,7 @@ describe("postgres_catalogs in UC", () => {
 
     const nodeIds = graph.nodes.map((n) => n.id);
     expect(nodeIds).toContain("catalog::dagshund_lakebase");
+    expect(nodeIds).toContain("postgres-database::dagshund/dev/dagshund_lakebase");
     expect(nodeIds).not.toContain("resources.postgres_catalogs.dev_catalog");
 
     const catalogNode = graph.nodes.find((n) => n.id === "catalog::dagshund_lakebase");
@@ -1176,11 +1278,14 @@ describe("postgres_catalogs in UC", () => {
 
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain("uc-root→catalog::dagshund_lakebase");
+    expect(edgePairs).toContain(
+      "resources.postgres_branches.dev_branch→postgres-database::dagshund/dev/dagshund_lakebase",
+    );
     expect(edgePairs).not.toContain("other-resources-root→resources.postgres_catalogs.dev_catalog");
 
     const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
     expect(lateralEdgePairs).toContain(
-      "catalog::dagshund_lakebase→resources.postgres_branches.dev_branch",
+      "catalog::dagshund_lakebase→postgres-database::dagshund/dev/dagshund_lakebase",
     );
   });
 });

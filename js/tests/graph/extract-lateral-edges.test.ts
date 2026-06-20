@@ -132,20 +132,28 @@ describe("extractDatabaseInstanceEdges", () => {
 });
 
 // ---------------------------------------------------------------------------
-// postgres_catalog.branch (postgres_catalog → postgres_branch)
+// postgres_database target (postgres_catalog → postgres_database)
 // ---------------------------------------------------------------------------
 
-describe("extractPostgresCatalogBranchEdges", () => {
-  test("postgres catalog links to branch via bundle resource ref", () => {
+describe("extractPostgresDatabaseTargetEdges", () => {
+  test("postgres catalog links to database resource via bundle branch ref", () => {
     const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
     const entries: [string, PlanEntry][] = [
       [
         "resources.postgres_catalogs.dev_catalog",
-        makeEntry({ branch: branchIdRef, catalog_id: "dagshund_lakebase" }),
+        makeEntry({
+          branch: branchIdRef,
+          catalog_id: "dagshund_lakebase",
+          postgres_database: "app_db",
+        }),
       ],
       [
         "resources.postgres_branches.dev_branch",
         makeEntry({ branch_id: "dev", parent: "projects/dagshund" }),
+      ],
+      [
+        "resources.postgres_databases.app_database",
+        makeEntry({ parent: branchIdRef, database_id: "app-db", postgres_database: "app_db" }),
       ],
     ];
     const overrides = new Map([
@@ -157,31 +165,35 @@ describe("extractPostgresCatalogBranchEdges", () => {
     expect(edges).toHaveLength(1);
     expect(edges[0]).toMatchObject({
       source: "catalog::dagshund_lakebase",
-      target: "resources.postgres_branches.dev_branch",
+      target: "resources.postgres_databases.app_database",
     });
   });
 
-  test("postgres catalog links to branch via concrete branch path", () => {
+  test("postgres catalog links to database phantom via concrete branch path", () => {
     const entries: [string, PlanEntry][] = [
       [
         "resources.postgres_catalogs.dev_catalog",
-        makeEntry({ branch: "projects/dagshund/branches/dev", catalog_id: "dagshund_lakebase" }),
-      ],
-      [
-        "resources.postgres_branches.dev_branch",
-        makeEntry({ branch_id: "dev", parent: "projects/dagshund" }),
+        makeEntry({
+          branch: "projects/dagshund/branches/dev",
+          catalog_id: "dagshund_lakebase",
+          postgres_database: "app_db",
+        }),
       ],
     ];
-    const overrides = new Map([
+    const nodeIdByResourceKey = new Map([
       ["resources.postgres_catalogs.dev_catalog", "catalog::dagshund_lakebase"],
     ]);
+    const nodeIds = new Set([
+      "catalog::dagshund_lakebase",
+      "postgres-database::dagshund/dev/app_db",
+    ]);
 
-    const edges = extractLateralEdges(makeContext(entries, overrides));
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
 
     expect(edges).toHaveLength(1);
     expect(edges[0]).toMatchObject({
       source: "catalog::dagshund_lakebase",
-      target: "resources.postgres_branches.dev_branch",
+      target: "postgres-database::dagshund/dev/app_db",
     });
   });
 });
@@ -241,6 +253,73 @@ describe("extractPostgresBranchSourceEdges", () => {
     expect(edges[0]).toMatchObject({
       source: "resources.postgres_branches.dev_branch",
       target: "postgres-branch::phantom-lineage-lakebase/production",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// postgres_database.role (postgres_database → postgres_role)
+// ---------------------------------------------------------------------------
+
+describe("extractPostgresDatabaseRoleEdges", () => {
+  test("postgres database links to owner role via bundle resource ref", () => {
+    const roleIdRef = "$" + "{resources.postgres_roles.data_engineers.id}";
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_databases.app_database",
+        makeEntry({
+          parent: "projects/dagshund/branches/dev",
+          database_id: "app-db",
+          postgres_database: "app_db",
+          role: roleIdRef,
+        }),
+      ],
+      [
+        "resources.postgres_roles.data_engineers",
+        makeEntry({
+          parent: "projects/dagshund/branches/dev",
+          role_id: "data-engineers",
+          postgres_role: "data_engineers",
+        }),
+      ],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.postgres_databases.app_database",
+      target: "resources.postgres_roles.data_engineers",
+    });
+  });
+
+  test("postgres database links to owner role via concrete role path", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_databases.app_database",
+        makeEntry({
+          parent: "projects/dagshund/branches/dev",
+          database_id: "app-db",
+          postgres_database: "app_db",
+          role: "projects/dagshund/branches/dev/roles/data-engineers",
+        }),
+      ],
+      [
+        "resources.postgres_roles.data_engineers",
+        makeEntry({
+          parent: "projects/dagshund/branches/dev",
+          role_id: "data-engineers",
+          postgres_role: "data_engineers",
+        }),
+      ],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.postgres_databases.app_database",
+      target: "resources.postgres_roles.data_engineers",
     });
   });
 });
@@ -942,6 +1021,40 @@ describe("extractSourceTableEdges", () => {
     expect(sourceTableEdges[0]).toMatchObject({
       source: "resources.synced_database_tables.customer_360",
       target: "source-table::dagshund.analytics.customer_profiles",
+      diffState: "unchanged",
+    });
+  });
+
+  test("postgres synced table links to source-table phantom when both exist", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_synced_tables.phantom_table",
+        makeEntry({
+          branch: "projects/dagshund/branches/dev",
+          postgres_database: "app_db",
+          source_table_full_name: "dagshund.phantom_schema.phantom_table",
+          synced_table_id: "dagshund_lakebase.public.phantom_table",
+        }),
+      ],
+    ];
+    const nodeIds = new Set([
+      "resources.postgres_synced_tables.phantom_table",
+      "source-table::dagshund.phantom_schema.phantom_table",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      [
+        "resources.postgres_synced_tables.phantom_table",
+        "resources.postgres_synced_tables.phantom_table",
+      ],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    const sourceTableEdges = edges.filter((e) => e.target.startsWith("source-table::"));
+    expect(sourceTableEdges).toHaveLength(1);
+    expect(sourceTableEdges[0]).toMatchObject({
+      source: "resources.postgres_synced_tables.phantom_table",
+      target: "source-table::dagshund.phantom_schema.phantom_table",
       diffState: "unchanged",
     });
   });

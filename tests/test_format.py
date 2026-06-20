@@ -648,6 +648,7 @@ def test_collect_warnings_ignores_stateful_skip() -> None:
         ("database_instances", "all catalogs and tables on this instance"),
         ("postgres_projects", "all branches and endpoints in this project"),
         ("postgres_branches", "all data on this branch"),
+        ("postgres_databases", "all data in this Lakebase database"),
     ],
     ids=[
         "catalogs",
@@ -658,6 +659,7 @@ def test_collect_warnings_ignores_stateful_skip() -> None:
         "database_instances",
         "postgres_projects",
         "postgres_branches",
+        "postgres_databases",
     ],
 )
 def test_collect_warnings_all_stateful_types(resource_type: str, expected_risk: str) -> None:

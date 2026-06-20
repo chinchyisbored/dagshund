@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.3.0",
-  "lineage": "809c61b8-a8af-4b80-bd80-ca75bcd01164",
+  "cli_version": "1.4.0",
+  "lineage": "45f19600-df9a-4b00-90fc-a9fbd080262f",
   "serial": 1,
   "plan": {
     "resources.postgres_branches.dev_branch": {
@@ -55,7 +55,7 @@
       },
       "remote_state": {
         "branch_id": "prd",
-        "create_time": "2026-06-11T18:20:52Z",
+        "create_time": "2026-06-20T05:42:27Z",
         "name": "projects/dagshund/branches/prd",
         "parent": "projects/dagshund",
         "status": {
@@ -64,10 +64,10 @@
           "default": true,
           "is_protected": true,
           "logical_size_bytes": 0,
-          "state_change_time": "2026-06-11T18:20:54Z"
+          "state_change_time": "2026-06-20T05:42:28Z"
         },
-        "uid": "br-muddy-mode-d8vgw3vv",
-        "update_time": "2026-06-11T18:21:02Z"
+        "uid": "br-dawn-art-d8kfrd1f",
+        "update_time": "2026-06-20T05:42:33Z"
       },
       "changes": {
         "is_protected": {
@@ -101,11 +101,49 @@
         "value": {
           "branch": "${resources.postgres_branches.dev_branch.id}",
           "catalog_id": "dagshund_lakebase",
-          "create_database_if_missing": true,
-          "postgres_database": "dagshund_lakebase"
+          "postgres_database": "app_db"
         },
         "vars": {
           "branch": "${resources.postgres_branches.dev_branch.id}"
+        }
+      }
+    },
+    "resources.postgres_databases.app_database": {
+      "depends_on": [
+        {
+          "node": "resources.postgres_branches.prd_branch",
+          "label": "${resources.postgres_branches.prd_branch.id}"
+        },
+        {
+          "node": "resources.postgres_roles.data_engineers",
+          "label": "${resources.postgres_roles.data_engineers.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "create_time": "2026-06-20T05:42:35Z",
+        "database_id": "app-db",
+        "name": "projects/dagshund/branches/prd/databases/app-db",
+        "parent": "projects/dagshund/branches/prd",
+        "status": {
+          "database_id": "app-db",
+          "postgres_database": "app_db",
+          "role": "projects/dagshund/branches/prd/roles/data-engineers"
+        },
+        "update_time": "2026-06-20T05:42:37Z"
+      },
+      "changes": {
+        "postgres_database": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "app_db",
+          "new": "app_db"
+        },
+        "role": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "projects/dagshund/branches/prd/roles/data-engineers",
+          "new": "projects/dagshund/branches/prd/roles/data-engineers"
         }
       }
     },
@@ -131,18 +169,6 @@
         }
       }
     },
-    "resources.postgres_endpoints.external_reader_endpoint": {
-      "action": "create",
-      "new_state": {
-        "value": {
-          "autoscaling_limit_max_cu": 1,
-          "autoscaling_limit_min_cu": 0.5,
-          "endpoint_id": "dagshund-reader",
-          "endpoint_type": "ENDPOINT_TYPE_READ_ONLY",
-          "parent": "projects/phantom-lakebase/branches/production"
-        }
-      }
-    },
     "resources.postgres_endpoints.prd_endpoint": {
       "depends_on": [
         {
@@ -152,7 +178,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-06-11T18:20:52Z",
+        "create_time": "2026-06-20T05:42:27Z",
         "endpoint_id": "primary",
         "endpoint_type": "",
         "name": "projects/dagshund/branches/prd/endpoints/primary",
@@ -170,13 +196,13 @@
             "min": 1
           },
           "hosts": {
-            "host": "ep-ancient-dream-d806cku2.database.us-east-2.cloud.databricks.com"
+            "host": "ep-quiet-rice-d8l3jxsf.database.us-east-2.cloud.databricks.com"
           },
           "settings": {},
           "suspend_timeout_duration": "86400s"
         },
-        "uid": "ep-ancient-dream-d806cku2",
-        "update_time": "2026-06-11T18:21:04Z"
+        "uid": "ep-quiet-rice-d8l3jxsf",
+        "update_time": "2026-06-20T05:42:37Z"
       },
       "changes": {
         "autoscaling_limit_max_cu": {
@@ -224,7 +250,7 @@
         }
       },
       "remote_state": {
-        "create_time": "2026-06-11T18:20:52Z",
+        "create_time": "2026-06-20T05:42:27Z",
         "name": "projects/dagshund",
         "project_id": "dagshund",
         "status": {
@@ -243,8 +269,8 @@
           "project_id": "dagshund",
           "synthetic_storage_size_bytes": 0
         },
-        "uid": "b680cf78-1c79-4c49-a0fb-fb11803a035a",
-        "update_time": "2026-06-11T18:20:54Z"
+        "uid": "71108cb8-82d5-4963-a4f5-1e05bc20b667",
+        "update_time": "2026-06-20T05:42:28Z"
       },
       "changes": {
         "custom_tags": {
@@ -329,6 +355,109 @@
             "level": "CAN_USE",
             "group_name": "data_analysts"
           }
+        }
+      }
+    },
+    "resources.postgres_roles.data_engineers": {
+      "depends_on": [
+        {
+          "node": "resources.postgres_branches.prd_branch",
+          "label": "${resources.postgres_branches.prd_branch.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "create_time": "2026-06-20T05:42:34Z",
+        "name": "projects/dagshund/branches/prd/roles/data-engineers",
+        "parent": "projects/dagshund/branches/prd",
+        "role_id": "data-engineers",
+        "status": {
+          "attributes": {
+            "bypassrls": true,
+            "createdb": true,
+            "createrole": true
+          },
+          "auth_method": "LAKEBASE_OAUTH_V1",
+          "identity_type": "GROUP",
+          "postgres_role": "data_engineers",
+          "role_id": "data-engineers"
+        },
+        "update_time": "2026-06-20T05:42:37Z"
+      },
+      "changes": {
+        "attributes": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": {
+            "bypassrls": true,
+            "createdb": true,
+            "createrole": true
+          },
+          "new": {
+            "bypassrls": true,
+            "createdb": true,
+            "createrole": true
+          }
+        },
+        "identity_type": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "GROUP",
+          "new": "GROUP"
+        },
+        "parent": {
+          "action": "skip",
+          "reason": "remote_already_set",
+          "old": "",
+          "new": "projects/dagshund/branches/prd",
+          "remote": "projects/dagshund/branches/prd"
+        },
+        "postgres_role": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "data_engineers",
+          "new": "data_engineers"
+        },
+        "role_id": {
+          "action": "skip",
+          "reason": "remote_already_set",
+          "old": "",
+          "new": "data-engineers",
+          "remote": "data-engineers"
+        }
+      }
+    },
+    "resources.postgres_synced_tables.phantom_table": {
+      "depends_on": [
+        {
+          "node": "resources.postgres_branches.dev_branch",
+          "label": "${resources.postgres_branches.dev_branch.id}"
+        },
+        {
+          "node": "resources.postgres_catalogs.dev_catalog",
+          "label": "${resources.postgres_catalogs.dev_catalog.catalog_id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "branch": "${resources.postgres_branches.dev_branch.id}",
+          "create_database_objects_if_missing": true,
+          "new_pipeline_spec": {
+            "storage_catalog": "dagshund",
+            "storage_schema": "phantom_schema"
+          },
+          "postgres_database": "app_db",
+          "primary_key_columns": [
+            "tpep_pickup_datetime",
+            "tpep_dropoff_datetime"
+          ],
+          "scheduling_policy": "SNAPSHOT",
+          "source_table_full_name": "dagshund.phantom_schema.phantom_table",
+          "synced_table_id": "dagshund_lakebase.public.phantom_table"
+        },
+        "vars": {
+          "branch": "${resources.postgres_branches.dev_branch.id}"
         }
       }
     }

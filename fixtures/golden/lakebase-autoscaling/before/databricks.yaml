@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
 # Baseline Lakebase Autoscaling structure.
 # Project dagshund has a protected prd branch and its implicit primary
-# read-write endpoint managed explicitly with replace_existing.
+# read-write endpoint managed explicitly with replace_existing. It also creates
+# an app database on prd owned by a Databricks group-backed Postgres role.
 bundle:
   name: dagshund-golden-lakebase-autoscaling
   databricks_cli_version: ">=1.0.0"
@@ -29,6 +30,24 @@ resources:
       is_protected: true
       no_expiry: true
       replace_existing: true
+
+  postgres_roles:
+    data_engineers:
+      parent: ${resources.postgres_branches.prd_branch.id}
+      role_id: data-engineers
+      postgres_role: data_engineers
+      identity_type: GROUP
+      attributes:
+        createdb: true
+        createrole: true
+        bypassrls: true
+
+  postgres_databases:
+    app_database:
+      parent: ${resources.postgres_branches.prd_branch.id}
+      database_id: app-db
+      postgres_database: app_db
+      role: ${resources.postgres_roles.data_engineers.id}
 
   postgres_endpoints:
     prd_endpoint:

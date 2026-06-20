@@ -61,6 +61,8 @@ export const extractResourceState = (
 export const extractSourceTableFullName = (entry: PlanEntry): string | undefined => {
   const state = extractResourceState(entry);
   if (state === undefined) return undefined;
+  const topLevelName = state["source_table_full_name"];
+  if (typeof topLevelName === "string") return topLevelName;
   const name = getUnknownProp(state["spec"], "source_table_full_name");
   return typeof name === "string" ? name : undefined;
 };

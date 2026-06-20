@@ -41,6 +41,7 @@ export const extractPhantomBadge = (resourceKey: string): string | undefined => 
   if (resourceKey.startsWith("registered-model::")) return "model";
   if (resourceKey.startsWith("postgres-project::")) return "postgres project";
   if (resourceKey.startsWith("postgres-branch::")) return "postgres branch";
+  if (resourceKey.startsWith("postgres-database::")) return "postgres database";
   return extractTypeBadge(resourceKey);
 };
 
@@ -111,8 +112,11 @@ const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {
   clusters: "cluster",
   model_serving_endpoints: "serving",
   postgres_branches: "postgres branch",
+  postgres_databases: "postgres database",
   postgres_endpoints: "postgres endpoint",
   postgres_projects: "postgres project",
+  postgres_roles: "postgres role",
+  postgres_synced_tables: "postgres synced table",
   quality_monitors: "monitor",
   sql_warehouses: "warehouse",
   secret_scopes: "secret",

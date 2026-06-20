@@ -43,6 +43,9 @@ import {
   parsePostgresProjectPath,
   resolvePostgresBranchIdentity,
   resolvePostgresBranchRefIdentity,
+  resolvePostgresBranchRefIdentityFromEntries,
+  resolvePostgresDatabaseIdentity,
+  resolvePostgresDatabaseResourceKey,
 } from "./postgres-paths.ts";
 import { buildJobIdMap } from "./resolve-run-job-target.ts";
 
@@ -73,7 +76,10 @@ const UC_TYPES: ReadonlySet<string> = new Set([
 const POSTGRES_TYPES: ReadonlySet<string> = new Set([
   "postgres_projects",
   "postgres_branches",
+  "postgres_databases",
   "postgres_endpoints",
+  "postgres_roles",
+  "postgres_synced_tables",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -266,9 +272,17 @@ type TierSpec = {
   /** Plan resource types that sit at this tier. */
   readonly resourceTypes: ReadonlySet<string>;
   /** Extract this node's identity (the key children use to reference it). */
-  readonly resolveIdentity: (entry: PlanEntry, key: string) => string | undefined;
+  readonly resolveIdentity: (
+    entry: PlanEntry,
+    key: string,
+    entries: readonly (readonly [string, PlanEntry])[],
+  ) => string | undefined;
   /** Extract the parent's identity at the tier above. Returns string for tier-1, object for a specific tier. */
-  readonly resolveParentRef: (entry: PlanEntry, key: string) => ParentRef | undefined;
+  readonly resolveParentRef: (
+    entry: PlanEntry,
+    key: string,
+    entries: readonly (readonly [string, PlanEntry])[],
+  ) => ParentRef | undefined;
   /** Derive a phantom's parent identity from its own identity (for upward chain propagation). */
   readonly deriveParentRef?: (identity: string) => string | undefined;
   /** Build the node ID for this tier (used by both real container nodes and phantoms). */
@@ -296,6 +310,11 @@ type ExternalLeafPhantomRef = {
   readonly phantomId: string;
   /** Display label (e.g. "phantom_model"). */
   readonly label: string;
+};
+
+type ExternalHierarchyRef = {
+  readonly identity: string;
+  readonly tierIndex: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -384,6 +403,28 @@ const resolvePostgresBranchParentRef = (parent: string): ParentRef | undefined =
     : undefined;
 };
 
+const resolvePostgresBranchChildParentRef = (entry: PlanEntry): ParentRef | undefined => {
+  const parent = extractStateField(entry, "parent") ?? extractStateField(entry, "branch");
+  return parent !== undefined ? resolvePostgresBranchParentRef(parent) : undefined;
+};
+
+const resolvePostgresDatabaseParentRef = (
+  entry: PlanEntry,
+  entries: readonly (readonly [string, PlanEntry])[],
+): ParentRef | undefined => {
+  const branch = extractStateField(entry, "branch");
+  const postgresDatabase = extractStateField(entry, "postgres_database");
+  if (branch === undefined || postgresDatabase === undefined) return undefined;
+
+  const targetKey = resolvePostgresDatabaseResourceKey(branch, postgresDatabase, entries);
+  if (targetKey !== undefined) return resourceKeyRef(targetKey, 2);
+
+  const branchIdentity = resolvePostgresBranchRefIdentityFromEntries(branch, entries);
+  return branchIdentity !== undefined
+    ? tierIdentityRef(`${branchIdentity}/${postgresDatabase}`, 2)
+    : undefined;
+};
+
 const POSTGRES_CHAIN: ChainSpec = {
   rootId: "postgres-root",
   rootLabel: "Lakebase",
@@ -414,18 +455,27 @@ const POSTGRES_CHAIN: ChainSpec = {
       },
     },
     {
-      name: "endpoint",
-      resourceTypes: new Set(["postgres_endpoints"]),
+      name: "branch child",
+      resourceTypes: new Set(["postgres_databases", "postgres_endpoints", "postgres_roles"]),
+      resolveIdentity: (entry, key, entries) =>
+        extractResourceType(key) === "postgres_databases"
+          ? resolvePostgresDatabaseIdentity(entry, entries)
+          : undefined,
+      resolveParentRef: (entry) => resolvePostgresBranchChildParentRef(entry),
+      deriveParentRef: (identity) => identity.split("/").slice(0, 2).join("/"),
+      buildHierarchyId: (identity) => `postgres-database::${identity}`,
+    },
+    {
+      name: "database child",
+      resourceTypes: new Set(["postgres_synced_tables"]),
       resolveIdentity: () => undefined,
-      resolveParentRef: (entry) => {
-        const parent = extractStateField(entry, "parent");
-        return parent !== undefined ? resolvePostgresBranchParentRef(parent) : undefined;
-      },
-      deriveParentRef: undefined,
+      resolveParentRef: (entry, _key, entries) => resolvePostgresDatabaseParentRef(entry, entries),
       buildHierarchyId: () => "",
     },
   ],
 };
+
+const POSTGRES_DATABASE_TIER_INDEX = 2;
 
 // ---------------------------------------------------------------------------
 // Generic chain traversal
@@ -448,7 +498,7 @@ const buildTierIndexes = (
     for (const [key, entry] of entries) {
       const resourceType = extractResourceType(key);
       if (resourceType === undefined || !tier.resourceTypes.has(resourceType)) continue;
-      const identity = tier.resolveIdentity(entry, key);
+      const identity = tier.resolveIdentity(entry, key, entries);
       const nodeId =
         tier.useHierarchyId === true && identity !== undefined
           ? tier.buildHierarchyId(identity)
@@ -516,9 +566,10 @@ const resolveEntryNode = (
   key: string,
   entry: PlanEntry,
   tier: TierSpec,
+  entries: readonly (readonly [string, PlanEntry])[],
 ): { readonly node: ResourceGraphNode; readonly nodeId: string } => {
   if (tier.useHierarchyId === true) {
-    const identity = tier.resolveIdentity(entry, key);
+    const identity = tier.resolveIdentity(entry, key, entries);
     if (identity !== undefined) {
       const hierarchyId = tier.buildHierarchyId(identity);
       const label = extractResourceType(key) === "postgres_catalogs" ? identity : undefined;
@@ -540,10 +591,11 @@ const resolveEntryParent = (
   tierIndex: number,
   spec: ChainSpec,
   tierIndexes: readonly TierIndex[],
+  entries: readonly (readonly [string, PlanEntry])[],
   phantomAccumulator: Map<string, PhantomGraphNode>,
   phantomEdgeAccumulator: (GraphEdge | undefined)[],
 ): string => {
-  const rawParentRef = tier.resolveParentRef(entry, key);
+  const rawParentRef = tier.resolveParentRef(entry, key, entries);
   if (rawParentRef === undefined) return spec.rootId;
 
   if (rawParentRef.kind === "resource-key") {
@@ -574,9 +626,11 @@ const buildChainGraph = (
   entries: readonly (readonly [string, PlanEntry])[],
   spec: ChainSpec,
   externalLeafPhantomRefs?: readonly ExternalLeafPhantomRef[],
+  externalHierarchyRefs?: readonly ExternalHierarchyRef[],
 ): PlanGraph => {
   const hasExternalRefs =
-    externalLeafPhantomRefs !== undefined && externalLeafPhantomRefs.length > 0;
+    (externalLeafPhantomRefs !== undefined && externalLeafPhantomRefs.length > 0) ||
+    (externalHierarchyRefs !== undefined && externalHierarchyRefs.length > 0);
   if (entries.length === 0 && !hasExternalRefs) return { nodes: [], edges: [] };
 
   const root = buildRootNode(spec.rootId, spec.rootLabel);
@@ -598,7 +652,7 @@ const buildChainGraph = (
     const tier = spec.tiers[tierIndex];
     if (tier === undefined) continue;
 
-    const { node, nodeId } = resolveEntryNode(key, entry, tier);
+    const { node, nodeId } = resolveEntryNode(key, entry, tier, entries);
     resourceNodes.push(node);
 
     const parentNodeId = resolveEntryParent(
@@ -608,6 +662,7 @@ const buildChainGraph = (
       tierIndex,
       spec,
       tierIndexes,
+      entries,
       phantomNodes,
       phantomEdges,
     );
@@ -622,7 +677,7 @@ const buildChainGraph = (
       const resourceType = extractResourceType(key);
       if (resourceType === undefined || !referencedTier.resourceTypes.has(resourceType)) continue;
       const identity =
-        referencedTier.resolveIdentity(entry, key) ?? extractStateField(entry, "name");
+        referencedTier.resolveIdentity(entry, key, entries) ?? extractStateField(entry, "name");
       if (identity !== undefined) realNames.add(identity);
     }
 
@@ -641,6 +696,19 @@ const buildChainGraph = (
         // Edge from phantom's parent is created by resolveParentChain.
         void phantomId;
       }
+    }
+  }
+
+  if (externalHierarchyRefs !== undefined && externalHierarchyRefs.length > 0) {
+    for (const ref of externalHierarchyRefs) {
+      resolveParentChain(
+        ref.identity,
+        ref.tierIndex,
+        spec,
+        tierIndexes,
+        phantomNodes,
+        phantomEdges,
+      );
     }
   }
 
@@ -684,9 +752,10 @@ const buildChainGraph = (
 const buildWorkspaceGraph = (
   workspaceEntries: readonly (readonly [string, PlanEntry])[],
   postgresEntries: readonly (readonly [string, PlanEntry])[],
+  externalPostgresHierarchyRefs: readonly ExternalHierarchyRef[],
 ): PlanGraph & { readonly flatParentId: string } => {
   const hasWorkspace = workspaceEntries.length > 0;
-  const hasPostgres = postgresEntries.length > 0;
+  const hasPostgres = postgresEntries.length > 0 || externalPostgresHierarchyRefs.length > 0;
 
   if (!hasWorkspace && !hasPostgres)
     return { nodes: [], edges: [], flatParentId: "workspace-root" };
@@ -695,7 +764,7 @@ const buildWorkspaceGraph = (
 
   // Postgres hierarchy
   const postgresGraph = hasPostgres
-    ? buildChainGraph(postgresEntries, POSTGRES_CHAIN)
+    ? buildChainGraph(postgresEntries, POSTGRES_CHAIN, undefined, externalPostgresHierarchyRefs)
     : { nodes: [], edges: [] };
   const postgresRootEdge = hasPostgres
     ? filterDefinedEdges([buildEdge("workspace-root", "postgres-root")])
@@ -782,6 +851,18 @@ const collectExternalLeafPhantomRefs = (
     });
   }
 
+  // Phantom source tables from Lakebase synced-table sources.
+  for (const [key, entry] of entries) {
+    if (extractResourceType(key) !== "postgres_synced_tables") continue;
+    const tableName = extractSourceTableFullName(entry);
+    if (tableName === undefined || parseThreePartName(tableName) === undefined) continue;
+    refs.push({
+      identity: tableName,
+      phantomId: `source-table::${tableName}`,
+      label: tableName.split(".").at(-1) ?? tableName,
+    });
+  }
+
   // Phantom tables from app uc_securable
   for (const [key, entry] of entries) {
     if (extractResourceType(key) !== "apps") continue;
@@ -794,6 +875,33 @@ const collectExternalLeafPhantomRefs = (
         label: ref.fullName.split(".").at(-1) ?? ref.fullName,
       });
     }
+  }
+
+  return refs;
+};
+
+const collectExternalPostgresDatabaseRefs = (
+  entries: readonly (readonly [string, PlanEntry])[],
+): readonly ExternalHierarchyRef[] => {
+  const refs: ExternalHierarchyRef[] = [];
+
+  for (const [key, entry] of entries) {
+    const resourceType = extractResourceType(key);
+    if (resourceType !== "postgres_catalogs") continue;
+
+    const branch = extractStateField(entry, "branch");
+    const postgresDatabase = extractStateField(entry, "postgres_database");
+    if (branch === undefined || postgresDatabase === undefined) continue;
+    if (resolvePostgresDatabaseResourceKey(branch, postgresDatabase, entries) !== undefined) {
+      continue;
+    }
+
+    const branchIdentity = resolvePostgresBranchRefIdentityFromEntries(branch, entries);
+    if (branchIdentity === undefined) continue;
+    refs.push({
+      identity: `${branchIdentity}/${postgresDatabase}`,
+      tierIndex: POSTGRES_DATABASE_TIER_INDEX,
+    });
   }
 
   return refs;
@@ -838,7 +946,12 @@ export const buildResourceGraph = (
   );
 
   const ucGraph = buildChainGraph(ucEntries, UC_CHAIN, externalLeafPhantomRefs);
-  const workspaceGraph = buildWorkspaceGraph(workspaceEntries, postgresEntries);
+  const externalPostgresDatabaseRefs = collectExternalPostgresDatabaseRefs(entries);
+  const workspaceGraph = buildWorkspaceGraph(
+    workspaceEntries,
+    postgresEntries,
+    externalPostgresDatabaseRefs,
+  );
 
   // depends_on edges are NOT used for graph construction. They represent
   // deployment ordering (Terraform-style: "deploy X before Y so ${resources.X.id}

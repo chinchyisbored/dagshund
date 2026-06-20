@@ -19,7 +19,11 @@ import { resolveTaskEntries } from "./extract-tasks.ts";
 import {
   extractBundleResourceIdRef,
   resolvePostgresBranchRefIdentity,
+  resolvePostgresBranchRefIdentityFromEntries,
   resolvePostgresBranchResourceKey,
+  resolvePostgresDatabaseResourceKey,
+  resolvePostgresRoleRefIdentity,
+  resolvePostgresRoleResourceKey,
 } from "./postgres-paths.ts";
 import { resolveRunJobTarget } from "./resolve-run-job-target.ts";
 
@@ -191,7 +195,7 @@ const DATABASE_INSTANCE_SPEC: LateralEdgeSpec = {
 
 /** synced_database_table → source-table phantom (three-part name resolution). */
 const SOURCE_TABLE_SPEC: LateralEdgeSpec = {
-  sourceTypes: new Set(["synced_database_tables"]),
+  sourceTypes: new Set(["postgres_synced_tables", "synced_database_tables"]),
   extractTargetIds: (entry, context) => {
     const name = extractSourceTableFullName(entry);
     if (name === undefined || parseThreePartName(name) === undefined) return [];
@@ -303,13 +307,47 @@ const resolvePostgresBranchTargetIds = (
   return context.nodeIds.has(phantomId) ? [phantomId] : [];
 };
 
-/** postgres_catalog → postgres_branch via semantic branch field. */
-const POSTGRES_CATALOG_BRANCH_SPEC: LateralEdgeSpec = {
+const resolvePostgresRoleTargetIds = (
+  roleRef: string,
+  context: LateralEdgeContext,
+): readonly string[] => {
+  const targetKey = resolvePostgresRoleResourceKey(roleRef, context.entries);
+  if (targetKey !== undefined) {
+    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+  }
+
+  const targetIdentity = resolvePostgresRoleRefIdentity(roleRef);
+  if (targetIdentity === undefined) return [];
+  const targetId = `postgres-role::${targetIdentity}`;
+  return context.nodeIds.has(targetId) ? [targetId] : [];
+};
+
+const resolvePostgresDatabaseTargetIds = (
+  entry: PlanEntry,
+  context: LateralEdgeContext,
+): readonly string[] => {
+  const branch = extractStateField(entry, "branch");
+  const postgresDatabase = extractStateField(entry, "postgres_database");
+  if (branch === undefined || postgresDatabase === undefined) return [];
+
+  const targetKey = resolvePostgresDatabaseResourceKey(branch, postgresDatabase, context.entries);
+  if (targetKey !== undefined) {
+    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+  }
+
+  const branchIdentity = resolvePostgresBranchRefIdentityFromEntries(branch, context.entries);
+  if (branchIdentity === undefined) return [];
+  const targetId = `postgres-database::${branchIdentity}/${postgresDatabase}`;
+  return context.nodeIds.has(targetId) ? [targetId] : [];
+};
+
+/** postgres_catalog → postgres_database via branch + database fields. */
+const POSTGRES_DATABASE_TARGET_SPEC: LateralEdgeSpec = {
   sourceTypes: new Set(["postgres_catalogs"]),
   extractTargetIds: (entry, context) => {
-    const branch = extractStateField(entry, "branch");
-    if (branch === undefined) return [];
-    return resolvePostgresBranchTargetIds(branch, context);
+    return resolvePostgresDatabaseTargetIds(entry, context);
   },
 };
 
@@ -320,6 +358,16 @@ const POSTGRES_BRANCH_SOURCE_SPEC: LateralEdgeSpec = {
     const sourceBranch = extractStateField(entry, "source_branch");
     if (sourceBranch === undefined) return [];
     return resolvePostgresBranchTargetIds(sourceBranch, context);
+  },
+};
+
+/** postgres_database → postgres_role via semantic owner role field. */
+const POSTGRES_DATABASE_ROLE_SPEC: LateralEdgeSpec = {
+  sourceTypes: new Set(["postgres_databases"]),
+  extractTargetIds: (entry, context) => {
+    const role = extractStateField(entry, "role");
+    if (role === undefined) return [];
+    return resolvePostgresRoleTargetIds(role, context);
   },
 };
 
@@ -493,8 +541,9 @@ const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
   SOURCE_TABLE_SPEC,
   PIPELINE_TARGET_SPEC,
   QUALITY_MONITOR_TABLE_SPEC,
-  POSTGRES_CATALOG_BRANCH_SPEC,
+  POSTGRES_DATABASE_TARGET_SPEC,
   POSTGRES_BRANCH_SOURCE_SPEC,
+  POSTGRES_DATABASE_ROLE_SPEC,
 ];
 
 type LateralEdgeIndexes = {

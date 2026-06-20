@@ -51,21 +51,7 @@ supervised fixtures and prints their follow-up commands.
 **Do not run `just regen` or `just dev` as background tasks** — they hang on
 TaskOutput polling.
 
-## Step 5: Regenerate supervised fixtures (together)
-
-### lakebase-autoscaling
-
-Run `just regen lakebase-autoscaling` separately and watch it with the user.
-This fixture intentionally exercises an external Lakebase endpoint on
-`projects/phantom-lakebase/branches/production`. The Lakebase control plane can
-leave `dagshund-reader` list-visible while direct get/delete returns
-`NOT_FOUND`; if that happens, pause and have the user clean up or inspect the
-workspace before retrying.
-
-The fixture sets `purge_on_delete: true` on `postgres_projects.dagshund_project`
-and changes the after-state `prd` branch to `is_protected: false`, so bundle
-destroy should remove the fixture-owned `projects/dagshund` project without
-script-specific unprotect/purge cleanup.
+## Step 5: Regenerate supervised fixtures
 
 ### manual-drift
 

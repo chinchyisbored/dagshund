@@ -30,6 +30,7 @@ STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
     "database_instances": "all catalogs and tables on this instance will be lost",
     "postgres_projects": "all branches and endpoints in this project will be lost",
     "postgres_branches": "all data on this branch will be lost",
+    "postgres_databases": "all data in this Lakebase database will be lost",
 }
 
 STATEFUL_RESOURCE_TYPES: frozenset[str] = frozenset(STATEFUL_RESOURCE_WARNINGS)

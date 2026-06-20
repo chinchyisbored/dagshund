@@ -101,19 +101,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 15,
+      "total": 19,
       "by_kind": {
         "job": 0,
         "task": 0,
-        "resource": 8,
+        "resource": 10,
         "root": 3,
-        "phantom": 4
+        "phantom": 6
       },
       "by_diff_state": {
         "added": 5,
         "removed": 0,
         "modified": 2,
-        "unchanged": 8,
+        "unchanged": 12,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -135,7 +135,7 @@
           "added": 5,
           "removed": 0,
           "modified": 2,
-          "unchanged": 1,
+          "unchanged": 3,
           "unknown": 0
         },
         "root": {
@@ -149,7 +149,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 4,
+          "unchanged": 6,
           "unknown": 0
         }
       },
@@ -168,10 +168,21 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 13,
-      "with_resource_state": 8,
+      "total_change_entries": 20,
+      "with_resource_state": 10,
       "task_change_summary_total": 0,
       "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
         {
           "id": "catalog::dagshund_lakebase",
           "resourceKey": "resources.postgres_catalogs.dev_catalog",
@@ -184,8 +195,8 @@
           "taskChangeSummary": []
         },
         {
-          "id": "postgres-branch::phantom-lakebase/production",
-          "resourceKey": "postgres-branch::phantom-lakebase/production",
+          "id": "postgres-branch::phantom-lineage-lakebase/production",
+          "resourceKey": "postgres-branch::phantom-lineage-lakebase/production",
           "label": "production",
           "kind": "phantom",
           "diffState": "unchanged",
@@ -195,9 +206,9 @@
           "taskChangeSummary": []
         },
         {
-          "id": "postgres-branch::phantom-lineage-lakebase/production",
-          "resourceKey": "postgres-branch::phantom-lineage-lakebase/production",
-          "label": "production",
+          "id": "postgres-database::dagshund/dev/app_db",
+          "resourceKey": "postgres-database::dagshund/dev/app_db",
+          "label": "app_db",
           "kind": "phantom",
           "diffState": "unchanged",
           "isDrift": false,
@@ -239,17 +250,6 @@
             }
           ],
           "hasResourceState": true,
-          "taskChangeSummary": []
-        },
-        {
-          "id": "postgres-project::phantom-lakebase",
-          "resourceKey": "postgres-project::phantom-lakebase",
-          "label": "phantom-lakebase",
-          "kind": "phantom",
-          "diffState": "unchanged",
-          "isDrift": false,
-          "changes": [],
-          "hasResourceState": false,
           "taskChangeSummary": []
         },
         {
@@ -321,20 +321,29 @@
           "taskChangeSummary": []
         },
         {
-          "id": "resources.postgres_endpoints.dev_endpoint",
-          "resourceKey": "resources.postgres_endpoints.dev_endpoint",
-          "label": "dev_endpoint",
+          "id": "resources.postgres_databases.app_database",
+          "resourceKey": "resources.postgres_databases.app_database",
+          "label": "app_database",
           "kind": "resource",
-          "diffState": "added",
+          "diffState": "unchanged",
           "isDrift": false,
-          "changes": [],
+          "changes": [
+            {
+              "key": "postgres_database",
+              "action": "skip"
+            },
+            {
+              "key": "role",
+              "action": "skip"
+            }
+          ],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
         {
-          "id": "resources.postgres_endpoints.external_reader_endpoint",
-          "resourceKey": "resources.postgres_endpoints.external_reader_endpoint",
-          "label": "external_reader_endpoint",
+          "id": "resources.postgres_endpoints.dev_endpoint",
+          "resourceKey": "resources.postgres_endpoints.dev_endpoint",
+          "label": "dev_endpoint",
           "kind": "resource",
           "diffState": "added",
           "isDrift": false,
@@ -371,6 +380,71 @@
           "taskChangeSummary": []
         },
         {
+          "id": "resources.postgres_roles.data_engineers",
+          "resourceKey": "resources.postgres_roles.data_engineers",
+          "label": "data_engineers",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "attributes",
+              "action": "skip"
+            },
+            {
+              "key": "identity_type",
+              "action": "skip"
+            },
+            {
+              "key": "parent",
+              "action": "skip"
+            },
+            {
+              "key": "postgres_role",
+              "action": "skip"
+            },
+            {
+              "key": "role_id",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_synced_tables.phantom_table",
+          "resourceKey": "resources.postgres_synced_tables.phantom_table",
+          "label": "phantom_table",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::dagshund.phantom_schema",
+          "resourceKey": "schema::dagshund.phantom_schema",
+          "label": "phantom_schema",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.phantom_schema.phantom_table",
+          "resourceKey": "source-table::dagshund.phantom_schema.phantom_table",
+          "label": "phantom_table",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "uc-root",
           "resourceKey": "uc-root",
           "label": "Unity Catalog",
@@ -395,32 +469,38 @@
       ]
     },
     "edges": {
-      "total": 16,
+      "total": 21,
       "by_kind": {
-        "dag": 13,
-        "lateral": 3
+        "dag": 17,
+        "lateral": 4
       },
       "by_diff_state": {
         "added": 5,
         "removed": 0,
-        "unchanged": 11
+        "unchanged": 16
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 5,
           "removed": 0,
-          "unchanged": 8
+          "unchanged": 12
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 3
+          "unchanged": 4
         }
       },
       "entries": [
         {
-          "source": "postgres-branch::phantom-lakebase/production",
-          "target": "resources.postgres_endpoints.external_reader_endpoint",
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.phantom_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-database::dagshund/dev/app_db",
+          "target": "resources.postgres_synced_tables.phantom_table",
           "diffState": "added",
           "kind": "dag"
         },
@@ -433,12 +513,6 @@
         {
           "source": "postgres-project::dagshund",
           "target": "resources.postgres_branches.prd_branch",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
-          "source": "postgres-project::phantom-lakebase",
-          "target": "postgres-branch::phantom-lakebase/production",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -462,13 +536,13 @@
         },
         {
           "source": "postgres-root",
-          "target": "postgres-project::phantom-lakebase",
+          "target": "postgres-project::phantom-lineage-lakebase",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "postgres-root",
-          "target": "postgres-project::phantom-lineage-lakebase",
+          "source": "resources.postgres_branches.dev_branch",
+          "target": "postgres-database::dagshund/dev/app_db",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -480,7 +554,31 @@
         },
         {
           "source": "resources.postgres_branches.prd_branch",
+          "target": "resources.postgres_databases.app_database",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.prd_branch",
           "target": "resources.postgres_endpoints.prd_endpoint",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.prd_branch",
+          "target": "resources.postgres_roles.data_engineers",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.phantom_schema",
+          "target": "source-table::dagshund.phantom_schema.phantom_table",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -498,7 +596,7 @@
         },
         {
           "source": "catalog::dagshund_lakebase",
-          "target": "resources.postgres_branches.dev_branch",
+          "target": "postgres-database::dagshund/dev/app_db",
           "diffState": "unchanged",
           "kind": "lateral"
         },
@@ -513,14 +611,20 @@
           "target": "postgres-branch::phantom-lineage-lakebase/production",
           "diffState": "unchanged",
           "kind": "lateral"
+        },
+        {
+          "source": "resources.postgres_synced_tables.phantom_table",
+          "target": "source-table::dagshund.phantom_schema.phantom_table",
+          "diffState": "unchanged",
+          "kind": "lateral"
         }
       ]
     },
     "phantoms": [
       {
-        "id": "postgres-branch::phantom-lakebase/production",
-        "label": "production",
-        "resourceKey": "postgres-branch::phantom-lakebase/production"
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
       },
       {
         "id": "postgres-branch::phantom-lineage-lakebase/production",
@@ -528,14 +632,24 @@
         "resourceKey": "postgres-branch::phantom-lineage-lakebase/production"
       },
       {
-        "id": "postgres-project::phantom-lakebase",
-        "label": "phantom-lakebase",
-        "resourceKey": "postgres-project::phantom-lakebase"
+        "id": "postgres-database::dagshund/dev/app_db",
+        "label": "app_db",
+        "resourceKey": "postgres-database::dagshund/dev/app_db"
       },
       {
         "id": "postgres-project::phantom-lineage-lakebase",
         "label": "phantom-lineage-lakebase",
         "resourceKey": "postgres-project::phantom-lineage-lakebase"
+      },
+      {
+        "id": "schema::dagshund.phantom_schema",
+        "label": "phantom_schema",
+        "resourceKey": "schema::dagshund.phantom_schema"
+      },
+      {
+        "id": "source-table::dagshund.phantom_schema.phantom_table",
+        "label": "phantom_table",
+        "resourceKey": "source-table::dagshund.phantom_schema.phantom_table"
       }
     ]
   }

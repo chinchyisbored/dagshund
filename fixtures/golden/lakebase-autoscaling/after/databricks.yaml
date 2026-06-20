@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=../../bundle_config_schema.json
 # Adds a dev branch from protected prd, manages dev's implicit primary endpoint,
-# and registers a Postgres catalog for the dev branch.
+# syncs a phantom UC table into Lakebase, and registers a Postgres catalog for
+# the dev branch's app database.
 bundle:
   name: dagshund-golden-lakebase-autoscaling
   databricks_cli_version: ">=1.0.0"
@@ -46,6 +47,24 @@ resources:
       source_branch: projects/${var.external_lineage_postgres_project_id}/branches/${var.external_lineage_postgres_branch_id}
       no_expiry: true
 
+  postgres_roles:
+    data_engineers:
+      parent: ${resources.postgres_branches.prd_branch.id}
+      role_id: data-engineers
+      postgres_role: data_engineers
+      identity_type: GROUP
+      attributes:
+        createdb: true
+        createrole: true
+        bypassrls: true
+
+  postgres_databases:
+    app_database:
+      parent: ${resources.postgres_branches.prd_branch.id}
+      database_id: app-db
+      postgres_database: app_db
+      role: ${resources.postgres_roles.data_engineers.id}
+
   postgres_endpoints:
     prd_endpoint:
       parent: ${resources.postgres_branches.prd_branch.id}
@@ -63,16 +82,30 @@ resources:
       autoscaling_limit_max_cu: 1
       replace_existing: true
 
-    external_reader_endpoint:
-      parent: projects/${var.external_postgres_project_id}/branches/${var.external_postgres_branch_id}
-      endpoint_id: dagshund-reader
-      endpoint_type: ENDPOINT_TYPE_READ_ONLY
-      autoscaling_limit_min_cu: 0.5
-      autoscaling_limit_max_cu: 1
+    # Disabled while Databricks create-endpoint operation polling can leave this
+    # external endpoint orphaned and untracked by bundle destroy.
+    # external_reader_endpoint:
+    #   parent: projects/${var.external_postgres_project_id}/branches/${var.external_postgres_branch_id}
+    #   endpoint_id: dagshund-reader
+    #   endpoint_type: ENDPOINT_TYPE_READ_ONLY
+    #   autoscaling_limit_min_cu: 0.5
+    #   autoscaling_limit_max_cu: 1
 
   postgres_catalogs:
     dev_catalog:
       branch: ${resources.postgres_branches.dev_branch.id}
       catalog_id: dagshund_lakebase
-      postgres_database: dagshund_lakebase
-      create_database_if_missing: true
+      postgres_database: app_db
+
+  postgres_synced_tables:
+    phantom_table:
+      synced_table_id: ${resources.postgres_catalogs.dev_catalog.catalog_id}.public.${var.phantom_table}
+      source_table_full_name: ${var.catalog_name}.${var.phantom_schema}.${var.phantom_table}
+      primary_key_columns: [tpep_pickup_datetime, tpep_dropoff_datetime]
+      scheduling_policy: SNAPSHOT
+      postgres_database: app_db
+      branch: ${resources.postgres_branches.dev_branch.id}
+      create_database_objects_if_missing: true
+      new_pipeline_spec:
+        storage_catalog: ${var.catalog_name}
+        storage_schema: ${var.phantom_schema}
