@@ -66,8 +66,11 @@ just regen                  # All unattended fixtures
 
 | Fixture | Regeneration path |
 |---|---|
-| `lakebase-autoscaling` | Run separately with `just regen lakebase-autoscaling`. Lakebase can leave the external `dagshund-reader` endpoint list-visible but not get/delete-addressable, so this fixture needs manual workspace oversight. |
 | `manual-drift` | Follow `fixtures/golden/manual-drift/README.md`. It requires workspace UI edits between deploy and plan. |
+
+`lakebase-autoscaling` is part of the unattended `just regen` set. If it fails
+because a Lakebase endpoint is left list-visible but not get/delete-addressable,
+clean up the workspace endpoint and rerun the fixture.
 
 After regenerating, update the expected dagshund output:
 
