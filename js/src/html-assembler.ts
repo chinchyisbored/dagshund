@@ -1,6 +1,5 @@
 /**
- * Shared HTML assembler used by both cli.ts (live plan export)
- * and build-template.ts (Python template with placeholder).
+ * Shared HTML assembler used by build-template.ts for the Python template.
  *
  * Single source of truth for: escape helpers, inline scripts,
  * the HTML template, and dist-asset reading.

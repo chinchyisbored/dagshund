@@ -4,11 +4,12 @@ import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from dagshund import __version__
-from dagshund.cli import _build_visible_states, _read_plan, main
+from dagshund.cli import ExitCode, _build_visible_states, _read_plan, main
 from dagshund.types import DagshundError, DiffState
 
 
@@ -204,6 +205,41 @@ def test_main_invalid_json_on_stdin_exits_with_error(
 
     assert exc_info.value.code == 1
     assert "invalid JSON" in capsys.readouterr().err
+
+
+def test_main_empty_plan_quiet_detailed_exitcode_exits_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["dagshund", "-q", "-e"])
+    monkeypatch.setattr("sys.stdin", StringIO('{"plan": {}}'))
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == ExitCode.ERROR
+    assert "plan is empty" in capsys.readouterr().err
+
+
+def test_main_broken_pipe_redirects_stdout_and_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    redirected_fds: list[tuple[int, int]] = []
+
+    def raise_broken_pipe(_args: argparse.Namespace) -> ExitCode:
+        raise BrokenPipeError
+
+    monkeypatch.setattr("sys.argv", ["dagshund"])
+    monkeypatch.setattr("sys.stdout", SimpleNamespace(fileno=lambda: 9))
+    monkeypatch.setattr("dagshund.cli._run", raise_broken_pipe)
+    monkeypatch.setattr("os.open", lambda _path, _flags: 10)
+    monkeypatch.setattr("os.dup2", lambda source, dest: redirected_fds.append((source, dest)))
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == ExitCode.BROKEN_PIPE
+    assert redirected_fds == [(10, 9)]
 
 
 def test_main_stdin_with_output_flag_writes_html(

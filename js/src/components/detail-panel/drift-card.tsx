@@ -3,7 +3,7 @@ import { formatValue } from "../../utils/format-value.ts";
 import { stripTaskPrefix } from "../../utils/task-key.ts";
 import { PrefixedBlock } from "../structural-diff-view.tsx";
 
-export type DriftCardVariant = "reentry" | "removal";
+type DriftCardVariant = "reentry" | "removal";
 
 type VariantStyle = {
   readonly keyPrefix: string;

@@ -4,7 +4,7 @@
 
 All tracking of work to do uses `br` (beads_rust). Do NOT use markdown files for plans, TODOs, or task lists.
 
-**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+**Note:** `br` is non-invasive and never executes git commands. `.beads/` changes are rolled into the next feature commit (see Git Rules), never committed by `br` itself.
 
 ## Session Start
 
@@ -82,10 +82,11 @@ When code is working, follow this exact order. No skipping steps.
 3. **Browser verification** — ask the human to run `just dev`, check the browser, and stop it with `just dev-down`. `just build` and `just dev` use different Bun code paths; a passing build doesn't guarantee a working app.
 4. **3-pass review** (see below) — present findings to human for decision
 5. Fix what human approves, file beads for the rest
-6. `git add <specific files>` — stage changes, verify with `git status`
-7. `source .venv/bin/activate && git commit -m "..."`
-8. `git push -u origin <feature-branch>` — push the feature branch
-9. Open the MR non-interactively:
+6. **Pause for explicit approval before committing or pushing.** Present the diff summary and wait for a clear go-ahead ("yes", "commit", "push"). Context, acknowledgement, or a follow-up question is NOT approval.
+7. `git add <specific files>` — stage changes, verify with `git status`
+8. `source .venv/bin/activate && git commit -m "..."`
+9. `git push -u origin <feature-branch>` — push the feature branch
+10. Open the MR non-interactively:
    ```bash
    glab mr create \
      --source-branch <feature-branch> \
@@ -96,12 +97,12 @@ When code is working, follow this exact order. No skipping steps.
      --description "<summary and verification>" \
      --yes
    ```
-10. Before merging, verify the MR title is a conventional commit subject
+11. Before merging, verify the MR title is a conventional commit subject
     (for example `chore(agents): make skill layout neutral`). GitLab uses the
     MR title as the squash commit subject on `main`.
-11. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `glab mr merge <iid> --squash --yes`
-12. `git checkout main && git pull --ff-only origin main`
-13. `br close <id>` — only AFTER the MR is merged and main is up to date
+12. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `glab mr merge <iid> --squash --yes`
+13. `git checkout main && git pull --ff-only origin main`
+14. `br close <id>` — only AFTER the MR is merged, main is up to date, AND the user has explicitly approved closing. Never close a bead on your own judgment.
 
 **`main` is MR-only and history is linear.** Never push directly to `main`. Every feature branch lands via `glab mr create` followed by `glab mr merge --squash` — always squash, never a merge commit. The git commit IS the deliverable; the squash-merge IS the handoff.
 
@@ -111,8 +112,7 @@ When code is working, follow this exact order. No skipping steps.
 - NEVER run `git reset HEAD` or `git checkout --` on working files
 - Activate venv before committing: `source .venv/bin/activate && git commit ...`
 - `br sync --flush-only` is the final JSONL export and merge-base snapshot check before staging `.beads/`; it does NOT commit or stage
-- For source changes, commit source first. Then run `br sync --flush-only`, `git add .beads/`, and `git commit -m "chore(beads): sync"`
-- Beads-only commits (no source changes): `br sync --flush-only && git add .beads/ && git commit -m "chore(beads): sync"`
+- **Beads ride feature commits** (interim practice): after `br` updates, leave `.beads/` dirty and stage it together with the next feature-branch commit. No standalone `chore(beads): sync` commits, no separate sync branches. If a session ends with beads-only changes, leave `.beads/` dirty for the next session.
 
 ## Review Process
 
@@ -134,9 +134,10 @@ Combine and deduplicate into a single file list.
 ### Step 2: Spawn a single review subagent
 
 Use a single review/exploration subagent with the strongest available reasoning model.
-For Claude Code, use `model: "opus"` and `subagent_type: "Explore"`. For Codex,
-use the available explorer/review subagent and do not request unsupported model
-or agent-type names. The subagent receives:
+For Claude Code, use `subagent_type: "Explore"` and do not pin a model name — leave
+`model` unset to inherit the session's model, or pick the strongest currently available.
+For Codex, use the available explorer/review subagent and do not request unsupported
+model or agent-type names. The subagent receives:
 - The file list from Step 1
 - All three review criteria below
 - Instruction to read the changed files once, then evaluate against all criteria
@@ -182,11 +183,11 @@ Present findings organized by pass. Each finding includes its devil's advocate c
 After all work is complete:
 
 1. File issues for any loose threads discussed but not implemented
-2. Commit all code (follow Completing Work above)
-3. Close all finished beads
-4. Sync and commit beads — source commits first, then run the final export check and commit: `br sync --flush-only && git add .beads/ && git commit -m "chore(beads): sync"`
-5. `git pull --rebase` then `git push`
-6. `git status` — must show clean tree, up to date with origin
+2. Commit all code (follow Completing Work above, including the approval pause)
+3. Close finished beads — only those the user has explicitly approved closing
+4. Run `br sync --flush-only`; `.beads/` changes ride the feature commit (see Git Rules). Beads-only leftovers stay dirty for the next session.
+5. With explicit approval: `git pull --rebase` then `git push`
+6. `git status` — clean tree (a dirty `.beads/` from step 4 is the allowed exception), up to date with origin
 7. Hand off — session summary: what got done, what's open, suggested next starting point
 
 ## Collaboration
@@ -196,4 +197,4 @@ After all work is complete:
 - Never silently skip filing an issue — if worth noting, worth tracking
 - Keep the human in the loop — this is a partnership, not delegation
 - Don't plan when you should be doing — if next steps are known, just do them
-- Work is NOT complete until `git push` succeeds. Never say "ready to push when you are" — push it yourself.
+- Committing, pushing, merging, and closing beads each require an explicit user go-ahead. Present the work, ask once, and wait — context or acknowledgement in the reply is not approval.

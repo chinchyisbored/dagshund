@@ -23,47 +23,64 @@ export const extractParentResourceKey = (key: string): string =>
  *  "resources.jobs.test_job.permissions" → "permissions" */
 export const extractSubResourceSuffix = (key: string): string => key.split(".").slice(3).join(".");
 
-/** Derive a type badge for phantom nodes from their ID or resource key.
- *  Checks `::` prefixed IDs first, then falls through to the standard resource type badge. */
-export const extractPhantomBadge = (resourceKey: string): string | undefined => {
-  if (resourceKey.startsWith("catalog::")) return "catalog";
-  if (resourceKey.startsWith("schema::")) return "schema";
-  if (resourceKey.startsWith("source-table::")) return "table";
-  if (resourceKey.startsWith("database-instance::")) return "database instance";
-  if (resourceKey.startsWith("secret-scope::")) return "secret";
-  if (resourceKey.startsWith("serving-endpoint::")) return "serving";
-  if (resourceKey.startsWith("job::")) return "job";
-  if (resourceKey.startsWith("sql-warehouse::")) return "warehouse";
-  if (resourceKey.startsWith("genie-space::")) return "genie";
-  if (resourceKey.startsWith("dashboard::")) return "dashboard";
-  if (resourceKey.startsWith("experiment::")) return "experiment";
-  if (resourceKey.startsWith("pipeline::")) return "pipeline";
-  if (resourceKey.startsWith("registered-model::")) return "model";
-  if (resourceKey.startsWith("postgres-project::")) return "postgres project";
-  if (resourceKey.startsWith("postgres-branch::")) return "postgres branch";
-  if (resourceKey.startsWith("postgres-database::")) return "postgres database";
-  return extractTypeBadge(resourceKey);
+type PhantomPrefixSpec = {
+  readonly prefix: string;
+  readonly badge: string;
+  readonly leaf: boolean;
 };
 
-/** Phantom leaf prefixes: inferred reference targets (not structural hierarchy). */
-const PHANTOM_LEAF_PREFIXES: readonly string[] = [
-  "source-table::",
-  "database-instance::",
-  "secret-scope::",
-  "serving-endpoint::",
-  "job::",
-  "sql-warehouse::",
-  "genie-space::",
-  "experiment::",
-  "dashboard::",
-  "pipeline::",
-  "registered-model::",
-];
+const PHANTOM_PREFIX_SPECS = {
+  catalog: { prefix: "catalog::", badge: "catalog", leaf: false },
+  schema: { prefix: "schema::", badge: "schema", leaf: false },
+  sourceTable: { prefix: "source-table::", badge: "table", leaf: true },
+  databaseInstance: { prefix: "database-instance::", badge: "database instance", leaf: true },
+  secretScope: { prefix: "secret-scope::", badge: "secret", leaf: true },
+  servingEndpoint: { prefix: "serving-endpoint::", badge: "serving", leaf: true },
+  job: { prefix: "job::", badge: "job", leaf: true },
+  sqlWarehouse: { prefix: "sql-warehouse::", badge: "warehouse", leaf: true },
+  genieSpace: { prefix: "genie-space::", badge: "genie", leaf: true },
+  dashboard: { prefix: "dashboard::", badge: "dashboard", leaf: true },
+  experiment: { prefix: "experiment::", badge: "experiment", leaf: true },
+  pipeline: { prefix: "pipeline::", badge: "pipeline", leaf: true },
+  registeredModel: { prefix: "registered-model::", badge: "model", leaf: true },
+  postgresProject: { prefix: "postgres-project::", badge: "postgres project", leaf: false },
+  postgresBranch: { prefix: "postgres-branch::", badge: "postgres branch", leaf: false },
+  postgresDatabase: { prefix: "postgres-database::", badge: "postgres database", leaf: false },
+} as const satisfies Readonly<Record<string, PhantomPrefixSpec>>;
+
+export type PhantomKind = keyof typeof PHANTOM_PREFIX_SPECS;
+
+const PHANTOM_PREFIX_VALUES = Object.values(PHANTOM_PREFIX_SPECS);
+
+/** Build a prefixed node ID for a registered phantom or hierarchy-container kind. */
+export const buildPrefixedNodeId = (kind: PhantomKind, identity: string): string =>
+  `${PHANTOM_PREFIX_SPECS[kind].prefix}${identity}`;
+
+/** Build a top-level Databricks bundle resource key. */
+export const buildResourceKey = (collection: string, name: string): string =>
+  `resources.${collection}.${name}`;
+
+/** Build the node ID for a task within a job resource. */
+export const buildTaskNodeId = (resourceKey: string, taskKey: string): string =>
+  `${resourceKey}::${taskKey}`;
+
+/** Extract the resource node ID from a task node ID built by buildTaskNodeId. */
+export const extractTaskNodeParentId = (nodeId: string): string => {
+  const separator = nodeId.indexOf("::");
+  return separator === -1 ? nodeId : nodeId.substring(0, separator);
+};
+
+/** Derive a type badge for phantom nodes from their ID or resource key.
+ *  Checks `::` prefixed IDs first, then falls through to the standard resource type badge. */
+export const extractPhantomBadge = (resourceKey: string): string | undefined =>
+  PHANTOM_PREFIX_VALUES.find((spec) => resourceKey.startsWith(spec.prefix))?.badge ??
+  extractTypeBadge(resourceKey);
 
 /** Check whether a node ID represents an inferred leaf phantom (not a hierarchy phantom).
- *  Convention: only phantom nodes use `::` prefixed IDs; real resources use `resources.type.name`. */
+ *  Containers with useHierarchyId share the `::` ID grammar with phantoms.
+ *  Real flat resources use `resources.type.name`. */
 export const isPhantomLeaf = (nodeId: string): boolean =>
-  PHANTOM_LEAF_PREFIXES.some((prefix) => nodeId.startsWith(prefix));
+  PHANTOM_PREFIX_VALUES.some((spec) => spec.leaf && nodeId.startsWith(spec.prefix));
 
 /** Resource types that reference database instances (used by both phantom collector and lateral edge spec). */
 export const DATABASE_INSTANCE_SOURCE_TYPES: ReadonlySet<string> = new Set([

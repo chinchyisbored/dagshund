@@ -1,18 +1,23 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import {
   buildEdge,
+  buildHierarchyGraphNode,
   filterDefinedEdges,
   type GraphEdge,
-  type GraphNode,
   type PhantomGraphNode,
   type PlanGraph,
   type ResourceGraphNode,
-  type RootGraphNode,
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
-import { extractResourceName, extractResourceType } from "../utils/resource-key.ts";
+import {
+  buildPrefixedNodeId,
+  buildResourceKey,
+  extractResourceName,
+  extractResourceType,
+  type PhantomKind,
+} from "../utils/resource-key.ts";
 import { hasAnyDriftWithContext, hasFieldDrift } from "../utils/structural-diff.ts";
 import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { getUnknownProp } from "../utils/unknown-record.ts";
@@ -22,12 +27,7 @@ import {
   collectPhantomDatabaseInstances,
   collectPhantomExternalRefs,
 } from "./collect-phantom-nodes.ts";
-import {
-  buildApiIdIndex,
-  extractAppResourceReferences,
-  extractGenieSpaceApiId,
-  extractLateralEdges,
-} from "./extract-lateral-edges.ts";
+import { extractLateralEdges } from "./extract-lateral-edges.ts";
 import {
   extractResourceState,
   extractServedEntities,
@@ -47,6 +47,13 @@ import {
   resolvePostgresDatabaseIdentity,
   resolvePostgresDatabaseResourceKey,
 } from "./postgres-paths.ts";
+import {
+  buildApiIdIndex,
+  extractAppResourceReferences,
+  extractGenieSpaceApiId,
+  extractJobApiId,
+  type ReferenceIndexes,
+} from "./reference-specs.ts";
 import { buildJobIdMap } from "./resolve-run-job-target.ts";
 
 // ---------------------------------------------------------------------------
@@ -127,8 +134,13 @@ export const buildJobFields = (
   };
 };
 
-/** Build a GraphNode for a real plan resource entry. */
-const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => {
+/** Build a GraphNode for a real plan resource entry. Container-tier resources
+ *  (catalogs, projects) pass a hierarchy override for the node ID and label. */
+const buildResourceNode = (
+  key: string,
+  entry: PlanEntry,
+  hierarchy?: { readonly id: string; readonly label?: string },
+): ResourceGraphNode => {
   if (isJobEntry(key)) {
     const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
     return {
@@ -140,8 +152,8 @@ const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => 
   }
   const resourceHasShapeDrift = hasFieldDrift(entry.changes);
   return {
-    id: key,
-    label: extractResourceName(key),
+    id: hierarchy?.id ?? key,
+    label: hierarchy?.label ?? extractResourceName(key),
     nodeKind: "resource",
     diffState: mapActionToDiffState(entry.action),
     resourceKey: key,
@@ -159,70 +171,14 @@ const buildResourceNode = (key: string, entry: PlanEntry): ResourceGraphNode => 
   };
 };
 
-/** Build a resource node with a hierarchy ID (for container-tier resources like catalogs, projects). */
-const buildContainerResourceNode = (
-  hierarchyId: string,
-  key: string,
-  entry: PlanEntry,
-  label = extractResourceName(key),
-): ResourceGraphNode => {
-  const resourceHasShapeDrift = hasFieldDrift(entry.changes);
-  return {
-    id: hierarchyId,
-    label,
-    nodeKind: "resource",
-    diffState: mapActionToDiffState(entry.action),
-    resourceKey: key,
-    changes: entry.changes,
-    resourceState: extractResourceState(entry),
-    newState: entry.new_state,
-    remoteState: entry.remote_state,
-    resourceHasShapeDrift,
-    taskChangeSummary: undefined,
-    isDrift: hasAnyDriftWithContext(entry.changes, {
-      newState: entry.new_state,
-      remoteState: entry.remote_state,
-      resourceHasShapeDrift,
-    }),
-  };
-};
-
-/** Build a structural root node (UC root, workspace root, etc). */
-const buildRootNode = (id: string, label: string): RootGraphNode => ({
-  id,
-  label,
-  nodeKind: "root",
-  diffState: "unchanged",
-  resourceKey: id,
-  changes: undefined,
-  resourceState: undefined,
-  newState: undefined,
-  remoteState: undefined,
-  resourceHasShapeDrift: false,
-});
-
-/** Build a phantom node for an inferred ancestor not in the plan. */
-const buildPhantomNode = (id: string, label: string): PhantomGraphNode => ({
-  id,
-  label,
-  nodeKind: "phantom",
-  diffState: "unchanged",
-  resourceKey: id,
-  changes: undefined,
-  resourceState: undefined,
-  newState: undefined,
-  remoteState: undefined,
-  resourceHasShapeDrift: false,
-});
-
-/** Keep the first node for an ID when multiple phantom collectors infer it. */
-const deduplicateNodes = (nodes: readonly GraphNode[]): readonly GraphNode[] => {
+/** Keep the first item for an ID when multiple builders/collectors produce it. */
+const dedupeById = <T extends { readonly id: string }>(items: readonly T[]): readonly T[] => {
   const seen = new Set<string>();
-  return nodes.filter((node) => {
-    if (seen.has(node.id)) {
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
       return false;
     }
-    seen.add(node.id);
+    seen.add(item.id);
     return true;
   });
 };
@@ -333,7 +289,7 @@ const UC_CHAIN: ChainSpec = {
           ? extractStateField(entry, "catalog_id")
           : extractStateField(entry, "name"),
       resolveParentRef: () => undefined, // root-adjacent
-      buildHierarchyId: (name) => `catalog::${name}`,
+      buildHierarchyId: (name) => buildPrefixedNodeId("catalog", name),
       useHierarchyId: true,
     },
     {
@@ -346,7 +302,7 @@ const UC_CHAIN: ChainSpec = {
       },
       resolveParentRef: (entry) => parentIdentityRef(extractStateField(entry, "catalog_name")),
       deriveParentRef: (identity) => identity.split(".")[0],
-      buildHierarchyId: (identity) => `schema::${identity}`,
+      buildHierarchyId: (identity) => buildPrefixedNodeId("schema", identity),
     },
     {
       name: "leaf",
@@ -370,7 +326,7 @@ const UC_CHAIN: ChainSpec = {
         const parsed = parseThreePartName(identity);
         return parsed !== undefined ? `${parsed.catalog}.${parsed.schema}` : undefined;
       },
-      buildHierarchyId: (identity) => `source-table::${identity}`,
+      buildHierarchyId: (identity) => buildPrefixedNodeId("sourceTable", identity),
       resolveMissingHierarchyRefs: (entry) => {
         const name = extractSourceTableFullName(entry);
         if (name === undefined) return [];
@@ -434,7 +390,7 @@ const POSTGRES_CHAIN: ChainSpec = {
       resourceTypes: new Set(["postgres_projects"]),
       resolveIdentity: (entry) => extractStateField(entry, "project_id"),
       resolveParentRef: () => undefined, // root-adjacent
-      buildHierarchyId: (name) => `postgres-project::${name}`,
+      buildHierarchyId: (name) => buildPrefixedNodeId("postgresProject", name),
       useHierarchyId: true,
     },
     {
@@ -446,7 +402,7 @@ const POSTGRES_CHAIN: ChainSpec = {
         return parent !== undefined ? resolvePostgresProjectParentRef(parent) : undefined;
       },
       deriveParentRef: (identity) => identity.split("/")[0],
-      buildHierarchyId: (name) => `postgres-branch::${name}`,
+      buildHierarchyId: (name) => buildPrefixedNodeId("postgresBranch", name),
       resolveMissingHierarchyRefs: (entry) => {
         const sourceBranch = extractStateField(entry, "source_branch");
         if (sourceBranch === undefined) return [];
@@ -463,7 +419,7 @@ const POSTGRES_CHAIN: ChainSpec = {
           : undefined,
       resolveParentRef: (entry) => resolvePostgresBranchChildParentRef(entry),
       deriveParentRef: (identity) => identity.split("/").slice(0, 2).join("/"),
-      buildHierarchyId: (identity) => `postgres-database::${identity}`,
+      buildHierarchyId: (identity) => buildPrefixedNodeId("postgresDatabase", identity),
     },
     {
       name: "database child",
@@ -538,7 +494,7 @@ const resolveParentChain = (
   const phantomId = tier.buildHierarchyId(identity);
   if (!phantomAccumulator.has(phantomId)) {
     const phantomLabel = identity.split(/[./]/).at(-1) ?? identity;
-    phantomAccumulator.set(phantomId, buildPhantomNode(phantomId, phantomLabel));
+    phantomAccumulator.set(phantomId, buildHierarchyGraphNode("phantom", phantomId, phantomLabel));
   }
 
   // Top tier or can't derive parent → attach phantom to root
@@ -574,7 +530,7 @@ const resolveEntryNode = (
       const hierarchyId = tier.buildHierarchyId(identity);
       const label = extractResourceType(key) === "postgres_catalogs" ? identity : undefined;
       return {
-        node: buildContainerResourceNode(hierarchyId, key, entry, label),
+        node: buildResourceNode(key, entry, { id: hierarchyId, label }),
         nodeId: hierarchyId,
       };
     }
@@ -633,7 +589,7 @@ const buildChainGraph = (
     (externalHierarchyRefs !== undefined && externalHierarchyRefs.length > 0);
   if (entries.length === 0 && !hasExternalRefs) return { nodes: [], edges: [] };
 
-  const root = buildRootNode(spec.rootId, spec.rootLabel);
+  const root = buildHierarchyGraphNode("root", spec.rootId, spec.rootLabel);
   const tierIndexes = buildTierIndexes(entries, spec.tiers);
 
   // Accumulators (local mutation within this pure function)
@@ -733,7 +689,7 @@ const buildChainGraph = (
       );
 
       // Create the leaf phantom with its custom ID and wire to schema parent
-      phantomNodes.set(phantomId, buildPhantomNode(phantomId, label));
+      phantomNodes.set(phantomId, buildHierarchyGraphNode("phantom", phantomId, label));
       phantomEdges.push(buildEdge(parentNodeId, phantomId));
     }
   }
@@ -760,7 +716,7 @@ const buildWorkspaceGraph = (
   if (!hasWorkspace && !hasPostgres)
     return { nodes: [], edges: [], flatParentId: "workspace-root" };
 
-  const root = buildRootNode("workspace-root", "Workspace");
+  const root = buildHierarchyGraphNode("root", "workspace-root", "Workspace");
 
   // Postgres hierarchy
   const postgresGraph = hasPostgres
@@ -781,7 +737,7 @@ const buildWorkspaceGraph = (
     ),
   );
   const otherResourcesNodes = shouldWrapFlatResources
-    ? [buildRootNode("other-resources-root", "Other Resources")]
+    ? [buildHierarchyGraphNode("root", "other-resources-root", "Other Resources")]
     : [];
   const otherResourcesEdge = shouldWrapFlatResources
     ? filterDefinedEdges([buildEdge("workspace-root", "other-resources-root")])
@@ -792,20 +748,6 @@ const buildWorkspaceGraph = (
     edges: [...otherResourcesEdge, ...flatEdges, ...postgresRootEdge, ...postgresGraph.edges],
     flatParentId,
   };
-};
-
-// ---------------------------------------------------------------------------
-// Edge deduplication
-// ---------------------------------------------------------------------------
-
-/** Deduplicate edges, keeping the first occurrence of each edge id. */
-const deduplicateEdges = (edges: readonly GraphEdge[]): readonly GraphEdge[] => {
-  const seen = new Set<string>();
-  return edges.filter((edge) => {
-    if (seen.has(edge.id)) return false;
-    seen.add(edge.id);
-    return true;
-  });
 };
 
 // ---------------------------------------------------------------------------
@@ -820,65 +762,90 @@ const collectExternalLeafPhantomRefs = (
   registeredModelFullNameIndex: ReadonlyMap<string, string>,
 ): readonly ExternalLeafPhantomRef[] => {
   const refs: ExternalLeafPhantomRef[] = [];
+  const specs = buildExternalLeafRefSpecs(existingUcKeys, registeredModelFullNameIndex);
 
-  // Registered models from serving endpoint entity_names
-  for (const [key, entry] of entries) {
-    if (extractResourceType(key) !== "model_serving_endpoints") continue;
-    for (const entity of extractServedEntities(entry)) {
-      const name = getUnknownProp(entity, "entity_name");
-      if (typeof name !== "string") continue;
-      const targetKey =
-        registeredModelFullNameIndex.get(name) ?? `resources.registered_models.${name}`;
-      if (existingUcKeys.has(targetKey)) continue;
-      if (parseThreePartName(name) === undefined) continue;
-      refs.push({
-        identity: name,
-        phantomId: `registered-model::${name}`,
-        label: name.split(".").at(-1) ?? name,
-      });
-    }
-  }
-
-  // Phantom tables from quality_monitor table_name
-  for (const [key, entry] of entries) {
-    if (extractResourceType(key) !== "quality_monitors") continue;
-    const tableName = extractStateField(entry, "table_name");
-    if (tableName === undefined || parseThreePartName(tableName) === undefined) continue;
-    refs.push({
-      identity: tableName,
-      phantomId: `source-table::${tableName}`,
-      label: tableName.split(".").at(-1) ?? tableName,
-    });
-  }
-
-  // Phantom source tables from Lakebase synced-table sources.
-  for (const [key, entry] of entries) {
-    if (extractResourceType(key) !== "postgres_synced_tables") continue;
-    const tableName = extractSourceTableFullName(entry);
-    if (tableName === undefined || parseThreePartName(tableName) === undefined) continue;
-    refs.push({
-      identity: tableName,
-      phantomId: `source-table::${tableName}`,
-      label: tableName.split(".").at(-1) ?? tableName,
-    });
-  }
-
-  // Phantom tables from app uc_securable
-  for (const [key, entry] of entries) {
-    if (extractResourceType(key) !== "apps") continue;
-    for (const ref of extractAppResourceReferences(entry)) {
-      if (ref.kind !== "uc_securable") continue;
-      if (parseThreePartName(ref.fullName) === undefined) continue;
-      refs.push({
-        identity: ref.fullName,
-        phantomId: `source-table::${ref.fullName}`,
-        label: ref.fullName.split(".").at(-1) ?? ref.fullName,
-      });
+  for (const spec of specs) {
+    for (const [key, entry] of entries) {
+      const resourceType = extractResourceType(key);
+      if (resourceType === undefined || !spec.sourceTypes.has(resourceType)) continue;
+      for (const identity of spec.extractIdentities(entry)) {
+        refs.push({
+          identity,
+          phantomId: buildPrefixedNodeId(spec.phantomKind, identity),
+          label: extractExternalLeafLabel(identity),
+        });
+      }
     }
   }
 
   return refs;
 };
+
+type LeafRefSpec = {
+  readonly sourceTypes: ReadonlySet<string>;
+  readonly extractIdentities: (entry: PlanEntry) => readonly string[];
+  readonly phantomKind: PhantomKind;
+};
+
+const extractExternalLeafLabel = (identity: string): string =>
+  identity.split(".").at(-1) ?? identity;
+
+const collectThreePartIdentity = (identity: string | undefined): readonly string[] =>
+  identity !== undefined && parseThreePartName(identity) !== undefined ? [identity] : [];
+
+const collectServingEndpointModelIdentities = (
+  entry: PlanEntry,
+  existingUcKeys: ReadonlySet<string>,
+  registeredModelFullNameIndex: ReadonlyMap<string, string>,
+): readonly string[] => {
+  const identities: string[] = [];
+  for (const entity of extractServedEntities(entry)) {
+    const name = getUnknownProp(entity, "entity_name");
+    if (typeof name !== "string") continue;
+    const targetKey =
+      registeredModelFullNameIndex.get(name) ?? buildResourceKey("registered_models", name);
+    if (existingUcKeys.has(targetKey)) continue;
+    if (parseThreePartName(name) !== undefined) identities.push(name);
+  }
+  return identities;
+};
+
+const collectAppUcSecurableIdentities = (entry: PlanEntry): readonly string[] => {
+  const identities: string[] = [];
+  for (const ref of extractAppResourceReferences(entry)) {
+    if (ref.kind === "uc_securable" && parseThreePartName(ref.fullName) !== undefined) {
+      identities.push(ref.fullName);
+    }
+  }
+  return identities;
+};
+
+const buildExternalLeafRefSpecs = (
+  existingUcKeys: ReadonlySet<string>,
+  registeredModelFullNameIndex: ReadonlyMap<string, string>,
+): readonly LeafRefSpec[] => [
+  {
+    sourceTypes: new Set(["model_serving_endpoints"]),
+    extractIdentities: (entry) =>
+      collectServingEndpointModelIdentities(entry, existingUcKeys, registeredModelFullNameIndex),
+    phantomKind: "registeredModel",
+  },
+  {
+    sourceTypes: new Set(["quality_monitors"]),
+    extractIdentities: (entry) => collectThreePartIdentity(extractStateField(entry, "table_name")),
+    phantomKind: "sourceTable",
+  },
+  {
+    sourceTypes: new Set(["postgres_synced_tables"]),
+    extractIdentities: (entry) => collectThreePartIdentity(extractSourceTableFullName(entry)),
+    phantomKind: "sourceTable",
+  },
+  {
+    sourceTypes: new Set(["apps"]),
+    extractIdentities: collectAppUcSecurableIdentities,
+    phantomKind: "sourceTable",
+  },
+];
 
 const collectExternalPostgresDatabaseRefs = (
   entries: readonly (readonly [string, PlanEntry])[],
@@ -974,7 +941,21 @@ export const buildResourceGraph = (
     extractStateField(e, "pipeline_id"),
   );
   const genieSpaceIndex = buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId);
+  const jobIndex = buildApiIdIndex(entries, "jobs", extractJobApiId);
+  const experimentIndex = buildApiIdIndex(entries, "experiments", (e) =>
+    extractStateField(e, "experiment_id"),
+  );
   const jobIdMap = buildJobIdMap(entries);
+  const referenceIndexes: ReferenceIndexes = {
+    warehouseIndex,
+    dashboardIndex,
+    pipelineIndex,
+    genieSpaceIndex,
+    jobIndex,
+    experimentIndex,
+    registeredModelFullNameIndex,
+    jobIdMap,
+  };
 
   // Create phantom nodes for database instances referenced but not in the plan.
   // Parent to the same group as real flat workspace resources.
@@ -990,20 +971,18 @@ export const buildResourceGraph = (
     entries,
     existingKeys,
     workspaceGraph.flatParentId,
-    warehouseIndex,
-    genieSpaceIndex,
+    referenceIndexes,
   );
 
   // Create phantom nodes for external references (warehouses, dashboards, pipelines) from
   // top-level resources and job task sub-objects.
-  const phantomExternalRefs = collectPhantomExternalRefs(entries, workspaceGraph.flatParentId, {
-    warehouseIndex,
-    dashboardIndex,
-    pipelineIndex,
-    jobIdMap,
-  });
+  const phantomExternalRefs = collectPhantomExternalRefs(
+    entries,
+    workspaceGraph.flatParentId,
+    referenceIndexes,
+  );
 
-  const allNodes = deduplicateNodes([
+  const allNodes = dedupeById([
     ...graphNodes,
     ...phantomDbInstances.nodes,
     ...phantomAppDeps.nodes,
@@ -1019,12 +998,12 @@ export const buildResourceGraph = (
 
   const lateralEdges = extractLateralEdges(
     { entries, nodeIdByResourceKey, nodeIds },
-    { warehouseIndex, dashboardIndex, pipelineIndex, registeredModelFullNameIndex, jobIdMap },
+    referenceIndexes,
   );
 
   return {
     nodes: allNodes,
-    edges: deduplicateEdges([
+    edges: dedupeById([
       ...ucGraph.edges,
       ...workspaceGraph.edges,
       ...phantomDbInstances.edges,

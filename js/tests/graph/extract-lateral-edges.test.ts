@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
+import { extractLateralEdges as extractLateralEdgesRaw } from "../../src/graph/extract-lateral-edges.ts";
+import { extractStateField } from "../../src/graph/extract-resource-state.ts";
 import {
   buildApiIdIndex,
-  extractLateralEdges as extractLateralEdgesRaw,
-} from "../../src/graph/extract-lateral-edges.ts";
-import { extractStateField } from "../../src/graph/extract-resource-state.ts";
+  extractGenieSpaceApiId,
+  extractJobApiId,
+} from "../../src/graph/reference-specs.ts";
 import { buildJobIdMap } from "../../src/graph/resolve-run-job-target.ts";
 import type { Plan, PlanEntry } from "../../src/types/plan-schema.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
@@ -26,13 +28,18 @@ const makeSkipEntry = (remoteState: Record<string, unknown>): PlanEntry =>
     remote_state: remoteState,
   }) as PlanEntry;
 
-/** Build warehouse + dashboard + pipeline + registered model + jobIdMap indexes from entries. */
+/** Build shared reference indexes from entries. */
 const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => ({
   warehouseIndex: buildApiIdIndex(entries, "sql_warehouses", (e) => extractStateField(e, "id")),
   dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
     extractStateField(e, "dashboard_id"),
   ),
   pipelineIndex: buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+  genieSpaceIndex: buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId),
+  jobIndex: buildApiIdIndex(entries, "jobs", extractJobApiId),
+  experimentIndex: buildApiIdIndex(entries, "experiments", (e) =>
+    extractStateField(e, "experiment_id"),
+  ),
   registeredModelFullNameIndex: buildApiIdIndex(entries, "registered_models", (e) =>
     extractStateField(e, "full_name"),
   ),

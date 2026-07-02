@@ -1,7 +1,7 @@
 import type { ChangeDesc } from "../../types/plan-schema.ts";
+import { deepEqual } from "../../utils/deep-equal.ts";
 import {
   type DriftScanParent,
-  deepEqual,
   isReclassifiedListElementDriftChange,
   isTopologyDriftChange,
 } from "../../utils/structural-diff.ts";
@@ -26,7 +26,7 @@ export const isNoOpChange = (change: ChangeDesc): boolean => {
 
 export type ChangeEntry = readonly [string, ChangeDesc];
 
-export type MeaningfulChangeSplit = {
+type MeaningfulChangeSplit = {
   /** Topology drift: sub-entity in bundle, missing from remote (will be re-added on apply). */
   readonly driftReentryChanges: Readonly<Record<string, ChangeDesc>>;
   /** List-element drift: element on remote, missing from bundle, in a shape-drifted

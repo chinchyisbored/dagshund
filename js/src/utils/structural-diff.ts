@@ -7,25 +7,10 @@ import type {
   ObjectEntryStatus,
   StructuralDiffResult,
 } from "../types/structural-diff.ts";
+import { deepEqual } from "./deep-equal.ts";
 import { extractListElementSemantic, type FieldChangeContext } from "./field-action.ts";
 import { collectChangesForTask } from "./task-key.ts";
 import { isUnknownRecord } from "./unknown-record.ts";
-
-/** Key-order-independent deep equality check. */
-export const deepEqual = (a: unknown, b: unknown): boolean => {
-  if (a === b) return true;
-  if (typeof a !== typeof b || a === null || b === null) return false;
-  if (Array.isArray(a)) {
-    if (!Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((item, i) => deepEqual(item, b[i]));
-  }
-  if (isUnknownRecord(a) && isUnknownRecord(b)) {
-    const aKeys = Object.keys(a);
-    if (aKeys.length !== Object.keys(b).length) return false;
-    return aKeys.every((key) => key in b && deepEqual(a[key], b[key]));
-  }
-  return false;
-};
 
 /**
  * Detect a topology-drift change entry: a sub-entity defined in the bundle but
@@ -70,7 +55,7 @@ export const isFieldDriftChange = (change: ChangeDesc): boolean =>
   change.action === "update" && isDriftSwapShape(change);
 
 /** True for any drift shape — topology or field-level. */
-export const isAnyDriftChange = (change: ChangeDesc): boolean =>
+const isAnyDriftChange = (change: ChangeDesc): boolean =>
   isTopologyDriftChange(change) || isFieldDriftChange(change);
 
 /** True for a list-element-delete change that the parent state reclassifies as
@@ -100,7 +85,7 @@ export const hasFieldDrift = (changes: Readonly<Record<string, ChangeDesc>> | un
  *  fill in per-change as they iterate. */
 export type DriftScanParent = Omit<FieldChangeContext, "changeKey">;
 
-/** Ctx-aware variant of `hasAnyDrift`: also recognizes reclassified-list-element
+/** Detects any drift shape, including reclassified-list-element
  *  delete drift gated on `parent.resourceHasShapeDrift`. Mirrors Python's
  *  `detect_manual_edits` ctx threading in `src/dagshund/plan.py` (dagshund-15yh). */
 export const hasAnyDriftWithContext = (
@@ -115,7 +100,7 @@ export const hasAnyDriftWithContext = (
   return false;
 };
 
-/** Ctx-aware variant of `hasTaskDrift`. */
+/** Detects drift scoped to one job task. */
 export const hasTaskDriftWithContext = (
   taskKey: string,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,

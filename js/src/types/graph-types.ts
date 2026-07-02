@@ -70,6 +70,27 @@ export type GraphNode =
   | RootGraphNode
   | PhantomGraphNode;
 
+/** Build a root or phantom node — structural nodes carry no plan-entry state.
+ *  `resourceKey` defaults to the node ID (phantoms with a real plan resource
+ *  key pass it explicitly so lateral edge specs can resolve them). */
+export const buildHierarchyGraphNode = <K extends "root" | "phantom">(
+  nodeKind: K,
+  id: string,
+  label: string,
+  resourceKey: string = id,
+) => ({
+  id,
+  label,
+  nodeKind,
+  diffState: "unchanged" as const,
+  resourceKey,
+  changes: undefined,
+  resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
+});
+
 export type EdgeDiffState = "added" | "removed" | "unchanged";
 
 /** Map a DiffState to an EdgeDiffState (edges have no "modified" state). */

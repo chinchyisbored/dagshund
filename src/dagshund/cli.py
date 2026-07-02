@@ -17,6 +17,7 @@ class ExitCode(IntEnum):
     ERROR = 1
     CHANGES = 2
     NEEDS_ATTENTION = 3
+    BROKEN_PIPE = 141  # 128 + SIGPIPE, matches shell convention
 
 
 EPILOG = """\
@@ -231,6 +232,8 @@ def _run(args: argparse.Namespace) -> ExitCode:
     visible_states = _build_visible_states(args)
     raw = _read_plan(args.plan_file)
     plan = parse_plan(raw)
+    if not plan.resources:
+        raise DagshundError("plan is empty")
 
     if args.output:
         from dagshund.browser import render_browser
@@ -272,3 +275,9 @@ def main() -> None:
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)
         sys.exit(ExitCode.ERROR)
+    except BrokenPipeError:
+        # Repoint stdout at devnull so the interpreter's shutdown flush doesn't
+        # raise a second, uncatchable BrokenPipeError.
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        sys.exit(ExitCode.BROKEN_PIPE)

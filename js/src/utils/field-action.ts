@@ -1,5 +1,6 @@
 import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
 import { matchesAllFilters, parseBracketFilters } from "./change-path.ts";
+import { deepEqual } from "./deep-equal.ts";
 import { isUnknownRecord } from "./unknown-record.ts";
 
 /** Actions that treat sub-field changes as part of an update — mirrors
@@ -11,7 +12,7 @@ const FIELD_CHANGE_ACTIONS: ReadonlySet<ActionType> = new Set([
   "resize",
 ]);
 
-export type ListElementSemantic = "create" | "delete" | "update";
+type ListElementSemantic = "create" | "delete" | "update";
 
 /** Context passed alongside a `ChangeDesc` when the caller has the parent state.
  *
@@ -64,7 +65,7 @@ export const extractListElementSemantic = (
 
   if (inRemote && !inNew) return "delete";
   if (inNew && !inRemote) return "create";
-  if (inNew && inRemote) return deepEqualRec(newElem, remoteElem) ? undefined : "update";
+  if (inNew && inRemote) return deepEqual(newElem, remoteElem) ? undefined : "update";
   return undefined;
 };
 
@@ -149,22 +150,6 @@ const resolveSegment = (current: unknown, segment: string): unknown => {
   }
 
   return next;
-};
-
-/** Local deep-equal (avoids importing from structural-diff.ts to keep this module standalone). */
-const deepEqualRec = (a: unknown, b: unknown): boolean => {
-  if (a === b) return true;
-  if (typeof a !== typeof b || a === null || b === null) return false;
-  if (Array.isArray(a)) {
-    if (!Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((item, i) => deepEqualRec(item, b[i]));
-  }
-  if (isUnknownRecord(a) && isUnknownRecord(b)) {
-    const aKeys = Object.keys(a);
-    if (aKeys.length !== Object.keys(b).length) return false;
-    return aKeys.every((key) => key in b && deepEqualRec(a[key], b[key]));
-  }
-  return false;
 };
 
 /**

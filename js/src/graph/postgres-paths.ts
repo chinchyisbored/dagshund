@@ -12,10 +12,6 @@ export type PostgresRolePath = PostgresBranchPath & {
   readonly roleId: string;
 };
 
-export type PostgresDatabaseIdentity = PostgresBranchPath & {
-  readonly postgresDatabase: string;
-};
-
 export const parsePostgresProjectPath = (resourcePath: string): string | undefined => {
   const segments = resourcePath.split("/");
   const projectId = segments[1];
@@ -45,7 +41,7 @@ export const parsePostgresBranchPath = (resourcePath: string): PostgresBranchPat
 export const formatPostgresBranchIdentity = (path: PostgresBranchPath): string =>
   `${path.projectId}/${path.branchId}`;
 
-export const parsePostgresRolePath = (resourcePath: string): PostgresRolePath | undefined => {
+const parsePostgresRolePath = (resourcePath: string): PostgresRolePath | undefined => {
   const segments = resourcePath.split("/");
   const projectId = segments[1];
   const branchId = segments[3];
@@ -67,11 +63,8 @@ export const parsePostgresRolePath = (resourcePath: string): PostgresRolePath | 
   return { projectId, branchId, roleId };
 };
 
-export const formatPostgresRoleIdentity = (path: PostgresRolePath): string =>
+const formatPostgresRoleIdentity = (path: PostgresRolePath): string =>
   `${path.projectId}/${path.branchId}/${path.roleId}`;
-
-export const formatPostgresDatabaseIdentity = (identity: PostgresDatabaseIdentity): string =>
-  `${identity.projectId}/${identity.branchId}/${identity.postgresDatabase}`;
 
 /** Extract a DAB resource-key reference from "${resources.type.name.id}" or ".name". */
 export const extractBundleResourceIdRef = (resourceRef: string): string | undefined => {
@@ -122,7 +115,7 @@ export const resolvePostgresBranchRefIdentityFromEntries = (
   return resolvePostgresBranchRefIdentity(branchRef);
 };
 
-export const extractPostgresDatabaseName = (entry: PlanEntry): string | undefined => {
+const extractPostgresDatabaseName = (entry: PlanEntry): string | undefined => {
   const directName = extractStateField(entry, "postgres_database");
   if (directName !== undefined) return directName;
 
@@ -164,7 +157,7 @@ export const resolvePostgresDatabaseResourceKey = (
   })?.[0];
 };
 
-export const resolvePostgresRoleIdentity = (entry: PlanEntry): string | undefined => {
+const resolvePostgresRoleIdentity = (entry: PlanEntry): string | undefined => {
   const name = extractStateField(entry, "name");
   const namePath = name !== undefined ? parsePostgresRolePath(name) : undefined;
   if (namePath !== undefined) return formatPostgresRoleIdentity(namePath);
@@ -178,7 +171,7 @@ export const resolvePostgresRoleIdentity = (entry: PlanEntry): string | undefine
     : undefined;
 };
 
-export const resolvePostgresRoleRefIdentity = (roleRef: string): string | undefined => {
+const resolvePostgresRoleRefIdentity = (roleRef: string): string | undefined => {
   const rolePath = parsePostgresRolePath(roleRef);
   return rolePath !== undefined ? formatPostgresRoleIdentity(rolePath) : undefined;
 };

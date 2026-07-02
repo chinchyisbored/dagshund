@@ -11,7 +11,7 @@ import {
 } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "../utils/merge-sub-resources.ts";
-import { extractResourceName } from "../utils/resource-key.ts";
+import { buildTaskNodeId, extractResourceName } from "../utils/resource-key.ts";
 import { hasFieldDrift, hasTaskDriftWithContext } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
@@ -26,10 +26,6 @@ import {
 } from "./extract-tasks.ts";
 import { buildJobIdMap, resolveRunJobTarget } from "./resolve-run-job-target.ts";
 import { classifyChange, resolveTaskDiffState } from "./resolve-task-diff-state.ts";
-
-/** Create a unique node ID for a task within a resource. */
-const buildTaskNodeId = (resourceKey: string, taskKey: string): string =>
-  `${resourceKey}::${taskKey}`;
 
 /** Create a job-level graph node for a plan entry. */
 const buildJobNode = (

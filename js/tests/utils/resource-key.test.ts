@@ -1,13 +1,45 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildPrefixedNodeId,
+  buildResourceKey,
+  buildTaskNodeId,
   extractParentResourceKey,
   extractPhantomBadge,
   extractResourceName,
   extractSubResourceSuffix,
+  extractTaskNodeParentId,
   extractTypeBadge,
   isPhantomLeaf,
   isSubResourceKey,
 } from "../../src/utils/resource-key.ts";
+
+describe("buildPrefixedNodeId", () => {
+  test("builds registered phantom and hierarchy node IDs", () => {
+    expect(buildPrefixedNodeId("sqlWarehouse", "wh1")).toBe("sql-warehouse::wh1");
+    expect(buildPrefixedNodeId("schema", "main.analytics")).toBe("schema::main.analytics");
+  });
+});
+
+describe("buildResourceKey", () => {
+  test("builds top-level resource keys", () => {
+    expect(buildResourceKey("registered_models", "fraud_detector")).toBe(
+      "resources.registered_models.fraud_detector",
+    );
+  });
+});
+
+describe("task node IDs", () => {
+  test("round-trips task node IDs to their parent resource key", () => {
+    const taskNodeId = buildTaskNodeId("resources.jobs.etl", "load");
+
+    expect(taskNodeId).toBe("resources.jobs.etl::load");
+    expect(extractTaskNodeParentId(taskNodeId)).toBe("resources.jobs.etl");
+  });
+
+  test("returns unchanged node ID when no task separator is present", () => {
+    expect(extractTaskNodeParentId("resources.jobs.etl")).toBe("resources.jobs.etl");
+  });
+});
 
 describe("extractResourceName", () => {
   test("returns last segment of a dotted key", () => {

@@ -22,6 +22,7 @@ Comment the exception when non-obvious.
 ## Data & Types
 - **Discriminated unions** for domain variants (`DiffState`, `GraphNode`, `StructuralDiff`). Use a literal string discriminant field (`kind`, `status`, `nodeKind`). Narrow with `if`/`switch` on the discriminant, never `instanceof`. Use a `never` cast in the `default` branch to enforce exhaustive handling — the compiler will error if a new variant is added but not handled.
 - **Type composition** via intersection (`&`), not `interface extends`. Supports discriminated unions and avoids interface merging footguns.
+- **Registry tables for per-kind conventions.** When multiple modules must agree on a per-kind fact (ID prefix, badge, API-ID index, extractor), define it once in a kind-keyed table (`as const satisfies Readonly<Record<string, Spec>>`), derive the kind type via `keyof typeof`, and expose builders/lookups on the table — never re-type the string convention inline. Existing registries: `PHANTOM_PREFIX_SPECS` + `buildPrefixedNodeId`/`buildResourceKey`/`buildTaskNodeId` (`utils/resource-key.ts`), `TASK_REF_SPECS` + `ReferenceIndexes` (`graph/reference-specs.ts`), `LATERAL_EDGE_SPECS`/`ChainSpec` (`graph/`). Adding a kind must be a one-entry change; an unregistered kind must fail to compile. Counter-rule: kinds whose semantics genuinely diverge get adjacent exhaustive switches, not a flag-laden shared table (`resolveAppRefTargetKey` vs `resolveAppPhantomRef`).
 - **`readonly` on all type fields.** `Readonly<Record<K, V>>` for static lookup tables. `ReadonlySet<T>` and `ReadonlyMap<K, V>` for computed collections.
 - **Zod**: `.readonly()` on all object and array schemas — `z.array(...).readonly()` ensures inferred types are `ReadonlyArray`, preventing accidental `.sort()` / `.push()`. `z.unknown()` for opaque fields (never `z.any()`). Infer types with `z.infer<typeof schema>`. Domain logic depends on the inferred types, never on the Zod schemas themselves — keep Zod at the parse boundary.
 - **`as`**: avoid. Permitted for React Flow `node.data` casts (generic doesn't propagate to handlers — comment why) and `as const`. Always comment the reason.
@@ -50,7 +51,7 @@ Comment the exception when non-obvious.
 - **State**: always replaced, never mutated. `setState(newValue)`, never `state.push()` or `state.foo = bar`.
 
 ## Module Structure
-- Barrel exports via `index.ts` in each directory: explicit `export type` for types, `export` for values
+- No barrel files — import directly from the concrete module (`../utils/resource-key.ts`), including the `.ts` extension
 - Lazy singleton via closure-scoped IIFE for expensive objects (ELK Worker) — recognized exception to "no singletons"
 
 ## Don'ts

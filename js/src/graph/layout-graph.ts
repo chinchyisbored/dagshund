@@ -17,6 +17,7 @@ import {
   LATERAL_TOP,
   LATERAL_TOP_OUT,
 } from "../utils/diff-state-styles.ts";
+import { extractTaskNodeParentId } from "../utils/resource-key.ts";
 
 /** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner).
  *  No crash recovery: if the Worker dies the layout call rejects and the UI shows an error state,
@@ -58,20 +59,14 @@ export const groupNodesByJob = (nodes: readonly GraphNode[]): readonly JobGroup[
   }));
 };
 
-/** Extract the parent job ID from a node ID (task IDs contain "::", job IDs don't). */
-const parentJobId = (nodeId: string): string => {
-  const separator = nodeId.indexOf("::");
-  return separator === -1 ? nodeId : nodeId.substring(0, separator);
-};
-
 /** Collect cross-hierarchy edges (source and target in different jobs) mapped to job-level for ELK. */
 const collectCrossJobEdges = (
   edges: PlanGraph["edges"],
 ): { id: string; sources: string[]; targets: string[] }[] => {
   const seen = new Set<string>();
   return edges.flatMap((edge) => {
-    const sourceJob = parentJobId(edge.source);
-    const targetJob = parentJobId(edge.target);
+    const sourceJob = extractTaskNodeParentId(edge.source);
+    const targetJob = extractTaskNodeParentId(edge.target);
     if (sourceJob === targetJob) return [];
     const pairKey = `${sourceJob}→${targetJob}`;
     if (seen.has(pairKey)) return [];

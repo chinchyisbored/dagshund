@@ -1,10 +1,11 @@
 import { buildGraphEdge, type GraphEdge } from "../types/graph-types.ts";
 import type { PlanEntry } from "../types/plan-schema.ts";
 import {
+  buildPrefixedNodeId,
+  buildResourceKey,
   DATABASE_INSTANCE_SOURCE_TYPES,
   extractResourceType,
   LATERAL_EDGE_PREFIX,
-  TASK_WAREHOUSE_KEYS,
   WAREHOUSE_SOURCE_TYPES,
 } from "../utils/resource-key.ts";
 import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
@@ -17,133 +18,31 @@ import {
 } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
 import {
-  extractBundleResourceIdRef,
   resolvePostgresBranchRefIdentity,
   resolvePostgresBranchRefIdentityFromEntries,
   resolvePostgresBranchResourceKey,
   resolvePostgresDatabaseResourceKey,
-  resolvePostgresRoleRefIdentity,
   resolvePostgresRoleResourceKey,
 } from "./postgres-paths.ts";
+import {
+  extractAppResourceReferences,
+  type LateralEdgeContext,
+  type ReferenceIndexes,
+  resolveAppRefTargetKey,
+  TASK_REF_SPECS,
+} from "./reference-specs.ts";
 import { resolveRunJobTarget } from "./resolve-run-job-target.ts";
-
-// ---------------------------------------------------------------------------
-// Context type passed to all extractors
-// ---------------------------------------------------------------------------
-
-type LateralEdgeContext = {
-  readonly entries: readonly (readonly [string, PlanEntry])[];
-  readonly nodeIdByResourceKey: ReadonlyMap<string, string>;
-  readonly nodeIds: ReadonlySet<string>;
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a reverse index mapping API ID → resource key for a given resource type. */
-export const buildApiIdIndex = (
-  entries: readonly (readonly [string, PlanEntry])[],
-  resourceType: string,
-  extractId: (entry: PlanEntry) => string | undefined,
-): ReadonlyMap<string, string> => {
-  const pairs: [string, string][] = [];
-  for (const [key, entry] of entries) {
-    if (extractResourceType(key) !== resourceType) continue;
-    const apiId = extractId(entry);
-    if (apiId !== undefined) pairs.push([apiId, key]);
-  }
-  return new Map(pairs);
-};
-
-/** Extract job API ID from a job entry's state, handling both number and string job_id. */
-export const extractJobApiId = (entry: PlanEntry): string | undefined => {
-  const state = extractResourceState(entry);
-  const v = state?.["job_id"];
-  return typeof v === "number" ? String(v) : typeof v === "string" ? v : undefined;
-};
-
-// ---------------------------------------------------------------------------
-// App resource reference extraction
-// ---------------------------------------------------------------------------
-
-export type AppResourceRef =
-  | { readonly kind: "job"; readonly id: string }
-  | { readonly kind: "sql_warehouse"; readonly id: string }
-  | { readonly kind: "genie_space"; readonly id: string; readonly name: string }
-  | { readonly kind: "secret_scope"; readonly name: string }
-  | { readonly kind: "serving_endpoint"; readonly name: string }
-  | { readonly kind: "experiment"; readonly id: string }
-  | { readonly kind: "uc_securable"; readonly fullName: string };
-
-/** Extract typed resource references from an app entry's nested resources[] array. */
-export const extractAppResourceReferences = (entry: PlanEntry): readonly AppResourceRef[] => {
-  const state = extractResourceState(entry);
-  if (state === undefined) return [];
-  const resources = state["resources"];
-  if (!Array.isArray(resources)) return [];
-  const refs: AppResourceRef[] = [];
-  for (const resource of resources) {
-    if (!isUnknownRecord(resource)) continue;
-    const job = resource["job"];
-    if (isUnknownRecord(job) && typeof job["id"] === "string") {
-      refs.push({ kind: "job", id: job["id"] });
-      continue;
-    }
-    const warehouse = resource["sql_warehouse"];
-    if (isUnknownRecord(warehouse) && typeof warehouse["id"] === "string") {
-      refs.push({ kind: "sql_warehouse", id: warehouse["id"] });
-      continue;
-    }
-    const genieSpace = resource["genie_space"];
-    if (
-      isUnknownRecord(genieSpace) &&
-      typeof genieSpace["space_id"] === "string" &&
-      typeof genieSpace["name"] === "string"
-    ) {
-      refs.push({ kind: "genie_space", id: genieSpace["space_id"], name: genieSpace["name"] });
-      continue;
-    }
-    const secret = resource["secret"];
-    if (isUnknownRecord(secret) && typeof secret["scope"] === "string") {
-      refs.push({ kind: "secret_scope", name: secret["scope"] });
-      continue;
-    }
-    const endpoint = resource["serving_endpoint"];
-    if (isUnknownRecord(endpoint) && typeof endpoint["name"] === "string") {
-      refs.push({ kind: "serving_endpoint", name: endpoint["name"] });
-      continue;
-    }
-    const experiment = resource["experiment"];
-    if (isUnknownRecord(experiment) && typeof experiment["experiment_id"] === "string") {
-      refs.push({ kind: "experiment", id: experiment["experiment_id"] });
-      continue;
-    }
-    const ucSecurable = resource["uc_securable"];
-    if (isUnknownRecord(ucSecurable) && typeof ucSecurable["securable_full_name"] === "string") {
-      refs.push({ kind: "uc_securable", fullName: ucSecurable["securable_full_name"] });
-    }
-  }
-  return refs;
-};
-
-/** Extract Genie space API ID from state. Created resources may expose either field shape. */
-export const extractGenieSpaceApiId = (entry: PlanEntry): string | undefined =>
-  extractStateField(entry, "space_id") ?? extractStateField(entry, "id");
-
-const resolveGenieSpaceTargetKey = (
-  ref: Extract<AppResourceRef, { readonly kind: "genie_space" }>,
+const resolveExistingTargetId = (
+  targetKey: string,
   context: LateralEdgeContext,
-  genieSpaceIndex: ReadonlyMap<string, string>,
-): string => {
-  const resourceRef = extractBundleResourceIdRef(ref.id);
-  if (resourceRef !== undefined && extractResourceType(resourceRef) === "genie_spaces") {
-    return resourceRef;
-  }
-  const nameKey = `resources.genie_spaces.${ref.name}`;
-  return context.nodeIdByResourceKey.has(nameKey)
-    ? nameKey
-    : (genieSpaceIndex.get(ref.id) ?? nameKey);
+): string | undefined => {
+  const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+  return context.nodeIds.has(targetNodeId) ? targetNodeId : undefined;
 };
 
 // ---------------------------------------------------------------------------
@@ -188,7 +87,7 @@ const DATABASE_INSTANCE_SPEC: LateralEdgeSpec = {
   extractTargetIds: (entry, context) => {
     const name = extractStateField(entry, "database_instance_name");
     if (name === undefined) return [];
-    const id = context.nodeIdByResourceKey.get(`resources.database_instances.${name}`);
+    const id = resolveExistingTargetId(buildResourceKey("database_instances", name), context);
     return id !== undefined ? [id] : [];
   },
 };
@@ -199,7 +98,7 @@ const SOURCE_TABLE_SPEC: LateralEdgeSpec = {
   extractTargetIds: (entry, context) => {
     const name = extractSourceTableFullName(entry);
     if (name === undefined || parseThreePartName(name) === undefined) return [];
-    const id = `source-table::${name}`;
+    const id = buildPrefixedNodeId("sourceTable", name);
     return context.nodeIds.has(id) ? [id] : [];
   },
 };
@@ -217,12 +116,12 @@ const createServingEndpointModelSpec = (
       if (typeof name !== "string") continue;
       // Resolution chain: full_name index → simple name key → phantom
       const targetKey =
-        registeredModelFullNameIndex.get(name) ?? `resources.registered_models.${name}`;
-      const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-      if (context.nodeIds.has(targetNodeId)) {
+        registeredModelFullNameIndex.get(name) ?? buildResourceKey("registered_models", name);
+      const targetNodeId = resolveExistingTargetId(targetKey, context);
+      if (targetNodeId !== undefined) {
         targets.push(targetNodeId);
       } else {
-        const phantomId = `registered-model::${name}`;
+        const phantomId = buildPrefixedNodeId("registeredModel", name);
         if (context.nodeIds.has(phantomId)) targets.push(phantomId);
       }
     }
@@ -238,11 +137,11 @@ const collectPipelineCatalogTargets = (
   const targets: string[] = [];
   const catalogName = extractStateField(entry, "catalog");
   if (catalogName === undefined) return targets;
-  const catalogId = `catalog::${catalogName}`;
+  const catalogId = buildPrefixedNodeId("catalog", catalogName);
   if (nodeIds.has(catalogId)) targets.push(catalogId);
   const targetSchemaName = extractStateField(entry, "target");
   if (targetSchemaName !== undefined) {
-    const schemaId = `schema::${catalogName}.${targetSchemaName}`;
+    const schemaId = buildPrefixedNodeId("schema", `${catalogName}.${targetSchemaName}`);
     if (nodeIds.has(schemaId)) targets.push(schemaId);
   }
   return targets;
@@ -264,7 +163,7 @@ const collectPipelineIngestionTargets = (
     const sourceCatalog = schemaDef["source_catalog"];
     const sourceSchema = schemaDef["source_schema"];
     if (typeof sourceCatalog === "string" && typeof sourceSchema === "string") {
-      const schemaId = `schema::${sourceCatalog}.${sourceSchema}`;
+      const schemaId = buildPrefixedNodeId("schema", `${sourceCatalog}.${sourceSchema}`);
       if (nodeIds.has(schemaId)) targets.push(schemaId);
     }
   }
@@ -286,7 +185,7 @@ const QUALITY_MONITOR_TABLE_SPEC: LateralEdgeSpec = {
   extractTargetIds: (entry, context) => {
     const tableName = extractStateField(entry, "table_name");
     if (tableName === undefined || parseThreePartName(tableName) === undefined) return [];
-    const phantomId = `source-table::${tableName}`;
+    const phantomId = buildPrefixedNodeId("sourceTable", tableName);
     return context.nodeIds.has(phantomId) ? [phantomId] : [];
   },
 };
@@ -297,13 +196,13 @@ const resolvePostgresBranchTargetIds = (
 ): readonly string[] => {
   const targetKey = resolvePostgresBranchResourceKey(branchRef, context.entries);
   if (targetKey !== undefined) {
-    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+    const targetNodeId = resolveExistingTargetId(targetKey, context);
+    return targetNodeId !== undefined ? [targetNodeId] : [];
   }
 
   const targetIdentity = resolvePostgresBranchRefIdentity(branchRef);
   if (targetIdentity === undefined) return [];
-  const phantomId = `postgres-branch::${targetIdentity}`;
+  const phantomId = buildPrefixedNodeId("postgresBranch", targetIdentity);
   return context.nodeIds.has(phantomId) ? [phantomId] : [];
 };
 
@@ -313,14 +212,11 @@ const resolvePostgresRoleTargetIds = (
 ): readonly string[] => {
   const targetKey = resolvePostgresRoleResourceKey(roleRef, context.entries);
   if (targetKey !== undefined) {
-    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+    const targetNodeId = resolveExistingTargetId(targetKey, context);
+    return targetNodeId !== undefined ? [targetNodeId] : [];
   }
 
-  const targetIdentity = resolvePostgresRoleRefIdentity(roleRef);
-  if (targetIdentity === undefined) return [];
-  const targetId = `postgres-role::${targetIdentity}`;
-  return context.nodeIds.has(targetId) ? [targetId] : [];
+  return [];
 };
 
 const resolvePostgresDatabaseTargetIds = (
@@ -333,13 +229,13 @@ const resolvePostgresDatabaseTargetIds = (
 
   const targetKey = resolvePostgresDatabaseResourceKey(branch, postgresDatabase, context.entries);
   if (targetKey !== undefined) {
-    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+    const targetNodeId = resolveExistingTargetId(targetKey, context);
+    return targetNodeId !== undefined ? [targetNodeId] : [];
   }
 
   const branchIdentity = resolvePostgresBranchRefIdentityFromEntries(branch, context.entries);
   if (branchIdentity === undefined) return [];
-  const targetId = `postgres-database::${branchIdentity}/${postgresDatabase}`;
+  const targetId = buildPrefixedNodeId("postgresDatabase", `${branchIdentity}/${postgresDatabase}`);
   return context.nodeIds.has(targetId) ? [targetId] : [];
 };
 
@@ -377,51 +273,14 @@ const createWarehouseSpec = (warehouseIndex: ReadonlyMap<string, string>): Later
   extractTargetIds: (entry, context) => {
     const apiId = extractStateField(entry, "warehouse_id");
     if (apiId === undefined) return [];
-    const targetKey = warehouseIndex.get(apiId) ?? `sql-warehouse::${apiId}`;
-    const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-    return context.nodeIds.has(targetNodeId) ? [targetNodeId] : [];
+    const targetKey = warehouseIndex.get(apiId) ?? buildPrefixedNodeId("sqlWarehouse", apiId);
+    const targetNodeId = resolveExistingTargetId(targetKey, context);
+    return targetNodeId !== undefined ? [targetNodeId] : [];
   },
 });
 
-/** Extract warehouse_id from a task's typed sub-object (sql_task, dashboard_task, etc.). */
-export const extractTaskWarehouseId = (
-  task: Readonly<Record<string, unknown>>,
-): string | undefined => {
-  for (const key of TASK_WAREHOUSE_KEYS) {
-    const sub = task[key];
-    if (!isUnknownRecord(sub)) continue;
-    const warehouseId = sub["warehouse_id"];
-    if (typeof warehouseId === "string") return warehouseId;
-  }
-  return undefined;
-};
-
-/** Extract dashboard_id from a task's dashboard_task sub-object. */
-export const extractTaskDashboardId = (
-  task: Readonly<Record<string, unknown>>,
-): string | undefined => {
-  const sub = task["dashboard_task"];
-  if (!isUnknownRecord(sub)) return undefined;
-  const dashboardId = sub["dashboard_id"];
-  return typeof dashboardId === "string" ? dashboardId : undefined;
-};
-
-/** Extract pipeline_id from a task's pipeline_task sub-object. */
-export const extractTaskPipelineId = (
-  task: Readonly<Record<string, unknown>>,
-): string | undefined => {
-  const sub = task["pipeline_task"];
-  if (!isUnknownRecord(sub)) return undefined;
-  const pipelineId = sub["pipeline_id"];
-  return typeof pipelineId === "string" ? pipelineId : undefined;
-};
-
 /** Factory: job → sql_warehouse/dashboard/pipeline (via task sub-object references). */
-const createJobTaskRefsSpec = (
-  warehouseIndex: ReadonlyMap<string, string>,
-  dashboardIndex: ReadonlyMap<string, string>,
-  pipelineIndex: ReadonlyMap<string, string>,
-): LateralEdgeSpec => ({
+const createJobTaskRefsSpec = (indexes: ReferenceIndexes): LateralEdgeSpec => ({
   sourceTypes: new Set(["jobs"]),
   extractTargetIds: (entry, context) => {
     const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
@@ -429,26 +288,14 @@ const createJobTaskRefsSpec = (
     const targets: string[] = [];
     const seen = new Set<string>();
     for (const task of tasks) {
-      const warehouseId = extractTaskWarehouseId(task);
-      if (warehouseId !== undefined && !seen.has(warehouseId)) {
-        seen.add(warehouseId);
-        const targetKey = warehouseIndex.get(warehouseId) ?? `sql-warehouse::${warehouseId}`;
-        const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-        if (context.nodeIds.has(targetNodeId)) targets.push(targetNodeId);
-      }
-      const dashboardId = extractTaskDashboardId(task);
-      if (dashboardId !== undefined && !seen.has(dashboardId)) {
-        seen.add(dashboardId);
-        const targetKey = dashboardIndex.get(dashboardId) ?? `dashboard::${dashboardId}`;
-        const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-        if (context.nodeIds.has(targetNodeId)) targets.push(targetNodeId);
-      }
-      const pipelineId = extractTaskPipelineId(task);
-      if (pipelineId !== undefined && !seen.has(pipelineId)) {
-        seen.add(pipelineId);
-        const targetKey = pipelineIndex.get(pipelineId) ?? `pipeline::${pipelineId}`;
-        const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-        if (context.nodeIds.has(targetNodeId)) targets.push(targetNodeId);
+      for (const spec of TASK_REF_SPECS) {
+        const id = spec.extractId(task);
+        if (id === undefined || seen.has(id)) continue;
+        seen.add(id);
+        const targetKey =
+          spec.selectIndex(indexes).get(id) ?? buildPrefixedNodeId(spec.phantomKind, id);
+        const targetNodeId = resolveExistingTargetId(targetKey, context);
+        if (targetNodeId !== undefined) targets.push(targetNodeId);
       }
     }
     return targets;
@@ -468,69 +315,34 @@ const createJobRunJobTaskSpec = (jobIdMap: ReadonlyMap<number, string>): Lateral
       if (runJobId === undefined) continue;
       const resolvedKey = resolveRunJobTarget(runJobId, jobIdMap, entry.new_state, task.task_key);
       const targetKey =
-        resolvedKey ?? (typeof runJobId === "number" ? `job::${runJobId}` : undefined);
+        resolvedKey ??
+        (typeof runJobId === "number" ? buildPrefixedNodeId("job", String(runJobId)) : undefined);
       if (targetKey === undefined) continue;
-      const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
+      const targetNodeId = resolveExistingTargetId(targetKey, context);
+      if (targetNodeId === undefined) continue;
       if (seen.has(targetNodeId)) continue;
       seen.add(targetNodeId);
-      if (context.nodeIds.has(targetNodeId)) targets.push(targetNodeId);
+      targets.push(targetNodeId);
     }
     return targets;
   },
 });
 
 /** Factory: app → job/warehouse/secret/serving_endpoint/experiment (via nested resources[] array). */
-const createAppResourcesSpec = (
-  context: LateralEdgeContext,
-  warehouseIndex: ReadonlyMap<string, string>,
-): LateralEdgeSpec => {
-  const jobIndex = buildApiIdIndex(context.entries, "jobs", extractJobApiId);
-  const genieSpaceIndex = buildApiIdIndex(context.entries, "genie_spaces", extractGenieSpaceApiId);
-  const experimentIndex = buildApiIdIndex(context.entries, "experiments", (e) =>
-    extractStateField(e, "experiment_id"),
-  );
-  return {
-    sourceTypes: new Set(["apps"]),
-    extractTargetIds: (entry, context) => {
-      const refs = extractAppResourceReferences(entry);
-      const targets: string[] = [];
-      for (const ref of refs) {
-        let targetKey: string | undefined;
-        switch (ref.kind) {
-          case "job":
-            targetKey = jobIndex.get(ref.id) ?? `job::${ref.id}`;
-            break;
-          case "sql_warehouse":
-            targetKey = warehouseIndex.get(ref.id) ?? `sql-warehouse::${ref.id}`;
-            break;
-          case "genie_space": {
-            targetKey = resolveGenieSpaceTargetKey(ref, context, genieSpaceIndex);
-            break;
-          }
-          case "experiment":
-            targetKey = experimentIndex.get(ref.id) ?? `experiment::${ref.id}`;
-            break;
-          case "secret_scope":
-            targetKey = `resources.secret_scopes.${ref.name}`;
-            break;
-          case "serving_endpoint":
-            targetKey = `resources.model_serving_endpoints.${ref.name}`;
-            break;
-          case "uc_securable":
-            targetKey =
-              parseThreePartName(ref.fullName) !== undefined
-                ? `source-table::${ref.fullName}`
-                : undefined;
-            break;
-        }
-        if (targetKey === undefined) continue;
-        const targetNodeId = context.nodeIdByResourceKey.get(targetKey) ?? targetKey;
-        if (context.nodeIds.has(targetNodeId)) targets.push(targetNodeId);
-      }
-      return targets;
-    },
-  };
-};
+const createAppResourcesSpec = (indexes: ReferenceIndexes): LateralEdgeSpec => ({
+  sourceTypes: new Set(["apps"]),
+  extractTargetIds: (entry, context) => {
+    const refs = extractAppResourceReferences(entry);
+    const targets: string[] = [];
+    for (const ref of refs) {
+      const targetKey = resolveAppRefTargetKey(ref, indexes, context);
+      if (targetKey === undefined) continue;
+      const targetNodeId = resolveExistingTargetId(targetKey, context);
+      if (targetNodeId !== undefined) targets.push(targetNodeId);
+    }
+    return targets;
+  },
+});
 
 // ---------------------------------------------------------------------------
 // Main export
@@ -546,27 +358,18 @@ const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
   POSTGRES_DATABASE_ROLE_SPEC,
 ];
 
-type LateralEdgeIndexes = {
-  readonly warehouseIndex: ReadonlyMap<string, string>;
-  readonly dashboardIndex: ReadonlyMap<string, string>;
-  readonly pipelineIndex: ReadonlyMap<string, string>;
-  readonly registeredModelFullNameIndex: ReadonlyMap<string, string>;
-  readonly jobIdMap: ReadonlyMap<number, string>;
-};
-
 /** Extract all lateral (cross-reference) edges from plan entries. */
 export const extractLateralEdges = (
   context: LateralEdgeContext,
-  indexes: LateralEdgeIndexes,
+  indexes: ReferenceIndexes,
 ): readonly GraphEdge[] => {
-  const { warehouseIndex, dashboardIndex, pipelineIndex, registeredModelFullNameIndex, jobIdMap } =
-    indexes;
+  const { warehouseIndex, registeredModelFullNameIndex, jobIdMap } = indexes;
   const allSpecs = [
     ...LATERAL_EDGE_SPECS,
     createWarehouseSpec(warehouseIndex),
-    createJobTaskRefsSpec(warehouseIndex, dashboardIndex, pipelineIndex),
+    createJobTaskRefsSpec(indexes),
     createJobRunJobTaskSpec(jobIdMap),
-    createAppResourcesSpec(context, warehouseIndex),
+    createAppResourcesSpec(indexes),
     createServingEndpointModelSpec(registeredModelFullNameIndex),
   ];
   return allSpecs.flatMap((spec) => applyLateralEdgeSpec(spec, context));

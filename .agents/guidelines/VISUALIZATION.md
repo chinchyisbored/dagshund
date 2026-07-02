@@ -9,6 +9,7 @@ Each node has exactly one diff state:
 - `removed` — deleted resource, red border
 - `modified` — changed resource, amber/yellow indicator
 - `unchanged` — no changes, neutral/default style
+- `unknown` — action not recognized or state not derivable, dashed border
 
 ## Interaction Model
 
@@ -30,15 +31,14 @@ Each step is a pure function. No side effects until React rendering.
 
 ## Resource Graph Structure
 
-The resource graph groups plan entries into four sections:
+The resource graph groups plan entries into two top-level sections:
 
-- **UC** (`uc-root`) — Unity Catalog hierarchy: catalogs → schemas → volumes/models
+- **UC** (`uc-root`) — Unity Catalog hierarchy: catalogs (incl. database/postgres catalogs) → schemas → volumes/models/synced tables, plus inferred source-table phantom leaves
 - **Workspace** (`workspace-root`) — everything else, containing:
-  - **Postgres** (`postgres-root`) — projects → branches → endpoints
-  - **Lakebase** (`lakebase-root`) — database instances → synced tables
-  - **Other Resources** (`other-resources-root`) — flat workspace resources (jobs, alerts, experiments, pipelines, etc.)
+  - **Lakebase** (`postgres-root`, labeled "Lakebase") — projects → branches → databases/endpoints/roles → synced tables
+  - **Other Resources** (`other-resources-root`) — flat workspace resources (jobs, alerts, experiments, pipelines, database instances, etc.)
 
-The "Other Resources" group only appears when Postgres or Lakebase hierarchies are present — it separates flat resources from the nested hierarchies so ELK produces cleaner layouts. When no hierarchies exist, flat resources connect directly to `workspace-root`.
+The "Other Resources" group only appears when the Lakebase hierarchy is present — it separates flat resources from the nested hierarchy so ELK produces cleaner layouts. When no hierarchy exists, flat resources connect directly to `workspace-root`.
 
 Group nodes that represent inferred/external entities (not in the plan) render with dashed borders.
 
@@ -57,9 +57,7 @@ js/src/
   index.html            — Dev server HTML shell
   frontend.tsx          — React entry point
   app.tsx               — Root React component
-  cli.ts                — JS CLI for static HTML export
   html-assembler.ts     — HTML assembly (escape helpers, template building)
-  dagshund/_assets/     — Bundled template.html for static HTML export
   parser/               — Plan JSON parsing + Zod validation
   graph/                — DAG graph construction
   components/           — React components (each in its own file)
@@ -69,4 +67,6 @@ js/src/
   styles/               — Tailwind CSS
 ```
 
-Each directory has an `index.ts` barrel export. Keep files small and focused.
+The production template is built by `js/scripts/build-template.ts` into `src/dagshund/_assets/`
+(the Python package). There are no `index.ts` barrels — import from concrete modules. Keep files
+small and focused.

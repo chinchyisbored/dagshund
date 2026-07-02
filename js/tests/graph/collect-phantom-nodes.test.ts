@@ -4,8 +4,13 @@ import {
   collectPhantomDatabaseInstances,
   collectPhantomExternalRefs,
 } from "../../src/graph/collect-phantom-nodes.ts";
-import { buildApiIdIndex } from "../../src/graph/extract-lateral-edges.ts";
 import { extractStateField } from "../../src/graph/extract-resource-state.ts";
+import {
+  buildApiIdIndex,
+  extractGenieSpaceApiId,
+  extractJobApiId,
+  type ReferenceIndexes,
+} from "../../src/graph/reference-specs.ts";
 import { buildJobIdMap } from "../../src/graph/resolve-run-job-target.ts";
 import type { PlanEntry } from "../../src/types/plan-schema.ts";
 
@@ -28,15 +33,32 @@ const makeSkipEntry = (remoteState: Record<string, unknown>): PlanEntry =>
     remote_state: remoteState,
   }) as PlanEntry;
 
-/** Build warehouse + dashboard + pipeline + jobIdMap indexes from entries. */
-const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => ({
+/** Build shared reference indexes from entries. */
+const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]): ReferenceIndexes => ({
   warehouseIndex: buildApiIdIndex(entries, "sql_warehouses", (e) => extractStateField(e, "id")),
   dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
     extractStateField(e, "dashboard_id"),
   ),
   pipelineIndex: buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+  genieSpaceIndex: buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId),
+  jobIndex: buildApiIdIndex(entries, "jobs", extractJobApiId),
+  experimentIndex: buildApiIdIndex(entries, "experiments", (e) =>
+    extractStateField(e, "experiment_id"),
+  ),
+  registeredModelFullNameIndex: buildApiIdIndex(entries, "registered_models", (e) =>
+    extractStateField(e, "full_name"),
+  ),
   jobIdMap: buildJobIdMap(entries),
 });
+
+const collectExternalRefs = (entries: readonly (readonly [string, PlanEntry])[]) =>
+  collectPhantomExternalRefs(entries, PARENT_ID, buildIndexes(entries));
+
+const collectAppDependencies = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  existingKeys: ReadonlySet<string> = new Set(),
+  indexes: ReferenceIndexes = buildIndexes(entries),
+) => collectPhantomAppDependencies(entries, existingKeys, PARENT_ID, indexes);
 
 // ---------------------------------------------------------------------------
 // collectPhantomExternalRefs
@@ -47,14 +69,7 @@ describe("collectPhantomExternalRefs", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.alerts.stale", makeEntry({ warehouse_id: "wh1" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]).toMatchObject({
@@ -70,14 +85,7 @@ describe("collectPhantomExternalRefs", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.dashboards.sales", makeEntry({ warehouse_id: "wh2" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh2");
@@ -87,14 +95,7 @@ describe("collectPhantomExternalRefs", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.quality_monitors.drift", makeEntry({ warehouse_id: "wh3" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh3");
@@ -104,14 +105,7 @@ describe("collectPhantomExternalRefs", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.genie_spaces.taxi", makeEntry({ title: "Taxi Genie", warehouse_id: "wh4" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh4");
@@ -122,14 +116,7 @@ describe("collectPhantomExternalRefs", () => {
       ["resources.alerts.stale", makeEntry({ warehouse_id: "wh1" })],
       ["resources.sql_warehouses.main", makeEntry({ id: "wh1", name: "main" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(0);
     expect(result.edges).toHaveLength(0);
@@ -142,14 +129,7 @@ describe("collectPhantomExternalRefs", () => {
         makeEntry({ tasks: [{ task_key: "t1", sql_task: { warehouse_id: "wh1" } }] }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
@@ -164,14 +144,7 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]).toMatchObject({
@@ -191,14 +164,7 @@ describe("collectPhantomExternalRefs", () => {
       ],
       ["resources.dashboards.sales", makeEntry({ dashboard_id: "d1", display_name: "Sales" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -212,14 +178,7 @@ describe("collectPhantomExternalRefs", () => {
         makeEntry({ tasks: [{ task_key: "t1", sql_task: { warehouse_id: "wh1" } }] }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
@@ -237,14 +196,7 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
@@ -252,14 +204,7 @@ describe("collectPhantomExternalRefs", () => {
 
   test("job with no tasks creates no phantoms", () => {
     const entries: [string, PlanEntry][] = [["resources.jobs.empty", makeEntry({ name: "empty" })]];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(0);
     expect(result.edges).toHaveLength(0);
@@ -267,14 +212,7 @@ describe("collectPhantomExternalRefs", () => {
 
   test("empty entries create no phantoms", () => {
     const entries: [string, PlanEntry][] = [];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(0);
     expect(result.edges).toHaveLength(0);
@@ -290,14 +228,7 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(2);
     for (const node of result.nodes) {
@@ -309,14 +240,7 @@ describe("collectPhantomExternalRefs", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.alerts.a1", makeEntry({ warehouse_id: "wh1" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.edges).toHaveLength(1);
     expect(result.edges[0]?.source).toBe(PARENT_ID);
@@ -330,14 +254,7 @@ describe("collectPhantomExternalRefs", () => {
         makeSkipEntry({ tasks: [{ task_key: "t1", sql_task: { warehouse_id: "wh1" } }] }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
@@ -352,14 +269,7 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(2);
     const ids = result.nodes.map((n) => n.id).sort();
@@ -383,14 +293,7 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       },
     } as PlanEntry;
     const entries: [string, PlanEntry][] = [["resources.jobs.source", sourceEntry]];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]).toMatchObject({
@@ -420,14 +323,7 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       ["resources.jobs.source", sourceEntry],
       ["resources.jobs.downstream", downstreamEntry],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -447,14 +343,7 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       },
     } as PlanEntry;
     const entries: [string, PlanEntry][] = [["resources.jobs.source", sourceEntry]];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -476,14 +365,7 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       },
     } as PlanEntry;
     const entries: [string, PlanEntry][] = [["resources.jobs.source", sourceEntry]];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -604,7 +486,7 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]).toMatchObject({
@@ -625,7 +507,7 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.jobs.etl", makeEntry({ job_id: 123 })],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -635,7 +517,7 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.apps.myapp", makeAppEntry([{ sql_warehouse: { id: "wh1" } }])],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
@@ -649,7 +531,7 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]).toMatchObject({
@@ -662,9 +544,12 @@ describe("collectPhantomAppDependencies", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.apps.myapp", makeAppEntry([{ sql_warehouse: { id: "wh1" } }])],
     ];
-    const warehouseIndex = new Map([["wh1", "resources.sql_warehouses.main"]]);
+    const indexes = {
+      ...buildIndexes(entries),
+      warehouseIndex: new Map([["wh1", "resources.sql_warehouses.main"]]),
+    };
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, warehouseIndex);
+    const result = collectAppDependencies(entries, new Set(), indexes);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -678,7 +563,7 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.genie_spaces.taxi", makeEntry({ space_id: "space-1" })],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -688,7 +573,7 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.apps.myapp", makeAppEntry([{ secret: { scope: "my_scope", key: "token" } }])],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("secret-scope::my_scope");
@@ -701,7 +586,7 @@ describe("collectPhantomAppDependencies", () => {
     ];
     const existingKeys = new Set(["resources.secret_scopes.my_scope"]);
 
-    const result = collectPhantomAppDependencies(entries, existingKeys, PARENT_ID, new Map());
+    const result = collectAppDependencies(entries, existingKeys);
 
     expect(result.nodes).toHaveLength(0);
   });
@@ -714,7 +599,7 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]?.id).toBe("serving-endpoint::llm_ep");
@@ -733,7 +618,7 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(3);
     const ids = result.nodes.map((n) => n.id).sort();
@@ -745,13 +630,13 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.jobs.j1", makeEntry({ resources: [{ job: { id: "123" } }] })],
     ];
 
-    const result = collectPhantomAppDependencies(entries, new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies(entries);
 
     expect(result.nodes).toHaveLength(0);
   });
 
   test("empty entries create no phantoms", () => {
-    const result = collectPhantomAppDependencies([], new Set(), PARENT_ID, new Map());
+    const result = collectAppDependencies([]);
 
     expect(result.nodes).toHaveLength(0);
     expect(result.edges).toHaveLength(0);
@@ -772,14 +657,7 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
         }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(1);
     expect(result.nodes[0]).toMatchObject({
@@ -800,14 +678,7 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
       ],
       ["resources.pipelines.etl", makeEntry({ pipeline_id: "p1" })],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     const pipelinePhantoms = result.nodes.filter((n) => n.id.startsWith("pipeline::"));
     expect(pipelinePhantoms).toHaveLength(0);
@@ -825,14 +696,7 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
         }),
       ],
     ];
-    const { warehouseIndex, dashboardIndex, pipelineIndex, jobIdMap } = buildIndexes(entries);
-
-    const result = collectPhantomExternalRefs(entries, PARENT_ID, {
-      warehouseIndex,
-      dashboardIndex,
-      pipelineIndex,
-      jobIdMap,
-    });
+    const result = collectExternalRefs(entries);
 
     expect(result.nodes).toHaveLength(2);
     const ids = result.nodes.map((n) => n.id).sort();

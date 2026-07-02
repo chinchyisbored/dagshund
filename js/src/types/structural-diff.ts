@@ -6,7 +6,7 @@ export type ScalarDiff = {
   readonly new: unknown;
 };
 
-export type ArrayElementStatus = "added" | "removed" | "unchanged";
+type ArrayElementStatus = "added" | "removed" | "unchanged";
 
 export type ArrayElement = {
   readonly status: ArrayElementStatus;
@@ -44,12 +44,12 @@ export type DeleteOnlyDiff = {
   readonly value: unknown;
 };
 
-export type StructuralDiff = ScalarDiff | ArrayDiff | ObjectDiff | CreateOnlyDiff | DeleteOnlyDiff;
+type StructuralDiff = ScalarDiff | ArrayDiff | ObjectDiff | CreateOnlyDiff | DeleteOnlyDiff;
 
 type BaselineLabel = "old" | "remote";
 
 /** A diff between two values (old↔new, or remote↔new for drift). */
-export type DiffResult = {
+type DiffResult = {
   readonly kind: "diff";
   readonly diff: StructuralDiff;
   readonly baselineLabel: BaselineLabel;
@@ -60,7 +60,7 @@ export type DiffResult = {
 
 /** A field the remote has that the bundle does not manage. Informational only —
  *  nothing is being created, removed, or updated by the deploy. */
-export type RemoteOnlyResult = {
+type RemoteOnlyResult = {
   readonly kind: "remote-only";
   readonly value: unknown;
 };
