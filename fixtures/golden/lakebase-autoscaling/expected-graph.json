@@ -168,7 +168,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 20,
+      "total_change_entries": 18,
       "with_resource_state": 10,
       "task_change_summary_total": 0,
       "entries": [
@@ -396,15 +396,7 @@
               "action": "skip"
             },
             {
-              "key": "parent",
-              "action": "skip"
-            },
-            {
               "key": "postgres_role",
-              "action": "skip"
-            },
-            {
-              "key": "role_id",
               "action": "skip"
             }
           ],

@@ -546,7 +546,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 24,
+      "total_change_entries": 29,
       "with_resource_state": 8,
       "task_change_summary_total": 0,
       "entries": [
@@ -639,11 +639,31 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "dashboard_id",
+              "action": "skip"
+            },
+            {
               "key": "etag",
               "action": "skip"
             },
             {
+              "key": "lifecycle_state",
+              "action": "skip"
+            },
+            {
+              "key": "path",
+              "action": "skip"
+            },
+            {
               "key": "serialized_dashboard",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
               "action": "skip"
             }
           ],
