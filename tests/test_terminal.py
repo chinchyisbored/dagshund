@@ -13,6 +13,7 @@ from factories import (
 )
 
 from dagshund.merge import merge_sub_resources
+from dagshund.model import FieldChange
 from dagshund.plan import detect_changes
 from dagshund.terminal import (
     GREEN,
@@ -1351,3 +1352,136 @@ def test_render_text_narrow_width_wraps_transitions(
     lines = out.strip().split("\n")
     transition_lines = [line for line in lines if "-> " in line]
     assert len(transition_lines) >= 1
+
+
+# --- wheel suppression (--suppress-wheel-updates) ---
+
+
+def _wheel_whl_change(old_version: str, new_version: str, distribution: str = "etl_lib") -> FieldChange:
+    return make_change(
+        "update",
+        old=f"/Workspace/artifacts/.internal/{distribution}-{old_version}-py3-none-any.whl",
+        new=f"/Workspace/artifacts/.internal/{distribution}-{new_version}-py3-none-any.whl",
+    )
+
+
+def test_render_resource_suppress_wheel_updates_collapses_to_summary() -> None:
+    entry = make_resource(
+        "resources.jobs.etl",
+        action="update",
+        changes={
+            "tasks[task_key='ingest'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
+            "tasks[task_key='transform'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
+        },
+    )
+
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
+
+    assert "      ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (2 tasks)" in lines
+    assert not any(".whl" in line and "wheel" not in line for line in lines)
+
+
+def test_render_resource_suppress_wheel_updates_keeps_non_wheel_changes_on_mixed_task() -> None:
+    entry = make_resource(
+        "resources.jobs.etl",
+        action="update",
+        changes={
+            "tasks[task_key='report'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
+            "tasks[task_key='report'].notebook_task.notebook_path": make_change("update", old="/a", new="/b"),
+        },
+    )
+
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
+
+    assert any("notebook_task.notebook_path" in line for line in lines)
+    assert not any("libraries[0].whl" in line for line in lines)
+    assert "      ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in lines
+
+
+def test_render_resource_suppress_wheel_updates_lists_each_distinct_wheel() -> None:
+    entry = make_resource(
+        "resources.jobs.etl",
+        action="update",
+        changes={
+            "tasks[task_key='ingest'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
+            "tasks[task_key='enrich'].libraries[1].whl": _wheel_whl_change("1.4.0", "1.5.0", "scoring_lib"),
+        },
+    )
+
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
+
+    etl_index = lines.index("      ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)")
+    scoring_index = lines.index("      ~ wheel scoring_lib updated: 1.4.0 -> 1.5.0 (1 task)")
+    assert etl_index < scoring_index  # sorted by distribution
+
+
+def test_render_resource_wheel_updates_visible_by_default() -> None:
+    entry = make_resource(
+        "resources.jobs.etl",
+        action="update",
+        changes={
+            "tasks[task_key='ingest'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
+        },
+    )
+
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False))
+
+    assert any("libraries[0].whl" in line for line in lines)
+    assert not any("wheel etl_lib updated" in line for line in lines)
+
+
+def test_render_resource_suppress_keeps_different_distribution_swap_visible() -> None:
+    entry = make_resource(
+        "resources.jobs.etl",
+        action="update",
+        changes={
+            "tasks[task_key='ingest'].libraries[0].whl": make_change(
+                "update",
+                old="/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+                new="/Workspace/artifacts/.internal/other_lib-0.1.0-py3-none-any.whl",
+            ),
+        },
+    )
+
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
+
+    assert any("libraries[0].whl" in line for line in lines)
+    assert not any("wheel etl_lib updated" in line for line in lines)
+
+
+def test_render_text_suppress_wheel_updates_end_to_end(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = make_plan(
+        {
+            "resources.jobs.etl": make_resource(
+                "resources.jobs.etl",
+                action="update",
+                changes={
+                    "tasks[task_key='ingest'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
+                },
+            ),
+        }
+    )
+
+    render_text(plan, suppress_wheel_updates=True)
+
+    out = capsys.readouterr().out
+    assert "wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in out
+    assert "libraries[0].whl" not in out
+
+
+def test_render_text_suppress_wheel_updates_wheel_bump_fixture(
+    fixtures_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """End-to-end against the real mixed-compute golden plan (dagshund-aqcx, dagshund-vuoy)."""
+    plan = plan_from_dict(json.loads((fixtures_dir / "wheel-bump" / "plan.json").read_text()))
+
+    render_text(plan, suppress_wheel_updates=True)
+
+    out = capsys.readouterr().out
+    assert "wheel etl_lib updated: 0.1.0 -> 0.2.0 (14 tasks, 2 environments)" in out
+    assert "wheel scoring_lib updated: 1.0.0 -> 1.1.0 (1 task, 1 environment)" in out
+    assert "spec.dependencies" not in out
+    assert ".libraries[0].whl" not in out
+    assert "tasks[task_key='archive']" in out  # real changes stay visible
+    assert "tasks[task_key='validate_orders'].timeout_seconds" in out
+    assert "tasks[task_key='aggregate'].libraries" in out  # added wheel, not a bump

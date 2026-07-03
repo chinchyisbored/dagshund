@@ -30,6 +30,7 @@ const JOB_NODE: JobGraphNode = {
   remoteState: undefined,
   resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
+  wheelUpdates: undefined,
 };
 
 const TASK_EXTRACT: TaskGraphNode = {
@@ -44,6 +45,7 @@ const TASK_EXTRACT: TaskGraphNode = {
   newState: undefined,
   remoteState: undefined,
   resourceHasShapeDrift: false,
+  isWheelOnlyChange: false,
 };
 
 const TASK_TRANSFORM: TaskGraphNode = {
@@ -58,6 +60,7 @@ const TASK_TRANSFORM: TaskGraphNode = {
   newState: undefined,
   remoteState: undefined,
   resourceHasShapeDrift: false,
+  isWheelOnlyChange: false,
 };
 
 const SINGLE_JOB_GRAPH: PlanGraph = {

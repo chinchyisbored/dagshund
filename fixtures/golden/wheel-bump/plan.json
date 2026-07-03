@@ -1,0 +1,1660 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.6.0",
+  "lineage": "716fdf4d-a5f2-4330-9347-74c01e31ada8",
+  "serial": 1,
+  "plan": {
+    "resources.jobs.wheel_pipeline": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "environments": [
+            {
+              "environment_key": "etl",
+              "spec": {
+                "dependencies": [
+                  "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                ],
+                "environment_version": "2"
+              }
+            },
+            {
+              "environment_key": "scoring",
+              "spec": {
+                "dependencies": [
+                  "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+                  "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.1.0-py3-none-any.whl"
+                ],
+                "environment_version": "2"
+              }
+            }
+          ],
+          "format": "MULTI_TASK",
+          "job_clusters": [
+            {
+              "job_cluster_key": "classic_etl",
+              "new_cluster": {
+                "node_type_id": "Standard_DS3_v2",
+                "num_workers": 1,
+                "spark_version": "16.4.x-scala2.12"
+              }
+            },
+            {
+              "job_cluster_key": "classic_scoring",
+              "new_cluster": {
+                "node_type_id": "Standard_DS3_v2",
+                "num_workers": 1,
+                "spark_version": "16.4.x-scala2.12"
+              }
+            }
+          ],
+          "max_concurrent_runs": 1,
+          "name": "wheel_pipeline",
+          "queue": {
+            "enabled": true
+          },
+          "tasks": [
+            {
+              "depends_on": [
+                {
+                  "task_key": "enrich"
+                },
+                {
+                  "task_key": "validate_orders"
+                }
+              ],
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                },
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.1.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "aggregate"
+                ]
+              },
+              "task_key": "aggregate"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "notify"
+                }
+              ],
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "archive"
+                ]
+              },
+              "task_key": "archive"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "merge_datasets"
+                }
+              ],
+              "environment_key": "etl",
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "deduplicate"
+                ]
+              },
+              "task_key": "deduplicate"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "deduplicate"
+                }
+              ],
+              "environment_key": "etl",
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "enrich"
+                ]
+              },
+              "task_key": "enrich"
+            },
+            {
+              "environment_key": "etl",
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "ingest_customers"
+                ]
+              },
+              "task_key": "ingest_customers"
+            },
+            {
+              "environment_key": "etl",
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "ingest_orders"
+                ]
+              },
+              "task_key": "ingest_orders"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "validate_orders"
+                },
+                {
+                  "task_key": "validate_customers"
+                }
+              ],
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "merge_datasets"
+                ]
+              },
+              "task_key": "merge_datasets"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "publish"
+                }
+              ],
+              "job_cluster_key": "classic_scoring",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                },
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.1.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "notify"
+                ]
+              },
+              "task_key": "notify"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "aggregate"
+                }
+              ],
+              "environment_key": "scoring",
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "publish"
+                ]
+              },
+              "task_key": "publish"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_01"
+                ]
+              },
+              "task_key": "single_wheel_01"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_02"
+                ]
+              },
+              "task_key": "single_wheel_02"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_03"
+                ]
+              },
+              "task_key": "single_wheel_03"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_04"
+                ]
+              },
+              "task_key": "single_wheel_04"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_05"
+                ]
+              },
+              "task_key": "single_wheel_05"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_06"
+                ]
+              },
+              "task_key": "single_wheel_06"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_07"
+                ]
+              },
+              "task_key": "single_wheel_07"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_08"
+                ]
+              },
+              "task_key": "single_wheel_08"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_09"
+                ]
+              },
+              "task_key": "single_wheel_09"
+            },
+            {
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "single_wheel_10"
+                ]
+              },
+              "task_key": "single_wheel_10"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "ingest_customers"
+                }
+              ],
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "validate_customers"
+                ]
+              },
+              "task_key": "validate_customers"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "ingest_orders"
+                }
+              ],
+              "job_cluster_key": "classic_etl",
+              "libraries": [
+                {
+                  "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+                }
+              ],
+              "python_wheel_task": {
+                "entry_point": "etl_run",
+                "package_name": "etl_lib",
+                "parameters": [
+                  "--step",
+                  "validate_orders"
+                ]
+              },
+              "task_key": "validate_orders",
+              "timeout_seconds": 2400
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "created_time": 1783070012887,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "effective_budget_policy_id": "2028db66-27bb-4bcb-b7f4-41ce94dd943a",
+        "effective_usage_policy_id": "2028db66-27bb-4bcb-b7f4-41ce94dd943a",
+        "email_notifications": {},
+        "environments": [
+          {
+            "environment_key": "etl",
+            "spec": {
+              "dependencies": [
+                "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              ],
+              "environment_version": "2"
+            }
+          },
+          {
+            "environment_key": "scoring",
+            "spec": {
+              "dependencies": [
+                "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+                "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.0.0-py3-none-any.whl"
+              ],
+              "environment_version": "2"
+            }
+          }
+        ],
+        "format": "MULTI_TASK",
+        "job_clusters": [
+          {
+            "job_cluster_key": "classic_etl",
+            "new_cluster": {
+              "azure_attributes": {
+                "availability": "ON_DEMAND_AZURE"
+              },
+              "data_security_mode": "SINGLE_USER",
+              "enable_elastic_disk": true,
+              "node_type_id": "Standard_DS3_v2",
+              "num_workers": 1,
+              "spark_version": "16.4.x-scala2.12"
+            }
+          },
+          {
+            "job_cluster_key": "classic_scoring",
+            "new_cluster": {
+              "azure_attributes": {
+                "availability": "ON_DEMAND_AZURE"
+              },
+              "data_security_mode": "SINGLE_USER",
+              "enable_elastic_disk": true,
+              "node_type_id": "Standard_DS3_v2",
+              "num_workers": 1,
+              "spark_version": "16.4.x-scala2.12"
+            }
+          }
+        ],
+        "job_id": 444671806496098,
+        "max_concurrent_runs": 1,
+        "name": "wheel_pipeline",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "enrich"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "aggregate"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "aggregate",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "environment_key": "etl",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "bootstrap"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "bootstrap",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "merge_datasets"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "environment_key": "etl",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "enrich"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "enrich",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "bootstrap"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "environment_key": "etl",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "ingest_customers"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "ingest_customers",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "bootstrap"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "environment_key": "etl",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "ingest_orders"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "ingest_orders",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_orders"
+              },
+              {
+                "task_key": "validate_customers"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "merge_datasets"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "merge_datasets",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "publish"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_scoring",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              },
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.0.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "notify"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "notify",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "aggregate"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "environment_key": "scoring",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "publish"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "publish",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_01"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_01",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_02"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_02",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_03"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_03",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_04"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_04",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_05"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_05",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_06"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_06",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_07"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_07",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_08"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_08",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_09"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_09",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "single_wheel_10"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "single_wheel_10",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "ingest_customers"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "validate_customers"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate_customers",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "ingest_orders"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "validate_orders"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate_orders",
+            "timeout_seconds": 1800
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "environments[environment_key='etl'].spec.dependencies[0]": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "environments[environment_key='scoring'].spec.dependencies[0]": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "environments[environment_key='scoring'].spec.dependencies[1]": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.0.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.1.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.0.0-py3-none-any.whl"
+        },
+        "job_clusters[job_cluster_key='classic_etl'].new_cluster.azure_attributes": {
+          "action": "skip",
+          "reason": "managed",
+          "remote": {
+            "availability": "ON_DEMAND_AZURE"
+          }
+        },
+        "job_clusters[job_cluster_key='classic_etl'].new_cluster.data_security_mode": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "SINGLE_USER"
+        },
+        "job_clusters[job_cluster_key='classic_etl'].new_cluster.enable_elastic_disk": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": true
+        },
+        "job_clusters[job_cluster_key='classic_scoring'].new_cluster.azure_attributes": {
+          "action": "skip",
+          "reason": "managed",
+          "remote": {
+            "availability": "ON_DEMAND_AZURE"
+          }
+        },
+        "job_clusters[job_cluster_key='classic_scoring'].new_cluster.data_security_mode": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "SINGLE_USER"
+        },
+        "job_clusters[job_cluster_key='classic_scoring'].new_cluster.enable_elastic_disk": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": true
+        },
+        "tasks[task_key='aggregate'].depends_on[task_key='validate_orders']": {
+          "action": "update",
+          "new": {
+            "task_key": "validate_orders"
+          }
+        },
+        "tasks[task_key='aggregate'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='aggregate'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='aggregate'].libraries": {
+          "action": "update",
+          "old": [
+            {
+              "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+            }
+          ],
+          "new": [
+            {
+              "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+            },
+            {
+              "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.1.0-py3-none-any.whl"
+            }
+          ],
+          "remote": [
+            {
+              "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+            }
+          ]
+        },
+        "tasks[task_key='aggregate'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='aggregate'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='archive']": {
+          "action": "update",
+          "new": {
+            "depends_on": [
+              {
+                "task_key": "notify"
+              }
+            ],
+            "job_cluster_key": "classic_etl",
+            "libraries": [
+              {
+                "whl": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl"
+              }
+            ],
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "archive"
+              ]
+            },
+            "task_key": "archive"
+          }
+        },
+        "tasks[task_key='bootstrap']": {
+          "action": "update",
+          "old": {
+            "environment_key": "etl",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "bootstrap"
+              ]
+            },
+            "task_key": "bootstrap"
+          },
+          "remote": {
+            "disabled": false,
+            "email_notifications": {},
+            "environment_key": "etl",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "bootstrap"
+              ]
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "bootstrap",
+            "timeout_seconds": 0
+          }
+        },
+        "tasks[task_key='deduplicate']": {
+          "action": "update",
+          "new": {
+            "depends_on": [
+              {
+                "task_key": "merge_datasets"
+              }
+            ],
+            "environment_key": "etl",
+            "python_wheel_task": {
+              "entry_point": "etl_run",
+              "package_name": "etl_lib",
+              "parameters": [
+                "--step",
+                "deduplicate"
+              ]
+            },
+            "task_key": "deduplicate"
+          }
+        },
+        "tasks[task_key='enrich'].depends_on[task_key='deduplicate']": {
+          "action": "update",
+          "new": {
+            "task_key": "deduplicate"
+          }
+        },
+        "tasks[task_key='enrich'].depends_on[task_key='merge_datasets']": {
+          "action": "update",
+          "old": {
+            "task_key": "merge_datasets"
+          },
+          "remote": {
+            "task_key": "merge_datasets"
+          }
+        },
+        "tasks[task_key='enrich'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='enrich'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='enrich'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='enrich'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='ingest_customers'].depends_on": {
+          "action": "update",
+          "old": [
+            {
+              "task_key": "bootstrap"
+            }
+          ],
+          "remote": [
+            {
+              "task_key": "bootstrap"
+            }
+          ]
+        },
+        "tasks[task_key='ingest_customers'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='ingest_customers'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='ingest_customers'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='ingest_customers'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='ingest_orders'].depends_on": {
+          "action": "update",
+          "old": [
+            {
+              "task_key": "bootstrap"
+            }
+          ],
+          "remote": [
+            {
+              "task_key": "bootstrap"
+            }
+          ]
+        },
+        "tasks[task_key='ingest_orders'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='ingest_orders'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='ingest_orders'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='ingest_orders'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='merge_datasets'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='merge_datasets'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='merge_datasets'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='merge_datasets'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='merge_datasets'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='notify'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='notify'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='notify'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='notify'].libraries[1].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.0.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.1.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/scoring_lib-1.0.0-py3-none-any.whl"
+        },
+        "tasks[task_key='notify'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='notify'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='publish'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='publish'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='publish'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='publish'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_01'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_01'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_01'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_01'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_01'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_02'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_02'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_02'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_02'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_02'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_03'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_03'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_03'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_03'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_03'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_04'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_04'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_04'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_04'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_04'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_05'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_05'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_05'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_05'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_05'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_06'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_06'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_06'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_06'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_06'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_07'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_07'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_07'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_07'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_07'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_08'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_08'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_08'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_08'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_08'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_09'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_09'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_09'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_09'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_09'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='single_wheel_10'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='single_wheel_10'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='single_wheel_10'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='single_wheel_10'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='single_wheel_10'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='validate_customers'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='validate_customers'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='validate_customers'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='validate_customers'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='validate_customers'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='validate_orders'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='validate_orders'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='validate_orders'].libraries[0].whl": {
+          "action": "update",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+          "remote": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-wheel-bump/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl"
+        },
+        "tasks[task_key='validate_orders'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='validate_orders'].timeout_seconds": {
+          "action": "update",
+          "old": 1800,
+          "new": 2400,
+          "remote": 1800
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    }
+  }
+}

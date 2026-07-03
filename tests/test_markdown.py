@@ -436,3 +436,54 @@ def test_render_markdown_mixed_plan(fixtures_dir: Path) -> None:
     assert "create" in result
     assert "delete" in result
     assert "update" in result
+
+
+# --- wheel suppression (--suppress-wheel-updates) ---
+
+
+def test_render_markdown_suppress_wheel_updates_collapses_to_summary() -> None:
+    plan = make_plan(
+        {
+            "resources.jobs.etl": make_resource(
+                "resources.jobs.etl",
+                action="update",
+                changes={
+                    "tasks[task_key='ingest'].libraries[0].whl": make_change(
+                        "update",
+                        old="/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+                        new="/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+                    ),
+                    "tasks[task_key='report'].notebook_task.notebook_path": make_change("update", old="/a", new="/b"),
+                },
+            ),
+        }
+    )
+
+    result = render_markdown(plan, suppress_wheel_updates=True)
+
+    assert "  - `~` wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in result
+    assert "libraries[0].whl" not in result
+    assert "notebook_task.notebook_path" in result
+
+
+def test_render_markdown_wheel_updates_visible_by_default() -> None:
+    plan = make_plan(
+        {
+            "resources.jobs.etl": make_resource(
+                "resources.jobs.etl",
+                action="update",
+                changes={
+                    "tasks[task_key='ingest'].libraries[0].whl": make_change(
+                        "update",
+                        old="/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+                        new="/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+                    ),
+                },
+            ),
+        }
+    )
+
+    result = render_markdown(plan)
+
+    assert "libraries[0].whl" in result
+    assert "wheel etl_lib updated" not in result

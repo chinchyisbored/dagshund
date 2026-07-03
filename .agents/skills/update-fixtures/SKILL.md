@@ -48,6 +48,15 @@ This runs a full deploy/plan/destroy cycle for fixtures that can regenerate
 without human intervention. Timeout liberally (600s). `regen.sh --all` skips
 supervised fixtures and prints their follow-up commands.
 
+`wheel-bump` is also skipped by `--all`: it needs classic compute (job
+clusters with task libraries), which the default fixture workspace
+(serverless-only) rejects. It does NOT regenerate as part of a routine CLI
+refresh — regenerate it ad hoc with `just regen wheel-bump` against a
+workspace that allows job clusters, then `just gen-expected wheel-bump`.
+During a routine refresh, leave its `plan.json` untouched; only re-bless its
+expected output if `just test-golden` flags drift from dagshund's own
+rendering changes.
+
 **Do not run `just regen` or `just dev` as background tasks** — they hang on
 TaskOutput polling.
 
@@ -122,7 +131,9 @@ just gen-expected
 ```
 
 Writes fresh `expected.txt`, `expected.md`, `expected-exit.txt`, and
-`expected-graph.json` for every fixture.
+`expected-graph.json` for every fixture, plus `expected-suppressed.txt` /
+`expected-suppressed.md` for fixtures where `--suppress-wheel-updates`
+changes the output (currently only wheel-bump).
 
 ## Step 9: Run the full quality gate
 
@@ -149,6 +160,7 @@ Identify which `docs/pictures/*.png` are impacted by the CLI change. Common
 cases:
 
 - `terminal.png` — any fixture's terminal rendering
+- `wheel_updates.png` — wheel-bump terminal output, spliced before/after composite (plain vs `--suppress-wheel-updates`, red arrow between)
 - `drift.png` — manual-drift terminal output
 - `drift_web.png` — manual-drift browser detail panel
 - `dag.png` — job task DAG visualization

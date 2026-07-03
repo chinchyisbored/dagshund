@@ -12,12 +12,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GOLDEN_DIR="$SCRIPT_DIR/../golden"
 INTERACTIVE_FIXTURES=(manual-drift)
+# Regenerable by name, but skipped by --all: needs a workspace where classic
+# compute is available (the default fixture workspace is serverless-only).
+AD_HOC_FIXTURES=(wheel-bump)
 
-is_interactive_fixture() {
+is_in_fixture_list() {
   local fixture_name="$1"
+  shift
 
-  for interactive_fixture in "${INTERACTIVE_FIXTURES[@]}"; do
-    if [[ "$fixture_name" == "$interactive_fixture" ]]; then
+  for listed_fixture in "$@"; do
+    if [[ "$fixture_name" == "$listed_fixture" ]]; then
       return 0
     fi
   done
@@ -25,11 +29,22 @@ is_interactive_fixture() {
   return 1
 }
 
-print_interactive_fixture_help() {
+is_interactive_fixture() {
+  is_in_fixture_list "$1" "${INTERACTIVE_FIXTURES[@]}"
+}
+
+is_ad_hoc_fixture() {
+  is_in_fixture_list "$1" "${AD_HOC_FIXTURES[@]}"
+}
+
+print_skipped_fixture_help() {
   cat >&2 <<'EOF'
-Interactive fixtures skipped by --all:
+Fixtures skipped by --all:
   manual-drift          Follow fixtures/golden/manual-drift/README.md.
                         It requires workspace UI edits between deploy and plan.
+  wheel-bump            Needs classic compute; regenerate ad hoc via
+                        `just regen wheel-bump` against a workspace that
+                        allows job clusters, then `just gen-expected wheel-bump`.
 EOF
 }
 
@@ -103,11 +118,16 @@ if [[ "${1:-}" == "--all" ]]; then
       echo ""
       continue
     fi
+    if is_ad_hoc_fixture "$name"; then
+      echo "==> [$name] Skipping ad-hoc fixture (needs classic compute)."
+      echo ""
+      continue
+    fi
     regen_one "$name"
     echo ""
   done
   echo "All unattended fixtures regenerated."
-  print_interactive_fixture_help
+  print_skipped_fixture_help
 elif [[ -n "${1:-}" ]]; then
   regen_one "$1"
 else

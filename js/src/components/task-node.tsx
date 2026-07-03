@@ -1,20 +1,24 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
+import { useInteractionState } from "../hooks/contexts.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffBadge } from "../utils/diff-state-styles.ts";
+import { resolveDisplayedDiffState } from "../utils/node-data.ts";
 import { extractTaskTypeBadge } from "../utils/task-type.ts";
 import { DriftPill } from "./detail-panel/drift-pill.tsx";
 
 type TaskNodeType = Node<DagNodeData, "task">;
 
 export const TaskNode = memo(function TaskNode({ id, data }: NodeProps<TaskNodeType>) {
+  const { hideWheelUpdates } = useInteractionState();
+  const displayedDiffState = resolveDisplayedDiffState(data, hideWheelUpdates);
   const { opacityClass, glowStyle, styles, hasIncoming, hasOutgoing } = useNodeDimming(
     id,
-    data.diffState,
+    displayedDiffState,
   );
-  const diffBadge = getDiffBadge(data.diffState);
+  const diffBadge = getDiffBadge(displayedDiffState);
   const typeBadge = extractTaskTypeBadge(data.resourceState);
   // Orthogonal drift dimension — override to dashed border. The `unknown`
   // diffState already uses `border-dashed`, but `unknown` means "can't

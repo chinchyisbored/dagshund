@@ -15,6 +15,7 @@ import { buildTaskNodeId, extractResourceName } from "../utils/resource-key.ts";
 import { hasFieldDrift, hasTaskDriftWithContext } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
+import { collectWheelUpdates, type WheelUpdateSummary } from "../utils/wheel-updates.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
 import {
   extractDeletedTaskEntries,
@@ -32,10 +33,12 @@ const buildJobNode = (
   resourceKey: string,
   entry: PlanEntry,
   tasks: readonly TaskEntry[],
+  wheelSummary: WheelUpdateSummary | undefined,
 ): JobGraphNode => ({
   id: resourceKey,
   nodeKind: "job",
   resourceKey,
+  wheelUpdates: wheelSummary?.wheels,
   ...buildJobFields(resourceKey, entry, tasks),
 });
 
@@ -45,6 +48,7 @@ const buildTaskNodes = (
   entry: PlanEntry,
   tasks: readonly TaskEntry[],
   jobIdMap: ReadonlyMap<number, string>,
+  wheelSummary: WheelUpdateSummary | undefined,
 ): readonly TaskGraphNode[] => {
   const resourceHasShapeDrift = hasFieldDrift(entry.changes);
   const driftParent = {
@@ -85,6 +89,7 @@ const buildTaskNodes = (
       // threads it into every field's ctx (dagshund-1naj, dagshund-15yh).
       resourceHasShapeDrift,
       isDrift: hasTaskDriftWithContext(task.task_key, entry.changes, driftParent),
+      isWheelOnlyChange: wheelSummary?.wheelOnlyTaskKeys.has(task.task_key) ?? false,
     };
   });
 };
@@ -216,11 +221,12 @@ const buildEntryGraph = (
   const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
   const deletedTasks = extractDeletedTaskEntries(entry.changes);
   const allTasks = [...tasks, ...deletedTasks];
+  const wheelSummary = collectWheelUpdates(entry.changes);
 
   return {
     nodes: [
-      buildJobNode(resourceKey, entry, tasks),
-      ...buildTaskNodes(resourceKey, entry, allTasks, jobIdMap),
+      buildJobNode(resourceKey, entry, tasks, wheelSummary),
+      ...buildTaskNodes(resourceKey, entry, allTasks, jobIdMap, wheelSummary),
     ],
     edges: buildDiffEdges(resourceKey, allTasks, entry),
   };

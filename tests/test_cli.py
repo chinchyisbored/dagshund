@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -615,3 +616,41 @@ def test_quiet_with_detailed_exitcode(fixtures_dir: Path) -> None:
 
     assert result.returncode == 3  # dangerous actions present
     assert result.stdout == ""
+
+
+# --- --suppress-wheel-updates ---
+
+
+def test_main_suppress_wheel_updates_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.jobs.etl": {
+                        "action": "update",
+                        "changes": {
+                            "tasks[task_key='ingest'].libraries[0].whl": {
+                                "action": "update",
+                                "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+                                "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+                            },
+                        },
+                    },
+                },
+            }
+        )
+    )
+    monkeypatch.setattr("sys.argv", ["dagshund", str(plan_file), "--suppress-wheel-updates"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 0
+    out = capsys.readouterr().out
+    assert "wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in out
+    assert "libraries[0].whl" not in out

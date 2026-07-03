@@ -65,6 +65,19 @@ dagshund plan.json -c -f 'type:volumes'          # changed volumes only
 
 All tokens in a filter expression AND together. `-f` composes with `-c`/`-a`/`-m`/`-r`: both must match. `field:` is a substring match against changed field names.
 
+CI pipelines that rebuild your bundle's wheel on every run mark every task carrying that wheel as changed, burying real changes in noise. `--suppress-wheel-updates` collapses same-wheel version bumps into one summary line per job:
+
+```bash
+dagshund plan.json --suppress-wheel-updates
+#   ~ jobs/etl_pipeline  (update)
+#       ~ tasks[task_key='report'].notebook_task.base_parameters.mode: "daily" -> "hourly"
+#       ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (12 tasks)
+```
+
+Only same-distribution version bumps are suppressed; swapping a task to a *different* wheel still shows in full. Works for classic compute (per-task `libraries`) and serverless (per-environment dependencies).
+
+![Wheel update suppression, before and after](docs/pictures/wheel_updates.png)
+
 Export the HTML report with `-o` for detailed inspection in a browser:
 
 ```bash
@@ -106,6 +119,10 @@ When a resource in your bundle references something that isn't in the bundle its
 Many resources reference each other across hierarchies, an alert might target a SQL warehouse, or a serving endpoint might bind to a registered model. These relationships are off by default to keep the graph clean; toggle them with the **Lateral dependencies** button in the toolbar to see how your resources connect across group boundaries.
 
 ![Lateral dependencies](docs/pictures/lateral_dependencies.png)
+
+### Wheel Updates
+
+When a plan contains wheel version bumps, the **Hide wheel updates** toolbar button appears in the Jobs view. Toggling it renders tasks whose only change is the wheel bump as unchanged and shows the bump once as a badge on the job container instead, so real changes stand out in large DAGs. Tasks with other changes stay highlighted.
 
 ### Search
 

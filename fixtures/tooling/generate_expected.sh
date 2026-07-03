@@ -3,7 +3,9 @@
 #
 # Usage:
 #   fixtures/tooling/generate_expected.sh [<fixture-name> | --all]
-#       Generate expected.txt and expected.md from current CLI output.
+#       Generate expected.txt and expected.md from current CLI output, plus
+#       --suppress-wheel-updates variants (expected-suppressed.txt/.md) for
+#       fixtures where suppression changes the output.
 #       Default target is --all if no fixture name is given.
 #   fixtures/tooling/generate_expected.sh --check [<fixture-name> | --all]
 #       Diff current CLI output against stored expected files.
@@ -58,6 +60,29 @@ generate_one() {
   $DAGSHUND "$plan" --format md > "$fixture_dir/expected.md.tmp"
   mv "$fixture_dir/expected.md.tmp" "$fixture_dir/expected.md"
 
+  # Suppressed variants: stored only when --suppress-wheel-updates changes the
+  # output. Absence means "identical to plain output"; check mode asserts that
+  # no-op invariant directly instead of diffing a stored duplicate.
+  local suppressed_files=""
+  # shellcheck disable=SC2086
+  $DAGSHUND "$plan" --suppress-wheel-updates > "$fixture_dir/expected-suppressed.txt.tmp"
+  if cmp -s "$fixture_dir/expected-suppressed.txt.tmp" "$fixture_dir/expected.txt"; then
+    rm "$fixture_dir/expected-suppressed.txt.tmp"
+    rm -f "$fixture_dir/expected-suppressed.txt"
+  else
+    mv "$fixture_dir/expected-suppressed.txt.tmp" "$fixture_dir/expected-suppressed.txt"
+    suppressed_files+=", expected-suppressed.txt"
+  fi
+  # shellcheck disable=SC2086
+  $DAGSHUND "$plan" --format md --suppress-wheel-updates > "$fixture_dir/expected-suppressed.md.tmp"
+  if cmp -s "$fixture_dir/expected-suppressed.md.tmp" "$fixture_dir/expected.md"; then
+    rm "$fixture_dir/expected-suppressed.md.tmp"
+    rm -f "$fixture_dir/expected-suppressed.md"
+  else
+    mv "$fixture_dir/expected-suppressed.md.tmp" "$fixture_dir/expected-suppressed.md"
+    suppressed_files+=", expected-suppressed.md"
+  fi
+
   # Capture detailed exit code (-e: 0/2/3) with -q to suppress stdout.
   # The `|| exit_code=$?` idiom bypasses errexit without toggling set -e.
   local exit_code=0
@@ -71,7 +96,7 @@ generate_one() {
   bun run "$EXTRACT_GRAPH" "$plan" > "$fixture_dir/expected-graph.json.tmp"
   mv "$fixture_dir/expected-graph.json.tmp" "$fixture_dir/expected-graph.json"
 
-  echo "  wrote expected.txt, expected.md, expected-exit.txt, expected-graph.json"
+  echo "  wrote expected.txt, expected.md${suppressed_files}, expected-exit.txt, expected-graph.json"
 }
 
 check_one() {
@@ -102,6 +127,8 @@ check_one() {
 
   local tmp_txt="$TMPDIR_RUN/$name.txt"
   local tmp_md="$TMPDIR_RUN/$name.md"
+  local tmp_suppressed_txt="$TMPDIR_RUN/$name.suppressed.txt"
+  local tmp_suppressed_md="$TMPDIR_RUN/$name.suppressed.md"
   local tmp_graph="$TMPDIR_RUN/$name.graph.json"
   local failed=0
 
@@ -115,6 +142,16 @@ check_one() {
     echo "ERROR: [$name] dagshund failed on md output" >&2
     return 1
   fi
+  # shellcheck disable=SC2086
+  if ! $DAGSHUND "$plan" --suppress-wheel-updates > "$tmp_suppressed_txt"; then
+    echo "ERROR: [$name] dagshund failed on suppressed text output" >&2
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $DAGSHUND "$plan" --format md --suppress-wheel-updates > "$tmp_suppressed_md"; then
+    echo "ERROR: [$name] dagshund failed on suppressed md output" >&2
+    return 1
+  fi
 
   if ! diff -u <(normalize_cli_version < "$fixture_dir/expected.txt") <(normalize_cli_version < "$tmp_txt"); then
     echo "FAIL: [$name] expected.txt mismatch" >&2
@@ -122,6 +159,21 @@ check_one() {
   fi
   if ! diff -u <(normalize_cli_version < "$fixture_dir/expected.md") <(normalize_cli_version < "$tmp_md"); then
     echo "FAIL: [$name] expected.md mismatch" >&2
+    failed=1
+  fi
+  # Suppressed baselines are presence-based: a stored expected-suppressed.*
+  # file is the baseline where suppression changes the output; otherwise the
+  # plain expected file is, which asserts suppression as a no-op.
+  local suppressed_txt_baseline="$fixture_dir/expected.txt"
+  [[ -f "$fixture_dir/expected-suppressed.txt" ]] && suppressed_txt_baseline="$fixture_dir/expected-suppressed.txt"
+  if ! diff -u <(normalize_cli_version < "$suppressed_txt_baseline") <(normalize_cli_version < "$tmp_suppressed_txt"); then
+    echo "FAIL: [$name] suppressed text mismatch (baseline: $(basename "$suppressed_txt_baseline"))" >&2
+    failed=1
+  fi
+  local suppressed_md_baseline="$fixture_dir/expected.md"
+  [[ -f "$fixture_dir/expected-suppressed.md" ]] && suppressed_md_baseline="$fixture_dir/expected-suppressed.md"
+  if ! diff -u <(normalize_cli_version < "$suppressed_md_baseline") <(normalize_cli_version < "$tmp_suppressed_md"); then
+    echo "FAIL: [$name] suppressed md mismatch (baseline: $(basename "$suppressed_md_baseline"))" >&2
     failed=1
   fi
 

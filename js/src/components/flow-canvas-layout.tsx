@@ -10,9 +10,8 @@ import {
 } from "@xyflow/react";
 import type { DiffState } from "../types/diff-state.ts";
 import { DiffFilterToolbar, type FilterableDiffState } from "./diff-filter-toolbar.tsx";
-import { LateralEdgeToggle } from "./lateral-edge-toggle.tsx";
-import { PhantomLeafToggle } from "./phantom-leaf-toggle.tsx";
 import { SearchBar } from "./search-bar.tsx";
+import { ToolbarToggle } from "./toolbar-toggle.tsx";
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
   style: { stroke: "var(--edge-default)", strokeWidth: 2 },
@@ -70,6 +69,11 @@ type FlowCanvasLayoutProps = {
   readonly showPhantomLeaves: boolean;
   readonly onTogglePhantomLeaves: () => void;
 
+  // Wheel updates
+  readonly wheelUpdateCount: number;
+  readonly hideWheelUpdates: boolean;
+  readonly onToggleWheelUpdates: () => void;
+
   // Fit view
   readonly onFitView: () => void;
 
@@ -99,6 +103,9 @@ export function FlowCanvasLayout({
   phantomLeafCount,
   showPhantomLeaves,
   onTogglePhantomLeaves,
+  wheelUpdateCount,
+  hideWheelUpdates,
+  onToggleWheelUpdates,
   onFitView,
   onZoomIn,
   onZoomOut,
@@ -135,17 +142,30 @@ export function FlowCanvasLayout({
             diffStateCounts={diffStateCounts}
           />
           {lateralEdgeCount > 0 && (
-            <LateralEdgeToggle
+            <ToolbarToggle
+              label="Lateral dependencies"
               active={showLateralEdges}
               onToggle={onToggleLateralEdges}
               count={lateralEdgeCount}
+              activeClassName="border-[var(--edge-lateral)] text-[var(--edge-lateral)]"
+              inactiveClassName="border-outline text-ink-muted hover:border-[var(--edge-lateral)]/50 hover:text-[var(--edge-lateral)]"
             />
           )}
           {phantomLeafCount > 0 && (
-            <PhantomLeafToggle
+            <ToolbarToggle
+              label="Inferred leaf nodes"
               active={showPhantomLeaves}
               onToggle={onTogglePhantomLeaves}
               count={phantomLeafCount}
+            />
+          )}
+          {wheelUpdateCount > 0 && (
+            <ToolbarToggle
+              label="Hide wheel updates"
+              active={hideWheelUpdates}
+              onToggle={onToggleWheelUpdates}
+              count={wheelUpdateCount}
+              title="Collapse wheel version bumps: affected tasks render as unchanged, the bump shows once on the job header"
             />
           )}
         </Panel>

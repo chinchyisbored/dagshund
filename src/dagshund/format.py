@@ -20,6 +20,7 @@ from dagshund.types import (
     ResourceType,
     parse_resource_key,
 )
+from dagshund.wheel import WheelUpdateUsage
 
 
 @dataclass(frozen=True, slots=True)
@@ -393,6 +394,30 @@ def collect_drift_summaries(
     return [summary for key, entry in visible if (summary := _summarize_resource_drift(key, entry))]
 
 
+def _format_count_noun(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def format_wheel_update_body(usage: WheelUpdateUsage) -> str:
+    """Build the shared body of a wheel summary line: 'wheel etl_lib updated: 0.1.0 -> 0.2.0 (8 tasks)'.
+
+    Renderers wrap this with their own prefix, mirroring ``format_drift_subline_body``.
+    Carriers are tasks (classic compute), environments (serverless), or both.
+    Equal versions (wheel path moved, same build) drop the version transition.
+    """
+    update = usage.update
+    carriers = ", ".join(
+        part
+        for part in (
+            _format_count_noun(usage.task_count, "task") if usage.task_count else "",
+            _format_count_noun(usage.environment_count, "environment") if usage.environment_count else "",
+        )
+        if part
+    )
+    versions = f": {update.old_version} -> {update.new_version}" if update.old_version != update.new_version else ""
+    return f"wheel {update.distribution} updated{versions} ({carriers})"
+
+
 def format_drift_subline_body(count: int, noun: str, suffix: str, labels: str = "") -> str:
     """Build the shared body of a drift sub-line: '1 task will be re-added (transform)'.
 
@@ -400,6 +425,5 @@ def format_drift_subline_body(count: int, noun: str, suffix: str, labels: str = 
     markdown nested bullets). Centralizing the pluralization + labels logic keeps
     the copy in lockstep across outputs.
     """
-    plural = noun if count == 1 else f"{noun}s"
-    body = f"{count} {plural} will be {suffix}"
+    body = f"{_format_count_noun(count, noun)} will be {suffix}"
     return f"{body} ({labels})" if labels else body

@@ -1030,3 +1030,122 @@ describe("buildPlanGraph", () => {
     });
   });
 });
+
+describe("wheel updates (dagshund-aqcx)", () => {
+  const wheelPath = (distribution: string, version: string): string =>
+    `/Workspace/artifacts/.internal/${distribution}-${version}-py3-none-any.whl`;
+
+  const wheelPlan = {
+    plan: {
+      "resources.jobs.etl": {
+        action: "update" as const,
+        changes: {
+          "tasks[task_key='ingest'].libraries[0].whl": {
+            action: "update" as const,
+            old: wheelPath("etl_lib", "0.1.0"),
+            new: wheelPath("etl_lib", "0.2.0"),
+          },
+          "tasks[task_key='report'].libraries[0].whl": {
+            action: "update" as const,
+            old: wheelPath("scoring_lib", "1.4.0"),
+            new: wheelPath("scoring_lib", "1.5.0"),
+          },
+          "tasks[task_key='report'].notebook_task.notebook_path": {
+            action: "update" as const,
+            old: "/a",
+            new: "/b",
+          },
+        },
+        new_state: {
+          value: {
+            tasks: [
+              { task_key: "ingest" },
+              { task_key: "report", depends_on: [{ task_key: "ingest" }] },
+            ],
+          },
+        },
+      },
+    },
+  };
+
+  test("job node carries distinct wheel updates sorted by distribution", () => {
+    const graph = buildPlanGraph(wheelPlan);
+
+    const jobNode = graph.nodes.find((n): n is JobGraphNode => n.nodeKind === "job");
+    expect(jobNode?.wheelUpdates).toEqual([
+      { distribution: "etl_lib", oldVersion: "0.1.0", newVersion: "0.2.0" },
+      { distribution: "scoring_lib", oldVersion: "1.4.0", newVersion: "1.5.0" },
+    ]);
+  });
+
+  test("wheel-only task is flagged, mixed task is not", () => {
+    const graph = buildPlanGraph(wheelPlan);
+
+    const taskNodes = graph.nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task");
+    const ingest = taskNodes.find((n) => n.taskKey === "ingest");
+    const report = taskNodes.find((n) => n.taskKey === "report");
+
+    expect(ingest?.isWheelOnlyChange).toBe(true);
+    expect(ingest?.diffState).toBe("modified");
+    expect(report?.isWheelOnlyChange).toBe(false);
+    expect(report?.diffState).toBe("modified");
+  });
+
+  test("job without wheel changes carries no wheel updates", async () => {
+    const plan = await loadFixture("mixed-changes");
+    const graph = buildPlanGraph(plan);
+
+    for (const node of graph.nodes) {
+      if (node.nodeKind === "job") expect(node.wheelUpdates).toBeUndefined();
+      if (node.nodeKind === "task") expect(node.isWheelOnlyChange).toBe(false);
+    }
+  });
+});
+
+describe("wheel updates from the wheel-bump golden fixture (mixed compute)", () => {
+  test("job node carries both wheel bumps; only pure wheel-bump tasks are wheel-only", async () => {
+    const plan = await loadFixture("wheel-bump");
+    const graph = buildPlanGraph(plan);
+
+    const jobNode = graph.nodes.find((n): n is JobGraphNode => n.nodeKind === "job");
+    expect(jobNode?.wheelUpdates).toEqual([
+      { distribution: "etl_lib", oldVersion: "0.1.0", newVersion: "0.2.0" },
+      { distribution: "scoring_lib", oldVersion: "1.0.0", newVersion: "1.1.0" },
+    ]);
+
+    const taskNodes = graph.nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task");
+    const wheelOnlyTaskKeys = taskNodes
+      .filter((task) => task.isWheelOnlyChange)
+      .map((task) => task.taskKey)
+      .toSorted();
+    expect(wheelOnlyTaskKeys).toEqual([
+      "merge_datasets",
+      "notify",
+      "single_wheel_01",
+      "single_wheel_02",
+      "single_wheel_03",
+      "single_wheel_04",
+      "single_wheel_05",
+      "single_wheel_06",
+      "single_wheel_07",
+      "single_wheel_08",
+      "single_wheel_09",
+      "single_wheel_10",
+      "validate_customers",
+    ]);
+  });
+
+  test("tasks with a wheel bump plus a real change are not wheel-only", async () => {
+    const plan = await loadFixture("wheel-bump");
+    const graph = buildPlanGraph(plan);
+
+    const taskNodes = graph.nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task");
+    const validateOrders = taskNodes.find((task) => task.taskKey === "validate_orders");
+    const aggregate = taskNodes.find((task) => task.taskKey === "aggregate");
+
+    expect(validateOrders?.diffState).toBe("modified");
+    expect(validateOrders?.isWheelOnlyChange).toBe(false);
+    expect(aggregate?.diffState).toBe("modified");
+    expect(aggregate?.isWheelOnlyChange).toBe(false);
+  });
+});

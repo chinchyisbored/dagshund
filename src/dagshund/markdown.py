@@ -16,6 +16,7 @@ from dagshund.format import (
     format_drift_subline_body,
     format_field_suffix,
     format_group_header,
+    format_wheel_update_body,
     group_by_resource_type,
     iter_non_topology_field_changes,
 )
@@ -33,6 +34,7 @@ from dagshund.types import (
     ResourceKey,
     parse_resource_key,
 )
+from dagshund.wheel import collect_wheel_updates, summarize_wheel_updates
 
 
 def _render_field_change(
@@ -55,6 +57,8 @@ def _render_field_change(
 def _render_resource(
     key: ResourceKey,
     entry: ResourceChange,
+    *,
+    suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
     cfg = action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
@@ -77,15 +81,21 @@ def _render_resource(
     if drift_fields or reentries:
         yield "  - :warning: manually edited outside bundle"
 
+    wheel_updates = collect_wheel_updates(changes) if suppress_wheel_updates else {}
     for field_name, change, ctx in iter_non_topology_field_changes(
         changes,
         new_state=entry.new_state,
         remote_state=entry.remote_state,
         shape_drift=shape_drift,
     ):
+        if field_name in wheel_updates:
+            continue
         rendered = _render_field_change(field_name, change, ctx=ctx)
         if rendered is not None:
             yield rendered
+
+    for usage in summarize_wheel_updates(wheel_updates):
+        yield f"  - `~` {format_wheel_update_body(usage)}"
 
     if reentries:
         create_cfg = action_config(ActionType.CREATE)
@@ -107,6 +117,7 @@ def _render_resource_groups(
     *,
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
+    suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
     for resource_type, entries in resource_groups.items():
         visible = filter_resources(entries, visible_states=visible_states, resource_filter=resource_filter)
@@ -115,7 +126,7 @@ def _render_resource_groups(
 
         yield f"#### {format_group_header(resource_type, len(entries), len(visible))}"
         for key, entry in sorted(visible.items()):
-            yield from _render_resource(key, entry)
+            yield from _render_resource(key, entry, suppress_wheel_updates=suppress_wheel_updates)
         yield ""
 
 
@@ -168,6 +179,7 @@ def render_markdown(
     *,
     visible_states: frozenset[DiffState] | None = None,
     filter_query: str | None = None,
+    suppress_wheel_updates: bool = False,
 ) -> str:
     resources = merge_sub_resources(plan.resources)
     if not resources:
@@ -192,6 +204,7 @@ def render_markdown(
             group_by_resource_type(resources),
             visible_states=visible_states,
             resource_filter=resource_filter,
+            suppress_wheel_updates=suppress_wheel_updates,
         )
     )
     lines.extend(_render_summary(resources, visible_states=visible_states, resource_filter=resource_filter))

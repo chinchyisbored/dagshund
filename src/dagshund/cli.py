@@ -24,6 +24,7 @@ EPILOG = """\
 examples:
   dagshund plan.json                                  terminal diff summary (default)
   dagshund plan.json --format md                      markdown diff summary
+  dagshund plan.json --suppress-wheel-updates         hide wheel version churn, summarize per job
   dagshund plan.json -o output.html                   HTML + terminal output
   dagshund plan.json -o output.html -b                HTML + browser + terminal output
   dagshund plan.json -o out.html --format md          HTML file + markdown to stdout
@@ -44,7 +45,10 @@ filter expressions:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dagshund",
-        usage="dagshund [plan_file] [-o OUTPUT] [--format FORMAT] [-q] [-b] [-e] [-d] [-c] [-a] [-m] [-r] [-f FILTER]",
+        usage=(
+            "dagshund [plan_file] [-o OUTPUT] [--format FORMAT] [-q] [-b] [-e] [-d] [-c] [-a] [-m] [-r]\n"
+            "                [-f FILTER] [--suppress-wheel-updates]"
+        ),
         description="Visualize databricks bundle plan output as a colored diff summary",
         epilog=EPILOG,
         formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=30),
@@ -134,6 +138,11 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="EXPR",
         help="Filter by search expression ('type:X status:X', 'field:X', '\"exact\"', fuzzy)",
     )
+    filter_group.add_argument(
+        "--suppress-wheel-updates",
+        action="store_true",
+        help="Hide wheel version bumps (task libraries and environment dependencies), summarize them once per job",
+    )
     return parser
 
 
@@ -221,11 +230,23 @@ def _render_stdout(
         case "term":
             from dagshund.terminal import render_text
 
-            render_text(plan, visible_states=visible_states, filter_query=args.filter)
+            render_text(
+                plan,
+                visible_states=visible_states,
+                filter_query=args.filter,
+                suppress_wheel_updates=args.suppress_wheel_updates,
+            )
         case "md":
             from dagshund.markdown import render_markdown
 
-            print(render_markdown(plan, visible_states=visible_states, filter_query=args.filter))
+            print(
+                render_markdown(
+                    plan,
+                    visible_states=visible_states,
+                    filter_query=args.filter,
+                    suppress_wheel_updates=args.suppress_wheel_updates,
+                )
+            )
 
 
 def _run(args: argparse.Namespace) -> ExitCode:

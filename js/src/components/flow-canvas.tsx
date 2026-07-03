@@ -19,7 +19,7 @@ import {
   resolveLateralContext,
   resolvePhantomContext,
 } from "../utils/connected-nodes.ts";
-import { getNodeData } from "../utils/node-data.ts";
+import { getNodeData, resolveDisplayedDiffState } from "../utils/node-data.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { type FilterableDiffState, isFilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { FlowCanvasLayout } from "./flow-canvas-layout.tsx";
@@ -40,6 +40,7 @@ type CanvasState = {
   readonly filterDiffState: DiffState | null;
   readonly showLateralEdges: boolean;
   readonly showPhantomLeaves: boolean;
+  readonly hideWheelUpdates: boolean;
   readonly isolatedLateralNodeId: string | null;
 };
 
@@ -50,6 +51,7 @@ type CanvasAction =
   | { type: "SET_FILTER"; diffState: DiffState | null }
   | { type: "TOGGLE_LATERAL_EDGES" }
   | { type: "TOGGLE_PHANTOM_LEAVES" }
+  | { type: "TOGGLE_WHEEL_UPDATES" }
   | { type: "TOGGLE_LATERAL_ISOLATION"; id: string }
   | { type: "CLICK_PANE" };
 
@@ -59,6 +61,7 @@ const INITIAL_CANVAS_STATE: CanvasState = {
   filterDiffState: null,
   showLateralEdges: false,
   showPhantomLeaves: false,
+  hideWheelUpdates: false,
   isolatedLateralNodeId: null,
 };
 
@@ -76,6 +79,8 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
       return { ...state, showLateralEdges: !state.showLateralEdges };
     case "TOGGLE_PHANTOM_LEAVES":
       return { ...state, showPhantomLeaves: !state.showPhantomLeaves };
+    case "TOGGLE_WHEEL_UPDATES":
+      return { ...state, hideWheelUpdates: !state.hideWheelUpdates };
     case "TOGGLE_LATERAL_ISOLATION":
       return {
         ...state,
@@ -137,6 +142,11 @@ export function FlowCanvas({
     [],
   );
 
+  const handleToggleWheelUpdates = useCallback(
+    () => dispatch({ type: "TOGGLE_WHEEL_UPDATES" }),
+    [],
+  );
+
   useEffect(() => {
     return () => {
       if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
@@ -193,11 +203,24 @@ export function FlowCanvas({
       unknown: 0,
     };
     for (const node of baseNodes) {
-      const ds = getNodeData(node).diffState;
+      const ds = resolveDisplayedDiffState(getNodeData(node), state.hideWheelUpdates);
       if (isFilterableDiffState(ds)) counts[ds]++;
     }
     return counts;
-  }, [baseNodes]);
+  }, [baseNodes, state.hideWheelUpdates]);
+
+  /** Sum of each job's distinct wheel updates — keys the toggle's visibility
+   *  and count. A bump shared by two jobs counts twice. Covers serverless
+   *  plans too, where no task is wheel-only but the job header badge still
+   *  summarizes the bump. */
+  const wheelUpdateCount = useMemo(
+    () =>
+      baseNodes.reduce((count, node) => {
+        const data = getNodeData(node);
+        return data.nodeKind === "job" ? count + (data.wheelUpdates?.length ?? 0) : count;
+      }, 0),
+    [baseNodes],
+  );
 
   const connectedIds = useMemo(
     () =>
@@ -220,12 +243,12 @@ export function FlowCanvas({
     const matched = new Set<string>();
     for (const node of baseNodes) {
       const data = getNodeData(node);
-      if (data.diffState === state.filterDiffState) {
+      if (resolveDisplayedDiffState(data, state.hideWheelUpdates) === state.filterDiffState) {
         matched.add(node.id);
       }
     }
     return matched;
-  }, [baseNodes, state.filterDiffState]);
+  }, [baseNodes, state.filterDiffState, state.hideWheelUpdates]);
 
   /** Direct matches — used for centering and match count (excludes parent containers). */
   const directMatchIds = useMemo((): ReadonlySet<string> | null => {
@@ -324,6 +347,7 @@ export function FlowCanvas({
       lateralNodeIds,
       isolatedLateralNodeId: state.isolatedLateralNodeId,
       showLateralEdges: state.showLateralEdges,
+      hideWheelUpdates: state.hideWheelUpdates,
     }),
     [
       state.hoveredNodeId,
@@ -336,6 +360,7 @@ export function FlowCanvas({
       lateralNodeIds,
       state.isolatedLateralNodeId,
       state.showLateralEdges,
+      state.hideWheelUpdates,
     ],
   );
 
@@ -394,6 +419,9 @@ export function FlowCanvas({
             phantomLeafCount={phantomLeafCount}
             showPhantomLeaves={state.showPhantomLeaves}
             onTogglePhantomLeaves={handleTogglePhantomLeaves}
+            wheelUpdateCount={wheelUpdateCount}
+            hideWheelUpdates={state.hideWheelUpdates}
+            onToggleWheelUpdates={handleToggleWheelUpdates}
             onFitView={handleFitView}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

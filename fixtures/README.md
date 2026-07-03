@@ -14,6 +14,10 @@ fixtures/
       plan.json              # Sanitized plan output (the fixture)
       expected.txt           # Expected CLI text output
       expected.md            # Expected CLI markdown output
+      expected-suppressed.txt # Text output with --suppress-wheel-updates; only present when it differs from expected.txt
+      expected-suppressed.md # Markdown output with --suppress-wheel-updates; only present when it differs from expected.md
+      expected-exit.txt      # Expected detailed exit code (-e)
+      expected-graph.json    # Expected structural graph summary (browser graph builder)
   tooling/
     regen.sh                 # Deploy/plan/capture/sanitize/destroy orchestration
     generate_expected.sh     # Generate or --check expected.txt + expected.md
@@ -62,11 +66,12 @@ just regen <fixture-name>   # One fixture
 just regen                  # All unattended fixtures
 ```
 
-`just regen` skips fixtures that need human supervision:
+`just regen` skips fixtures that cannot regenerate unattended against the default workspace:
 
 | Fixture | Regeneration path |
 |---|---|
 | `manual-drift` | Follow `fixtures/golden/manual-drift/README.md`. It requires workspace UI edits between deploy and plan. |
+| `wheel-bump` | Needs classic compute (job clusters with task libraries); the default fixture workspace is serverless-only. Regenerate ad hoc with `just regen wheel-bump` against a workspace that allows job clusters, then `just gen-expected wheel-bump`. |
 
 `lakebase-autoscaling` is part of the unattended `just regen` set. If it fails
 because a Lakebase endpoint is left list-visible but not get/delete-addressable,
@@ -81,7 +86,7 @@ just gen-expected
 
 ## Checking expected output
 
-`just test-golden` (also part of `just check`) diffs current CLI output against the stored `expected.txt` / `expected.md` for every fixture. For a single fixture:
+`just test-golden` (also part of `just check`) diffs current CLI output against the stored `expected.txt` / `expected.md` for every fixture. It also runs `--suppress-wheel-updates` in both formats: fixtures with a stored `expected-suppressed.txt` / `expected-suppressed.md` are diffed against those, and all others are diffed against the plain expected files, asserting that suppression is a no-op there. For a single fixture:
 
 ```bash
 ./fixtures/tooling/generate_expected.sh --check <fixture-name>

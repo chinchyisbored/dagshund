@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scoring_lib"
+version = "1.1.0"
+description = "Golden-fixture scoring wheel (second wheel to cover multi-wheel jobs)"
+requires-python = ">=3.10"
+
+[project.scripts]
+scoring_run = "scoring_lib:main"

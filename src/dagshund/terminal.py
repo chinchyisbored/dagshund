@@ -22,6 +22,7 @@ from dagshund.format import (
     format_field_suffix,
     format_group_header,
     format_value,
+    format_wheel_update_body,
     group_by_resource_type,
     iter_non_topology_field_changes,
 )
@@ -39,6 +40,7 @@ from dagshund.types import (
     ResourceKey,
     parse_resource_key,
 )
+from dagshund.wheel import collect_wheel_updates, summarize_wheel_updates
 
 _BLOCK_INDENT = 10  # 6 (field indent) + 4 (content offset for wrapped continuation lines)
 
@@ -161,6 +163,7 @@ def _render_resource(
     *,
     use_color: bool,
     width: int | None = None,
+    suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
     cfg = action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
@@ -184,15 +187,22 @@ def _render_resource(
     if drift_fields or reentries:
         yield _colorize("      \u26a0 manually edited outside bundle", YELLOW, use_color=use_color)
 
+    wheel_updates = collect_wheel_updates(changes) if suppress_wheel_updates else {}
     for field_name, change, ctx in iter_non_topology_field_changes(
         changes,
         new_state=entry.new_state,
         remote_state=entry.remote_state,
         shape_drift=shape_drift,
     ):
+        if field_name in wheel_updates:
+            continue
         rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=width)
         if rendered is not None:
             yield rendered
+
+    for usage in summarize_wheel_updates(wheel_updates):
+        line = f"      ~ {format_wheel_update_body(usage)}"
+        yield _colorize(line, YELLOW, use_color=use_color)
 
     if reentries:
         create_cfg = action_config(ActionType.CREATE)
@@ -224,6 +234,7 @@ def _print_resource_groups(
     visible_states: frozenset[DiffState] | None = None,
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
     width: int | None = None,
+    suppress_wheel_updates: bool = False,
 ) -> None:
     for resource_type, entries in resource_groups.items():  # already sorted by group_by_resource_type
         visible = filter_resources(entries, visible_states=visible_states, resource_filter=resource_filter)
@@ -233,7 +244,13 @@ def _print_resource_groups(
         header = f"  {format_group_header(resource_type, len(entries), len(visible))}"
         print(_colorize(header, _CYAN + _BOLD, use_color=use_color))
         for key, entry in sorted(visible.items()):
-            for line in _render_resource(key, entry, use_color=use_color, width=width):
+            for line in _render_resource(
+                key,
+                entry,
+                use_color=use_color,
+                width=width,
+                suppress_wheel_updates=suppress_wheel_updates,
+            ):
                 print(line)
         print()
 
@@ -291,6 +308,7 @@ def render_text(
     *,
     visible_states: frozenset[DiffState] | None = None,
     filter_query: str | None = None,
+    suppress_wheel_updates: bool = False,
 ) -> None:
     resources = merge_sub_resources(plan.resources)
     if not resources:
@@ -323,6 +341,7 @@ def render_text(
         visible_states=visible_states,
         resource_filter=resource_filter,
         width=width,
+        suppress_wheel_updates=suppress_wheel_updates,
     )
     _print_summary(resources, use_color=use_color, visible_states=visible_states, resource_filter=resource_filter)
 

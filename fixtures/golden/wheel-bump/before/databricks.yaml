@@ -1,0 +1,244 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Baseline state for wheel-bump: one mixed-compute job with chained
+# python_wheel tasks plus 10 stable single-wheel tasks. Some tasks run
+# serverless through environments, and some run on classic job clusters with
+# task libraries. Every task runs the locally built etl_lib wheel; publish +
+# notify also use scoring_lib for multi-wheel coverage. The after config bumps
+# both wheel versions, deletes the first task, inserts one task mid-chain,
+# appends one at the end, changes one non-library attribute, and adds an edge.
+bundle:
+  name: dagshund-golden-wheel-bump
+  databricks_cli_version: ">=0.296.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+artifacts:
+  etl_lib:
+    type: whl
+    path: ./etl_lib
+    build: uv build --wheel
+  scoring_lib:
+    type: whl
+    path: ./scoring_lib
+    build: uv build --wheel
+
+resources:
+  jobs:
+    wheel_pipeline:
+      name: wheel_pipeline
+      environments:
+        - environment_key: etl
+          spec:
+            environment_version: "2"
+            dependencies:
+              - ./etl_lib/dist/*.whl
+        - environment_key: scoring
+          spec:
+            environment_version: "2"
+            dependencies:
+              - ./etl_lib/dist/*.whl
+              - ./scoring_lib/dist/*.whl
+      job_clusters:
+        - job_cluster_key: classic_etl
+          new_cluster:
+            spark_version: 16.4.x-scala2.12
+            node_type_id: ${var.node_type_id}
+            num_workers: 1
+        - job_cluster_key: classic_scoring
+          new_cluster:
+            spark_version: 16.4.x-scala2.12
+            node_type_id: ${var.node_type_id}
+            num_workers: 1
+      tasks:
+        - task_key: bootstrap
+          environment_key: etl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "bootstrap"]
+
+        - task_key: ingest_orders
+          depends_on:
+            - task_key: bootstrap
+          environment_key: etl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "ingest_orders"]
+
+        - task_key: ingest_customers
+          depends_on:
+            - task_key: bootstrap
+          environment_key: etl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "ingest_customers"]
+
+        - task_key: validate_orders
+          depends_on:
+            - task_key: ingest_orders
+          timeout_seconds: 1800
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "validate_orders"]
+
+        - task_key: validate_customers
+          depends_on:
+            - task_key: ingest_customers
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "validate_customers"]
+
+        - task_key: merge_datasets
+          depends_on:
+            - task_key: validate_orders
+            - task_key: validate_customers
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "merge_datasets"]
+
+        - task_key: enrich
+          depends_on:
+            - task_key: merge_datasets
+          environment_key: etl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "enrich"]
+
+        - task_key: aggregate
+          depends_on:
+            - task_key: enrich
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "aggregate"]
+
+        - task_key: publish
+          depends_on:
+            - task_key: aggregate
+          environment_key: scoring
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "publish"]
+
+        - task_key: notify
+          depends_on:
+            - task_key: publish
+          job_cluster_key: classic_scoring
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+            - whl: ./scoring_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "notify"]
+
+        - task_key: single_wheel_01
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_01"]
+
+        - task_key: single_wheel_02
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_02"]
+
+        - task_key: single_wheel_03
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_03"]
+
+        - task_key: single_wheel_04
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_04"]
+
+        - task_key: single_wheel_05
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_05"]
+
+        - task_key: single_wheel_06
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_06"]
+
+        - task_key: single_wheel_07
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_07"]
+
+        - task_key: single_wheel_08
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_08"]
+
+        - task_key: single_wheel_09
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_09"]
+
+        - task_key: single_wheel_10
+          job_cluster_key: classic_etl
+          libraries:
+            - whl: ./etl_lib/dist/*.whl
+          python_wheel_task:
+            package_name: etl_lib
+            entry_point: etl_run
+            parameters: ["--step", "single_wheel_10"]

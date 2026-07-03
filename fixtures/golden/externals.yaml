@@ -38,5 +38,8 @@ variables:
   external_lineage_postgres_branch_id:
     description: Pre-existing branch in external_lineage_postgres_project_id
     default: production
+  node_type_id:
+    description: Smallest general-purpose node type for job cluster specs (cloud specific)
+    default: m5.large
   secondary_user:
     description: Second user for ownership/run_as fixture scenarios (no default — set via BUNDLE_VAR_secondary_user)

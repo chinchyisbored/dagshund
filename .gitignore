@@ -23,6 +23,7 @@ js/src/dagshund/
 __pycache__/
 *.pyc
 *.egg-info/
+build/
 .venv/
 
 # Beads lock file
@@ -37,6 +38,7 @@ __pycache__/
 .databricks
 fixtures/bases/bundle.schema.json
 fixtures/golden/bundle_config_schema.json
+fixtures/golden/wheel-bump/*/*/build
 unsanitized_fixtures
 fixtures-old
 # br doctor per-run artifacts

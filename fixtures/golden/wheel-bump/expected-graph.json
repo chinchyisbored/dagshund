@@ -1,0 +1,1304 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 23,
+      "by_kind": {
+        "job": 1,
+        "task": 22,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 2,
+        "removed": 1,
+        "modified": 19,
+        "unchanged": 1,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 2,
+          "removed": 1,
+          "modified": 18,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 112,
+      "with_resource_state": 23,
+      "task_change_summary_total": 21,
+      "entries": [
+        {
+          "id": "resources.jobs.wheel_pipeline",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "wheel_pipeline",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "environments[environment_key='etl'].spec.dependencies[0]",
+              "action": "update"
+            },
+            {
+              "key": "environments[environment_key='scoring'].spec.dependencies[0]",
+              "action": "update"
+            },
+            {
+              "key": "environments[environment_key='scoring'].spec.dependencies[1]",
+              "action": "update"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_etl'].new_cluster.azure_attributes",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_etl'].new_cluster.data_security_mode",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_etl'].new_cluster.enable_elastic_disk",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_scoring'].new_cluster.azure_attributes",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_scoring'].new_cluster.data_security_mode",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_scoring'].new_cluster.enable_elastic_disk",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "archive",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "deduplicate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "bootstrap",
+              "diffState": "removed",
+              "isDrift": false
+            },
+            {
+              "taskKey": "aggregate",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "enrich",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "ingest_customers",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "ingest_orders",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "merge_datasets",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "notify",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_01",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_02",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_03",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_04",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_05",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_06",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_07",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_08",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_09",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_10",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate_customers",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate_orders",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::aggregate",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "aggregate",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='aggregate'].depends_on[task_key='validate_orders']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='aggregate'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='aggregate'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='aggregate'].libraries",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='aggregate'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='aggregate'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::archive",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "archive",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='archive']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::bootstrap",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "bootstrap",
+          "kind": "task",
+          "diffState": "removed",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='bootstrap']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::deduplicate",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "deduplicate",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='deduplicate']",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::enrich",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "enrich",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='enrich'].depends_on[task_key='deduplicate']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='enrich'].depends_on[task_key='merge_datasets']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='enrich'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='enrich'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='enrich'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='enrich'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::ingest_customers",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "ingest_customers",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='ingest_customers'].depends_on",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='ingest_customers'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_customers'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_customers'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_customers'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::ingest_orders",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "ingest_orders",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='ingest_orders'].depends_on",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='ingest_orders'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_orders'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_orders'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_orders'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::merge_datasets",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "merge_datasets",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='merge_datasets'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='merge_datasets'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='merge_datasets'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='merge_datasets'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='merge_datasets'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::notify",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "notify",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='notify'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='notify'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='notify'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='notify'].libraries[1].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='notify'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='notify'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::publish",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "publish",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='publish'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_01",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_01",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_01'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_01'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_01'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_01'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_01'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_02",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_02",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_02'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_02'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_02'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_02'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_02'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_03",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_03",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_03'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_03'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_03'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_03'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_03'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_04",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_04",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_04'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_04'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_04'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_04'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_04'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_05",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_05",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_05'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_05'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_05'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_05'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_05'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_06",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_06",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_06'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_06'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_06'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_06'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_06'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_07",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_07",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_07'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_07'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_07'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_07'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_07'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_08",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_08",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_08'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_08'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_08'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_08'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_08'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_09",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_09",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_09'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_09'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_09'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_09'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_09'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::single_wheel_10",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "single_wheel_10",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='single_wheel_10'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_10'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_10'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_10'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='single_wheel_10'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::validate_customers",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "validate_customers",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_customers'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.wheel_pipeline::validate_orders",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "validate_orders",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_orders'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].libraries[0].whl",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].timeout_seconds",
+              "action": "update"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 14,
+      "by_kind": {
+        "dag": 14,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 4,
+        "removed": 3,
+        "unchanged": 7
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 4,
+          "removed": 3,
+          "unchanged": 7
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.wheel_pipeline::aggregate",
+          "target": "resources.jobs.wheel_pipeline::publish",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::bootstrap",
+          "target": "resources.jobs.wheel_pipeline::ingest_customers",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::bootstrap",
+          "target": "resources.jobs.wheel_pipeline::ingest_orders",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::deduplicate",
+          "target": "resources.jobs.wheel_pipeline::enrich",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::enrich",
+          "target": "resources.jobs.wheel_pipeline::aggregate",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::ingest_customers",
+          "target": "resources.jobs.wheel_pipeline::validate_customers",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::ingest_orders",
+          "target": "resources.jobs.wheel_pipeline::validate_orders",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::merge_datasets",
+          "target": "resources.jobs.wheel_pipeline::deduplicate",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::merge_datasets",
+          "target": "resources.jobs.wheel_pipeline::enrich",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::notify",
+          "target": "resources.jobs.wheel_pipeline::archive",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::publish",
+          "target": "resources.jobs.wheel_pipeline::notify",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::validate_customers",
+          "target": "resources.jobs.wheel_pipeline::merge_datasets",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::validate_orders",
+          "target": "resources.jobs.wheel_pipeline::aggregate",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.wheel_pipeline::validate_orders",
+          "target": "resources.jobs.wheel_pipeline::merge_datasets",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 2,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 1,
+        "root": 1,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 1,
+        "unchanged": 1,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 12,
+      "with_resource_state": 1,
+      "task_change_summary_total": 21,
+      "entries": [
+        {
+          "id": "resources.jobs.wheel_pipeline",
+          "resourceKey": "resources.jobs.wheel_pipeline",
+          "label": "wheel_pipeline",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "environments[environment_key='etl'].spec.dependencies[0]",
+              "action": "update"
+            },
+            {
+              "key": "environments[environment_key='scoring'].spec.dependencies[0]",
+              "action": "update"
+            },
+            {
+              "key": "environments[environment_key='scoring'].spec.dependencies[1]",
+              "action": "update"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_etl'].new_cluster.azure_attributes",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_etl'].new_cluster.data_security_mode",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_etl'].new_cluster.enable_elastic_disk",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_scoring'].new_cluster.azure_attributes",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_scoring'].new_cluster.data_security_mode",
+              "action": "skip"
+            },
+            {
+              "key": "job_clusters[job_cluster_key='classic_scoring'].new_cluster.enable_elastic_disk",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "archive",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "deduplicate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "bootstrap",
+              "diffState": "removed",
+              "isDrift": false
+            },
+            {
+              "taskKey": "aggregate",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "enrich",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "ingest_customers",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "ingest_orders",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "merge_datasets",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "notify",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_01",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_02",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_03",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_04",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_05",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_06",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_07",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_08",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_09",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "single_wheel_10",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate_customers",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "validate_orders",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 1,
+      "by_kind": {
+        "dag": 1,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 1
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 1
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.wheel_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
+    },
+    "phantoms": []
+  }
+}
