@@ -194,6 +194,22 @@ def test_main_dagshund_error_prints_to_stderr_and_exits(
     assert "dagshund:" in capsys.readouterr().err
 
 
+def test_main_install_skill_invalid_destination_exits_with_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    destination = tmp_path / "not-a-directory"
+    destination.write_text("file")
+    monkeypatch.setattr("sys.argv", ["dagshund", "--install-skill", str(destination)])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == ExitCode.ERROR
+    assert "could not install skill" in capsys.readouterr().err
+
+
 def test_main_invalid_json_on_stdin_exits_with_error(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

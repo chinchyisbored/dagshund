@@ -173,10 +173,13 @@ def _read_plan(plan_file: str | None) -> str:
 def _install_skill(target_dir: str) -> None:
     from importlib.resources import files
 
-    source = files("dagshund._assets").joinpath("SKILL.md")
-    dest = Path(target_dir) / "dagshund" / "SKILL.md"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    try:
+        source = files("dagshund._assets").joinpath("SKILL.md")
+        dest = Path(target_dir) / "dagshund" / "SKILL.md"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    except OSError as exc:
+        raise DagshundError(f"could not install skill: {exc}") from exc
     print(f"dagshund: installed skill to {dest}")
 
 
@@ -284,14 +287,13 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    if args.install_skill is not None:
-        _install_skill(args.install_skill)
-        return
-
-    _maybe_enable_debug(args)
-    _validate_args(parser, args)
-
     try:
+        if args.install_skill is not None:
+            _install_skill(args.install_skill)
+            return
+
+        _maybe_enable_debug(args)
+        _validate_args(parser, args)
         sys.exit(_run(args))
     except DagshundError as exc:
         print(f"dagshund: {exc}", file=sys.stderr)

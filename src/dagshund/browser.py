@@ -47,8 +47,9 @@ def _inject_plan(template: str, plan: Plan) -> str:
 def _validate_output_path(raw: str) -> Path:
     """Resolve and validate the output path before writing.
 
-    Guards against writing through symlinks (which could silently overwrite
-    an unrelated file) and normalizes ``..`` traversal segments.
+    Rejects a symlinked output file (which could silently overwrite an
+    unrelated target) and normalizes ``..`` traversal segments. Symlinked
+    parent directories remain supported.
     """
     path = Path(raw)
     if path.is_symlink():
