@@ -6,6 +6,7 @@ import {
   type PhantomGraphNode,
 } from "../types/graph-types.ts";
 import type { PlanEntry } from "../types/plan-schema.ts";
+import type { JobRunEffect } from "../utils/normalize-plan.ts";
 import {
   buildPrefixedNodeId,
   buildResourceKey,
@@ -33,6 +34,26 @@ const buildPhantomNodesFromEntries = (
   const nodes: PhantomGraphNode[] = [...phantoms.values()].map(({ id, label, resourceKey }) =>
     buildHierarchyGraphNode("phantom", id, label, resourceKey),
   );
+  const edges = filterDefinedEdges(nodes.map((node) => buildEdge(parentId, node.id)));
+  return { nodes, edges };
+};
+
+// ---------------------------------------------------------------------------
+// Phantom targets of orphan deploy effects
+// ---------------------------------------------------------------------------
+
+/** Build phantom nodes for deploy-triggered runs whose target job is absent
+ *  from the plan, keyed by phantom node id (`job::<id>`). The effects ride on
+ *  the phantom so the badge and detail panel can show them (dagshund-ocb1). */
+export const buildOrphanEffectPhantoms = (
+  orphanEffects: ReadonlyMap<string, readonly JobRunEffect[]>,
+  parentId: string,
+): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
+  if (orphanEffects.size === 0) return { nodes: [], edges: [] };
+  const nodes: PhantomGraphNode[] = [...orphanEffects].map(([id, effects]) => {
+    const identity = id.slice(id.indexOf("::") + 2);
+    return { ...buildHierarchyGraphNode("phantom", id, identity), effects };
+  });
   const edges = filterDefinedEdges(nodes.map((node) => buildEdge(parentId, node.id)));
   return { nodes, edges };
 };

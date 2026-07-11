@@ -1,0 +1,21 @@
+dagshund plan (v2, cli 1.7.0)
+
+  job_runs (1)
+  + job_runs/ping_healthcheck  (create)
+
+  jobs (5)
+  = jobs/cache_warmup
+      + run warm_eu_cache (runs on deploy)
+      = run warm_us_cache (already ran)
+  = jobs/nightly_report
+      = run seed_report (already ran)
+  = jobs/schema_migration
+      ~ run apply_migrations (re-runs on deploy)
+          ~ job_parameters['migration_version']: "v1" -> "v2"
+  = jobs/seed_lookup_tables
+      + run initial_seed (runs on deploy)
+  = jobs/smoke_check
+      - run one_off_audit (run record will be deleted)
+
+  +1 create, =5 unchanged
+  runs: +2 create, -1 delete, ~1 recreate, =2 unchanged

@@ -58,6 +58,19 @@ def action_config(action: ActionType) -> ActionConfig:
     return ACTIONS.get(action, DEFAULT_ACTION)
 
 
+# Mirror of JOB_RUN_EFFECT_WORDING in js/src/utils/normalize-plan.ts.
+_EFFECT_WORDING: dict[ActionType, str] = {
+    ActionType.CREATE: "runs on deploy",
+    ActionType.RECREATE: "re-runs on deploy",
+    ActionType.SKIP: "already ran",
+    ActionType.DELETE: "run record will be deleted",
+}
+
+
+def effect_wording(action: ActionType) -> str:
+    return _EFFECT_WORDING.get(action, action_config(action).display)
+
+
 def field_action_config(change: FieldChange, ctx: FieldChangeContext | None = None) -> ActionConfig:
     """Derive the display config for a field change from data presence, not the action label.
 
@@ -331,6 +344,12 @@ def filter_resources(
 
 def count_by_action(entries: Mapping[ResourceKey, ResourceChange]) -> dict[ActionConfig, int]:
     return dict(Counter(action_config(entry.action) for entry in entries.values()))
+
+
+def count_effects_by_action(entries: Mapping[ResourceKey, ResourceChange]) -> dict[ActionConfig, int]:
+    """Tally deploy-triggered runs by action, separate from the resource tally —
+    a job stays unchanged while its runs create/recreate/delete (dagshund-ocb1)."""
+    return dict(Counter(action_config(effect.action) for entry in entries.values() for effect in entry.effects))
 
 
 def format_group_header(resource_type: ResourceType, total: int, visible: int) -> str:

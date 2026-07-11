@@ -69,6 +69,7 @@
         "unknown": 0
       },
       "total_change_entries": 104,
+      "total_effect_entries": 0,
       "with_resource_state": 22,
       "task_change_summary_total": 15,
       "entries": [
@@ -93,6 +94,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": [
             {
@@ -165,6 +167,7 @@
               "action": "update"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -205,6 +208,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -221,6 +225,7 @@
               "action": "update"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -253,6 +258,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -289,6 +295,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -329,6 +336,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -361,6 +369,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -397,6 +406,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -433,6 +443,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -465,6 +476,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -505,6 +517,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -553,6 +566,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -569,6 +583,7 @@
               "action": "update"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -609,6 +624,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -633,6 +649,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": [
             {
@@ -670,6 +687,7 @@
               "action": "update"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -702,6 +720,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -742,6 +761,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -774,6 +794,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -810,6 +831,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -826,6 +848,7 @@
               "action": "update"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         }
@@ -1096,6 +1119,7 @@
         "unknown": 0
       },
       "total_change_entries": 6,
+      "total_effect_entries": 0,
       "with_resource_state": 2,
       "task_change_summary_total": 15,
       "entries": [
@@ -1120,6 +1144,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": [
             {
@@ -1200,6 +1225,7 @@
               "action": "skip"
             }
           ],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": [
             {
@@ -1232,6 +1258,7 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": false,
           "taskChangeSummary": []
         }

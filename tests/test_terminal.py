@@ -12,7 +12,7 @@ from factories import (
     resources_from_dict,
 )
 
-from dagshund.merge import merge_sub_resources
+from dagshund.merge import merge_sub_resources, normalize_plan
 from dagshund.model import FieldChange
 from dagshund.plan import detect_changes
 from dagshund.terminal import (
@@ -1485,3 +1485,168 @@ def test_render_text_suppress_wheel_updates_wheel_bump_fixture(
     assert "tasks[task_key='archive']" in out  # real changes stay visible
     assert "tasks[task_key='validate_orders'].timeout_seconds" in out
     assert "tasks[task_key='aggregate'].libraries" in out  # added wheel, not a bump
+
+
+# --- render_text job_runs effects (dagshund-ocb1) ---
+
+
+def test_render_text_effect_lines_render_for_skip_parent(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.nightly": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "create",
+                    "new_state": {"value": {"job_id": 100}},
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "      + run nightly (runs on deploy)" in out
+    # Effect entries never render as standalone resources
+    assert "job_runs/" not in out
+
+
+def test_render_text_effect_field_changes_render_indented(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.migrate": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "changes": {
+                        "job_parameters['v']": {"action": "recreate", "old": "1", "new": "2"},
+                    },
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "      ~ run migrate (re-runs on deploy)" in out
+    assert '          ~ job_parameters[\'v\']: "1" -> "2"' in out
+
+
+def test_render_text_delete_effect_uses_destructive_wording(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.audit": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "delete",
+                    "remote_state": {"job_id": 100, "run_id": 7},
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "      - run audit (run record will be deleted)" in out
+
+
+def test_render_text_effect_only_plan_is_not_no_changes(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.nightly": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "create",
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "No changes" not in out
+
+
+def test_render_text_skip_only_effects_render_run_records(capsys: pytest.CaptureFixture[str]) -> None:
+    """Skip-only effects are not changes (exit stays 0), but their run records still render."""
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.nightly": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "skip",
+                    "remote_state": {"job_id": 100, "run_id": 7},
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "No changes" not in out
+    assert "      = run nightly (already ran)" in out
+
+
+def test_render_text_summary_includes_effect_tally(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.nightly": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "create",
+                },
+                "resources.job_runs.audit": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "delete",
+                    "remote_state": {"job_id": 100, "run_id": 7},
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "  =1 unchanged" in out
+    assert "  runs: +1 create, -1 delete" in out
+
+
+def test_render_resource_wraps_long_effect_field_values() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+            "resources.job_runs.migrate": {
+                "depends_on": [{"node": "resources.jobs.etl"}],
+                "action": "recreate",
+                "changes": {
+                    # 38-char values stay under the long-string "..." collapse
+                    # (>40) while the combined transition line exceeds width.
+                    "job_parameters['payload']": {
+                        "action": "recreate",
+                        "old": "x" * 38,
+                        "new": "y" * 38,
+                    },
+                },
+            },
+        }
+    )
+    entry = normalize_plan(resources)["resources.jobs.etl"]
+
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, width=80))
+
+    wrapped = next(line for line in lines if "job_parameters['payload']" in line)
+    first, continuation = wrapped.split("\n")
+    # Effect field changes re-indent by 4; the wrapped transition's
+    # continuation aligns to the block indent (10) plus that extra 4.
+    assert first.startswith("          ~ job_parameters['payload']")
+    assert continuation.startswith(f"{' ' * 14}->")

@@ -9,8 +9,10 @@ from dagshund.format import (
     collect_drift_summaries,
     collect_warnings,
     count_by_action,
+    count_effects_by_action,
     detect_drift_fields,
     detect_drift_reentries,
+    effect_wording,
     field_action_config,
     filter_resources,
     format_drift_subline_body,
@@ -20,8 +22,8 @@ from dagshund.format import (
     group_by_resource_type,
     iter_non_topology_field_changes,
 )
-from dagshund.merge import merge_sub_resources
-from dagshund.model import ActionType, FieldChange, Plan, ResourceChange
+from dagshund.merge import normalize_plan
+from dagshund.model import ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
@@ -54,6 +56,18 @@ def _render_field_change(
     return f"  - `{cfg.symbol}` `{field_name}`{suffix}"
 
 
+def _render_effect_lines(effect: JobRunEffect) -> Iterator[str]:
+    """Nested bullets for a deploy-triggered run; the run name links to the
+    existing run page when the record carries one."""
+    cfg = action_config(effect.action)
+    name = f"[`{effect.name}`]({effect.run_page_url})" if effect.run_page_url else f"`{effect.name}`"
+    yield f"  - `{cfg.symbol}` run {name} ({effect_wording(effect.action)})"
+    for field_name, change, ctx in iter_non_topology_field_changes(effect.changes):
+        rendered = _render_field_change(field_name, change, ctx=ctx)
+        if rendered is not None:
+            yield f"  {rendered}"
+
+
 def _render_resource(
     key: ResourceKey,
     entry: ResourceChange,
@@ -65,6 +79,11 @@ def _render_resource(
 
     label = f" \u2014 {cfg.display}" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
     yield f"- `{cfg.symbol}` `{resource_type}/{resource_name}`{label}"
+
+    # Effect lines render even for skip/unchanged parents (before the early
+    # return below) \u2014 a deploy-triggered run never changes the job itself.
+    for effect in entry.effects:
+        yield from _render_effect_lines(effect)
 
     changes = entry.changes
     if not (changes and cfg.show_field_changes):
@@ -142,6 +161,14 @@ def _render_summary(
     if parts:
         yield parts
 
+    # Deploy-triggered runs get their own tally — the resource counts above
+    # stay honest (jobs unchanged) while the runs line discloses what fires.
+    effect_counts = sorted(count_effects_by_action(filtered).items(), key=lambda item: item[0].display)
+    effect_parts = ", ".join(f"**{cfg.symbol}{count}** {cfg.display}" for cfg, count in effect_counts)
+    if effect_parts:
+        yield ""
+        yield f"runs: {effect_parts}"
+
 
 def _render_warnings(warnings: list[str]) -> Iterator[str]:
     yield ""
@@ -181,7 +208,7 @@ def render_markdown(
     filter_query: str | None = None,
     suppress_wheel_updates: bool = False,
 ) -> str:
-    resources = merge_sub_resources(plan.resources)
+    resources = normalize_plan(plan.resources)
     if not resources:
         raise DagshundError("plan is empty")
     plan = replace(plan, resources=resources)
@@ -195,7 +222,10 @@ def render_markdown(
     lines: list[str] = []
     lines.extend(_render_header(plan))
 
-    if not detect_changes(resources):
+    # Skip-only effects don't count as changes (nothing fires on deploy), but
+    # their run records should still render — fall through to the group view.
+    has_effects = any(entry.effects for entry in resources.values())
+    if not detect_changes(resources) and not has_effects:
         lines.append(f"No changes ({len(resources)} resources unchanged)")
         return "\n".join(lines)
 

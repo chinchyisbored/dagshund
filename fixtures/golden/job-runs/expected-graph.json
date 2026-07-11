@@ -1,0 +1,752 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 10,
+      "by_kind": {
+        "job": 5,
+        "task": 5,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 10,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 5,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 5,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 40,
+      "total_effect_entries": 6,
+      "with_resource_state": 10,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "resources.jobs.cache_warmup",
+          "resourceKey": "resources.jobs.cache_warmup",
+          "label": "cache_warmup",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "warm_eu_cache",
+              "action": "create"
+            },
+            {
+              "name": "warm_us_cache",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.cache_warmup::main",
+          "resourceKey": "resources.jobs.cache_warmup",
+          "label": "main",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='main'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.nightly_report",
+          "resourceKey": "resources.jobs.nightly_report",
+          "label": "nightly_report",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "seed_report",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.nightly_report::main",
+          "resourceKey": "resources.jobs.nightly_report",
+          "label": "main",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='main'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.schema_migration",
+          "resourceKey": "resources.jobs.schema_migration",
+          "label": "schema_migration",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "apply_migrations",
+              "action": "recreate"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.schema_migration::main",
+          "resourceKey": "resources.jobs.schema_migration",
+          "label": "main",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='main'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.seed_lookup_tables",
+          "resourceKey": "resources.jobs.seed_lookup_tables",
+          "label": "seed_lookup_tables",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "initial_seed",
+              "action": "create"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.seed_lookup_tables::main",
+          "resourceKey": "resources.jobs.seed_lookup_tables",
+          "label": "main",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='main'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.smoke_check",
+          "resourceKey": "resources.jobs.smoke_check",
+          "label": "smoke_check",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "one_off_audit",
+              "action": "delete"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.smoke_check::main",
+          "resourceKey": "resources.jobs.smoke_check",
+          "label": "main",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='main'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 0,
+      "by_kind": {
+        "dag": 0,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 0
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": []
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 7,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 5,
+        "root": 1,
+        "phantom": 1
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 7,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 5,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 15,
+      "total_effect_entries": 7,
+      "with_resource_state": 5,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "job::705178521553609",
+          "resourceKey": "job::705178521553609",
+          "label": "705178521553609",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [
+            {
+              "name": "ping_healthcheck",
+              "action": "create"
+            }
+          ],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.cache_warmup",
+          "resourceKey": "resources.jobs.cache_warmup",
+          "label": "cache_warmup",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "warm_eu_cache",
+              "action": "create"
+            },
+            {
+              "name": "warm_us_cache",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.nightly_report",
+          "resourceKey": "resources.jobs.nightly_report",
+          "label": "nightly_report",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "seed_report",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.schema_migration",
+          "resourceKey": "resources.jobs.schema_migration",
+          "label": "schema_migration",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "apply_migrations",
+              "action": "recreate"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.seed_lookup_tables",
+          "resourceKey": "resources.jobs.seed_lookup_tables",
+          "label": "seed_lookup_tables",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "initial_seed",
+              "action": "create"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.smoke_check",
+          "resourceKey": "resources.jobs.smoke_check",
+          "label": "smoke_check",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "one_off_audit",
+              "action": "delete"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 6,
+      "by_kind": {
+        "dag": 6,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 6
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 6
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "workspace-root",
+          "target": "job::705178521553609",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.cache_warmup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.nightly_report",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.schema_migration",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.seed_lookup_tables",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.smoke_check",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "job::705178521553609",
+        "label": "705178521553609",
+        "resourceKey": "job::705178521553609"
+      }
+    ]
+  }
+}

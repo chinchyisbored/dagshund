@@ -9,6 +9,7 @@ import { extractResourceType, extractTypeBadge } from "../utils/resource-key.ts"
 import { DriftPill } from "./detail-panel/drift-pill.tsx";
 import { LateralHandles } from "./lateral-handles.tsx";
 import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
+import { RunEffectBadge } from "./run-effect-badge.tsx";
 
 type ResourceNodeType = Node<DagNodeData, "resource">;
 
@@ -31,6 +32,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
   // for the note on the `unknown` diffState border-dashed collision.
   const isDrift = data.nodeKind === "resource" && data.isDrift === true;
   const borderStyle = isDrift ? "border-dashed" : styles.borderStyle;
+  const effects = data.nodeKind === "resource" ? data.effects : undefined;
 
   return (
     <div
@@ -71,6 +73,7 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
             {typeBadge}
           </span>
         ) : null}
+        {effects !== undefined && <RunEffectBadge effects={effects} />}
         {hasLateralEdges && <LateralIsolateButton nodeId={id} isActive={isLateralIsolated} />}
       </div>
       <Handle

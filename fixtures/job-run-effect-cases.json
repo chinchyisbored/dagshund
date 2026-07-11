@@ -1,0 +1,115 @@
+{
+  "description": "Shared test vectors for job_runs effect target resolution: normalize_plan (Python, merge.py) and normalizePlan (TS, utils/normalize-plan.ts). Both test suites run the full normalize over `plan` and assert where the effect at `effectKey` lands — protects the two mirrored implementations from drifting apart (dagshund-ocb1). `expected.target` is the resource key the effect folds onto, or null when unresolved. For unresolved effects with a numeric id, `expected.phantomId` names the TS phantom node (Python keeps the entry standalone); with no id both are null and the entry stays standalone on both sides.",
+  "cases": [
+    {
+      "name": "depends_on_resolves_to_plan_job",
+      "plan": {
+        "resources.jobs.etl": { "action": "skip", "remote_state": { "job_id": 100 } },
+        "resources.job_runs.nightly": {
+          "depends_on": [{ "node": "resources.jobs.etl", "label": "${resources.jobs.etl.id}" }],
+          "action": "create",
+          "new_state": { "value": { "job_id": 100 } }
+        }
+      },
+      "effectKey": "resources.job_runs.nightly",
+      "expected": { "target": "resources.jobs.etl", "phantomId": null }
+    },
+    {
+      "name": "depends_on_beats_numeric_lookup",
+      "plan": {
+        "resources.jobs.declared": { "action": "skip", "remote_state": { "job_id": 1 } },
+        "resources.jobs.decoy": { "action": "skip", "remote_state": { "job_id": 2 } },
+        "resources.job_runs.ambiguous": {
+          "depends_on": [{ "node": "resources.jobs.declared" }],
+          "action": "create",
+          "new_state": { "value": { "job_id": 2 } }
+        }
+      },
+      "effectKey": "resources.job_runs.ambiguous",
+      "expected": { "target": "resources.jobs.declared", "phantomId": null }
+    },
+    {
+      "name": "numeric_fallback_when_depends_on_absent_from_plan",
+      "plan": {
+        "resources.jobs.backing": { "action": "skip", "remote_state": { "job_id": 42 } },
+        "resources.job_runs.detached": {
+          "depends_on": [{ "node": "resources.jobs.gone" }],
+          "action": "skip",
+          "remote_state": { "job_id": 42, "run_id": 7 }
+        }
+      },
+      "effectKey": "resources.job_runs.detached",
+      "expected": { "target": "resources.jobs.backing", "phantomId": null }
+    },
+    {
+      "name": "numeric_only_from_new_state_value",
+      "plan": {
+        "resources.jobs.backing": { "action": "skip", "remote_state": { "job_id": 42 } },
+        "resources.job_runs.plain": {
+          "action": "create",
+          "new_state": { "value": { "job_id": 42 } }
+        }
+      },
+      "effectKey": "resources.job_runs.plain",
+      "expected": { "target": "resources.jobs.backing", "phantomId": null }
+    },
+    {
+      "name": "numeric_only_from_remote_state",
+      "plan": {
+        "resources.jobs.backing": { "action": "skip", "remote_state": { "job_id": 42 } },
+        "resources.job_runs.stale": {
+          "action": "delete",
+          "remote_state": { "job_id": 42, "run_id": 7 }
+        }
+      },
+      "effectKey": "resources.job_runs.stale",
+      "expected": { "target": "resources.jobs.backing", "phantomId": null }
+    },
+    {
+      "name": "numeric_match_survives_later_non_job_collision",
+      "plan": {
+        "resources.jobs.backing": { "action": "skip", "remote_state": { "job_id": 42 } },
+        "resources.pipelines.ingest": { "action": "skip", "remote_state": { "job_id": 42 } },
+        "resources.job_runs.collided": {
+          "action": "create",
+          "new_state": { "value": { "job_id": 42 } }
+        }
+      },
+      "effectKey": "resources.job_runs.collided",
+      "expected": { "target": "resources.jobs.backing", "phantomId": null }
+    },
+    {
+      "name": "numeric_match_on_non_job_is_orphan",
+      "plan": {
+        "resources.pipelines.ingest": { "action": "skip", "remote_state": { "job_id": 42 } },
+        "resources.job_runs.misdirected": {
+          "action": "create",
+          "new_state": { "value": { "job_id": 42 } }
+        }
+      },
+      "effectKey": "resources.job_runs.misdirected",
+      "expected": { "target": null, "phantomId": "job::42" }
+    },
+    {
+      "name": "orphan_numeric_target_not_in_plan",
+      "plan": {
+        "resources.jobs.unrelated": { "action": "skip", "remote_state": { "job_id": 1 } },
+        "resources.job_runs.external": {
+          "action": "create",
+          "new_state": { "value": { "job_id": 999 } }
+        }
+      },
+      "effectKey": "resources.job_runs.external",
+      "expected": { "target": null, "phantomId": "job::999" }
+    },
+    {
+      "name": "unresolvable_without_id_stays_standalone",
+      "plan": {
+        "resources.jobs.unrelated": { "action": "skip", "remote_state": { "job_id": 1 } },
+        "resources.job_runs.mystery": { "action": "create" }
+      },
+      "effectKey": "resources.job_runs.mystery",
+      "expected": { "target": null, "phantomId": null }
+    }
+  ]
+}

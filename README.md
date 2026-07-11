@@ -78,6 +78,19 @@ Only same-distribution version bumps are suppressed; swapping a task to a *diffe
 
 ![Wheel update suppression, before and after](docs/pictures/wheel_updates.png)
 
+Deploy-triggered runs (the experimental `resources.job_runs` blocks, Databricks CLI 1.7.0+) fold onto the job they target instead of listing as separate resources. Each run renders as a per-job line with its lifecycle:
+
+```bash
+dagshund plan.json
+#   = jobs/schema_migration
+#       ~ run apply_migrations (re-runs on deploy)
+#           ~ job_parameters['migration_version']: "v1" -> "v2"
+#   = jobs/smoke_check
+#       - run one_off_audit (run record will be deleted)
+```
+
+Deleting a run entry really erases the run record from the job's history, so the output says so. With `--detailed-exitcode`, a plan whose only changes are deploy-triggered runs exits 2.
+
 Export the HTML report with `-o` for detailed inspection in a browser:
 
 ```bash
@@ -123,6 +136,10 @@ Many resources reference each other across hierarchies, an alert might target a 
 ### Wheel Updates
 
 When a plan contains wheel version bumps, the **Hide wheel updates** toolbar button appears in the Jobs view. Toggling it renders tasks whose only change is the wheel bump as unchanged and shows the bump once as a badge on the job container instead, so real changes stand out in large DAGs. Tasks with other changes stay highlighted.
+
+### Deploy-Triggered Runs
+
+Jobs targeted by `resources.job_runs` entries (experimental, Databricks CLI 1.7.0+) get a play badge: green when a run fires on this deploy (create or recreate), grey when the recorded run already happened (skip). The detail panel lists each run with its lifecycle, a link to the existing run page, and the parameter diff that forces a re-run. Removing a run entry deletes the run record from the job's history; the panel shows that removal, and the badge stays off. Deploy-triggered runs never count toward tab counts or diff filters, and the target job itself stays unchanged.
 
 ### Search
 

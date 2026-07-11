@@ -13,8 +13,10 @@ from dagshund.format import (
     collect_drift_summaries,
     collect_warnings,
     count_by_action,
+    count_effects_by_action,
     detect_drift_fields,
     detect_drift_reentries,
+    effect_wording,
     field_action_config,
     filter_resources,
     format_display_value,
@@ -26,8 +28,8 @@ from dagshund.format import (
     group_by_resource_type,
     iter_non_topology_field_changes,
 )
-from dagshund.merge import merge_sub_resources
-from dagshund.model import UNSET, ActionType, FieldChange, Plan, ResourceChange
+from dagshund.merge import normalize_plan
+from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
     detect_changes,
@@ -157,6 +159,29 @@ def _render_field_change(
     return _colorize(line, _action_color(field_config), use_color=use_color)
 
 
+# Effect field changes render one level deeper than the effect line; the wrap
+# width narrows by the same amount so re-indented lines still fit the terminal.
+_EFFECT_FIELD_EXTRA_INDENT = 4
+
+
+def _render_effect_lines(
+    effect: JobRunEffect,
+    *,
+    use_color: bool,
+    width: int | None = None,
+) -> Iterator[str]:
+    """Trailing per-job lines for a deploy-triggered run, one per effect."""
+    cfg = action_config(effect.action)
+    line = f"      {cfg.symbol} run {effect.name} ({effect_wording(effect.action)})"
+    yield _colorize(line, _action_color(cfg), use_color=use_color)
+    narrowed = width - _EFFECT_FIELD_EXTRA_INDENT if width is not None else None
+    indent = " " * _EFFECT_FIELD_EXTRA_INDENT
+    for field_name, change, ctx in iter_non_topology_field_changes(effect.changes):
+        rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=narrowed)
+        if rendered is not None:
+            yield "\n".join(f"{indent}{part}" for part in rendered.split("\n"))
+
+
 def _render_resource(
     key: ResourceKey,
     entry: ResourceChange,
@@ -171,6 +196,11 @@ def _render_resource(
     label = f"  ({cfg.display})" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
     header = f"  {cfg.symbol} {resource_type}/{resource_name}{label}"
     yield _colorize(header, _action_color(cfg), use_color=use_color)
+
+    # Effect lines render even for skip/unchanged parents (before the early
+    # return below) — a deploy-triggered run never changes the job itself.
+    for effect in entry.effects:
+        yield from _render_effect_lines(effect, use_color=use_color, width=width)
 
     changes = entry.changes
     if not (changes and cfg.show_field_changes):
@@ -272,6 +302,13 @@ def _print_summary(
     if parts:
         print(f"  {parts}")
 
+    # Deploy-triggered runs get their own tally — the resource counts above
+    # stay honest (jobs unchanged) while the runs line discloses what fires.
+    effect_counts = sorted(count_effects_by_action(filtered).items(), key=lambda item: item[0].display)
+    effect_parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in effect_counts)
+    if effect_parts:
+        print(f"  runs: {effect_parts}")
+
 
 def _print_warnings(warnings: list[str], *, use_color: bool, width: int | None = None) -> None:
     print()
@@ -310,7 +347,7 @@ def render_text(
     filter_query: str | None = None,
     suppress_wheel_updates: bool = False,
 ) -> None:
-    resources = merge_sub_resources(plan.resources)
+    resources = normalize_plan(plan.resources)
     if not resources:
         raise DagshundError("plan is empty")
     plan = replace(plan, resources=resources)
@@ -325,7 +362,10 @@ def render_text(
     width = _detect_terminal_width()
     _print_header(plan, use_color=use_color)
 
-    if not detect_changes(resources):
+    # Skip-only effects don't count as changes (nothing fires on deploy), but
+    # their run records should still render — fall through to the group view.
+    has_effects = any(entry.effects for entry in resources.values())
+    if not detect_changes(resources) and not has_effects:
         print(
             _colorize(
                 f"  No changes ({len(resources)} resources unchanged)",

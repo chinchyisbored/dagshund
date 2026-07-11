@@ -1,0 +1,560 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.7.0",
+  "lineage": "634c6c2b-5321-4ac2-8265-d5efcf005c7e",
+  "serial": 3,
+  "plan": {
+    "resources.job_runs.apply_migrations": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.schema_migration",
+          "label": "${resources.jobs.schema_migration.id}"
+        }
+      ],
+      "action": "recreate",
+      "new_state": {
+        "value": {
+          "job_id": 39890217972931,
+          "job_parameters": {
+            "migration_version": "v2"
+          }
+        }
+      },
+      "remote_state": {
+        "job_id": 39890217972931,
+        "job_parameters": {
+          "migration_version": "v1"
+        },
+        "run_id": 1114600517425159,
+        "run_name": "schema_migration",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/39890217972931/run/1114600517425159",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS",
+          "state_message": "",
+          "user_cancelled_or_timedout": false
+        }
+      },
+      "changes": {
+        "job_parameters['migration_version']": {
+          "action": "recreate",
+          "reason": "immutable",
+          "old": "v1",
+          "new": "v2",
+          "remote": "v1"
+        }
+      }
+    },
+    "resources.job_runs.initial_seed": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.seed_lookup_tables",
+          "label": "${resources.jobs.seed_lookup_tables.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "job_id": 585779686184508
+        }
+      }
+    },
+    "resources.job_runs.one_off_audit": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.smoke_check",
+          "label": "${resources.jobs.smoke_check.id}"
+        }
+      ],
+      "action": "delete",
+      "remote_state": {
+        "job_id": 805591898206038,
+        "run_id": 648429988786839,
+        "run_name": "smoke_check",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/805591898206038/run/648429988786839",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS",
+          "state_message": "",
+          "user_cancelled_or_timedout": false
+        }
+      }
+    },
+    "resources.job_runs.ping_healthcheck": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "job_id": 705178521553609
+        }
+      }
+    },
+    "resources.job_runs.seed_report": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.nightly_report",
+          "label": "${resources.jobs.nightly_report.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "job_id": 358297749448342,
+        "run_id": 160668634253625,
+        "run_name": "nightly_report",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/358297749448342/run/160668634253625",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS",
+          "state_message": "",
+          "user_cancelled_or_timedout": false
+        }
+      }
+    },
+    "resources.job_runs.warm_eu_cache": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.cache_warmup",
+          "label": "${resources.jobs.cache_warmup.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "job_id": 859083714790909,
+          "job_parameters": {
+            "region": "eu"
+          }
+        }
+      }
+    },
+    "resources.job_runs.warm_us_cache": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.cache_warmup",
+          "label": "${resources.jobs.cache_warmup.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "job_id": 859083714790909,
+        "job_parameters": {
+          "region": "us"
+        },
+        "run_id": 119135840650016,
+        "run_name": "cache_warmup",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/859083714790909/run/119135840650016",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS",
+          "state_message": "",
+          "user_cancelled_or_timedout": false
+        }
+      }
+    },
+    "resources.jobs.cache_warmup": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1783774984936,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 859083714790909,
+        "max_concurrent_runs": 1,
+        "name": "cache_warmup",
+        "parameters": [
+          {
+            "default": "",
+            "name": "region"
+          }
+        ],
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/files/run_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "main",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='main'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='main'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='main'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.jobs.nightly_report": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1783774984942,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 358297749448342,
+        "max_concurrent_runs": 1,
+        "name": "nightly_report",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/files/run_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "main",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='main'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='main'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='main'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.jobs.schema_migration": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1783774984912,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 39890217972931,
+        "max_concurrent_runs": 1,
+        "name": "schema_migration",
+        "parameters": [
+          {
+            "default": "",
+            "name": "migration_version"
+          }
+        ],
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/files/run_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "main",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='main'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='main'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='main'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.jobs.seed_lookup_tables": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1783774984890,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 585779686184508,
+        "max_concurrent_runs": 1,
+        "name": "seed_lookup_tables",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/files/run_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "main",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='main'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='main'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='main'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.jobs.smoke_check": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1783774984869,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 805591898206038,
+        "max_concurrent_runs": 1,
+        "name": "smoke_check",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-job-runs/default/files/run_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "main",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='main'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='main'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='main'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    }
+  }
+}

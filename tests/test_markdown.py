@@ -487,3 +487,106 @@ def test_render_markdown_wheel_updates_visible_by_default() -> None:
 
     assert "libraries[0].whl" in result
     assert "wheel etl_lib updated" not in result
+
+
+# --- render_markdown job_runs effects (dagshund-ocb1) ---
+
+
+def test_render_markdown_effect_lines_render_for_skip_parent() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.nightly": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "create",
+                    "new_state": {"value": {"job_id": 100}},
+                },
+            }
+        }
+    )
+
+    out = render_markdown(plan)
+
+    assert "  - `+` run `nightly` (runs on deploy)" in out
+    assert "job_runs/" not in out
+
+
+def test_render_markdown_effect_name_links_to_run_page() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.audit": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "delete",
+                    "remote_state": {"job_id": 100, "run_page_url": "https://example.test/run/7"},
+                },
+            }
+        }
+    )
+
+    out = render_markdown(plan)
+
+    assert "  - `-` run [`audit`](https://example.test/run/7) (run record will be deleted)" in out
+
+
+def test_render_markdown_effect_field_changes_render_nested() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.migrate": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "changes": {
+                        "job_parameters['v']": {"action": "recreate", "old": "1", "new": "2"},
+                    },
+                },
+            }
+        }
+    )
+
+    out = render_markdown(plan)
+
+    assert "  - `~` run `migrate` (re-runs on deploy)" in out
+    assert "    - `~` `job_parameters['v']`" in out
+
+
+def test_render_markdown_skip_only_effects_render_run_records() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.nightly": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "skip",
+                    "remote_state": {"job_id": 100, "run_id": 7},
+                },
+            }
+        }
+    )
+
+    out = render_markdown(plan)
+
+    assert "No changes" not in out
+    assert "  - `=` run `nightly` (already ran)" in out
+
+
+def test_render_markdown_summary_includes_effect_tally() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.nightly": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "create",
+                },
+            }
+        }
+    )
+
+    out = render_markdown(plan)
+
+    assert "**=1** unchanged" in out
+    assert "runs: **+1** create" in out

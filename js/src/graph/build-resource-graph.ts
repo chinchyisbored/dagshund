@@ -10,7 +10,7 @@ import {
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { Plan, PlanEntry } from "../types/plan-schema.ts";
-import { mergeSubResources } from "../utils/merge-sub-resources.ts";
+import { type NormalizedEntry, normalizePlan } from "../utils/normalize-plan.ts";
 import {
   buildPrefixedNodeId,
   buildResourceKey,
@@ -23,6 +23,7 @@ import { filterJobLevelChanges } from "../utils/task-key.ts";
 import { getUnknownProp } from "../utils/unknown-record.ts";
 import { buildTaskChangeSummary } from "./build-task-change-summary.ts";
 import {
+  buildOrphanEffectPhantoms,
   collectPhantomAppDependencies,
   collectPhantomDatabaseInstances,
   collectPhantomExternalRefs,
@@ -138,7 +139,7 @@ export const buildJobFields = (
  *  (catalogs, projects) pass a hierarchy override for the node ID and label. */
 const buildResourceNode = (
   key: string,
-  entry: PlanEntry,
+  entry: NormalizedEntry,
   hierarchy?: { readonly id: string; readonly label?: string },
 ): ResourceGraphNode => {
   if (isJobEntry(key)) {
@@ -147,6 +148,7 @@ const buildResourceNode = (
       id: key,
       nodeKind: "resource",
       resourceKey: key,
+      effects: entry.effects,
       ...buildJobFields(key, entry, tasks),
     };
   }
@@ -882,13 +884,16 @@ const collectExternalPostgresDatabaseRefs = (
 export const buildResourceGraph = (
   plan: Plan,
 ): PlanGraph & { readonly lateralEdges: readonly GraphEdge[] } => {
-  const entries = Object.entries(mergeSubResources(plan.plan ?? {}));
+  const { entries: normalizedEntries, orphanEffects } = normalizePlan(plan.plan ?? {});
+  const entries = Object.entries(normalizedEntries);
 
-  if (entries.length === 0) return { nodes: [], edges: [], lateralEdges: [] };
+  if (entries.length === 0 && orphanEffects.size === 0) {
+    return { nodes: [], edges: [], lateralEdges: [] };
+  }
 
-  const ucEntries: [string, PlanEntry][] = [];
-  const postgresEntries: [string, PlanEntry][] = [];
-  const workspaceEntries: [string, PlanEntry][] = [];
+  const ucEntries: [string, NormalizedEntry][] = [];
+  const postgresEntries: [string, NormalizedEntry][] = [];
+  const workspaceEntries: [string, NormalizedEntry][] = [];
   for (const entry of entries) {
     const resourceType = extractResourceType(entry[0]);
     if (resourceType !== undefined && isUnityCatalogType(resourceType)) {
@@ -982,8 +987,27 @@ export const buildResourceGraph = (
     referenceIndexes,
   );
 
+  // Phantom nodes carrying deploy-triggered runs whose target job is not in
+  // the plan. Listed before the external-ref phantoms so an id collision with
+  // a bare run_job_task phantom keeps the effects-annotated node.
+  const orphanEffectPhantoms = buildOrphanEffectPhantoms(
+    orphanEffects,
+    workspaceGraph.flatParentId,
+  );
+
+  // Orphan phantoms can be the only workspace content (e.g. a plan holding
+  // nothing but job_runs on external jobs) — materialize their parent root if
+  // no real workspace/postgres entry did.
+  const orphanParentNodes =
+    orphanEffectPhantoms.nodes.length > 0 &&
+    !graphNodes.some((node) => node.id === workspaceGraph.flatParentId)
+      ? [buildHierarchyGraphNode("root", workspaceGraph.flatParentId, "Workspace")]
+      : [];
+
   const allNodes = dedupeById([
     ...graphNodes,
+    ...orphanParentNodes,
+    ...orphanEffectPhantoms.nodes,
     ...phantomDbInstances.nodes,
     ...phantomAppDeps.nodes,
     ...phantomExternalRefs.nodes,
@@ -1006,6 +1030,7 @@ export const buildResourceGraph = (
     edges: dedupeById([
       ...ucGraph.edges,
       ...workspaceGraph.edges,
+      ...orphanEffectPhantoms.edges,
       ...phantomDbInstances.edges,
       ...phantomAppDeps.edges,
       ...phantomExternalRefs.edges,

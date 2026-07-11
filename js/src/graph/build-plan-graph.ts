@@ -10,7 +10,7 @@ import {
   toEdgeDiffState,
 } from "../types/graph-types.ts";
 import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
-import { mergeSubResources } from "../utils/merge-sub-resources.ts";
+import { type NormalizedEntry, normalizePlan } from "../utils/normalize-plan.ts";
 import { buildTaskNodeId, extractResourceName } from "../utils/resource-key.ts";
 import { hasFieldDrift, hasTaskDriftWithContext } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
@@ -31,7 +31,7 @@ import { classifyChange, resolveTaskDiffState } from "./resolve-task-diff-state.
 /** Create a job-level graph node for a plan entry. */
 const buildJobNode = (
   resourceKey: string,
-  entry: PlanEntry,
+  entry: NormalizedEntry,
   tasks: readonly TaskEntry[],
   wheelSummary: WheelUpdateSummary | undefined,
 ): JobGraphNode => ({
@@ -39,6 +39,7 @@ const buildJobNode = (
   nodeKind: "job",
   resourceKey,
   wheelUpdates: wheelSummary?.wheels,
+  effects: entry.effects,
   ...buildJobFields(resourceKey, entry, tasks),
 });
 
@@ -215,7 +216,7 @@ const buildDiffEdges = (
 /** Build the complete graph for a single plan entry. */
 const buildEntryGraph = (
   resourceKey: string,
-  entry: PlanEntry,
+  entry: NormalizedEntry,
   jobIdMap: ReadonlyMap<number, string>,
 ): { readonly nodes: readonly GraphNode[]; readonly edges: readonly GraphEdge[] } => {
   const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
@@ -275,7 +276,7 @@ const buildRunJobEdges = (
 
 /** Build the complete plan graph from job entries only. */
 export const buildPlanGraph = (plan: Plan): PlanGraph => {
-  const entries = Object.entries(mergeSubResources(plan.plan ?? {})).filter(([key]) =>
+  const entries = Object.entries(normalizePlan(plan.plan ?? {}).entries).filter(([key]) =>
     isJobEntry(key),
   );
   const jobIdMap = buildJobIdMap(entries);

@@ -1,3 +1,4 @@
+import type { JobRunEffect } from "../utils/normalize-plan.ts";
 import type { WheelUpdate } from "../utils/wheel-updates.ts";
 import type { DiffState } from "./diff-state.ts";
 import type { ChangeDesc } from "./plan-schema.ts";
@@ -44,6 +45,8 @@ export type JobGraphNode = BaseGraphNode & {
   /** Distinct wheel-version bumps across this job's tasks (dagshund-aqcx).
    *  Rendered once on the container when wheel suppression is toggled on. */
   readonly wheelUpdates: readonly WheelUpdate[] | undefined;
+  /** Deploy-triggered runs (resources.job_runs.*) targeting this job (dagshund-ocb1). */
+  readonly effects?: readonly JobRunEffect[];
 };
 
 export type TaskGraphNode = BaseGraphNode & {
@@ -60,6 +63,8 @@ export type ResourceGraphNode = BaseGraphNode & {
   /** Present only for job resources; undefined for all other resource types. */
   readonly taskChangeSummary: TaskChangeSummary | undefined;
   readonly isDrift?: boolean;
+  /** Deploy-triggered runs (resources.job_runs.*) targeting this job (dagshund-ocb1). */
+  readonly effects?: readonly JobRunEffect[];
 };
 
 export type RootGraphNode = BaseGraphNode & {
@@ -68,6 +73,8 @@ export type RootGraphNode = BaseGraphNode & {
 
 export type PhantomGraphNode = BaseGraphNode & {
   readonly nodeKind: "phantom";
+  /** Deploy-triggered runs whose target job is untracked by this bundle (dagshund-ocb1). */
+  readonly effects?: readonly JobRunEffect[];
 };
 
 export type GraphNode =

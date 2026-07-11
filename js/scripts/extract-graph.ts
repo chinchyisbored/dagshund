@@ -38,6 +38,11 @@ type NodeChangeSummary = {
   readonly action: ActionType;
 };
 
+type NodeEffectSummary = {
+  readonly name: string;
+  readonly action: ActionType;
+};
+
 type NodeEntry = {
   readonly id: string;
   readonly resourceKey: string;
@@ -46,6 +51,7 @@ type NodeEntry = {
   readonly diffState: DiffState;
   readonly isDrift: boolean;
   readonly changes: readonly NodeChangeSummary[];
+  readonly effects: readonly NodeEffectSummary[];
   readonly hasResourceState: boolean;
   readonly taskChangeSummary: TaskChangeSummary;
 };
@@ -66,6 +72,7 @@ type NodeCounts = {
   readonly drift_by_kind: NodeKindCounts;
   readonly drift_by_diff_state: NodeDiffStateCounts;
   readonly total_change_entries: number;
+  readonly total_effect_entries: number;
   readonly with_resource_state: number;
   readonly task_change_summary_total: number;
   readonly entries: readonly NodeEntry[];
@@ -135,6 +142,12 @@ const summarizeNodeChanges = (node: GraphNode): readonly NodeChangeSummary[] =>
     .map(([key, desc]) => ({ key, action: desc.action }))
     .sort((a, b) => compareStrings(a.key, b.key));
 
+// Effects only exist on job/resource/phantom node kinds; already sorted by name.
+const summarizeNodeEffects = (node: GraphNode): readonly NodeEffectSummary[] =>
+  "effects" in node && node.effects !== undefined
+    ? node.effects.map(({ name, action }) => ({ name, action }))
+    : [];
+
 const extractTaskChangeSummary = (node: GraphNode): TaskChangeSummary =>
   "taskChangeSummary" in node && node.taskChangeSummary !== undefined
     ? node.taskChangeSummary
@@ -148,6 +161,7 @@ const summarizeNode = (node: GraphNode): NodeEntry => ({
   diffState: node.diffState,
   isDrift: nodeHasDrift(node),
   changes: summarizeNodeChanges(node),
+  effects: summarizeNodeEffects(node),
   hasResourceState: node.resourceState !== undefined,
   taskChangeSummary: extractTaskChangeSummary(node),
 });
@@ -176,6 +190,7 @@ const countNodes = (nodes: readonly GraphNode[]): NodeCounts => {
   const drift_by_diff_state = emptyNodeDiffStateCounts();
   let drift_count = 0;
   let total_change_entries = 0;
+  let total_effect_entries = 0;
   let with_resource_state = 0;
   let task_change_summary_total = 0;
 
@@ -191,6 +206,7 @@ const countNodes = (nodes: readonly GraphNode[]): NodeCounts => {
     }
 
     total_change_entries += entry.changes.length;
+    total_effect_entries += entry.effects.length;
     if (entry.hasResourceState) with_resource_state += 1;
     task_change_summary_total += entry.taskChangeSummary.length;
   }
@@ -204,6 +220,7 @@ const countNodes = (nodes: readonly GraphNode[]): NodeCounts => {
     drift_by_kind,
     drift_by_diff_state,
     total_change_entries,
+    total_effect_entries,
     with_resource_state,
     task_change_summary_total,
     entries,

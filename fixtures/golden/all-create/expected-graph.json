@@ -69,6 +69,7 @@
         "unknown": 0
       },
       "total_change_entries": 0,
+      "total_effect_entries": 0,
       "with_resource_state": 10,
       "task_change_summary_total": 0,
       "entries": [
@@ -80,6 +81,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -91,6 +93,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -102,6 +105,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -113,6 +117,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -124,6 +129,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -135,6 +141,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -146,6 +153,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -157,6 +165,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -168,6 +177,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -179,6 +189,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         }
@@ -329,6 +340,7 @@
         "unknown": 0
       },
       "total_change_entries": 0,
+      "total_effect_entries": 0,
       "with_resource_state": 6,
       "task_change_summary_total": 0,
       "entries": [
@@ -340,6 +352,7 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": false,
           "taskChangeSummary": []
         },
@@ -351,6 +364,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -362,6 +376,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -373,6 +388,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -384,6 +400,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -395,6 +412,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -406,6 +424,7 @@
           "diffState": "added",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
         },
@@ -417,6 +436,7 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": false,
           "taskChangeSummary": []
         },
@@ -428,6 +448,7 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": false,
           "taskChangeSummary": []
         },
@@ -439,6 +460,7 @@
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
+          "effects": [],
           "hasResourceState": false,
           "taskChangeSummary": []
         }

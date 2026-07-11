@@ -51,7 +51,13 @@ def action_to_diff_state(action: ActionType) -> DiffState:
 
 
 def detect_changes(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
-    return any(entry.action not in (ActionType.SKIP, ActionType.EMPTY) for entry in resources.values())
+    """A create/recreate/delete effect counts as a change — the deploy fires or
+    erases a run — even though effects never touch their target's action."""
+    inactive = (ActionType.SKIP, ActionType.EMPTY)
+    return any(
+        entry.action not in inactive or any(effect.action not in inactive for effect in entry.effects)
+        for entry in resources.values()
+    )
 
 
 def has_drifted_field(change: FieldChange, ctx: FieldChangeContext | None = None) -> bool:

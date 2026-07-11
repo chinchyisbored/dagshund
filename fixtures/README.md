@@ -54,6 +54,7 @@ Fixtures are generated against a real Databricks workspace. The following resour
 | `data_engineers` | Group | Schema grants (sub-resources fixture) |
 | `data_readers` | Group | Schema grants (sub-resources fixture) |
 | `data_analysts` | Group | Schema grants (sub-resources fixture) |
+| `phantom_job` | Job | Serverless no-op job outside any bundle, targeted by the job-runs fixture's phantom run entry. Its id is the `external_job_id` variable in `externals.yaml`. |
 
 Starter SQL warehouse (`9d0afa601cb95187`) is used by the app-dependencies fixture for lateral edge testing.
 
@@ -76,6 +77,14 @@ just regen                  # All unattended fixtures
 `lakebase-autoscaling` is part of the unattended `just regen` set. If it fails
 because a Lakebase endpoint is left list-visible but not get/delete-addressable,
 clean up the workspace endpoint and rerun the fixture.
+
+`job-runs` regenerates unattended but needs Databricks CLI 1.7.0+ (`resources.job_runs`
+is experimental) and its deploys really fire the runs they declare: eight tiny
+serverless notebook runs across the before/after deploys, one of which fires on the
+pre-existing `phantom_job` outside the bundle. Runs can queue on serverless capacity
+for a few minutes; `regen.sh` drains active runs before each step that deletes run
+records. The bundle destroy cleans everything up, erasing the external job's run
+record via `jobs/runs/delete`.
 
 After regenerating, update the expected dagshund output:
 

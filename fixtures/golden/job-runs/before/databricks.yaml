@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Baseline of the deploy-triggered-runs story (job_runs, experimental since
+# CLI 1.7.0). Five tiny serverless jobs, each unchanged between before/ and
+# after/, so the run-entry lifecycle is the only diff dimension and the
+# visualizer can show every state side by side:
+#   nightly_report     — seeded once when first deployed (skip in after)
+#   schema_migration   — migrations re-applied per version bump (recreate)
+#   seed_lookup_tables — gets its first deploy-triggered run in after (create)
+#   smoke_check        — one-off audit record cleaned up in after (delete)
+#   cache_warmup       — two order-independent regional warmups (multi-trigger)
+# Deploying this baseline really fires the four runs declared below.
+bundle:
+  name: dagshund-golden-job-runs
+  databricks_cli_version: ">=1.7.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  jobs:
+    nightly_report:
+      name: nightly_report
+      tasks:
+        - task_key: main
+          notebook_task:
+            notebook_path: ./run_task.py
+
+    schema_migration:
+      name: schema_migration
+      parameters:
+        - name: migration_version
+          default: ""
+      tasks:
+        - task_key: main
+          notebook_task:
+            notebook_path: ./run_task.py
+
+    seed_lookup_tables:
+      name: seed_lookup_tables
+      tasks:
+        - task_key: main
+          notebook_task:
+            notebook_path: ./run_task.py
+
+    smoke_check:
+      name: smoke_check
+      tasks:
+        - task_key: main
+          notebook_task:
+            notebook_path: ./run_task.py
+
+    cache_warmup:
+      name: cache_warmup
+      parameters:
+        - name: region
+          default: ""
+      tasks:
+        - task_key: main
+          notebook_task:
+            notebook_path: ./run_task.py
+
+  job_runs:
+    # Fired when the bundle first shipped; stays in config → skip in after/.
+    seed_report:
+      job_id: ${resources.jobs.nightly_report.id}
+
+    # Version tag bumps every release → recreate in after/.
+    apply_migrations:
+      job_id: ${resources.jobs.schema_migration.id}
+      job_parameters:
+        migration_version: v1
+
+    # One-off audit whose run record is cleaned up → delete in after/.
+    one_off_audit:
+      job_id: ${resources.jobs.smoke_check.id}
+
+    # Regional warmups are order-independent — the only sane shape for
+    # multiple triggers on one job. The eu counterpart arrives in after/.
+    warm_us_cache:
+      job_id: ${resources.jobs.cache_warmup.id}
+      job_parameters:
+        region: us

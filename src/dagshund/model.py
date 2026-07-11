@@ -80,6 +80,21 @@ def _parse_optional_str(value: object) -> str | None:
 
 
 @dataclass(frozen=True, slots=True)
+class JobRunEffect:
+    """A deploy-triggered run (``resources.job_runs.*``) folded onto its target job.
+
+    Effects annotate the job without touching its action or diff state; only
+    change detection (exit code, "No changes" gate) considers their actions.
+    Mirrors ``JobRunEffect`` in ``js/src/utils/normalize-plan.ts``.
+    """
+
+    name: str
+    action: ActionType = ActionType.EMPTY
+    changes: Mapping[str, FieldChange] = field(default_factory=dict)
+    run_page_url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ResourceChange:
     key: ResourceKey
     action: ActionType = ActionType.EMPTY
@@ -87,6 +102,7 @@ class ResourceChange:
     changes: Mapping[str, FieldChange] = field(default_factory=dict)
     new_state: object | None = None
     remote_state: object | None = None
+    effects: tuple[JobRunEffect, ...] = ()
 
 
 def parse_resource_change(key: ResourceKey, raw: object) -> ResourceChange:

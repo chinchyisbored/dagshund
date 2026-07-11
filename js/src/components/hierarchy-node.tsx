@@ -2,13 +2,19 @@ import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { NODE_WIDTH } from "../graph/layout-graph.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
-import type { PhantomGraphNode, RootGraphNode } from "../types/graph-types.ts";
+import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffBadge } from "../utils/diff-state-styles.ts";
 import { extractPhantomBadge } from "../utils/resource-key.ts";
 import { LateralHandles } from "./lateral-handles.tsx";
 import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
+import { RunEffectBadge } from "./run-effect-badge.tsx";
 
-type HierarchyNodeType = Node<Omit<RootGraphNode | PhantomGraphNode, "id">, "root" | "phantom">;
+// Distributive Extract (not Omit over the union) so nodeKind narrowing keeps
+// variant-only fields like the phantom's `effects`.
+type HierarchyNodeType = Node<
+  Extract<DagNodeData, { nodeKind: "root" | "phantom" }>,
+  "root" | "phantom"
+>;
 
 export const HierarchyNode = memo(function HierarchyNode({
   id,
@@ -27,6 +33,7 @@ export const HierarchyNode = memo(function HierarchyNode({
   const badge = isPhantom ? extractPhantomBadge(data.resourceKey) : undefined;
   const diffBadge = isPhantom ? getDiffBadge(data.diffState) : undefined;
   const borderStyle = isPhantom ? "border-dashed" : styles.borderStyle;
+  const effects = data.nodeKind === "phantom" ? data.effects : undefined;
 
   return (
     <div
@@ -54,6 +61,7 @@ export const HierarchyNode = memo(function HierarchyNode({
             {badge}
           </span>
         )}
+        {effects !== undefined && <RunEffectBadge effects={effects} />}
         {hasLateralEdges && <LateralIsolateButton nodeId={id} isActive={isLateralIsolated} />}
       </div>
       <Handle

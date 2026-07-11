@@ -13,11 +13,12 @@ import { JobNavigationContext, PlanContext, TabVisibilityContext } from "./hooks
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
-import { mergeSubResources } from "./utils/merge-sub-resources.ts";
+import { normalizePlan } from "./utils/normalize-plan.ts";
 
-/** Count plan entries by tab: jobs vs all resources (resources tab includes jobs). */
+/** Count plan entries by tab: jobs vs all resources (resources tab includes jobs).
+ *  Effect entries (job_runs) are folded away by normalizePlan and never count. */
 const countByTab = (plan: Plan): Readonly<Record<"jobs" | "resources", number>> => {
-  const keys = Object.keys(mergeSubResources(plan.plan ?? {}));
+  const keys = Object.keys(normalizePlan(plan.plan ?? {}).entries);
   const jobs = keys.filter((key) => key.startsWith("resources.jobs.")).length;
   return { jobs, resources: keys.length };
 };

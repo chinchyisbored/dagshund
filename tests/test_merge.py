@@ -1,6 +1,15 @@
-"""Tests for sub-resource merge behavior."""
+"""Tests for sub-resource merge behavior.
+
+The normalize_plan target-resolution tests iterate the shared fixture at
+``fixtures/job-run-effect-cases.json`` that is also consumed by the TypeScript
+test at ``js/tests/utils/normalize-plan.test.ts``. Any resolution drift between
+the two language implementations fails on both sides simultaneously.
+"""
 
 import copy
+import json
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -11,6 +20,7 @@ from dagshund.merge import (
     extract_sub_resource_suffix,
     is_sub_resource_key,
     merge_sub_resources,
+    normalize_plan,
 )
 from dagshund.model import UNSET, ActionType
 
@@ -417,3 +427,163 @@ def test_merge_sub_resources_immutability_original_not_mutated() -> None:
 
     # Frozen dataclasses cannot be mutated; the raw dict fixture is untouched.
     assert raw_resources == snapshot
+
+
+# --- normalize_plan (job_runs effects, shared fixture) ---
+
+_EFFECT_FIXTURE_PATH = Path(__file__).resolve().parent.parent / "fixtures" / "job-run-effect-cases.json"
+
+
+@dataclass(frozen=True, slots=True)
+class _EffectCase:
+    name: str
+    plan: dict[str, Any]
+    effect_key: str
+    expected_target: str | None
+
+
+def _load_effect_cases() -> list[_EffectCase]:
+    data = cast("dict[str, Any]", json.loads(_EFFECT_FIXTURE_PATH.read_text()))
+    return [
+        _EffectCase(
+            name=c["name"],
+            plan=c["plan"],
+            effect_key=c["effectKey"],
+            expected_target=c["expected"]["target"],
+        )
+        for c in data["cases"]
+    ]
+
+
+_EFFECT_CASES = _load_effect_cases()
+
+
+@pytest.mark.parametrize("case", _EFFECT_CASES, ids=[c.name for c in _EFFECT_CASES])
+def test_normalize_plan_target_resolution_shared_fixture(case: _EffectCase) -> None:
+    resources = resources_from_dict(case.plan)
+
+    normalized = normalize_plan(resources)
+
+    effect_name = case.effect_key.split(".")[-1]
+    if case.expected_target is not None:
+        target = normalized[case.expected_target]
+        assert effect_name in [effect.name for effect in target.effects]
+        assert case.effect_key not in normalized
+    else:
+        # Unresolved effects stay standalone — Python has no phantom-node concept.
+        assert case.effect_key in normalized
+
+
+# --- normalize_plan (folding behavior) ---
+
+
+def _job_with_run(run_overrides: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+        "resources.job_runs.nightly": {
+            "depends_on": [{"node": "resources.jobs.etl"}],
+            **run_overrides,
+        },
+    }
+
+
+def test_normalize_plan_keeps_target_action_and_changes_untouched() -> None:
+    resources = resources_from_dict(_job_with_run({"action": "create", "new_state": {"value": {"job_id": 100}}}))
+
+    normalized = normalize_plan(resources)
+
+    target = normalized["resources.jobs.etl"]
+    assert target.action == ActionType.SKIP
+    assert target.changes == {}
+    assert target.remote_state == {"job_id": 100}
+
+
+def test_normalize_plan_sorts_effects_by_name() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+            "resources.job_runs.zulu": {
+                "depends_on": [{"node": "resources.jobs.etl"}],
+                "action": "create",
+            },
+            "resources.job_runs.alpha": {
+                "depends_on": [{"node": "resources.jobs.etl"}],
+                "action": "skip",
+            },
+        }
+    )
+
+    normalized = normalize_plan(resources)
+
+    assert [effect.name for effect in normalized["resources.jobs.etl"].effects] == ["alpha", "zulu"]
+
+
+def test_normalize_plan_effect_carries_action_changes_and_run_page_url() -> None:
+    resources = resources_from_dict(
+        _job_with_run(
+            {
+                "action": "recreate",
+                "remote_state": {"job_id": 100, "run_page_url": "https://example.test/run/1"},
+                "changes": {"job_parameters['v']": {"action": "recreate", "old": "1", "new": "2"}},
+            }
+        )
+    )
+
+    normalized = normalize_plan(resources)
+
+    (effect,) = normalized["resources.jobs.etl"].effects
+    assert effect.action == ActionType.RECREATE
+    assert effect.run_page_url == "https://example.test/run/1"
+    assert list(effect.changes) == ["job_parameters['v']"]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "javascript:alert(1)",
+        "https://example.test/run(1)",
+        "https://example.test/a b",
+        "ftp://x/y",
+        "https://example.test/run\n",
+    ],
+    ids=["javascript-scheme", "parenthesis", "whitespace", "non-http-scheme", "trailing-newline"],
+)
+def test_normalize_plan_rejects_unsafe_run_page_url(url: str) -> None:
+    resources = resources_from_dict(
+        _job_with_run({"action": "skip", "remote_state": {"job_id": 100, "run_page_url": url}})
+    )
+
+    normalized = normalize_plan(resources)
+
+    (effect,) = normalized["resources.jobs.etl"].effects
+    assert effect.run_page_url is None
+
+
+def test_normalize_plan_without_effect_entries_passes_through() -> None:
+    resources = resources_from_dict({"resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}}})
+
+    normalized = normalize_plan(resources)
+
+    assert normalized["resources.jobs.etl"].effects == ()
+
+
+def test_normalize_plan_runs_sub_resource_merge_first() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+            "resources.jobs.etl.permissions": {
+                "action": "update",
+                "changes": {"acl": {"action": "update", "old": "a", "new": "b"}},
+            },
+            "resources.job_runs.nightly": {
+                "depends_on": [{"node": "resources.jobs.etl"}],
+                "action": "create",
+            },
+        }
+    )
+
+    normalized = normalize_plan(resources)
+
+    target = normalized["resources.jobs.etl"]
+    assert "permissions.acl" in target.changes
+    assert [effect.name for effect in target.effects] == ["nightly"]

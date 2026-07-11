@@ -313,6 +313,13 @@ def test_detailed_exitcode_with_manual_edits_exits_three(fixtures_dir: Path) -> 
     assert result.returncode == 3
 
 
+def test_detailed_exitcode_with_effect_only_changes_exits_two(fixtures_dir: Path) -> None:
+    """All jobs are skip in the job-runs fixture; the deploy still fires runs (dagshund-ocb1)."""
+    result = _run_dagshund(str(fixtures_dir / "job-runs" / "plan.json"), "--detailed-exitcode")
+
+    assert result.returncode == 2
+
+
 def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
 

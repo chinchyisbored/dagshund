@@ -37,6 +37,24 @@ is_ad_hoc_fixture() {
   is_in_fixture_list "$1" "${AD_HOC_FIXTURES[@]}"
 }
 
+# Deploys and destroys call jobs/runs/delete for job_runs records, which
+# rejects active runs. Deploy-triggered serverless runs can queue for minutes,
+# so drain them before any step that deletes run records.
+wait_for_active_runs() {
+  local attempt active
+  for attempt in $(seq 1 60); do
+    active="$(databricks jobs list-runs --active-only -o json \
+      | python3 -c 'import json, sys; print(len(json.load(sys.stdin)))')"
+    if [[ "$active" == "0" ]]; then
+      return 0
+    fi
+    echo "==> Waiting for $active active run(s) to finish..." >&2
+    sleep 10
+  done
+  echo "Error: active runs still present after 10 minutes." >&2
+  return 1
+}
+
 print_skipped_fixture_help() {
   cat >&2 <<'EOF'
 Fixtures skipped by --all:
@@ -83,12 +101,14 @@ regen_one() (
   # shellcheck disable=SC2329
   cleanup() {
     echo "==> [$name] Cleanup: destroying deployed state..." >&2
+    wait_for_active_runs || true
     cd "$fixture_dir/after" && databricks bundle destroy --force-lock --auto-approve || true
   }
   trap cleanup EXIT
 
   echo "==> [$name] Deploying before/ state..."
   cd "$fixture_dir/before"
+  wait_for_active_runs
   databricks bundle deploy --force-lock
 
   echo "==> [$name] Planning after/ state..."
@@ -99,10 +119,12 @@ regen_one() (
 
   echo "==> [$name] Deploying after/ state..."
   cd "$fixture_dir/after"
+  wait_for_active_runs
   databricks bundle deploy --force-lock --auto-approve
 
   echo "==> [$name] Destroying deployed state..."
   cd "$fixture_dir/after"
+  wait_for_active_runs
   databricks bundle destroy --force-lock --auto-approve
 
   trap - EXIT

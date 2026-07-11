@@ -26,6 +26,9 @@ variables:
   external_dashboard_id:
     description: Pre-existing Lakeview dashboard ID for phantom dashboard_task references
     default: "01f10382fb111e3e9d8132f891c5b179"
+  external_job_id:
+    description: Pre-existing job outside any bundle for phantom job_runs references
+    default: 705178521553609
   external_postgres_project_id:
     description: Pre-existing Lakebase project for phantom endpoint parent references
     default: phantom-lakebase

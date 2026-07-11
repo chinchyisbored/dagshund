@@ -17,6 +17,7 @@ import { ModifiedBody } from "./modified-body.tsx";
 import { ObjectStateCard } from "./object-state-card.tsx";
 import { RawJsonDisclosure } from "./raw-json-disclosure.tsx";
 import { ResourceStateView } from "./resource-state-view.tsx";
+import { RunEffectsSection } from "./run-effects-section.tsx";
 import { TaskChangesSummary } from "./task-changes-summary.tsx";
 
 type DetailPanelProps = {
@@ -84,6 +85,11 @@ export function DetailPanel({
   const hasTaskSummary =
     (data.nodeKind === "job" || data.nodeKind === "resource") &&
     data.taskChangeSummary !== undefined;
+
+  const effects =
+    data.nodeKind === "job" || data.nodeKind === "resource" || data.nodeKind === "phantom"
+      ? data.effects
+      : undefined;
 
   const showNoChanges =
     data.diffState === "modified" &&
@@ -162,6 +168,8 @@ export function DetailPanel({
           {data.nodeKind === "resource" && data.taskChangeSummary !== undefined && (
             <ViewInJobsTabButton resourceKey={data.resourceKey} />
           )}
+
+          {effects !== undefined && effects.length > 0 && <RunEffectsSection effects={effects} />}
 
           {/* Drift sections are hoisted above the diffState body switch so they
              render for any body path (added/modified/unchanged) — a node can

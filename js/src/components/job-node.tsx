@@ -6,6 +6,7 @@ import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffBadge } from "../utils/diff-state-styles.ts";
 import { extractResourceName } from "../utils/resource-key.ts";
 import type { WheelUpdate } from "../utils/wheel-updates.ts";
+import { RunEffectBadge } from "./run-effect-badge.tsx";
 
 type JobNodeType = Node<DagNodeData, "job">;
 
@@ -31,6 +32,7 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
   const badge = getDiffBadge(data.diffState);
   const wheelUpdates = data.nodeKind === "job" ? data.wheelUpdates : undefined;
   const showWheelBadge = hideWheelUpdates && wheelUpdates !== undefined && wheelUpdates.length > 0;
+  const effects = data.nodeKind === "job" ? data.effects : undefined;
 
   return (
     <div
@@ -45,6 +47,7 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
           {badge}
         </span>
         {jobName}
+        {effects !== undefined && <RunEffectBadge effects={effects} className="ml-2" />}
         {showWheelBadge && (
           <span
             className="ml-2 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-badge-text"

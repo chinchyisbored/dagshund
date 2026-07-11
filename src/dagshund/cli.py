@@ -6,7 +6,7 @@ from enum import IntEnum
 from pathlib import Path
 
 from dagshund import __version__
-from dagshund.merge import merge_sub_resources
+from dagshund.merge import normalize_plan
 from dagshund.model import Plan, parse_plan
 from dagshund.plan import detect_changes, detect_dangerous_actions, detect_manual_edits
 from dagshund.types import DagshundError, DiffState
@@ -275,7 +275,7 @@ def _run(args: argparse.Namespace) -> ExitCode:
     if not args.detailed_exitcode:
         return ExitCode.OK
 
-    merged = merge_sub_resources(plan.resources)
+    merged = normalize_plan(plan.resources)
     if not detect_changes(merged):
         return ExitCode.OK
     if detect_manual_edits(merged) or detect_dangerous_actions(merged):
