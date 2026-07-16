@@ -110,6 +110,19 @@ describe("collectWheelUpdates", () => {
     expect(summary?.wheelOnlyTaskKeys).toEqual(new Set(["ingest"]));
   });
 
+  test("treats a for-each wheel update as a wheel-only task", () => {
+    const changes = {
+      "tasks[task_key='process_files'].for_each_task.task.libraries[0].whl": wheelChange(
+        "0.1.0",
+        "0.2.0",
+      ),
+    };
+
+    const summary = collectWheelUpdates(changes);
+
+    expect(summary?.wheelOnlyTaskKeys).toEqual(new Set(["process_files"]));
+  });
+
   test("skip-action changes do not disqualify a task from wheel-only", () => {
     const changes = {
       "tasks[task_key='ingest'].libraries[0].whl": wheelChange("0.1.0", "0.2.0"),

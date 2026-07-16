@@ -19,8 +19,10 @@ from dataclasses import dataclass
 
 from dagshund.model import FieldChange
 
-# Task-scoped wheel library path on classic compute: tasks[task_key='X'].libraries[N].whl.
-_TASK_WHEEL_CHANGE_KEY_RE = re.compile(r"^tasks\[task_key='([^']+)'\]\.libraries\[\d+\]\.whl$")
+# Task-scoped wheel library path on classic compute, directly on a task or its nested for-each task.
+_TASK_WHEEL_CHANGE_KEY_RE = re.compile(
+    r"^tasks\[task_key='([^']+)'\]\.(?:for_each_task\.task\.)?libraries\[\d+\]\.whl$"
+)
 
 # Serverless environment dependency: environments[environment_key='K'].spec.dependencies[N].
 # Dependencies mix pip specs and wheel paths; the value filter below keeps only wheels.

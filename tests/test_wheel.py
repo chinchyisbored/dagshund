@@ -138,6 +138,14 @@ def test_summarize_wheel_updates_same_task_two_libraries_counted_once() -> None:
     assert summary == [WheelUpdateUsage(WheelUpdate("etl_lib", "0.1.0", "0.2.0"), task_count=1, environment_count=0)]
 
 
+def test_summarize_wheel_updates_for_each_task_counted_as_task() -> None:
+    changes = {"tasks[task_key='process_files'].for_each_task.task.libraries[0].whl": _wheel_change("0.1.0", "0.2.0")}
+
+    summary = summarize_wheel_updates(collect_wheel_updates(changes))
+
+    assert summary == [WheelUpdateUsage(WheelUpdate("etl_lib", "0.1.0", "0.2.0"), task_count=1, environment_count=0)]
+
+
 def test_summarize_wheel_updates_counts_environments_per_wheel() -> None:
     changes = {
         "environments[environment_key='etl'].spec.dependencies[0]": _wheel_change("0.1.0", "0.2.0"),

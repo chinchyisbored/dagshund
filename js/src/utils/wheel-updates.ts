@@ -32,8 +32,9 @@ export type WheelUpdateSummary = {
   readonly wheelOnlyTaskKeys: ReadonlySet<string>;
 };
 
-// Task-scoped wheel library path on classic compute: tasks[task_key='X'].libraries[N].whl.
-const TASK_WHEEL_CHANGE_KEY_PATTERN = /^tasks\[task_key='([^']+)'\]\.libraries\[\d+\]\.whl$/;
+// Task-scoped wheel library path on classic compute, directly on a task or its nested for-each task.
+const TASK_WHEEL_CHANGE_KEY_PATTERN =
+  /^tasks\[task_key='([^']+)'\]\.(?:for_each_task\.task\.)?libraries\[\d+\]\.whl$/;
 
 // Serverless environment dependency: environments[environment_key='K'].spec.dependencies[N].
 // Dependencies mix pip specs and wheel paths; the value filter in classify keeps only wheels.
