@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css && (bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch & bun --hot src/index.ts)",
-    "build:css": "bunx @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --minify",
+    "dev": "tailwindcss -i src/styles/index.css -o src/styles/output.css && (tailwindcss -i src/styles/index.css -o src/styles/output.css --watch & bun --hot src/index.ts)",
+    "build:css": "tailwindcss -i src/styles/index.css -o src/styles/output.css --minify",
+    "build:css:watch": "tailwindcss -i src/styles/index.css -o src/styles/output.css --watch",
     "build": "rm -rf dist && bun run build:css && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
     "build:template": "bun scripts/build-template.ts",
     "lint": "biome check --fix src/ tests/",
@@ -21,7 +22,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.12",
+    "@biomejs/biome": "2.5.4",
     "@happy-dom/global-registrator": "20.9.0",
     "@tailwindcss/cli": "4.2.2",
     "@testing-library/react": "16.3.2",

@@ -218,6 +218,24 @@ npx skills add chinchyisbored/dagshund
 
 Re-running `--install-skill` overwrites any existing `SKILL.md` at the target path without prompting.
 
+## Development
+
+On NixOS, enter the repository's pinned development shell and install the locked dependencies:
+
+```bash
+nix develop
+just install
+```
+
+The shell provides Python 3.14, uv, Bun 1.3.12, the repository workflow tools, and Databricks CLI 1.8.0. The Databricks CLI is built from its checksummed GitHub release artifact rather than the Nixpkgs package. uv remains responsible for the Python virtual environment and dependencies, but is configured to use the Nix-provided interpreter without downloading Python.
+
+Run the full quality and build checks from the development shell:
+
+```bash
+just check
+just build
+```
+
 ## Contributing
 
 Dagshund is a solo project and I'm not accepting pull requests at this time. If you run into a bug or have a feature request, please open an issue, I'm happy to hear what you need.

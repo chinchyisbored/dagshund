@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 SANITIZE_SCRIPT = Path(__file__).parent.parent / "fixtures" / "tooling" / "sanitize.py"
 
@@ -19,7 +20,7 @@ def _run_sanitizer(input_json: str) -> str:
     return result.stdout
 
 
-def _sanitize_dict(data: dict) -> dict:
+def _sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
     return json.loads(_run_sanitizer(json.dumps(data)))
 
 

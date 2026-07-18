@@ -1,6 +1,6 @@
 import re
 from collections import Counter
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sized
 from dataclasses import dataclass
 from itertools import groupby
 
@@ -154,7 +154,7 @@ def format_transition(old: object, new: object) -> str:
     return f": {format_display_value(old)} -> {format_display_value(new)}"
 
 
-def _format_collection_summary(value: dict | list) -> str:
+def _format_collection_summary(value: Sized) -> str:
     if isinstance(value, dict):
         return f"{{{len(value)} fields}}"
     return f"[{len(value)} items]"

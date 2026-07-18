@@ -19,9 +19,5 @@ hooks = [
   { id = "biome-check", name = "biome check", entry = "bun run --cwd js lint", language = "system", pass_filenames = false },
   { id = "biome-format", name = "biome format", entry = "bun run --cwd js format:check", language = "system", pass_filenames = false },
   { id = "tsc", name = "tsc --noEmit", entry = "bun run --cwd js typecheck", language = "system", pass_filenames = false, require_serial = true },
+  { id = "uv-lock", name = "uv lock", entry = "uv lock", language = "system", files = "^(uv\\.lock|pyproject\\.toml|uv\\.toml)$", pass_filenames = false },
 ]
-
-[[repos]]
-repo = "https://github.com/astral-sh/uv-pre-commit"
-rev = "0.11.7"
-hooks = [{ id = "uv-lock" }]

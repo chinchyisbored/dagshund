@@ -4,6 +4,7 @@ import logging
 import sys
 from collections.abc import Iterator
 from pathlib import Path
+from typing import override
 
 import pytest
 
@@ -74,6 +75,7 @@ def test_summarize_value_tuple_shows_item_count() -> None:
 
 def test_summarize_value_broken_repr_falls_back() -> None:
     class Broken:
+        @override
         def __repr__(self) -> str:
             raise RuntimeError("broken")
 

@@ -10,7 +10,13 @@ default:
 
 # Install all deps and git hooks
 install:
-    uv sync
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -n "${IN_NIX_SHELL:-}" ]]; then
+        uv sync --no-install-package prek --no-install-package ruff --no-install-package ty
+    else
+        uv sync
+    fi
     bun install --cwd {{js_dir}}
     uv run prek install
 
@@ -18,7 +24,7 @@ install:
 dev plan_file="fixtures/golden/mixed-changes/plan.json":
     #!/usr/bin/env bash
     bun run --cwd {{js_dir}} build:css
-    bunx --cwd {{js_dir}} @tailwindcss/cli -i src/styles/index.css -o src/styles/output.css --watch &>/dev/null &
+    bun run --cwd {{js_dir}} build:css:watch &>/dev/null &
     tw_pid=$!
     cat "{{plan_file}}" | bun --hot --cwd {{js_dir}} src/index.ts &>/dev/null &
     bun_pid=$!
