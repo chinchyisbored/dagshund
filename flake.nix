@@ -6,26 +6,9 @@
   outputs =
     { nixpkgs, ... }:
     let
-      supportedSystems = [
-        "aarch64-linux"
-        "x86_64-linux"
-      ];
+      supportedSystems = [ "x86_64-linux" ];
       forEachSystem = nixpkgs.lib.genAttrs supportedSystems;
       artifacts = {
-        aarch64-linux = {
-          bun = {
-            archive = "bun-linux-aarch64.zip";
-            hash = "sha256-xAvA68oRvefXWvSXplSodNDH/Y1qjWAxwXPBDJBkKXs=";
-          };
-          databricks = {
-            archive = "databricks_cli_1.8.0_linux_arm64.tar.gz";
-            hash = "sha256-pfNXWgblaluS2vYqiLLVTE8HIxwHuiFgDJxyF2GBRQg=";
-          };
-          beadsRust = {
-            archive = "br-0.2.16-linux_musl_arm64.tar.gz";
-            hash = "sha256-OLISantckz6LpvcDCSmD+x+dJloe2Y/LLzwULnDFYq4=";
-          };
-        };
         x86_64-linux = {
           bun = {
             archive = "bun-linux-x64.zip";
@@ -127,7 +110,7 @@
 
             BIOME_BINARY = "${pkgs.biome}/bin/biome";
             BUN_INSTALL_CACHE_DIR = ".cache/bun/install";
-            UV_CACHE_DIR = ".uv-cache";
+            UV_CACHE_DIR = ".cache/uv-cache";
             UV_NO_SYNC = "1";
             UV_PYTHON = "${python}/bin/python3.14";
             UV_PYTHON_DOWNLOADS = "never";
