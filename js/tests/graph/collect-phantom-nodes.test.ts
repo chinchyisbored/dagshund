@@ -684,6 +684,31 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
     expect(pipelinePhantoms).toHaveLength(0);
   });
 
+  test("first-deploy bundle interpolation creates no pipeline phantom", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.runner",
+        makeEntry({
+          tasks: [
+            {
+              task_key: "t1",
+              pipeline_task: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+                pipeline_id: "${resources.pipelines.etl.id}",
+              },
+            },
+          ],
+        }),
+      ],
+      ["resources.pipelines.etl", makeEntry({ name: "etl" })],
+    ];
+
+    const result = collectExternalRefs(entries);
+
+    expect(result.nodes).toHaveLength(0);
+    expect(result.edges).toHaveLength(0);
+  });
+
   test("pipeline_task with both warehouse and pipeline creates two phantoms", () => {
     const entries: [string, PlanEntry][] = [
       [

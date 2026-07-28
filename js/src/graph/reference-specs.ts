@@ -153,6 +153,7 @@ export const extractTaskPipelineId = (
 export type TaskRefSpec = {
   readonly extractId: (task: Readonly<Record<string, unknown>>) => string | undefined;
   readonly selectIndex: (indexes: ReferenceIndexes) => ReadonlyMap<string, string>;
+  readonly targetResourceType: string;
   readonly phantomKind: PhantomKind;
 };
 
@@ -160,19 +161,35 @@ export const TASK_REF_SPECS: readonly TaskRefSpec[] = [
   {
     extractId: extractTaskWarehouseId,
     selectIndex: (indexes) => indexes.warehouseIndex,
+    targetResourceType: "sql_warehouses",
     phantomKind: "sqlWarehouse",
   },
   {
     extractId: extractTaskDashboardId,
     selectIndex: (indexes) => indexes.dashboardIndex,
+    targetResourceType: "dashboards",
     phantomKind: "dashboard",
   },
   {
     extractId: extractTaskPipelineId,
     selectIndex: (indexes) => indexes.pipelineIndex,
+    targetResourceType: "pipelines",
     phantomKind: "pipeline",
   },
 ];
+
+/** Resolve a task reference through a bundle interpolation, API-ID index, or phantom ID. */
+export const resolveTaskRefTargetKey = (
+  refId: string,
+  spec: TaskRefSpec,
+  indexes: ReferenceIndexes,
+): string => {
+  const resourceRef = extractBundleResourceIdRef(refId);
+  if (resourceRef !== undefined && extractResourceType(resourceRef) === spec.targetResourceType) {
+    return resourceRef;
+  }
+  return spec.selectIndex(indexes).get(refId) ?? buildPrefixedNodeId(spec.phantomKind, refId);
+};
 
 const genieSpaceResourceKey = (name: string): string => buildResourceKey("genie_spaces", name);
 const secretScopeResourceKey = (name: string): string => buildResourceKey("secret_scopes", name);

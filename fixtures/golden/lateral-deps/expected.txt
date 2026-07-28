@@ -1,4 +1,4 @@
-dagshund plan (v2, cli 1.6.0)
+dagshund plan (v2, cli 1.8.0)
 
   alerts (1)
   = alerts/data_freshness
@@ -8,17 +8,19 @@ dagshund plan (v2, cli 1.6.0)
 
   jobs (3)
   = jobs/orchestrator
-  = jobs/worker_a
+  ~ jobs/worker_a  (update)
+      + tasks[task_key='run_first_deploy_pipeline']: {2 fields}
   = jobs/worker_b
 
   model_serving_endpoints (1)
   = model_serving_endpoints/phantom_endpoint
 
-  pipelines (1)
+  pipelines (2)
   = pipelines/etl_pipeline
+  + pipelines/first_deploy_pipeline  (create)
 
   quality_monitors (1)
   ~ quality_monitors/table_monitor  (update)
       = schedule.pause_status: "UNPAUSED" (remote)
 
-  =7 unchanged, ~1 update
+  +1 create, =6 unchanged, ~2 update

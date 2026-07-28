@@ -1646,6 +1646,34 @@ describe("extractJobPipelineTaskEdges", () => {
     });
   });
 
+  test("first-deploy bundle interpolation links job to created pipeline", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.runner",
+        makeEntry({
+          tasks: [
+            {
+              task_key: "t1",
+              pipeline_task: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+                pipeline_id: "${resources.pipelines.etl.id}",
+              },
+            },
+          ],
+        }),
+      ],
+      ["resources.pipelines.etl", makeEntry({ name: "etl" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.jobs.runner",
+      target: "resources.pipelines.etl",
+    });
+  });
+
   test("pipeline_task links to phantom pipeline via synthetic key", () => {
     const entries: [string, PlanEntry][] = [
       [
@@ -1671,7 +1699,36 @@ describe("extractJobPipelineTaskEdges", () => {
     });
   });
 
-  test("two tasks referencing same pipeline — one edge", () => {
+  test("resource graph does not create a phantom for first-deploy interpolation", () => {
+    const plan: Plan = {
+      plan: {
+        "resources.jobs.runner": makeEntry({
+          tasks: [
+            {
+              task_key: "t1",
+              pipeline_task: {
+                // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+                pipeline_id: "${resources.pipelines.etl.id}",
+              },
+            },
+          ],
+        }),
+        "resources.pipelines.etl": makeEntry({ name: "etl" }),
+      },
+    };
+
+    const graph = buildResourceGraph(plan);
+
+    expect(graph.nodes.some((node) => node.id.startsWith("pipeline::${resources."))).toBe(false);
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.runner",
+        target: "resources.pipelines.etl",
+      }),
+    );
+  });
+
+  test("two tasks referencing same pipeline - one edge", () => {
     const entries: [string, PlanEntry][] = [
       [
         "resources.jobs.runner",
@@ -2054,7 +2111,7 @@ describe("lateral-deps integration", () => {
     const plan = await loadFixture("lateral-deps");
     const graph = buildResourceGraph(plan);
 
-    expect(graph.lateralEdges).toHaveLength(15);
+    expect(graph.lateralEdges).toHaveLength(18);
   });
 
   test("produces expected phantom node count", async () => {

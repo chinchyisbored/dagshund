@@ -20,6 +20,7 @@ import {
   extractAppResourceReferences,
   type ReferenceIndexes,
   resolveAppPhantomRef,
+  resolveTaskRefTargetKey,
   TASK_REF_SPECS,
 } from "./reference-specs.ts";
 
@@ -141,9 +142,10 @@ export const collectPhantomExternalRefs = (
       for (const task of tasks) {
         for (const spec of TASK_REF_SPECS) {
           const refId = spec.extractId(task);
-          if (refId !== undefined && !spec.selectIndex(indexes).has(refId)) {
-            const id = buildPrefixedNodeId(spec.phantomKind, refId);
-            phantoms.set(id, { id, resourceKey: id, label: refId });
+          if (refId === undefined) continue;
+          const phantomId = buildPrefixedNodeId(spec.phantomKind, refId);
+          if (resolveTaskRefTargetKey(refId, spec, indexes) === phantomId) {
+            phantoms.set(phantomId, { id: phantomId, resourceKey: phantomId, label: refId });
           }
         }
         const runJobId = task.run_job_task?.job_id;

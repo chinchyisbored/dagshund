@@ -110,6 +110,7 @@
 
             BIOME_BINARY = "${pkgs.biome}/bin/biome";
             BUN_INSTALL_CACHE_DIR = ".cache/bun/install";
+            LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
             UV_CACHE_DIR = ".cache/uv-cache";
             UV_NO_SYNC = "1";
             UV_PYTHON = "${python}/bin/python3.14";

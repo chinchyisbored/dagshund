@@ -29,6 +29,7 @@ import {
   type LateralEdgeContext,
   type ReferenceIndexes,
   resolveAppRefTargetKey,
+  resolveTaskRefTargetKey,
   TASK_REF_SPECS,
 } from "./reference-specs.ts";
 import { resolveRunJobTarget } from "./resolve-run-job-target.ts";
@@ -292,8 +293,7 @@ const createJobTaskRefsSpec = (indexes: ReferenceIndexes): LateralEdgeSpec => ({
         const id = spec.extractId(task);
         if (id === undefined || seen.has(id)) continue;
         seen.add(id);
-        const targetKey =
-          spec.selectIndex(indexes).get(id) ?? buildPrefixedNodeId(spec.phantomKind, id);
+        const targetKey = resolveTaskRefTargetKey(id, spec, indexes);
         const targetNodeId = resolveExistingTargetId(targetKey, context);
         if (targetNodeId !== undefined) targets.push(targetNodeId);
       }

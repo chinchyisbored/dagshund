@@ -1,31 +1,31 @@
 {
   "plan_graph": {
     "nodes": {
-      "total": 13,
+      "total": 14,
       "by_kind": {
         "job": 3,
-        "task": 10,
+        "task": 11,
         "resource": 0,
         "root": 0,
         "phantom": 0
       },
       "by_diff_state": {
-        "added": 0,
+        "added": 1,
         "removed": 0,
-        "modified": 0,
-        "unchanged": 13,
+        "modified": 1,
+        "unchanged": 12,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
         "job": {
           "added": 0,
           "removed": 0,
-          "modified": 0,
-          "unchanged": 3,
+          "modified": 1,
+          "unchanged": 2,
           "unknown": 0
         },
         "task": {
-          "added": 0,
+          "added": 1,
           "removed": 0,
           "modified": 0,
           "unchanged": 10,
@@ -68,10 +68,10 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 52,
+      "total_change_entries": 53,
       "total_effect_entries": 0,
-      "with_resource_state": 13,
-      "task_change_summary_total": 0,
+      "with_resource_state": 14,
+      "task_change_summary_total": 1,
       "entries": [
         {
           "id": "resources.jobs.orchestrator",
@@ -161,7 +161,7 @@
           "resourceKey": "resources.jobs.worker_a",
           "label": "worker_a",
           "kind": "job",
-          "diffState": "unchanged",
+          "diffState": "modified",
           "isDrift": false,
           "changes": [
             {
@@ -179,7 +179,13 @@
           ],
           "effects": [],
           "hasResourceState": true,
-          "taskChangeSummary": []
+          "taskChangeSummary": [
+            {
+              "taskKey": "run_first_deploy_pipeline",
+              "diffState": "added",
+              "isDrift": false
+            }
+          ]
         },
         {
           "id": "resources.jobs.worker_a::refresh_bundled_dashboard",
@@ -291,6 +297,23 @@
             {
               "key": "tasks[task_key='run_external_pipeline'].timeout_seconds",
               "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.worker_a::run_first_deploy_pipeline",
+          "resourceKey": "resources.jobs.worker_a",
+          "label": "run_first_deploy_pipeline",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_first_deploy_pipeline']",
+              "action": "update"
             }
           ],
           "effects": [],
@@ -493,19 +516,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 17,
+      "total": 18,
       "by_kind": {
         "job": 0,
         "task": 0,
-        "resource": 8,
+        "resource": 9,
         "root": 2,
         "phantom": 7
       },
       "by_diff_state": {
-        "added": 0,
+        "added": 1,
         "removed": 0,
-        "modified": 1,
-        "unchanged": 16,
+        "modified": 2,
+        "unchanged": 15,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -524,10 +547,10 @@
           "unknown": 0
         },
         "resource": {
-          "added": 0,
+          "added": 1,
           "removed": 0,
-          "modified": 1,
-          "unchanged": 7,
+          "modified": 2,
+          "unchanged": 6,
           "unknown": 0
         },
         "root": {
@@ -562,8 +585,8 @@
       },
       "total_change_entries": 29,
       "total_effect_entries": 0,
-      "with_resource_state": 8,
-      "task_change_summary_total": 0,
+      "with_resource_state": 9,
+      "task_change_summary_total": 1,
       "entries": [
         {
           "id": "catalog::dagshund",
@@ -721,7 +744,7 @@
           "resourceKey": "resources.jobs.worker_a",
           "label": "worker_a",
           "kind": "resource",
-          "diffState": "unchanged",
+          "diffState": "modified",
           "isDrift": false,
           "changes": [
             {
@@ -739,7 +762,13 @@
           ],
           "effects": [],
           "hasResourceState": true,
-          "taskChangeSummary": []
+          "taskChangeSummary": [
+            {
+              "taskKey": "run_first_deploy_pipeline",
+              "diffState": "added",
+              "isDrift": false
+            }
+          ]
         },
         {
           "id": "resources.jobs.worker_b",
@@ -805,6 +834,18 @@
           "label": "etl_pipeline",
           "kind": "resource",
           "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.pipelines.first_deploy_pipeline",
+          "resourceKey": "resources.pipelines.first_deploy_pipeline",
+          "label": "first_deploy_pipeline",
+          "kind": "resource",
+          "diffState": "added",
           "isDrift": false,
           "changes": [],
           "effects": [],
@@ -895,26 +936,26 @@
       ]
     },
     "edges": {
-      "total": 30,
+      "total": 34,
       "by_kind": {
-        "dag": 15,
-        "lateral": 15
+        "dag": 16,
+        "lateral": 18
       },
       "by_diff_state": {
-        "added": 0,
+        "added": 1,
         "removed": 0,
-        "unchanged": 30
+        "unchanged": 33
       },
       "by_kind_and_diff_state": {
         "dag": {
-          "added": 0,
+          "added": 1,
           "removed": 0,
           "unchanged": 15
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 15
+          "unchanged": 18
         }
       },
       "entries": [
@@ -998,6 +1039,12 @@
         },
         {
           "source": "workspace-root",
+          "target": "resources.pipelines.first_deploy_pipeline",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
           "target": "resources.quality_monitors.table_monitor",
           "diffState": "unchanged",
           "kind": "dag"
@@ -1058,6 +1105,12 @@
         },
         {
           "source": "resources.jobs.worker_a",
+          "target": "resources.pipelines.first_deploy_pipeline",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.worker_a",
           "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "lateral"
@@ -1082,6 +1135,18 @@
         },
         {
           "source": "resources.pipelines.etl_pipeline",
+          "target": "schema::dagshund.phantom_schema",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.pipelines.first_deploy_pipeline",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.pipelines.first_deploy_pipeline",
           "target": "schema::dagshund.phantom_schema",
           "diffState": "unchanged",
           "kind": "lateral"
