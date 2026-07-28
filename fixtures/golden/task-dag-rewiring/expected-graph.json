@@ -1051,19 +1051,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 3,
+      "total": 4,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 2,
-        "root": 1,
+        "root": 2,
         "phantom": 0
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
         "modified": 2,
-        "unchanged": 1,
+        "unchanged": 2,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -1092,7 +1092,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 1,
+          "unchanged": 2,
           "unknown": 0
         },
         "phantom": {
@@ -1251,6 +1251,18 @@
           ]
         },
         {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "workspace-root",
           "resourceKey": "workspace-root",
           "label": "Workspace",
@@ -1265,21 +1277,21 @@
       ]
     },
     "edges": {
-      "total": 2,
+      "total": 3,
       "by_kind": {
-        "dag": 2,
+        "dag": 3,
         "lateral": 0
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
-        "unchanged": 2
+        "unchanged": 3
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 0,
           "removed": 0,
-          "unchanged": 2
+          "unchanged": 3
         },
         "lateral": {
           "added": 0,
@@ -1289,14 +1301,20 @@
       },
       "entries": [
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.data_pipeline",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.etl_pipeline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::jobs",
           "diffState": "unchanged",
           "kind": "dag"
         }

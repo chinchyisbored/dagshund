@@ -422,19 +422,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 7,
+      "total": 8,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 5,
-        "root": 1,
+        "root": 2,
         "phantom": 1
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
         "modified": 0,
-        "unchanged": 7,
+        "unchanged": 8,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -463,7 +463,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 1,
+          "unchanged": 2,
           "unknown": 0
         },
         "phantom": {
@@ -666,6 +666,18 @@
           "taskChangeSummary": []
         },
         {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "workspace-root",
           "resourceKey": "workspace-root",
           "label": "Workspace",
@@ -680,21 +692,21 @@
       ]
     },
     "edges": {
-      "total": 6,
+      "total": 7,
       "by_kind": {
-        "dag": 6,
+        "dag": 7,
         "lateral": 0
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
-        "unchanged": 6
+        "unchanged": 7
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 0,
           "removed": 0,
-          "unchanged": 6
+          "unchanged": 7
         },
         "lateral": {
           "added": 0,
@@ -704,38 +716,44 @@
       },
       "entries": [
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "job::705178521553609",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.cache_warmup",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.nightly_report",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.schema_migration",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.seed_lookup_tables",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.smoke_check",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::jobs",
           "diffState": "unchanged",
           "kind": "dag"
         }

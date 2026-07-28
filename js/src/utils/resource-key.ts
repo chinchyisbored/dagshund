@@ -27,30 +27,86 @@ type PhantomPrefixSpec = {
   readonly prefix: string;
   readonly badge: string;
   readonly leaf: boolean;
+  readonly resourceType: string | undefined;
 };
 
 const PHANTOM_PREFIX_SPECS = {
-  catalog: { prefix: "catalog::", badge: "catalog", leaf: false },
-  schema: { prefix: "schema::", badge: "schema", leaf: false },
-  sourceTable: { prefix: "source-table::", badge: "table", leaf: true },
-  databaseInstance: { prefix: "database-instance::", badge: "database instance", leaf: true },
-  secretScope: { prefix: "secret-scope::", badge: "secret", leaf: true },
-  servingEndpoint: { prefix: "serving-endpoint::", badge: "serving", leaf: true },
-  job: { prefix: "job::", badge: "job", leaf: true },
-  sqlWarehouse: { prefix: "sql-warehouse::", badge: "warehouse", leaf: true },
-  genieSpace: { prefix: "genie-space::", badge: "genie", leaf: true },
-  dashboard: { prefix: "dashboard::", badge: "dashboard", leaf: true },
-  experiment: { prefix: "experiment::", badge: "experiment", leaf: true },
-  pipeline: { prefix: "pipeline::", badge: "pipeline", leaf: true },
-  registeredModel: { prefix: "registered-model::", badge: "model", leaf: true },
-  postgresProject: { prefix: "postgres-project::", badge: "postgres project", leaf: false },
-  postgresBranch: { prefix: "postgres-branch::", badge: "postgres branch", leaf: false },
-  postgresDatabase: { prefix: "postgres-database::", badge: "postgres database", leaf: false },
+  catalog: { prefix: "catalog::", badge: "catalog", leaf: false, resourceType: undefined },
+  schema: { prefix: "schema::", badge: "schema", leaf: false, resourceType: undefined },
+  sourceTable: { prefix: "source-table::", badge: "table", leaf: true, resourceType: undefined },
+  databaseInstance: {
+    prefix: "database-instance::",
+    badge: "database instance",
+    leaf: true,
+    resourceType: "database_instances",
+  },
+  secretScope: {
+    prefix: "secret-scope::",
+    badge: "secret",
+    leaf: true,
+    resourceType: "secret_scopes",
+  },
+  servingEndpoint: {
+    prefix: "serving-endpoint::",
+    badge: "serving",
+    leaf: true,
+    resourceType: "model_serving_endpoints",
+  },
+  job: { prefix: "job::", badge: "job", leaf: true, resourceType: "jobs" },
+  sqlWarehouse: {
+    prefix: "sql-warehouse::",
+    badge: "warehouse",
+    leaf: true,
+    resourceType: "sql_warehouses",
+  },
+  genieSpace: {
+    prefix: "genie-space::",
+    badge: "genie",
+    leaf: true,
+    resourceType: "genie_spaces",
+  },
+  dashboard: {
+    prefix: "dashboard::",
+    badge: "dashboard",
+    leaf: true,
+    resourceType: "dashboards",
+  },
+  experiment: {
+    prefix: "experiment::",
+    badge: "experiment",
+    leaf: true,
+    resourceType: "experiments",
+  },
+  pipeline: { prefix: "pipeline::", badge: "pipeline", leaf: true, resourceType: "pipelines" },
+  registeredModel: {
+    prefix: "registered-model::",
+    badge: "model",
+    leaf: true,
+    resourceType: undefined,
+  },
+  postgresProject: {
+    prefix: "postgres-project::",
+    badge: "postgres project",
+    leaf: false,
+    resourceType: undefined,
+  },
+  postgresBranch: {
+    prefix: "postgres-branch::",
+    badge: "postgres branch",
+    leaf: false,
+    resourceType: undefined,
+  },
+  postgresDatabase: {
+    prefix: "postgres-database::",
+    badge: "postgres database",
+    leaf: false,
+    resourceType: undefined,
+  },
 } as const satisfies Readonly<Record<string, PhantomPrefixSpec>>;
 
 export type PhantomKind = keyof typeof PHANTOM_PREFIX_SPECS;
 
-const PHANTOM_PREFIX_VALUES = Object.values(PHANTOM_PREFIX_SPECS);
+const PHANTOM_PREFIX_VALUES: readonly PhantomPrefixSpec[] = Object.values(PHANTOM_PREFIX_SPECS);
 
 /** Build a prefixed node ID for a registered phantom or hierarchy-container kind. */
 export const buildPrefixedNodeId = (kind: PhantomKind, identity: string): string =>
@@ -75,6 +131,10 @@ export const extractTaskNodeParentId = (nodeId: string): string => {
 export const extractPhantomBadge = (resourceKey: string): string | undefined =>
   PHANTOM_PREFIX_VALUES.find((spec) => resourceKey.startsWith(spec.prefix))?.badge ??
   extractTypeBadge(resourceKey);
+
+/** Resolve the normalized resource type represented by a workspace phantom ID. */
+export const extractPhantomResourceType = (nodeId: string): string | undefined =>
+  PHANTOM_PREFIX_VALUES.find((spec) => nodeId.startsWith(spec.prefix))?.resourceType;
 
 /** Check whether a node ID represents an inferred leaf phantom (not a hierarchy phantom).
  *  Containers with useHierarchyId share the `::` ID grammar with phantoms.

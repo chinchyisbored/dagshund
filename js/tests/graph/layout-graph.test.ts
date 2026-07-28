@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { JobGraphNode, PlanGraph, TaskGraphNode } from "../../src/types/graph-types.ts";
+import {
+  buildGraphEdge,
+  buildHierarchyGraphNode,
+  type JobGraphNode,
+  type PlanGraph,
+  type ResourceGraphNode,
+  type TaskGraphNode,
+} from "../../src/types/graph-types.ts";
 
 /**
  * These tests import pure helper functions from layout-graph.ts.
@@ -62,6 +69,20 @@ const TASK_TRANSFORM: TaskGraphNode = {
   resourceHasShapeDrift: false,
   isWheelOnlyChange: false,
 };
+
+const makeResourceNode = (id: string): ResourceGraphNode => ({
+  id,
+  label: id.split(".").at(-1) ?? id,
+  nodeKind: "resource",
+  diffState: "unchanged",
+  resourceKey: id,
+  changes: undefined,
+  resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
+  taskChangeSummary: undefined,
+});
 
 const SINGLE_JOB_GRAPH: PlanGraph = {
   nodes: [JOB_NODE, TASK_EXTRACT, TASK_TRANSFORM],
@@ -325,6 +346,48 @@ describe("assembleFlowNodes", () => {
     const style = jobNode?.style as Record<string, unknown>;
     expect(style["width"]).toBe(500);
     expect(style["height"]).toBe(200);
+  });
+});
+
+describe("buildResourceElkGraph", () => {
+  test("preserves a mixed workspace hierarchy and constrains only the top-level root", async () => {
+    const { buildResourceElkGraph } = await loadModule();
+    const graph: PlanGraph = {
+      nodes: [
+        buildHierarchyGraphNode("root", "workspace-root", "Workspace"),
+        buildHierarchyGraphNode("root", "workspace-category::jobs", "Jobs"),
+        makeResourceNode("resources.jobs.job_a"),
+        makeResourceNode("resources.jobs.job_b"),
+        buildHierarchyGraphNode("root", "other-resources-root", "Other Resources"),
+        makeResourceNode("resources.alerts.data_freshness"),
+        buildHierarchyGraphNode("root", "postgres-root", "Lakebase"),
+      ],
+      edges: [
+        buildGraphEdge("workspace-root", "workspace-category::jobs"),
+        buildGraphEdge("workspace-root", "other-resources-root"),
+        buildGraphEdge("workspace-root", "postgres-root"),
+        buildGraphEdge("workspace-category::jobs", "resources.jobs.job_a"),
+        buildGraphEdge("workspace-category::jobs", "resources.jobs.job_b"),
+        buildGraphEdge("other-resources-root", "resources.alerts.data_freshness"),
+      ],
+    };
+
+    const elkGraph = buildResourceElkGraph(graph);
+    const children = elkGraph.children ?? [];
+    expect(children.map((child) => child.id)).toEqual(graph.nodes.map((node) => node.id));
+    expect((elkGraph.edges ?? []).map((edge) => `${edge.sources[0]}→${edge.targets[0]}`)).toEqual([
+      "workspace-root→workspace-category::jobs",
+      "workspace-root→other-resources-root",
+      "workspace-root→postgres-root",
+      "workspace-category::jobs→resources.jobs.job_a",
+      "workspace-category::jobs→resources.jobs.job_b",
+      "other-resources-root→resources.alerts.data_freshness",
+    ]);
+
+    const firstLayerNodeIds = children
+      .filter((child) => child.layoutOptions?.["elk.layered.layering.layerConstraint"] === "FIRST")
+      .map((child) => child.id);
+    expect(firstLayerNodeIds).toEqual(["workspace-root"]);
   });
 });
 

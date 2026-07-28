@@ -5,6 +5,7 @@ import {
   buildTaskNodeId,
   extractParentResourceKey,
   extractPhantomBadge,
+  extractPhantomResourceType,
   extractResourceName,
   extractSubResourceSuffix,
   extractTaskNodeParentId,
@@ -92,6 +93,20 @@ describe("extractTypeBadge", () => {
   test("returns undefined when key has no type segment", () => {
     expect(extractTypeBadge("resources")).toBeUndefined();
     expect(extractTypeBadge("")).toBeUndefined();
+  });
+});
+
+describe("extractPhantomResourceType", () => {
+  test("returns the normalized type for workspace phantom leaves", () => {
+    expect(extractPhantomResourceType("job::123")).toBe("jobs");
+    expect(extractPhantomResourceType("sql-warehouse::abc")).toBe("sql_warehouses");
+    expect(extractPhantomResourceType("database-instance::main")).toBe("database_instances");
+  });
+
+  test("returns undefined for hierarchy phantoms and real resources", () => {
+    expect(extractPhantomResourceType("source-table::prod.raw.events")).toBeUndefined();
+    expect(extractPhantomResourceType("catalog::prod")).toBeUndefined();
+    expect(extractPhantomResourceType("resources.jobs.etl")).toBeUndefined();
   });
 });
 

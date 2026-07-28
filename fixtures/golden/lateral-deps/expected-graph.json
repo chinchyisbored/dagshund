@@ -516,19 +516,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 18,
+      "total": 21,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 9,
-        "root": 2,
+        "root": 5,
         "phantom": 7
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
         "modified": 2,
-        "unchanged": 15,
+        "unchanged": 18,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -557,7 +557,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 2,
+          "unchanged": 5,
           "unknown": 0
         },
         "phantom": {
@@ -605,6 +605,18 @@
           "resourceKey": "dashboard::01f10382fb111e3e9d8132f891c5b179",
           "label": "01f10382fb111e3e9d8132f891c5b179",
           "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "other-resources-root",
+          "resourceKey": "other-resources-root",
+          "label": "Other Resources",
+          "kind": "root",
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
@@ -922,6 +934,30 @@
           "taskChangeSummary": []
         },
         {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-category::pipelines",
+          "resourceKey": "workspace-category::pipelines",
+          "label": "Pipelines",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "workspace-root",
           "resourceKey": "workspace-root",
           "label": "Workspace",
@@ -936,21 +972,21 @@
       ]
     },
     "edges": {
-      "total": 34,
+      "total": 37,
       "by_kind": {
-        "dag": 16,
+        "dag": 19,
         "lateral": 18
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
-        "unchanged": 33
+        "unchanged": 36
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 1,
           "removed": 0,
-          "unchanged": 15
+          "unchanged": 18
         },
         "lateral": {
           "added": 0,
@@ -962,6 +998,42 @@
         {
           "source": "catalog::dagshund",
           "target": "schema::dagshund.phantom_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "dashboard::01f10382fb111e3e9d8132f891c5b179",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.alerts.data_freshness",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.dashboards.metrics",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.model_serving_endpoints.phantom_endpoint",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.quality_monitors.table_monitor",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -984,74 +1056,56 @@
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
-          "target": "dashboard::01f10382fb111e3e9d8132f891c5b179",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
-          "source": "workspace-root",
-          "target": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
-          "source": "workspace-root",
-          "target": "resources.alerts.data_freshness",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
-          "source": "workspace-root",
-          "target": "resources.dashboards.metrics",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.orchestrator",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.worker_a",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.worker_b",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
-          "target": "resources.model_serving_endpoints.phantom_endpoint",
+          "source": "workspace-category::pipelines",
+          "target": "pipeline::38a5d519-ec0f-4cc7-8431-8435a3824365",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::pipelines",
           "target": "resources.pipelines.etl_pipeline",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::pipelines",
           "target": "resources.pipelines.first_deploy_pipeline",
           "diffState": "added",
           "kind": "dag"
         },
         {
           "source": "workspace-root",
-          "target": "resources.quality_monitors.table_monitor",
+          "target": "other-resources-root",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
           "source": "workspace-root",
-          "target": "sql-warehouse::9d0afa601cb95187",
+          "target": "workspace-category::jobs",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::pipelines",
           "diffState": "unchanged",
           "kind": "dag"
         },

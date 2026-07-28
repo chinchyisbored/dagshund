@@ -36,9 +36,10 @@ The resource graph groups plan entries into two top-level sections:
 - **UC** (`uc-root`) — Unity Catalog hierarchy: catalogs (incl. database/postgres catalogs) → schemas → volumes/models/synced tables, plus inferred source-table phantom leaves
 - **Workspace** (`workspace-root`) — everything else, containing:
   - **Lakebase** (`postgres-root`, labeled "Lakebase") — projects → branches → databases/endpoints/roles → synced tables
-  - **Other Resources** (`other-resources-root`) — flat workspace resources (jobs, alerts, experiments, pipelines, database instances, etc.)
+  - Type categories for flat workspace resource types with at least two real resources, such as **Jobs** or **Pipelines**
+  - **Other Resources** (`other-resources-root`) for remaining singleton types and unmatched inferred references whenever a type category or Lakebase exists
 
-The "Other Resources" group only appears when the Lakebase hierarchy is present — it separates flat resources from the nested hierarchy so ELK produces cleaner layouts. When no hierarchy exists, flat resources connect directly to `workspace-root`.
+Category IDs use `workspace-category::<resource-type>`. Categories are derived from normalized real resource types, and phantom nodes never count toward the threshold for creating one. Matching phantoms join an existing type category. `Other Resources` appears only when a subgroup exists and at least one remaining node needs the fallback; fully flat plans stay directly under Workspace.
 
 Group nodes that represent inferred/external entities (not in the plan) render with dashed borders.
 

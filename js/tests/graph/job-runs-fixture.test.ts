@@ -118,6 +118,12 @@ describe("orphan job_runs effects — phantom targets", () => {
     expect(readEffects(phantom)?.map((effect) => `${effect.name}:${effect.action}`)).toEqual([
       "ping_healthcheck:create",
     ]);
+    expect(
+      resourceGraph.edges.some(
+        (edge) => edge.source === "workspace-category::jobs" && edge.target === phantom?.id,
+      ),
+    ).toBe(true);
+    expect(resourceGraph.nodes.map((node) => node.id)).not.toContain("other-resources-root");
     expect(planGraph.nodes.filter((node) => node.id.startsWith("job::"))).toEqual([]);
   });
 });

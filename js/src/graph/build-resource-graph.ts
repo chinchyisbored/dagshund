@@ -14,6 +14,7 @@ import { type NormalizedEntry, normalizePlan } from "../utils/normalize-plan.ts"
 import {
   buildPrefixedNodeId,
   buildResourceKey,
+  extractPhantomResourceType,
   extractResourceName,
   extractResourceType,
   type PhantomKind,
@@ -706,49 +707,147 @@ const buildChainGraph = (
 // Workspace graph
 // ---------------------------------------------------------------------------
 
-/** Build the workspace subgraph: flat resources + Postgres hierarchy. */
+const WORKSPACE_ROOT_ID = "workspace-root";
+const OTHER_RESOURCES_ROOT_ID = "other-resources-root";
+const WORKSPACE_CATEGORY_PREFIX = "workspace-category::";
+
+const buildWorkspaceCategoryId = (resourceType: string): string =>
+  `${WORKSPACE_CATEGORY_PREFIX}${resourceType}`;
+
+const formatWorkspaceCategoryLabel = (resourceType: string): string =>
+  resourceType
+    .split("_")
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(" ");
+
+type WorkspacePlacement = {
+  readonly categoryTypes: ReadonlySet<string>;
+  readonly fallbackParentId: string;
+};
+
+type WorkspaceGraphResult = {
+  readonly graph: PlanGraph;
+  readonly placement: WorkspacePlacement;
+};
+
+const collectRepeatedWorkspaceTypes = (
+  entries: readonly (readonly [string, PlanEntry])[],
+): ReadonlySet<string> => {
+  const counts = new Map<string, number>();
+  for (const [key] of entries) {
+    const resourceType = extractResourceType(key);
+    if (resourceType !== undefined) counts.set(resourceType, (counts.get(resourceType) ?? 0) + 1);
+  }
+  return new Set(
+    [...counts].filter(([, count]) => count > 1).map(([resourceType]) => resourceType),
+  );
+};
+
+const buildWorkspacePlacement = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  hasPostgres: boolean,
+): WorkspacePlacement => {
+  const categoryTypes = collectRepeatedWorkspaceTypes(entries);
+  const fallbackParentId =
+    categoryTypes.size > 0 || hasPostgres ? OTHER_RESOURCES_ROOT_ID : WORKSPACE_ROOT_ID;
+  return { categoryTypes, fallbackParentId };
+};
+
+const resolveWorkspaceTypeParentId = (
+  resourceType: string | undefined,
+  placement: WorkspacePlacement,
+): string =>
+  resourceType !== undefined && placement.categoryTypes.has(resourceType)
+    ? buildWorkspaceCategoryId(resourceType)
+    : placement.fallbackParentId;
+
+const buildWorkspaceCategoryGraph = (resourceTypes: ReadonlySet<string>): PlanGraph => {
+  const sortedTypes = [...resourceTypes].toSorted();
+  const nodes = sortedTypes.map((resourceType) =>
+    buildHierarchyGraphNode(
+      "root",
+      buildWorkspaceCategoryId(resourceType),
+      formatWorkspaceCategoryLabel(resourceType),
+    ),
+  );
+  const edges = sortedTypes.map((resourceType) =>
+    buildEdge(WORKSPACE_ROOT_ID, buildWorkspaceCategoryId(resourceType)),
+  );
+  return { nodes, edges: filterDefinedEdges(edges) };
+};
+
+const buildFlatWorkspaceGraph = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  placement: WorkspacePlacement,
+): PlanGraph => {
+  const categories = buildWorkspaceCategoryGraph(placement.categoryTypes);
+  const nodes = entries.map(([key, entry]) => buildResourceNode(key, entry));
+  const edges = entries.map(([key, entry]) =>
+    buildEdge(
+      resolveWorkspaceTypeParentId(extractResourceType(key), placement),
+      key,
+      resolveEntryEdgeDiffState(entry),
+    ),
+  );
+  return {
+    nodes: [...categories.nodes, ...nodes],
+    edges: [...categories.edges, ...filterDefinedEdges(edges)],
+  };
+};
+
+const buildWorkspacePhantomGraph = (
+  nodes: readonly PhantomGraphNode[],
+  placement: WorkspacePlacement,
+): PlanGraph => ({
+  nodes,
+  edges: filterDefinedEdges(
+    nodes.map((node) =>
+      buildEdge(
+        resolveWorkspaceTypeParentId(extractPhantomResourceType(node.id), placement),
+        node.id,
+      ),
+    ),
+  ),
+});
+
+const buildOtherResourcesGraph = (graphs: readonly PlanGraph[]): PlanGraph => {
+  const hasOtherResources = graphs.some((graph) =>
+    graph.edges.some((edge) => edge.source === OTHER_RESOURCES_ROOT_ID),
+  );
+  if (!hasOtherResources) return { nodes: [], edges: [] };
+  return {
+    nodes: [buildHierarchyGraphNode("root", OTHER_RESOURCES_ROOT_ID, "Other Resources")],
+    edges: filterDefinedEdges([buildEdge(WORKSPACE_ROOT_ID, OTHER_RESOURCES_ROOT_ID)]),
+  };
+};
+
+/** Build the workspace subgraph: grouped flat resources + Postgres hierarchy. */
 const buildWorkspaceGraph = (
   workspaceEntries: readonly (readonly [string, PlanEntry])[],
   postgresEntries: readonly (readonly [string, PlanEntry])[],
   externalPostgresHierarchyRefs: readonly ExternalHierarchyRef[],
-): PlanGraph & { readonly flatParentId: string } => {
+): WorkspaceGraphResult => {
   const hasWorkspace = workspaceEntries.length > 0;
   const hasPostgres = postgresEntries.length > 0 || externalPostgresHierarchyRefs.length > 0;
+  const placement = buildWorkspacePlacement(workspaceEntries, hasPostgres);
 
-  if (!hasWorkspace && !hasPostgres)
-    return { nodes: [], edges: [], flatParentId: "workspace-root" };
+  if (!hasWorkspace && !hasPostgres) return { graph: { nodes: [], edges: [] }, placement };
 
-  const root = buildHierarchyGraphNode("root", "workspace-root", "Workspace");
-
-  // Postgres hierarchy
+  const root = buildHierarchyGraphNode("root", WORKSPACE_ROOT_ID, "Workspace");
+  const workspaceGraph = buildFlatWorkspaceGraph(workspaceEntries, placement);
   const postgresGraph = hasPostgres
     ? buildChainGraph(postgresEntries, POSTGRES_CHAIN, undefined, externalPostgresHierarchyRefs)
     : { nodes: [], edges: [] };
   const postgresRootEdge = hasPostgres
-    ? filterDefinedEdges([buildEdge("workspace-root", "postgres-root")])
-    : [];
-
-  // Flat workspace resources — wrap in "Other Resources" group when hierarchies exist
-  const shouldWrapFlatResources = hasWorkspace && hasPostgres;
-  const flatParentId = shouldWrapFlatResources ? "other-resources-root" : "workspace-root";
-
-  const flatNodes = workspaceEntries.map(([key, entry]) => buildResourceNode(key, entry));
-  const flatEdges = filterDefinedEdges(
-    workspaceEntries.map(([key, entry]) =>
-      buildEdge(flatParentId, key, resolveEntryEdgeDiffState(entry)),
-    ),
-  );
-  const otherResourcesNodes = shouldWrapFlatResources
-    ? [buildHierarchyGraphNode("root", "other-resources-root", "Other Resources")]
-    : [];
-  const otherResourcesEdge = shouldWrapFlatResources
-    ? filterDefinedEdges([buildEdge("workspace-root", "other-resources-root")])
+    ? filterDefinedEdges([buildEdge(WORKSPACE_ROOT_ID, "postgres-root")])
     : [];
 
   return {
-    nodes: [root, ...otherResourcesNodes, ...flatNodes, ...postgresGraph.nodes],
-    edges: [...otherResourcesEdge, ...flatEdges, ...postgresRootEdge, ...postgresGraph.edges],
-    flatParentId,
+    graph: {
+      nodes: [root, ...workspaceGraph.nodes, ...postgresGraph.nodes],
+      edges: [...workspaceGraph.edges, ...postgresRootEdge, ...postgresGraph.edges],
+    },
+    placement,
   };
 };
 
@@ -919,7 +1018,7 @@ export const buildResourceGraph = (
 
   const ucGraph = buildChainGraph(ucEntries, UC_CHAIN, externalLeafPhantomRefs);
   const externalPostgresDatabaseRefs = collectExternalPostgresDatabaseRefs(entries);
-  const workspaceGraph = buildWorkspaceGraph(
+  const { graph: workspaceGraph, placement: workspacePlacement } = buildWorkspaceGraph(
     workspaceEntries,
     postgresEntries,
     externalPostgresDatabaseRefs,
@@ -963,54 +1062,53 @@ export const buildResourceGraph = (
   };
 
   // Create phantom nodes for database instances referenced but not in the plan.
-  // Parent to the same group as real flat workspace resources.
   const existingKeys = new Set(graphNodes.map((node) => node.resourceKey));
-  const phantomDbInstances = collectPhantomDatabaseInstances(
-    entries,
-    existingKeys,
-    workspaceGraph.flatParentId,
+  const phantomDbInstances = buildWorkspacePhantomGraph(
+    collectPhantomDatabaseInstances(entries, existingKeys),
+    workspacePlacement,
   );
 
   // Create phantom nodes for app resource references (secret scopes, serving endpoints).
-  const phantomAppDeps = collectPhantomAppDependencies(
-    entries,
-    existingKeys,
-    workspaceGraph.flatParentId,
-    referenceIndexes,
+  const phantomAppDeps = buildWorkspacePhantomGraph(
+    collectPhantomAppDependencies(entries, existingKeys, referenceIndexes),
+    workspacePlacement,
   );
 
   // Create phantom nodes for external references (warehouses, dashboards, pipelines) from
   // top-level resources and job task sub-objects.
-  const phantomExternalRefs = collectPhantomExternalRefs(
-    entries,
-    workspaceGraph.flatParentId,
-    referenceIndexes,
+  const phantomExternalRefs = buildWorkspacePhantomGraph(
+    collectPhantomExternalRefs(entries, referenceIndexes),
+    workspacePlacement,
   );
 
   // Phantom nodes carrying deploy-triggered runs whose target job is not in
   // the plan. Listed before the external-ref phantoms so an id collision with
   // a bare run_job_task phantom keeps the effects-annotated node.
-  const orphanEffectPhantoms = buildOrphanEffectPhantoms(
-    orphanEffects,
-    workspaceGraph.flatParentId,
+  const orphanEffectPhantoms = buildWorkspacePhantomGraph(
+    buildOrphanEffectPhantoms(orphanEffects),
+    workspacePlacement,
   );
+  const workspacePhantomGraphs = [
+    orphanEffectPhantoms,
+    phantomDbInstances,
+    phantomAppDeps,
+    phantomExternalRefs,
+  ];
+  const otherResourcesGraph = buildOtherResourcesGraph([workspaceGraph, ...workspacePhantomGraphs]);
 
-  // Orphan phantoms can be the only workspace content (e.g. a plan holding
-  // nothing but job_runs on external jobs) — materialize their parent root if
-  // no real workspace/postgres entry did.
-  const orphanParentNodes =
-    orphanEffectPhantoms.nodes.length > 0 &&
-    !graphNodes.some((node) => node.id === workspaceGraph.flatParentId)
-      ? [buildHierarchyGraphNode("root", workspaceGraph.flatParentId, "Workspace")]
+  // Workspace phantoms can be the only workspace content. Materialize their
+  // parent root when no real workspace or Postgres entry created it.
+  const workspaceParentNodes =
+    workspacePhantomGraphs.some((graph) => graph.nodes.length > 0) &&
+    !graphNodes.some((node) => node.id === WORKSPACE_ROOT_ID)
+      ? [buildHierarchyGraphNode("root", WORKSPACE_ROOT_ID, "Workspace")]
       : [];
 
   const allNodes = dedupeById([
     ...graphNodes,
-    ...orphanParentNodes,
-    ...orphanEffectPhantoms.nodes,
-    ...phantomDbInstances.nodes,
-    ...phantomAppDeps.nodes,
-    ...phantomExternalRefs.nodes,
+    ...otherResourcesGraph.nodes,
+    ...workspaceParentNodes,
+    ...workspacePhantomGraphs.flatMap((graph) => graph.nodes),
   ]);
 
   // Lateral specs only emit edges to node IDs that already exist, so build
@@ -1029,11 +1127,9 @@ export const buildResourceGraph = (
     nodes: allNodes,
     edges: dedupeById([
       ...ucGraph.edges,
+      ...otherResourcesGraph.edges,
       ...workspaceGraph.edges,
-      ...orphanEffectPhantoms.edges,
-      ...phantomDbInstances.edges,
-      ...phantomAppDeps.edges,
-      ...phantomExternalRefs.edges,
+      ...workspacePhantomGraphs.flatMap((graph) => graph.edges),
     ]),
     lateralEdges,
   };

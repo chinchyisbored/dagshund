@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
+import type { ElkNode } from "elkjs/lib/elk-api";
 import type {
   DagNodeData,
   GraphEdge,
@@ -403,17 +404,10 @@ export const toLateralFlowEdges = (
     ];
   });
 
-/** Flat ELK layout for resource graphs (left-to-right, no compound hierarchy). */
-export const layoutResourceGraph = async (
-  graph: PlanGraph & { readonly lateralEdges?: readonly GraphEdge[] },
-): Promise<LayoutResult> => {
-  if (graph.nodes.length === 0) {
-    return { nodes: [], edges: [] };
-  }
-
+/** Build the pure ELK input for a flat resource graph. */
+export const buildResourceElkGraph = (graph: PlanGraph): ElkNode => {
   const targetNodeIds = new Set(graph.edges.map((edge) => edge.target));
-
-  const elkGraph = {
+  return {
     id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
@@ -442,8 +436,17 @@ export const layoutResourceGraph = async (
       layoutOptions: { "elk.layered.priority.shortness": "10" },
     })),
   };
+};
 
-  const elkResult = await getElk().layout(elkGraph);
+/** Flat ELK layout for resource graphs (left-to-right, no compound hierarchy). */
+export const layoutResourceGraph = async (
+  graph: PlanGraph & { readonly lateralEdges?: readonly GraphEdge[] },
+): Promise<LayoutResult> => {
+  if (graph.nodes.length === 0) {
+    return { nodes: [], edges: [] };
+  }
+
+  const elkResult = await getElk().layout(buildResourceElkGraph(graph));
 
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const flowNodes: Node[] = [];

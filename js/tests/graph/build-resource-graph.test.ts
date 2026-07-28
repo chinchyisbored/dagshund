@@ -406,15 +406,21 @@ describe("buildResourceGraph", () => {
       expect(edgePairs).toContain("resources.schemas.analytics→resources.volumes.raw_data");
     });
 
-    test("workspace resources including jobs are linked to workspace root", async () => {
+    test("groups repeated types and collects remaining resources under Other Resources", async () => {
       const plan = await loadFixture("mixed-changes");
       const graph = buildResourceGraph(plan);
 
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-      expect(edgePairs).toContain("workspace-root→resources.alerts.stale_pipeline_alert");
-      expect(edgePairs).toContain("workspace-root→resources.experiments.audit_analysis");
-      expect(edgePairs).toContain("workspace-root→resources.jobs.data_quality_pipeline");
-      expect(edgePairs).toContain("workspace-root→resources.jobs.etl_pipeline");
+      expect(edgePairs).toContain("workspace-root→other-resources-root");
+      expect(edgePairs).toContain("other-resources-root→resources.alerts.stale_pipeline_alert");
+      expect(edgePairs).toContain("other-resources-root→sql-warehouse::9d0afa601cb95187");
+      expect(edgePairs).toContain("workspace-root→workspace-category::experiments");
+      expect(edgePairs).toContain(
+        "workspace-category::experiments→resources.experiments.audit_analysis",
+      );
+      expect(edgePairs).toContain("workspace-root→workspace-category::jobs");
+      expect(edgePairs).toContain("workspace-category::jobs→resources.jobs.data_quality_pipeline");
+      expect(edgePairs).toContain("workspace-category::jobs→resources.jobs.etl_pipeline");
     });
   });
 
@@ -1226,6 +1232,24 @@ describe("database_catalogs in UC", () => {
     expect(nodeIds).not.toContain("lakebase-root");
   });
 
+  test("UC-only database catalog materializes the workspace root for an absent instance", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.database_catalogs.lb_cat": {
+          action: "create",
+          new_state: { value: { name: "lb_cat", database_instance_name: "my_instance" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((node) => node.id);
+    expect(nodeIds).toContain("workspace-root");
+    expect(nodeIds).toContain("database-instance::my_instance");
+
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(edgePairs).toContain("workspace-root→database-instance::my_instance");
+  });
+
   test("database_catalog with schema nests schema under catalog", () => {
     const graph = buildResourceGraph({
       plan: {
@@ -1281,7 +1305,7 @@ describe("postgres_catalogs in UC", () => {
     expect(edgePairs).toContain(
       "resources.postgres_branches.dev_branch→postgres-database::dagshund/dev/dagshund_lakebase",
     );
-    expect(edgePairs).not.toContain("other-resources-root→resources.postgres_catalogs.dev_catalog");
+    expect(edgePairs).not.toContain("workspace-root→resources.postgres_catalogs.dev_catalog");
 
     const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
     expect(lateralEdgePairs).toContain(
@@ -1339,9 +1363,6 @@ describe("mixed plan with UC + workspace + postgres", () => {
     expect(nodeIds).toContain("resources.database_instances.lb_inst");
     expect(nodeIds).toContain("resources.postgres_branches.pg_branch");
 
-    // "Other Resources" wraps flat resources when postgres hierarchy exists
-    expect(nodeIds).toContain("other-resources-root");
-
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     // UC: synced table under schema
     expect(edgePairs).toContain("uc-root→catalog::dagshund");
@@ -1349,7 +1370,7 @@ describe("mixed plan with UC + workspace + postgres", () => {
     expect(edgePairs).toContain(
       "resources.schemas.analytics→resources.synced_database_tables.lb_table",
     );
-    // Workspace: flat resources via other-resources-root
+    // Workspace: singleton resources share a fallback group alongside Lakebase
     expect(edgePairs).toContain("workspace-root→other-resources-root");
     expect(edgePairs).toContain("other-resources-root→resources.jobs.etl_pipeline");
     expect(edgePairs).toContain("other-resources-root→resources.database_instances.lb_inst");
@@ -1360,8 +1381,8 @@ describe("mixed plan with UC + workspace + postgres", () => {
   });
 });
 
-describe("other-resources-root grouping", () => {
-  test("no other-resources-root when only flat workspace resources (no hierarchies)", () => {
+describe("workspace resource type grouping", () => {
+  test("keeps singleton types directly under workspace", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.jobs.job_a": { action: "create" },
@@ -1369,72 +1390,153 @@ describe("other-resources-root grouping", () => {
       },
     });
 
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).not.toContain("other-resources-root");
-    // Flat resources connect directly to workspace-root
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    const categoryNodes = graph.nodes.filter((node) => node.id.startsWith("workspace-category::"));
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(categoryNodes).toHaveLength(0);
     expect(edgePairs).toContain("workspace-root→resources.jobs.job_a");
     expect(edgePairs).toContain("workspace-root→resources.alerts.alert_a");
   });
 
-  test("no other-resources-root when only hierarchies and no flat resources", () => {
+  test("creates a stable human-readable category for a repeated type", () => {
     const graph = buildResourceGraph({
       plan: {
-        "resources.postgres_projects.pg_proj": {
-          action: "create",
-          new_state: { value: { project_id: "pg-proj" } },
-        },
+        "resources.custom_widgets.widget_a": { action: "create" },
+        "resources.custom_widgets.widget_b": { action: "update" },
       },
     });
 
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).not.toContain("other-resources-root");
-    expect(nodeIds).toContain("workspace-root");
-    expect(nodeIds).toContain("postgres-root");
+    const category = graph.nodes.find((node) => node.id === "workspace-category::custom_widgets");
+    expect(category?.nodeKind).toBe("root");
+    expect(category?.label).toBe("Custom Widgets");
+    expect(graph.nodes.map((node) => node.id)).not.toContain("other-resources-root");
+
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(edgePairs).toContain("workspace-root→workspace-category::custom_widgets");
+    expect(edgePairs).toContain(
+      "workspace-category::custom_widgets→resources.custom_widgets.widget_a",
+    );
+    expect(edgePairs).toContain(
+      "workspace-category::custom_widgets→resources.custom_widgets.widget_b",
+    );
   });
 
-  test("other-resources-root wraps flat resources when postgres hierarchy exists", () => {
+  test("creates separate categories for multiple repeated types", () => {
     const graph = buildResourceGraph({
       plan: {
-        "resources.jobs.my_job": { action: "create" },
-        "resources.postgres_projects.pg_proj": {
-          action: "create",
-          new_state: { value: { project_id: "pg-proj" } },
-        },
+        "resources.jobs.job_a": { action: "create" },
+        "resources.jobs.job_b": { action: "create" },
+        "resources.apps.app_a": { action: "create" },
+        "resources.apps.app_b": { action: "create" },
+        "resources.pipelines.pipeline_a": { action: "create" },
       },
     });
 
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("other-resources-root");
+    const nodeIds = graph.nodes.map((node) => node.id);
+    expect(nodeIds).toContain("workspace-category::jobs");
+    expect(nodeIds).toContain("workspace-category::apps");
+    expect(nodeIds).not.toContain("workspace-category::pipelines");
 
-    const otherRoot = graph.nodes.find((n) => n.id === "other-resources-root");
-    expect(otherRoot?.nodeKind).toBe("root");
-    expect(otherRoot?.label).toBe("Other Resources");
-
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
     expect(edgePairs).toContain("workspace-root→other-resources-root");
-    expect(edgePairs).toContain("other-resources-root→resources.jobs.my_job");
-    expect(edgePairs).not.toContain("workspace-root→resources.jobs.my_job");
+    expect(edgePairs).toContain("other-resources-root→resources.pipelines.pipeline_a");
+    expect(edgePairs).toContain("workspace-category::jobs→resources.jobs.job_a");
+    expect(edgePairs).toContain("workspace-category::apps→resources.apps.app_a");
   });
 
-  test("database_instances are flat — no other-resources-root without a hierarchy", () => {
+  test("places repeated categories alongside the Lakebase hierarchy", () => {
     const graph = buildResourceGraph({
       plan: {
-        "resources.jobs.my_job": { action: "create" },
-        "resources.database_instances.lb_inst": {
+        "resources.jobs.job_a": { action: "create" },
+        "resources.jobs.job_b": { action: "create" },
+        "resources.postgres_projects.pg_proj": {
           action: "create",
-          new_state: { value: { name: "lb_inst", capacity: "CU_1" } },
+          new_state: { value: { project_id: "pg-proj" } },
         },
       },
     });
 
-    const nodeIds = graph.nodes.map((n) => n.id);
-    // Both are flat workspace resources — no hierarchy, no wrapper
-    expect(nodeIds).not.toContain("other-resources-root");
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(edgePairs).toContain("workspace-root→workspace-category::jobs");
+    expect(edgePairs).toContain("workspace-root→postgres-root");
+    expect(edgePairs).toContain("workspace-category::jobs→resources.jobs.job_a");
+  });
 
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
+  test("creates no categories when the workspace only contains Lakebase", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_projects.pg_proj": {
+          action: "create",
+          new_state: { value: { project_id: "pg-proj" } },
+        },
+      },
+    });
+
+    const categoryNodes = graph.nodes.filter((node) => node.id.startsWith("workspace-category::"));
+    const nodeIds = graph.nodes.map((node) => node.id);
+    expect(categoryNodes).toHaveLength(0);
+    expect(nodeIds).toContain("postgres-root");
+    expect(nodeIds).not.toContain("other-resources-root");
+  });
+
+  test("does not count an external phantom toward the category threshold", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.my_job": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [{ task_key: "external", run_job_task: { job_id: 123 } }],
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((node) => node.id);
+    expect(nodeIds).not.toContain("workspace-category::jobs");
+    expect(nodeIds).toContain("job::123");
+
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
     expect(edgePairs).toContain("workspace-root→resources.jobs.my_job");
-    expect(edgePairs).toContain("workspace-root→resources.database_instances.lb_inst");
+    expect(edgePairs).toContain("workspace-root→job::123");
+  });
+
+  test("places a phantom under an existing matching type category", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.job_a": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [{ task_key: "external", run_job_task: { job_id: 123 } }],
+            },
+          },
+        },
+        "resources.jobs.job_b": { action: "create" },
+      },
+    });
+
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(edgePairs).toContain("workspace-category::jobs→job::123");
+    expect(edgePairs).not.toContain("workspace-root→job::123");
+  });
+
+  test("places unmatched phantom types under Other Resources when a category exists", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.job_a": { action: "create" },
+        "resources.jobs.job_b": { action: "create" },
+        "resources.alerts.data_freshness": {
+          action: "create",
+          new_state: { value: { warehouse_id: "external-warehouse" } },
+        },
+      },
+    });
+
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(edgePairs).toContain("workspace-root→other-resources-root");
+    expect(edgePairs).toContain("other-resources-root→resources.alerts.data_freshness");
+    expect(edgePairs).toContain("other-resources-root→sql-warehouse::external-warehouse");
   });
 });
 

@@ -1,10 +1,4 @@
-import {
-  buildEdge,
-  buildHierarchyGraphNode,
-  filterDefinedEdges,
-  type GraphEdge,
-  type PhantomGraphNode,
-} from "../types/graph-types.ts";
+import { buildHierarchyGraphNode, type PhantomGraphNode } from "../types/graph-types.ts";
 import type { PlanEntry } from "../types/plan-schema.ts";
 import type { JobRunEffect } from "../utils/normalize-plan.ts";
 import {
@@ -26,18 +20,13 @@ import {
 
 type PhantomEntry = { readonly id: string; readonly label: string; readonly resourceKey: string };
 
-/** Convert a deduped phantom entry map into graph nodes + parent edges. */
+/** Convert a deduped phantom entry map into graph nodes. */
 const buildPhantomNodesFromEntries = (
   phantoms: ReadonlyMap<string, PhantomEntry>,
-  parentId: string,
-): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
-  if (phantoms.size === 0) return { nodes: [], edges: [] };
-  const nodes: PhantomGraphNode[] = [...phantoms.values()].map(({ id, label, resourceKey }) =>
+): readonly PhantomGraphNode[] =>
+  [...phantoms.values()].map(({ id, label, resourceKey }) =>
     buildHierarchyGraphNode("phantom", id, label, resourceKey),
   );
-  const edges = filterDefinedEdges(nodes.map((node) => buildEdge(parentId, node.id)));
-  return { nodes, edges };
-};
 
 // ---------------------------------------------------------------------------
 // Phantom targets of orphan deploy effects
@@ -48,16 +37,11 @@ const buildPhantomNodesFromEntries = (
  *  the phantom so the badge and detail panel can show them (dagshund-ocb1). */
 export const buildOrphanEffectPhantoms = (
   orphanEffects: ReadonlyMap<string, readonly JobRunEffect[]>,
-  parentId: string,
-): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
-  if (orphanEffects.size === 0) return { nodes: [], edges: [] };
-  const nodes: PhantomGraphNode[] = [...orphanEffects].map(([id, effects]) => {
+): readonly PhantomGraphNode[] =>
+  [...orphanEffects].map(([id, effects]) => {
     const identity = id.slice(id.indexOf("::") + 2);
     return { ...buildHierarchyGraphNode("phantom", id, identity), effects };
   });
-  const edges = filterDefinedEdges(nodes.map((node) => buildEdge(parentId, node.id)));
-  return { nodes, edges };
-};
 
 // ---------------------------------------------------------------------------
 // Phantom database instances
@@ -68,8 +52,7 @@ export const buildOrphanEffectPhantoms = (
 export const collectPhantomDatabaseInstances = (
   entries: readonly (readonly [string, PlanEntry])[],
   existingResourceKeys: ReadonlySet<string>,
-  parentId: string,
-): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
+): readonly PhantomGraphNode[] => {
   const phantoms = new Map<string, PhantomEntry>();
   for (const [resourceKey, entry] of entries) {
     const resourceType = extractResourceType(resourceKey);
@@ -84,7 +67,7 @@ export const collectPhantomDatabaseInstances = (
       phantoms.set(id, { id, resourceKey: rk, label: name });
     }
   }
-  return buildPhantomNodesFromEntries(phantoms, parentId);
+  return buildPhantomNodesFromEntries(phantoms);
 };
 
 // ---------------------------------------------------------------------------
@@ -95,9 +78,8 @@ export const collectPhantomDatabaseInstances = (
 export const collectPhantomAppDependencies = (
   entries: readonly (readonly [string, PlanEntry])[],
   existingResourceKeys: ReadonlySet<string>,
-  parentId: string,
   indexes: ReferenceIndexes,
-): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
+): readonly PhantomGraphNode[] => {
   const phantoms = new Map<string, PhantomEntry>();
   for (const [key, entry] of entries) {
     if (extractResourceType(key) !== "apps") continue;
@@ -106,7 +88,7 @@ export const collectPhantomAppDependencies = (
       if (phantom !== undefined) phantoms.set(phantom.id, phantom);
     }
   }
-  return buildPhantomNodesFromEntries(phantoms, parentId);
+  return buildPhantomNodesFromEntries(phantoms);
 };
 
 // ---------------------------------------------------------------------------
@@ -117,9 +99,8 @@ export const collectPhantomAppDependencies = (
  *  (warehouses, dashboards, pipelines, cross-job run_job_task). */
 export const collectPhantomExternalRefs = (
   entries: readonly (readonly [string, PlanEntry])[],
-  parentId: string,
   indexes: ReferenceIndexes,
-): { readonly nodes: readonly PhantomGraphNode[]; readonly edges: readonly GraphEdge[] } => {
+): readonly PhantomGraphNode[] => {
   const { warehouseIndex, jobIdMap } = indexes;
   const phantoms = new Map<string, PhantomEntry>();
 
@@ -157,5 +138,5 @@ export const collectPhantomExternalRefs = (
     }
   }
 
-  return buildPhantomNodesFromEntries(phantoms, parentId);
+  return buildPhantomNodesFromEntries(phantoms);
 };

@@ -235,19 +235,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 7,
+      "total": 8,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 4,
-        "root": 2,
+        "root": 3,
         "phantom": 1
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
         "modified": 2,
-        "unchanged": 5,
+        "unchanged": 6,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -276,7 +276,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 2,
+          "unchanged": 3,
           "unknown": 0
         },
         "phantom": {
@@ -435,6 +435,18 @@
           "taskChangeSummary": []
         },
         {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "workspace-root",
           "resourceKey": "workspace-root",
           "label": "Workspace",
@@ -449,21 +461,21 @@
       ]
     },
     "edges": {
-      "total": 5,
+      "total": 6,
       "by_kind": {
-        "dag": 5,
+        "dag": 6,
         "lateral": 0
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
-        "unchanged": 5
+        "unchanged": 6
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 0,
           "removed": 0,
-          "unchanged": 5
+          "unchanged": 6
         },
         "lateral": {
           "added": 0,
@@ -491,14 +503,20 @@
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.job_noop",
           "diffState": "unchanged",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.job_perm_change",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::jobs",
           "diffState": "unchanged",
           "kind": "dag"
         }

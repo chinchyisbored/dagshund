@@ -18,8 +18,6 @@ import type { PlanEntry } from "../../src/types/plan-schema.ts";
 // Helpers
 // ---------------------------------------------------------------------------
 
-const PARENT_ID = "workspace-root";
-
 const makeEntry = (state: Record<string, unknown>, action = "create"): PlanEntry =>
   ({
     action,
@@ -52,13 +50,13 @@ const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]): Refer
 });
 
 const collectExternalRefs = (entries: readonly (readonly [string, PlanEntry])[]) =>
-  collectPhantomExternalRefs(entries, PARENT_ID, buildIndexes(entries));
+  collectPhantomExternalRefs(entries, buildIndexes(entries));
 
 const collectAppDependencies = (
   entries: readonly (readonly [string, PlanEntry])[],
   existingKeys: ReadonlySet<string> = new Set(),
   indexes: ReferenceIndexes = buildIndexes(entries),
-) => collectPhantomAppDependencies(entries, existingKeys, PARENT_ID, indexes);
+) => collectPhantomAppDependencies(entries, existingKeys, indexes);
 
 // ---------------------------------------------------------------------------
 // collectPhantomExternalRefs
@@ -69,46 +67,45 @@ describe("collectPhantomExternalRefs", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.alerts.stale", makeEntry({ warehouse_id: "wh1" })],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]).toMatchObject({
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
       id: "sql-warehouse::wh1",
       label: "wh1",
       nodeKind: "phantom",
       diffState: "unchanged",
     });
-    expect(result.edges).toHaveLength(1);
   });
 
   test("dashboard with warehouse_id referencing non-existent warehouse creates phantom", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.dashboards.sales", makeEntry({ warehouse_id: "wh2" })],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh2");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh2");
   });
 
   test("quality_monitor with warehouse_id referencing non-existent warehouse creates phantom", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.quality_monitors.drift", makeEntry({ warehouse_id: "wh3" })],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh3");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh3");
   });
 
   test("genie_space with warehouse_id referencing non-existent warehouse creates phantom", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.genie_spaces.taxi", makeEntry({ title: "Taxi Genie", warehouse_id: "wh4" })],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh4");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh4");
   });
 
   test("alert with warehouse_id referencing existing warehouse creates no phantom", () => {
@@ -116,10 +113,9 @@ describe("collectPhantomExternalRefs", () => {
       ["resources.alerts.stale", makeEntry({ warehouse_id: "wh1" })],
       ["resources.sql_warehouses.main", makeEntry({ id: "wh1", name: "main" })],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
-    expect(result.edges).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("job with sql_task.warehouse_id referencing non-existent warehouse creates phantom", () => {
@@ -129,10 +125,10 @@ describe("collectPhantomExternalRefs", () => {
         makeEntry({ tasks: [{ task_key: "t1", sql_task: { warehouse_id: "wh1" } }] }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh1");
   });
 
   test("job with dashboard_task.dashboard_id referencing non-existent dashboard creates phantom", () => {
@@ -144,10 +140,10 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]).toMatchObject({
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
       id: "dashboard::d1",
       label: "d1",
       nodeKind: "phantom",
@@ -164,9 +160,9 @@ describe("collectPhantomExternalRefs", () => {
       ],
       ["resources.dashboards.sales", makeEntry({ dashboard_id: "d1", display_name: "Sales" })],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("multiple references to same warehouse from different sources produce single phantom", () => {
@@ -178,10 +174,10 @@ describe("collectPhantomExternalRefs", () => {
         makeEntry({ tasks: [{ task_key: "t1", sql_task: { warehouse_id: "wh1" } }] }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh1");
   });
 
   test("job with multiple tasks — only tasks with warehouse_id create phantoms", () => {
@@ -196,26 +192,24 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh1");
   });
 
   test("job with no tasks creates no phantoms", () => {
     const entries: [string, PlanEntry][] = [["resources.jobs.empty", makeEntry({ name: "empty" })]];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
-    expect(result.edges).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("empty entries create no phantoms", () => {
     const entries: [string, PlanEntry][] = [];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
-    expect(result.edges).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("phantom node has correct resourceKey matching its ID", () => {
@@ -228,23 +222,12 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(2);
-    for (const node of result.nodes) {
+    expect(nodes).toHaveLength(2);
+    for (const node of nodes) {
       expect(node.resourceKey).toBe(node.id);
     }
-  });
-
-  test("phantom nodes are parented to workspace root", () => {
-    const entries: [string, PlanEntry][] = [
-      ["resources.alerts.a1", makeEntry({ warehouse_id: "wh1" })],
-    ];
-    const result = collectExternalRefs(entries);
-
-    expect(result.edges).toHaveLength(1);
-    expect(result.edges[0]?.source).toBe(PARENT_ID);
-    expect(result.edges[0]?.target).toBe("sql-warehouse::wh1");
   });
 
   test("skip entries use remote_state for task extraction", () => {
@@ -254,10 +237,10 @@ describe("collectPhantomExternalRefs", () => {
         makeSkipEntry({ tasks: [{ task_key: "t1", sql_task: { warehouse_id: "wh1" } }] }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh1");
   });
 
   test("dashboard_task with both warehouse_id and dashboard_id creates two phantoms", () => {
@@ -269,10 +252,10 @@ describe("collectPhantomExternalRefs", () => {
         }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(2);
-    const ids = result.nodes.map((n) => n.id).sort();
+    expect(nodes).toHaveLength(2);
+    const ids = nodes.map((n) => n.id).sort();
     expect(ids).toEqual(["dashboard::d1", "sql-warehouse::wh1"]);
   });
 });
@@ -293,10 +276,10 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       },
     } as PlanEntry;
     const entries: [string, PlanEntry][] = [["resources.jobs.source", sourceEntry]];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]).toMatchObject({
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
       id: "job::99999",
       label: "99999",
       nodeKind: "phantom",
@@ -323,9 +306,9 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       ["resources.jobs.source", sourceEntry],
       ["resources.jobs.downstream", downstreamEntry],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("placeholder job_id 0 creates no phantom (resolves via vars interpolation)", () => {
@@ -343,9 +326,9 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       },
     } as PlanEntry;
     const entries: [string, PlanEntry][] = [["resources.jobs.source", sourceEntry]];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("string interpolation job_id creates no phantom (resolves in-bundle)", () => {
@@ -365,9 +348,9 @@ describe("collectPhantomExternalRefs: run_job_task", () => {
       },
     } as PlanEntry;
     const entries: [string, PlanEntry][] = [["resources.jobs.source", sourceEntry]];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 });
 
@@ -382,18 +365,15 @@ describe("collectPhantomDatabaseInstances", () => {
     ];
     const existingKeys = new Set<string>();
 
-    const result = collectPhantomDatabaseInstances(entries, existingKeys, PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances(entries, existingKeys);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]).toMatchObject({
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
       id: "database-instance::my_pg",
       label: "my_pg",
       nodeKind: "phantom",
       diffState: "unchanged",
     });
-    expect(result.edges).toHaveLength(1);
-    expect(result.edges[0]?.source).toBe(PARENT_ID);
-    expect(result.edges[0]?.target).toBe("database-instance::my_pg");
   });
 
   test("database_catalogs referencing absent instance creates phantom", () => {
@@ -401,10 +381,10 @@ describe("collectPhantomDatabaseInstances", () => {
       ["resources.database_catalogs.c1", makeEntry({ database_instance_name: "my_mysql" })],
     ];
 
-    const result = collectPhantomDatabaseInstances(entries, new Set(), PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances(entries, new Set());
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("database-instance::my_mysql");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("database-instance::my_mysql");
   });
 
   test("existing database instance creates no phantom", () => {
@@ -413,10 +393,9 @@ describe("collectPhantomDatabaseInstances", () => {
     ];
     const existingKeys = new Set(["resources.database_instances.my_pg"]);
 
-    const result = collectPhantomDatabaseInstances(entries, existingKeys, PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances(entries, existingKeys);
 
-    expect(result.nodes).toHaveLength(0);
-    expect(result.edges).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("multiple references to same instance produce single phantom", () => {
@@ -426,9 +405,9 @@ describe("collectPhantomDatabaseInstances", () => {
       ["resources.database_catalogs.c1", makeEntry({ database_instance_name: "my_pg" })],
     ];
 
-    const result = collectPhantomDatabaseInstances(entries, new Set(), PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances(entries, new Set());
 
-    expect(result.nodes).toHaveLength(1);
+    expect(nodes).toHaveLength(1);
   });
 
   test("phantom resourceKey uses dot-path form", () => {
@@ -436,10 +415,10 @@ describe("collectPhantomDatabaseInstances", () => {
       ["resources.synced_database_tables.t1", makeEntry({ database_instance_name: "my_pg" })],
     ];
 
-    const result = collectPhantomDatabaseInstances(entries, new Set(), PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances(entries, new Set());
 
-    expect(result.nodes[0]?.resourceKey).toBe("resources.database_instances.my_pg");
-    expect(result.nodes[0]?.id).toBe("database-instance::my_pg");
+    expect(nodes[0]?.resourceKey).toBe("resources.database_instances.my_pg");
+    expect(nodes[0]?.id).toBe("database-instance::my_pg");
   });
 
   test("entry without database_instance_name creates no phantom", () => {
@@ -447,9 +426,9 @@ describe("collectPhantomDatabaseInstances", () => {
       ["resources.synced_database_tables.t1", makeEntry({ name: "foo" })],
     ];
 
-    const result = collectPhantomDatabaseInstances(entries, new Set(), PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances(entries, new Set());
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("non-database resource types are ignored", () => {
@@ -457,16 +436,15 @@ describe("collectPhantomDatabaseInstances", () => {
       ["resources.jobs.j1", makeEntry({ database_instance_name: "my_pg" })],
     ];
 
-    const result = collectPhantomDatabaseInstances(entries, new Set(), PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances(entries, new Set());
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("empty entries create no phantoms", () => {
-    const result = collectPhantomDatabaseInstances([], new Set(), PARENT_ID);
+    const nodes = collectPhantomDatabaseInstances([], new Set());
 
-    expect(result.nodes).toHaveLength(0);
-    expect(result.edges).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 });
 
@@ -486,16 +464,15 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]).toMatchObject({
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
       id: "job::123",
       label: "123",
       nodeKind: "phantom",
       diffState: "unchanged",
     });
-    expect(result.edges).toHaveLength(1);
   });
 
   test("app referencing existing job creates no phantom", () => {
@@ -507,9 +484,9 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.jobs.etl", makeEntry({ job_id: 123 })],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("app referencing absent sql_warehouse creates phantom", () => {
@@ -517,10 +494,10 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.apps.myapp", makeAppEntry([{ sql_warehouse: { id: "wh1" } }])],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("sql-warehouse::wh1");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("sql-warehouse::wh1");
   });
 
   test("app referencing absent genie_space creates phantom", () => {
@@ -531,10 +508,10 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]).toMatchObject({
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
       id: "genie-space::taxi",
       resourceKey: "resources.genie_spaces.taxi",
     });
@@ -549,9 +526,9 @@ describe("collectPhantomAppDependencies", () => {
       warehouseIndex: new Map([["wh1", "resources.sql_warehouses.main"]]),
     };
 
-    const result = collectAppDependencies(entries, new Set(), indexes);
+    const nodes = collectAppDependencies(entries, new Set(), indexes);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("app referencing existing genie_space creates no phantom", () => {
@@ -563,9 +540,9 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.genie_spaces.taxi", makeEntry({ space_id: "space-1" })],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("app referencing absent secret_scope creates phantom", () => {
@@ -573,11 +550,11 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.apps.myapp", makeAppEntry([{ secret: { scope: "my_scope", key: "token" } }])],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("secret-scope::my_scope");
-    expect(result.nodes[0]?.resourceKey).toBe("resources.secret_scopes.my_scope");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("secret-scope::my_scope");
+    expect(nodes[0]?.resourceKey).toBe("resources.secret_scopes.my_scope");
   });
 
   test("app referencing existing secret_scope creates no phantom", () => {
@@ -586,9 +563,9 @@ describe("collectPhantomAppDependencies", () => {
     ];
     const existingKeys = new Set(["resources.secret_scopes.my_scope"]);
 
-    const result = collectAppDependencies(entries, existingKeys);
+    const nodes = collectAppDependencies(entries, existingKeys);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("app referencing absent serving_endpoint creates phantom", () => {
@@ -599,11 +576,11 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]?.id).toBe("serving-endpoint::llm_ep");
-    expect(result.nodes[0]?.resourceKey).toBe("resources.model_serving_endpoints.llm_ep");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("serving-endpoint::llm_ep");
+    expect(nodes[0]?.resourceKey).toBe("resources.model_serving_endpoints.llm_ep");
   });
 
   test("app with multiple absent references creates deduped phantoms", () => {
@@ -618,10 +595,10 @@ describe("collectPhantomAppDependencies", () => {
       ],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(3);
-    const ids = result.nodes.map((n) => n.id).sort();
+    expect(nodes).toHaveLength(3);
+    const ids = nodes.map((n) => n.id).sort();
     expect(ids).toEqual(["job::123", "secret-scope::s1", "sql-warehouse::wh1"]);
   });
 
@@ -630,16 +607,15 @@ describe("collectPhantomAppDependencies", () => {
       ["resources.jobs.j1", makeEntry({ resources: [{ job: { id: "123" } }] })],
     ];
 
-    const result = collectAppDependencies(entries);
+    const nodes = collectAppDependencies(entries);
 
-    expect(result.nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("empty entries create no phantoms", () => {
-    const result = collectAppDependencies([]);
+    const nodes = collectAppDependencies([]);
 
-    expect(result.nodes).toHaveLength(0);
-    expect(result.edges).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 });
 
@@ -657,15 +633,14 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
         }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0]).toMatchObject({
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
       id: "pipeline::p1",
       label: "p1",
       nodeKind: "phantom",
     });
-    expect(result.edges).toHaveLength(1);
   });
 
   test("job with pipeline_task referencing existing pipeline creates no phantom", () => {
@@ -678,9 +653,9 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
       ],
       ["resources.pipelines.etl", makeEntry({ pipeline_id: "p1" })],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    const pipelinePhantoms = result.nodes.filter((n) => n.id.startsWith("pipeline::"));
+    const pipelinePhantoms = nodes.filter((n) => n.id.startsWith("pipeline::"));
     expect(pipelinePhantoms).toHaveLength(0);
   });
 
@@ -703,10 +678,9 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
       ["resources.pipelines.etl", makeEntry({ name: "etl" })],
     ];
 
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(0);
-    expect(result.edges).toHaveLength(0);
+    expect(nodes).toHaveLength(0);
   });
 
   test("pipeline_task with both warehouse and pipeline creates two phantoms", () => {
@@ -721,10 +695,10 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
         }),
       ],
     ];
-    const result = collectExternalRefs(entries);
+    const nodes = collectExternalRefs(entries);
 
-    expect(result.nodes).toHaveLength(2);
-    const ids = result.nodes.map((n) => n.id).sort();
+    expect(nodes).toHaveLength(2);
+    const ids = nodes.map((n) => n.id).sort();
     expect(ids).toEqual(["pipeline::p1", "sql-warehouse::wh1"]);
   });
 });

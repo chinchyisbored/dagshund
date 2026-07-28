@@ -272,19 +272,19 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 10,
+      "total": 12,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 6,
-        "root": 2,
+        "root": 4,
         "phantom": 2
       },
       "by_diff_state": {
         "added": 6,
         "removed": 0,
         "modified": 0,
-        "unchanged": 4,
+        "unchanged": 6,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -313,7 +313,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 2,
+          "unchanged": 4,
           "unknown": 0
         },
         "phantom": {
@@ -349,6 +349,18 @@
           "resourceKey": "catalog::dagshund",
           "label": "dagshund",
           "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "other-resources-root",
+          "resourceKey": "other-resources-root",
+          "label": "Other Resources",
+          "kind": "root",
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
@@ -453,6 +465,18 @@
           "taskChangeSummary": []
         },
         {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "workspace-root",
           "resourceKey": "workspace-root",
           "label": "Workspace",
@@ -467,21 +491,21 @@
       ]
     },
     "edges": {
-      "total": 10,
+      "total": 12,
       "by_kind": {
-        "dag": 8,
+        "dag": 10,
         "lateral": 2
       },
       "by_diff_state": {
         "added": 6,
         "removed": 0,
-        "unchanged": 4
+        "unchanged": 6
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 6,
           "removed": 0,
-          "unchanged": 2
+          "unchanged": 4
         },
         "lateral": {
           "added": 0,
@@ -503,6 +527,18 @@
           "kind": "dag"
         },
         {
+          "source": "other-resources-root",
+          "target": "resources.alerts.stale_pipeline_alert",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
           "source": "resources.schemas.analytics_staging",
           "target": "resources.volumes.landing",
           "diffState": "added",
@@ -515,26 +551,26 @@
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
-          "target": "resources.alerts.stale_pipeline_alert",
-          "diffState": "added",
-          "kind": "dag"
-        },
-        {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.data_quality_pipeline",
           "diffState": "added",
           "kind": "dag"
         },
         {
-          "source": "workspace-root",
+          "source": "workspace-category::jobs",
           "target": "resources.jobs.etl_pipeline",
           "diffState": "added",
           "kind": "dag"
         },
         {
           "source": "workspace-root",
-          "target": "sql-warehouse::9d0afa601cb95187",
+          "target": "other-resources-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::jobs",
           "diffState": "unchanged",
           "kind": "dag"
         },

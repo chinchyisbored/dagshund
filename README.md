@@ -109,9 +109,9 @@ dagshund plan.json --format md
 
 The HTML report shows your resources as an interactive graph with diff highlighting. Resources are organized into visual groups:
 
-- **Workspace**, jobs, alerts, experiments, pipelines, and other bundle resources
+- **Workspace**, jobs, alerts, experiments, pipelines, and other bundle resources. Repeated resource types are grouped into categories such as **Jobs** or **Pipelines**. When any category or Lakebase hierarchy exists, remaining singletons and unmatched inferred references share an **Other Resources** group.
 - **Unity Catalog**, catalogs, schemas, volumes, and registered models in their hierarchy
-- **Lakebase**, database instances and synced tables. When your plan includes any, this group appears and the non-hierarchical Workspace resources move into a sibling **Other Resources** group.
+- **Lakebase**, projects, branches, databases, endpoints, roles, and synced tables in their hierarchy under Workspace
 
 Click any node to open a detail panel with per-field structural diffs, old values in red, new values in green, unchanged fields for context.
 
@@ -123,7 +123,7 @@ Jobs with task dependencies get their own DAG view. Switch between the Resources
 
 ### Phantom Nodes
 
-When a resource in your bundle references something that isn't in the bundle itself, dagshund infers the missing piece and adds it to the graph as a **phantom node** (shown with a dashed border). Two kinds: hierarchy phantoms (for example a parent catalog above a schema) always display to preserve the hierarchy's structure. Inferred leaf phantoms (for example a warehouse referenced by an alert) are off by default; toggle them with the **Inferred leaf nodes** button in the toolbar.
+When a resource in your bundle references something that isn't in the bundle itself, dagshund infers the missing piece and adds it to the graph as a **phantom node** (shown with a dashed border). Two kinds: hierarchy phantoms (for example a parent catalog above a schema) always display to preserve the hierarchy's structure. Inferred leaf phantoms (for example a warehouse referenced by an alert) are off by default; toggle them with the **Inferred leaf nodes** button in the toolbar. A leaf joins an existing matching type category, but phantom nodes never create categories themselves.
 
 ![Phantom nodes](docs/pictures/phantom_node.png)
 
