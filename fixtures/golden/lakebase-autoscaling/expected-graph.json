@@ -111,20 +111,20 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 21,
+      "total": 23,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 10,
-        "derived": 1,
-        "root": 3,
+        "derived": 2,
+        "root": 4,
         "phantom": 7
       },
       "by_diff_state": {
-        "added": 6,
+        "added": 7,
         "removed": 0,
         "modified": 2,
-        "unchanged": 13,
+        "unchanged": 14,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -150,7 +150,7 @@
           "unknown": 0
         },
         "derived": {
-          "added": 1,
+          "added": 2,
           "removed": 0,
           "modified": 0,
           "unchanged": 0,
@@ -160,7 +160,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 3,
+          "unchanged": 4,
           "unknown": 0
         },
         "phantom": {
@@ -214,6 +214,18 @@
           "changes": [],
           "effects": [],
           "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "other-resources-root",
+          "resourceKey": "other-resources-root",
+          "label": "Other Resources",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
           "taskChangeSummary": []
         },
         {
@@ -300,6 +312,20 @@
           "effects": [],
           "hasResourceState": false,
           "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-synced-pipeline::resources.postgres_synced_tables.phantom_table",
+          "resourceKey": "postgres-synced-pipeline::resources.postgres_synced_tables.phantom_table",
+          "label": "phantom_table pipeline",
+          "kind": "derived",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": [],
+          "derivedKind": "postgresSyncedTablePipeline",
+          "ownerResourceKey": "resources.postgres_synced_tables.phantom_table"
         },
         {
           "id": "resources.postgres_branches.dev_branch",
@@ -526,26 +552,26 @@
       ]
     },
     "edges": {
-      "total": 24,
+      "total": 27,
       "by_kind": {
-        "dag": 19,
-        "lateral": 5
+        "dag": 21,
+        "lateral": 6
       },
       "by_diff_state": {
-        "added": 6,
+        "added": 7,
         "removed": 0,
-        "unchanged": 18
+        "unchanged": 20
       },
       "by_kind_and_diff_state": {
         "dag": {
-          "added": 6,
+          "added": 7,
           "removed": 0,
-          "unchanged": 13
+          "unchanged": 14
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 5
+          "unchanged": 6
         }
       },
       "entries": [
@@ -559,6 +585,12 @@
           "source": "catalog::dagshund_lakebase",
           "target": "schema::dagshund_lakebase.public",
           "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "postgres-synced-pipeline::resources.postgres_synced_tables.phantom_table",
+          "diffState": "added",
           "kind": "dag"
         },
         {
@@ -659,6 +691,12 @@
         },
         {
           "source": "workspace-root",
+          "target": "other-resources-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
           "target": "postgres-root",
           "diffState": "unchanged",
           "kind": "dag"
@@ -666,6 +704,12 @@
         {
           "source": "catalog::dagshund_lakebase",
           "target": "postgres-database::dagshund/dev/app_db",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "postgres-synced-pipeline::resources.postgres_synced_tables.phantom_table",
+          "target": "resources.postgres_synced_tables.phantom_table",
           "diffState": "unchanged",
           "kind": "lateral"
         },

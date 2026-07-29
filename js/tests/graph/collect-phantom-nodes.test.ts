@@ -4,6 +4,7 @@ import {
   collectPhantomDatabaseInstances,
   collectPhantomExternalRefs,
 } from "../../src/graph/collect-phantom-nodes.ts";
+import { buildDerivedReferenceIndex } from "../../src/graph/derived-node-specs.ts";
 import { extractStateField } from "../../src/graph/extract-resource-state.ts";
 import {
   buildApiIdIndex,
@@ -37,7 +38,10 @@ const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]): Refer
   dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
     extractStateField(e, "dashboard_id"),
   ),
-  pipelineIndex: buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+  pipelineIndex: new Map([
+    ...buildDerivedReferenceIndex(entries, "pipelines"),
+    ...buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+  ]),
   genieSpaceIndex: buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId),
   jobIndex: buildApiIdIndex(entries, "jobs", extractJobApiId),
   experimentIndex: buildApiIdIndex(entries, "experiments", (e) =>
@@ -681,6 +685,28 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
     const nodes = collectExternalRefs(entries);
 
     expect(nodes).toHaveLength(0);
+  });
+
+  test("synced-table pipeline references do not create phantoms", () => {
+    const resourceKey = "resources.postgres_synced_tables.orders";
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+    const symbolicId = "${resources.postgres_synced_tables.orders.status.pipeline_id}";
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.runner",
+        makeEntry({
+          tasks: [
+            { task_key: "symbolic", pipeline_task: { pipeline_id: symbolicId } },
+            { task_key: "concrete", pipeline_task: { pipeline_id: "pipeline-orders" } },
+          ],
+        }),
+      ],
+      [resourceKey, makeEntry({ pipeline_id: "pipeline-orders" })],
+    ];
+
+    const nodes = collectExternalRefs(entries);
+
+    expect(nodes.filter((node) => node.id.startsWith("pipeline::"))).toHaveLength(0);
   });
 
   test("pipeline_task with both warehouse and pipeline creates two phantoms", () => {

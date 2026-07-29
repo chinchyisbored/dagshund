@@ -32,8 +32,11 @@ import {
 } from "./collect-phantom-nodes.ts";
 import {
   buildDerivedNodeId,
+  buildDerivedReferenceIndex,
   type DerivedNodeRef,
+  extractDerivedNodeLabel,
   extractDerivedNodeRefs,
+  extractDerivedPlacement,
   extractPromotedPhantomKind,
 } from "./derived-node-specs.ts";
 import { extractLateralEdges } from "./extract-lateral-edges.ts";
@@ -189,7 +192,7 @@ const buildDerivedNode = (
   const id = buildDerivedNodeId(ref.derivedKind, ref.identity);
   return {
     id,
-    label: ref.identity.split(".").at(-1) ?? ref.identity,
+    label: extractDerivedNodeLabel(ref.derivedKind, ownerResourceKey, ref.identity),
     nodeKind: "derived",
     derivedKind: ref.derivedKind,
     ownerResourceKey,
@@ -826,12 +829,21 @@ type WorkspaceGraphResult = {
   readonly placement: WorkspacePlacement;
 };
 
+type WorkspaceDerivedNodeRef = {
+  readonly resourceType: string;
+  readonly node: DerivedGraphNode;
+};
+
 const collectRepeatedWorkspaceTypes = (
   entries: readonly (readonly [string, PlanEntry])[],
+  derivedRefs: readonly WorkspaceDerivedNodeRef[],
 ): ReadonlySet<string> => {
   const counts = new Map<string, number>();
-  for (const [key] of entries) {
-    const resourceType = extractResourceType(key);
+  const resourceTypes = [
+    ...entries.map(([key]) => extractResourceType(key)),
+    ...derivedRefs.map((ref) => ref.resourceType),
+  ];
+  for (const resourceType of resourceTypes) {
     if (resourceType !== undefined) counts.set(resourceType, (counts.get(resourceType) ?? 0) + 1);
   }
   return new Set(
@@ -841,9 +853,10 @@ const collectRepeatedWorkspaceTypes = (
 
 const buildWorkspacePlacement = (
   entries: readonly (readonly [string, PlanEntry])[],
+  derivedRefs: readonly WorkspaceDerivedNodeRef[],
   hasPostgres: boolean,
 ): WorkspacePlacement => {
-  const categoryTypes = collectRepeatedWorkspaceTypes(entries);
+  const categoryTypes = collectRepeatedWorkspaceTypes(entries, derivedRefs);
   const fallbackParentId =
     categoryTypes.size > 0 || hasPostgres ? OTHER_RESOURCES_ROOT_ID : WORKSPACE_ROOT_ID;
   return { categoryTypes, fallbackParentId };
@@ -891,6 +904,22 @@ const buildFlatWorkspaceGraph = (
   };
 };
 
+const buildWorkspaceDerivedGraph = (
+  refs: readonly WorkspaceDerivedNodeRef[],
+  placement: WorkspacePlacement,
+): PlanGraph => ({
+  nodes: refs.map((ref) => ref.node),
+  edges: filterDefinedEdges(
+    refs.map((ref) =>
+      buildEdge(
+        resolveWorkspaceTypeParentId(ref.resourceType, placement),
+        ref.node.id,
+        toEdgeDiffState(ref.node.diffState),
+      ),
+    ),
+  ),
+});
+
 const buildWorkspacePhantomGraph = (
   nodes: readonly PhantomGraphNode[],
   placement: WorkspacePlacement,
@@ -922,15 +951,17 @@ const buildWorkspaceGraph = (
   workspaceEntries: readonly (readonly [string, PlanEntry])[],
   postgresEntries: readonly (readonly [string, PlanEntry])[],
   externalPostgresHierarchyRefs: readonly ExternalHierarchyRef[],
+  derivedRefs: readonly WorkspaceDerivedNodeRef[],
 ): WorkspaceGraphResult => {
-  const hasWorkspace = workspaceEntries.length > 0;
+  const hasWorkspace = workspaceEntries.length > 0 || derivedRefs.length > 0;
   const hasPostgres = postgresEntries.length > 0 || externalPostgresHierarchyRefs.length > 0;
-  const placement = buildWorkspacePlacement(workspaceEntries, hasPostgres);
+  const placement = buildWorkspacePlacement(workspaceEntries, derivedRefs, hasPostgres);
 
   if (!hasWorkspace && !hasPostgres) return { graph: { nodes: [], edges: [] }, placement };
 
   const root = buildHierarchyGraphNode("root", WORKSPACE_ROOT_ID, "Workspace");
   const workspaceGraph = buildFlatWorkspaceGraph(workspaceEntries, placement);
+  const derivedGraph = buildWorkspaceDerivedGraph(derivedRefs, placement);
   const postgresGraph = hasPostgres
     ? buildChainGraph(postgresEntries, POSTGRES_CHAIN, undefined, externalPostgresHierarchyRefs)
     : { nodes: [], edges: [] };
@@ -940,8 +971,13 @@ const buildWorkspaceGraph = (
 
   return {
     graph: {
-      nodes: [root, ...workspaceGraph.nodes, ...postgresGraph.nodes],
-      edges: [...workspaceGraph.edges, ...postgresRootEdge, ...postgresGraph.edges],
+      nodes: [root, ...workspaceGraph.nodes, ...derivedGraph.nodes, ...postgresGraph.nodes],
+      edges: [
+        ...workspaceGraph.edges,
+        ...derivedGraph.edges,
+        ...postgresRootEdge,
+        ...postgresGraph.edges,
+      ],
     },
     placement,
   };
@@ -955,10 +991,33 @@ const collectExternalDerivedLeafRefs = (
   entries: readonly (readonly [string, PlanEntry])[],
 ): readonly ExternalDerivedLeafRef[] =>
   entries.flatMap(([ownerResourceKey, ownerEntry]) =>
-    extractDerivedNodeRefs(ownerResourceKey, ownerEntry).map((ref) => ({
-      identity: ref.identity,
-      node: buildDerivedNode(ownerResourceKey, ownerEntry, ref),
-    })),
+    extractDerivedNodeRefs(ownerResourceKey, ownerEntry).flatMap((ref) =>
+      extractDerivedPlacement(ref.derivedKind).kind === "ucLeaf"
+        ? [
+            {
+              identity: ref.identity,
+              node: buildDerivedNode(ownerResourceKey, ownerEntry, ref),
+            },
+          ]
+        : [],
+    ),
+  );
+
+const collectWorkspaceDerivedNodeRefs = (
+  entries: readonly (readonly [string, PlanEntry])[],
+): readonly WorkspaceDerivedNodeRef[] =>
+  entries.flatMap(([ownerResourceKey, ownerEntry]) =>
+    extractDerivedNodeRefs(ownerResourceKey, ownerEntry).flatMap((ref) => {
+      const placement = extractDerivedPlacement(ref.derivedKind);
+      return placement.kind === "workspace"
+        ? [
+            {
+              resourceType: placement.resourceType,
+              node: buildDerivedNode(ownerResourceKey, ownerEntry, ref),
+            },
+          ]
+        : [];
+    }),
   );
 
 /** Collect phantom leaf references from plan entries that reference three-part UC names.
@@ -1132,10 +1191,12 @@ export const buildResourceGraph = (
     externalDerivedLeafRefs,
   );
   const externalPostgresDatabaseRefs = collectExternalPostgresDatabaseRefs(entries);
+  const workspaceDerivedRefs = collectWorkspaceDerivedNodeRefs(entries);
   const { graph: workspaceGraph, placement: workspacePlacement } = buildWorkspaceGraph(
     workspaceEntries,
     postgresEntries,
     externalPostgresDatabaseRefs,
+    workspaceDerivedRefs,
   );
 
   // depends_on edges are NOT used for graph construction. They represent
@@ -1155,9 +1216,10 @@ export const buildResourceGraph = (
   const dashboardIndex = buildApiIdIndex(entries, "dashboards", (e) =>
     extractStateField(e, "dashboard_id"),
   );
-  const pipelineIndex = buildApiIdIndex(entries, "pipelines", (e) =>
-    extractStateField(e, "pipeline_id"),
-  );
+  const pipelineIndex = new Map([
+    ...buildDerivedReferenceIndex(entries, "pipelines"),
+    ...buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+  ]);
   const genieSpaceIndex = buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId);
   const jobIndex = buildApiIdIndex(entries, "jobs", extractJobApiId);
   const experimentIndex = buildApiIdIndex(entries, "experiments", (e) =>

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
+import { buildDerivedReferenceIndex } from "../../src/graph/derived-node-specs.ts";
 import { extractLateralEdges as extractLateralEdgesRaw } from "../../src/graph/extract-lateral-edges.ts";
 import { extractStateField } from "../../src/graph/extract-resource-state.ts";
 import {
@@ -34,7 +35,10 @@ const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => ({
   dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
     extractStateField(e, "dashboard_id"),
   ),
-  pipelineIndex: buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+  pipelineIndex: new Map([
+    ...buildDerivedReferenceIndex(entries, "pipelines"),
+    ...buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+  ]),
   genieSpaceIndex: buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId),
   jobIndex: buildApiIdIndex(entries, "jobs", extractJobApiId),
   experimentIndex: buildApiIdIndex(entries, "experiments", (e) =>
@@ -1721,6 +1725,30 @@ describe("extractJobPipelineTaskEdges", () => {
       source: "resources.jobs.runner",
       target: "resources.pipelines.etl",
     });
+  });
+
+  test("synced-table pipeline output links owner and referencing job", () => {
+    const ownerKey = "resources.postgres_synced_tables.orders";
+    const derivedId = "postgres-synced-pipeline::pipeline-orders";
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+    const pipelineReference = "${resources.postgres_synced_tables.orders.status.pipeline_id}";
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.runner",
+        makeEntry({
+          tasks: [{ task_key: "t1", pipeline_task: { pipeline_id: pipelineReference } }],
+        }),
+      ],
+      [ownerKey, makeEntry({ pipeline_id: "pipeline-orders" })],
+    ];
+    const context = makeContext(entries, new Map([[derivedId, derivedId]]));
+
+    const edges = extractLateralEdges(context);
+
+    expect(edges).toContainEqual(expect.objectContaining({ source: derivedId, target: ownerKey }));
+    expect(edges).toContainEqual(
+      expect.objectContaining({ source: "resources.jobs.runner", target: derivedId }),
+    );
   });
 
   test("pipeline_task links to phantom pipeline via synthetic key", () => {

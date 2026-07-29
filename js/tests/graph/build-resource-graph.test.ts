@@ -1219,7 +1219,16 @@ describe("postgres_synced_tables derived UC tables", () => {
       },
     });
 
-    expect(graph.nodes.some((node) => node.nodeKind === "derived")).toBe(false);
+    expect(
+      graph.nodes.some(
+        (node) => node.nodeKind === "derived" && node.derivedKind === "ucSyncedTable",
+      ),
+    ).toBe(false);
+    expect(
+      graph.nodes.filter(
+        (node) => node.nodeKind === "derived" && node.derivedKind === "postgresSyncedTablePipeline",
+      ),
+    ).toHaveLength(2);
     expect(
       graph.lateralEdges.some(
         (edge) =>
@@ -1318,6 +1327,132 @@ describe("postgres_synced_tables derived UC tables", () => {
         target: "resources.postgres_synced_tables.shared",
       }),
     ]);
+  });
+});
+
+describe("postgres_synced_tables derived pipelines", () => {
+  test("first-deploy job reference resolves to the generated pipeline", () => {
+    const pipelineReference =
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+      "${resources.postgres_synced_tables.orders.status.pipeline_id}";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: "projects/dagshund/branches/dev",
+              postgres_database: "app_db",
+              synced_table_id: "dagshund_lakebase.public.orders",
+            },
+          },
+        },
+        "resources.jobs.refresh_orders": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [
+                {
+                  task_key: "refresh",
+                  pipeline_task: { pipeline_id: pipelineReference },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const generatedPipeline = graph.nodes.find(
+      (node) => node.id === "postgres-synced-pipeline::resources.postgres_synced_tables.orders",
+    );
+    expect(generatedPipeline).toMatchObject({
+      nodeKind: "derived",
+      derivedKind: "postgresSyncedTablePipeline",
+      label: "orders pipeline",
+      ownerResourceKey: "resources.postgres_synced_tables.orders",
+      diffState: "added",
+    });
+    expect(graph.nodes.some((node) => node.id === `pipeline::${pipelineReference}`)).toBe(false);
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "other-resources-root",
+        target: generatedPipeline?.id,
+        diffState: "added",
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.refresh_orders",
+        target: generatedPipeline?.id,
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: generatedPipeline?.id,
+        target: "resources.postgres_synced_tables.orders",
+      }),
+    );
+  });
+
+  test("repeated generated pipelines use the Pipelines workspace category", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "create",
+          new_state: { value: {} },
+        },
+        "resources.postgres_synced_tables.customers": {
+          action: "create",
+          new_state: { value: {} },
+        },
+      },
+    });
+
+    expect(graph.nodes).toContainEqual(
+      expect.objectContaining({ id: "workspace-category::pipelines", label: "Pipelines" }),
+    );
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "workspace-category::pipelines",
+        target: "postgres-synced-pipeline::resources.postgres_synced_tables.orders",
+      }),
+    );
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "workspace-category::pipelines",
+        target: "postgres-synced-pipeline::resources.postgres_synced_tables.customers",
+      }),
+    );
+  });
+
+  test("delete uses the concrete pipeline ID from remote state", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "delete",
+          remote_state: {
+            branch: "projects/dagshund/branches/dev",
+            postgres_database: "app_db",
+            status: { pipeline_id: "pipeline-orders" },
+          },
+        },
+      },
+    });
+
+    const generatedPipeline = graph.nodes.find(
+      (node) => node.id === "postgres-synced-pipeline::pipeline-orders",
+    );
+
+    expect(generatedPipeline).toMatchObject({
+      nodeKind: "derived",
+      derivedKind: "postgresSyncedTablePipeline",
+      label: "orders pipeline",
+      diffState: "removed",
+    });
+    expect(graph.edges.find((edge) => edge.target === generatedPipeline?.id)).toMatchObject({
+      diffState: "removed",
+    });
   });
 });
 
