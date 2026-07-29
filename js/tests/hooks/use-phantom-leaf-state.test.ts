@@ -107,6 +107,20 @@ describe("usePhantomLeafState", () => {
     expect(result.hiddenPhantomIds.size).toBe(2);
   });
 
+  test("preserves derived nodes and their phantom ancestors", () => {
+    const derivedId = "uc-synced-table::prod.staging.generated";
+    const nodes: readonly Node[] = [...cascadeNodes, makeNode(derivedId, "derived")];
+    const edges: readonly Edge[] = [...cascadeEdges, makeEdge("schema::prod.staging", derivedId)];
+
+    const result = renderHook(() => usePhantomLeafState(nodes, edges, false)).result.current;
+    const visibleIds = result.visibleNodes.map((node) => node.id);
+
+    expect(visibleIds).toContain("catalog::prod");
+    expect(visibleIds).toContain("schema::prod.staging");
+    expect(visibleIds).toContain(derivedId);
+    expect(result.hiddenPhantomIds.has(derivedId)).toBe(false);
+  });
+
   test("does not prune non-phantom parents even if all children are hidden", () => {
     // Root node with only phantom leaf children
     const nodes: readonly Node[] = [

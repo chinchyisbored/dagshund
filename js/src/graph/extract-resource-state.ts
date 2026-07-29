@@ -57,7 +57,7 @@ export const extractResourceState = (
   return undefined;
 };
 
-/** Extract spec.source_table_full_name from a synced table entry's state. */
+/** Extract top-level or spec.source_table_full_name from a synced table entry's state. */
 export const extractSourceTableFullName = (entry: PlanEntry): string | undefined => {
   const state = extractResourceState(entry);
   if (state === undefined) return undefined;

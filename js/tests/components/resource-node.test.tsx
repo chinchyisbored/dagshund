@@ -48,6 +48,27 @@ const renderResource = (
   wrapper = compose(withInteractionState()),
 ) => render(createElement(ResourceNode, makeNodeProps("n1", makeData(overrides))), { wrapper });
 
+const renderDerived = () =>
+  render(
+    createElement(
+      ResourceNode,
+      makeNodeProps("derived-1", {
+        nodeKind: "derived" as const,
+        derivedKind: "ucSyncedTable" as const,
+        ownerResourceKey: "resources.postgres_synced_tables.weather",
+        label: "weather",
+        diffState: "added" as const,
+        resourceKey: "uc-synced-table::catalog.schema.weather",
+        changes: undefined,
+        resourceState: undefined,
+        newState: undefined,
+        remoteState: undefined,
+        resourceHasShapeDrift: false,
+      }),
+    ),
+    { wrapper: compose(withInteractionState()) },
+  );
+
 beforeEach(() => {
   resetMockConnections();
 });
@@ -63,6 +84,14 @@ describe("ResourceNode", () => {
     const { container } = renderResource({ isDrift: true });
     const outer = container.firstElementChild as HTMLElement;
     expect(outer.className).toContain("border-dashed");
+  });
+
+  test("derived output uses solid resource rendering and registry badge", () => {
+    const { container } = renderDerived();
+    const outer = container.firstElementChild as HTMLElement;
+
+    expect(container.textContent).toContain("synced table");
+    expect(outer.className).not.toContain("border-dashed");
   });
 
   test("target handle is visibility:hidden when there are no incoming edges", () => {

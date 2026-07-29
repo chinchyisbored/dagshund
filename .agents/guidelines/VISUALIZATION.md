@@ -33,7 +33,7 @@ Each step is a pure function. No side effects until React rendering.
 
 The resource graph groups plan entries into two top-level sections:
 
-- **UC** (`uc-root`) — Unity Catalog hierarchy: catalogs (incl. database/postgres catalogs) → schemas → volumes/models/synced tables, plus inferred source-table phantom leaves
+- **UC** (`uc-root`) - Unity Catalog hierarchy: catalogs (including database/Postgres catalogs) → schemas → volumes/models/synced tables, plus inferred source-table phantom leaves and managed derived UC synced-table leaves
 - **Workspace** (`workspace-root`) — everything else, containing:
   - **Lakebase** (`postgres-root`, labeled "Lakebase") — projects → branches → databases/endpoints/roles → synced tables
   - Type categories for flat workspace resource types with at least two real resources, such as **Jobs** or **Pipelines**
@@ -42,6 +42,9 @@ The resource graph groups plan entries into two top-level sections:
 Category IDs use `workspace-category::<resource-type>`. Categories are derived from normalized real resource types, and phantom nodes never count toward the threshold for creating one. Matching phantoms join an existing type category. `Other Resources` appears only when a subgroup exists and at least one remaining node needs the fallback; fully flat plans stay directly under Workspace.
 
 Group nodes that represent inferred/external entities (not in the plan) render with dashed borders.
+Derived nodes represent real outputs managed through another plan entry. They render with solid
+resource styling, inherit the owner's diff state, and link laterally from output to owner so the
+edge retains its standard dependency meaning without copying the owner's plan state.
 
 `postgres_catalogs` render as Unity Catalog catalog nodes because that is where users see the
 catalog. Their semantic `branch` field is shown as a lateral edge to the Lakebase Postgres branch

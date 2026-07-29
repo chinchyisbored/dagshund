@@ -6,6 +6,7 @@
         "job": 2,
         "task": 2,
         "resource": 0,
+        "derived": 0,
         "root": 0,
         "phantom": 0
       },
@@ -38,6 +39,13 @@
           "unchanged": 0,
           "unknown": 0
         },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
         "root": {
           "added": 0,
           "removed": 0,
@@ -58,6 +66,7 @@
         "job": 0,
         "task": 0,
         "resource": 0,
+        "derived": 0,
         "root": 0,
         "phantom": 0
       },
@@ -240,6 +249,7 @@
         "job": 0,
         "task": 0,
         "resource": 4,
+        "derived": 0,
         "root": 3,
         "phantom": 1
       },
@@ -272,6 +282,13 @@
           "unchanged": 2,
           "unknown": 0
         },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
         "root": {
           "added": 0,
           "removed": 0,
@@ -292,6 +309,7 @@
         "job": 0,
         "task": 0,
         "resource": 0,
+        "derived": 0,
         "root": 0,
         "phantom": 0
       },

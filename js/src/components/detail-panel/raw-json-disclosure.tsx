@@ -119,7 +119,14 @@ export function RawJsonDisclosure({ data }: { readonly data: DagNodeData }) {
     return extractRawPlanSlice(plan, data);
   }, [isOpen, plan, data]);
 
-  if (plan === undefined || data.nodeKind === "root" || data.nodeKind === "phantom") return null;
+  if (
+    plan === undefined ||
+    data.nodeKind === "root" ||
+    data.nodeKind === "phantom" ||
+    data.nodeKind === "derived"
+  ) {
+    return null;
+  }
 
   return (
     <div className="mt-4 border-t border-outline-subtle pt-3">

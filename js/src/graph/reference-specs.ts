@@ -7,6 +7,7 @@ import {
   TASK_WAREHOUSE_KEYS,
 } from "../utils/resource-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
+import { resolvePromotedPhantomNodeId } from "./derived-node-specs.ts";
 import {
   extractResourceState,
   extractStateField,
@@ -231,7 +232,7 @@ export const resolveAppRefTargetKey = (
       return servingEndpointResourceKey(ref.name);
     case "uc_securable":
       return parseThreePartName(ref.fullName) !== undefined
-        ? buildPrefixedNodeId("sourceTable", ref.fullName)
+        ? resolvePromotedPhantomNodeId("sourceTable", ref.fullName, context.nodeIds)
         : undefined;
   }
   const exhaustive: never = ref;

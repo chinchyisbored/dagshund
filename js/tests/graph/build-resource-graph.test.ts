@@ -1126,8 +1126,8 @@ describe("synced_database_tables in UC", () => {
   });
 });
 
-describe("postgres_synced_tables source phantoms", () => {
-  test("source_table_full_name creates a UC source-table phantom", () => {
+describe("postgres_synced_tables derived UC tables", () => {
+  test("create produces an added derived output and unchanged source phantom", () => {
     const graph = buildResourceGraph({
       plan: {
         "resources.postgres_synced_tables.phantom_table": {
@@ -1144,28 +1144,180 @@ describe("postgres_synced_tables source phantoms", () => {
       },
     });
 
-    const nodeIds = graph.nodes.map((n) => n.id);
-    expect(nodeIds).toContain("source-table::dagshund.phantom_schema.phantom_table");
-    expect(nodeIds).toContain("postgres-database::dagshund/dev/app_db");
+    const source = graph.nodes.find(
+      (node) => node.id === "source-table::dagshund.phantom_schema.phantom_table",
+    );
+    const derived = graph.nodes.find(
+      (node) => node.id === "uc-synced-table::dagshund_lakebase.public.phantom_table",
+    );
+    if (derived?.nodeKind !== "derived") throw new Error("expected derived UC synced table");
 
-    const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
-    expect(edgePairs).toContain("uc-root→catalog::dagshund");
-    expect(edgePairs).toContain("catalog::dagshund→schema::dagshund.phantom_schema");
-    expect(edgePairs).toContain(
-      "schema::dagshund.phantom_schema→source-table::dagshund.phantom_schema.phantom_table",
-    );
-    expect(edgePairs).toContain("postgres-project::dagshund→postgres-branch::dagshund/dev");
-    expect(edgePairs).toContain(
-      "postgres-branch::dagshund/dev→postgres-database::dagshund/dev/app_db",
-    );
-    expect(edgePairs).toContain(
-      "postgres-database::dagshund/dev/app_db→resources.postgres_synced_tables.phantom_table",
-    );
+    expect(source).toMatchObject({ nodeKind: "phantom", diffState: "unchanged" });
+    expect(derived).toMatchObject({
+      derivedKind: "ucSyncedTable",
+      ownerResourceKey: "resources.postgres_synced_tables.phantom_table",
+      diffState: "added",
+      changes: undefined,
+      resourceState: undefined,
+      newState: undefined,
+      remoteState: undefined,
+    });
 
-    const lateralEdgePairs = graph.lateralEdges.map((e) => `${e.source}→${e.target}`);
+    const hierarchyEdge = graph.edges.find((edge) => edge.target === derived.id);
+    expect(hierarchyEdge).toMatchObject({
+      source: "schema::dagshund_lakebase.public",
+      diffState: "added",
+    });
+
+    const lateralEdgePairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
     expect(lateralEdgePairs).toContain(
       "resources.postgres_synced_tables.phantom_table→source-table::dagshund.phantom_schema.phantom_table",
     );
+    expect(lateralEdgePairs).toContain(
+      "uc-synced-table::dagshund_lakebase.public.phantom_table→resources.postgres_synced_tables.phantom_table",
+    );
+    expect(graph.lateralEdges.find((edge) => edge.source === derived.id)).toMatchObject({
+      target: "resources.postgres_synced_tables.phantom_table",
+      diffState: "unchanged",
+    });
+  });
+
+  test("delete reads the derived output from remote state", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.old_table": {
+          action: "delete",
+          remote_state: {
+            branch: "projects/dagshund/branches/dev",
+            postgres_database: "app_db",
+            synced_table_id: "dagshund_lakebase.public.old_table",
+          },
+        },
+      },
+    });
+
+    const derived = graph.nodes.find(
+      (node) => node.id === "uc-synced-table::dagshund_lakebase.public.old_table",
+    );
+    expect(derived).toMatchObject({ nodeKind: "derived", diffState: "removed" });
+    expect(graph.edges.find((edge) => edge.target === derived?.id)).toMatchObject({
+      diffState: "removed",
+    });
+  });
+
+  test("missing and malformed output identities produce no derived nodes or edges", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.missing": {
+          action: "create",
+          new_state: { value: { source_table_full_name: "source.data.missing" } },
+        },
+        "resources.postgres_synced_tables.malformed": {
+          action: "create",
+          new_state: { value: { synced_table_id: "schema.table" } },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.nodeKind === "derived")).toBe(false);
+    expect(
+      graph.lateralEdges.some(
+        (edge) =>
+          edge.source.startsWith("uc-synced-table::") ||
+          edge.target.startsWith("uc-synced-table::"),
+      ),
+    ).toBe(false);
+  });
+
+  test("table references retarget to a promoted derived output", () => {
+    const tableName = "shared.data.table";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.producer": {
+          action: "create",
+          new_state: { value: { synced_table_id: tableName } },
+        },
+        "resources.postgres_synced_tables.consumer": {
+          action: "create",
+          new_state: { value: { source_table_full_name: tableName } },
+        },
+        "resources.quality_monitors.monitor": {
+          action: "create",
+          new_state: { value: { table_name: tableName } },
+        },
+        "resources.apps.reader": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [{ name: "table", uc_securable: { securable_full_name: tableName } }],
+            },
+          },
+        },
+        "resources.model_serving_endpoints.model": {
+          action: "create",
+          new_state: {
+            value: { config: { served_entities: [{ entity_name: tableName }] } },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id === `source-table::${tableName}`)).toBe(false);
+    expect(graph.nodes.some((node) => node.id === `uc-synced-table::${tableName}`)).toBe(true);
+    expect(graph.nodes.some((node) => node.id === `registered-model::${tableName}`)).toBe(true);
+
+    const lateralEdgePairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(lateralEdgePairs).toContain(
+      `uc-synced-table::${tableName}→resources.postgres_synced_tables.producer`,
+    );
+    expect(lateralEdgePairs).toContain(
+      `resources.postgres_synced_tables.consumer→uc-synced-table::${tableName}`,
+    );
+    expect(lateralEdgePairs).toContain(
+      `resources.quality_monitors.monitor→uc-synced-table::${tableName}`,
+    );
+    expect(lateralEdgePairs).toContain(`resources.apps.reader→uc-synced-table::${tableName}`);
+    expect(lateralEdgePairs).toContain(
+      `resources.model_serving_endpoints.model→registered-model::${tableName}`,
+    );
+  });
+
+  test("derived output wins when source and output identities match", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.shared": {
+          action: "create",
+          new_state: {
+            value: {
+              source_table_full_name: "shared.data.table",
+              synced_table_id: "shared.data.table",
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes).toContainEqual(
+      expect.objectContaining({
+        id: "uc-synced-table::shared.data.table",
+        nodeKind: "derived",
+      }),
+    );
+    expect(graph.nodes.some((node) => node.id === "source-table::shared.data.table")).toBe(false);
+    const relatedIds = new Set([
+      "resources.postgres_synced_tables.shared",
+      "uc-synced-table::shared.data.table",
+    ]);
+    expect(
+      graph.lateralEdges.filter(
+        (edge) => relatedIds.has(edge.source) && relatedIds.has(edge.target),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        source: "uc-synced-table::shared.data.table",
+        target: "resources.postgres_synced_tables.shared",
+      }),
+    ]);
   });
 });
 

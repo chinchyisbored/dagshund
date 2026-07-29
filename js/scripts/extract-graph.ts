@@ -11,6 +11,7 @@
  */
 
 import { buildPlanGraph } from "../src/graph/build-plan-graph.ts";
+import type { DerivedKind } from "../src/graph/derived-node-specs.ts";
 import { buildResourceGraph } from "../src/graph/build-resource-graph.ts";
 import { parsePlanJson } from "../src/parser/parse-plan.ts";
 import type { DiffState } from "../src/types/diff-state.ts";
@@ -54,6 +55,8 @@ type NodeEntry = {
   readonly effects: readonly NodeEffectSummary[];
   readonly hasResourceState: boolean;
   readonly taskChangeSummary: TaskChangeSummary;
+  readonly derivedKind?: DerivedKind;
+  readonly ownerResourceKey?: string;
 };
 
 type EdgeEntry = {
@@ -92,6 +95,7 @@ const emptyNodeKindCounts = (): Record<NodeKind, number> => ({
   job: 0,
   task: 0,
   resource: 0,
+  derived: 0,
   root: 0,
   phantom: 0,
 });
@@ -119,6 +123,7 @@ const emptyNodeKindAndDiffStateCounts = (): Record<NodeKind, Record<DiffState, n
   job: emptyNodeDiffStateCounts(),
   task: emptyNodeDiffStateCounts(),
   resource: emptyNodeDiffStateCounts(),
+  derived: emptyNodeDiffStateCounts(),
   root: emptyNodeDiffStateCounts(),
   phantom: emptyNodeDiffStateCounts(),
 });
@@ -130,7 +135,7 @@ const emptyEdgeKindAndDiffStateCounts = (): Record<EdgeKind, Record<EdgeDiffStat
 
 const compareStrings = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-// isDrift only exists on job/task/resource node kinds; root/phantom never drift.
+// isDrift only exists on job/task/resource node kinds; derived/root/phantom never drift.
 const nodeHasDrift = (node: GraphNode): boolean =>
   "isDrift" in node && node.isDrift === true;
 
@@ -164,6 +169,9 @@ const summarizeNode = (node: GraphNode): NodeEntry => ({
   effects: summarizeNodeEffects(node),
   hasResourceState: node.resourceState !== undefined,
   taskChangeSummary: extractTaskChangeSummary(node),
+  ...(node.nodeKind === "derived"
+    ? { derivedKind: node.derivedKind, ownerResourceKey: node.ownerResourceKey }
+    : {}),
 });
 
 const summarizeEdge = (edge: GraphEdge): EdgeEntry => ({

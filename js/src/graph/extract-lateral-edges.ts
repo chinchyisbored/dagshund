@@ -10,6 +10,13 @@ import {
 } from "../utils/resource-key.ts";
 import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
 import {
+  buildDerivedNodeId,
+  DERIVED_SOURCE_TYPES,
+  entryOwnsPromotedPhantomIdentity,
+  extractDerivedNodeRefs,
+  resolvePromotedPhantomNodeId,
+} from "./derived-node-specs.ts";
+import {
   extractResourceState,
   extractServedEntities,
   extractSourceTableFullName,
@@ -53,7 +60,12 @@ const resolveExistingTargetId = (
 /** A declarative spec: given a plan entry and context, return 0+ target node IDs. */
 type LateralEdgeSpec = {
   readonly sourceTypes: ReadonlySet<string>;
-  readonly extractTargetIds: (entry: PlanEntry, context: LateralEdgeContext) => readonly string[];
+  readonly direction?: "entry-to-target" | "target-to-entry";
+  readonly extractTargetIds: (
+    entry: PlanEntry,
+    context: LateralEdgeContext,
+    resourceKey: string,
+  ) => readonly string[];
 };
 
 /** Execute a lateral edge spec against all entries, with built-in deduplication. */
@@ -68,11 +80,13 @@ const applyLateralEdgeSpec = (
     if (resourceType === undefined || !spec.sourceTypes.has(resourceType)) continue;
     const sourceNodeId = context.nodeIdByResourceKey.get(key) ?? key;
     if (!context.nodeIds.has(sourceNodeId)) continue;
-    for (const targetId of spec.extractTargetIds(entry, context)) {
-      const pair = `${sourceNodeId}→${targetId}`;
+    for (const targetId of spec.extractTargetIds(entry, context, key)) {
+      const edgeSource = spec.direction === "target-to-entry" ? targetId : sourceNodeId;
+      const edgeTarget = spec.direction === "target-to-entry" ? sourceNodeId : targetId;
+      const pair = `${edgeSource}→${edgeTarget}`;
       if (seen.has(pair)) continue;
       seen.add(pair);
-      edges.push(buildGraphEdge(sourceNodeId, targetId, "unchanged", LATERAL_EDGE_PREFIX));
+      edges.push(buildGraphEdge(edgeSource, edgeTarget, "unchanged", LATERAL_EDGE_PREFIX));
     }
   }
   return edges;
@@ -93,15 +107,27 @@ const DATABASE_INSTANCE_SPEC: LateralEdgeSpec = {
   },
 };
 
-/** synced_database_table → source-table phantom (three-part name resolution). */
+/** synced tables → source-table phantom (three-part name resolution). */
 const SOURCE_TABLE_SPEC: LateralEdgeSpec = {
   sourceTypes: new Set(["postgres_synced_tables", "synced_database_tables"]),
-  extractTargetIds: (entry, context) => {
+  extractTargetIds: (entry, context, resourceKey) => {
     const name = extractSourceTableFullName(entry);
     if (name === undefined || parseThreePartName(name) === undefined) return [];
-    const id = buildPrefixedNodeId("sourceTable", name);
-    return context.nodeIds.has(id) ? [id] : [];
+    if (entryOwnsPromotedPhantomIdentity(resourceKey, entry, "sourceTable", name)) return [];
+    const targetId = resolvePromotedPhantomNodeId("sourceTable", name, context.nodeIds);
+    return targetId !== undefined ? [targetId] : [];
   },
+};
+
+/** Derived outputs depend on their owning managed resources. */
+const DERIVED_OUTPUT_SPEC: LateralEdgeSpec = {
+  sourceTypes: DERIVED_SOURCE_TYPES,
+  direction: "target-to-entry",
+  extractTargetIds: (entry, context, resourceKey) =>
+    extractDerivedNodeRefs(resourceKey, entry).flatMap((ref) => {
+      const targetId = buildDerivedNodeId(ref.derivedKind, ref.identity);
+      return context.nodeIds.has(targetId) ? [targetId] : [];
+    }),
 };
 
 /** Factory: model_serving_endpoint → registered_model (full_name index + phantom fallback). */
@@ -186,8 +212,8 @@ const QUALITY_MONITOR_TABLE_SPEC: LateralEdgeSpec = {
   extractTargetIds: (entry, context) => {
     const tableName = extractStateField(entry, "table_name");
     if (tableName === undefined || parseThreePartName(tableName) === undefined) return [];
-    const phantomId = buildPrefixedNodeId("sourceTable", tableName);
-    return context.nodeIds.has(phantomId) ? [phantomId] : [];
+    const targetId = resolvePromotedPhantomNodeId("sourceTable", tableName, context.nodeIds);
+    return targetId !== undefined ? [targetId] : [];
   },
 };
 
@@ -351,6 +377,7 @@ const createAppResourcesSpec = (indexes: ReferenceIndexes): LateralEdgeSpec => (
 const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
   DATABASE_INSTANCE_SPEC,
   SOURCE_TABLE_SPEC,
+  DERIVED_OUTPUT_SPEC,
   PIPELINE_TARGET_SPEC,
   QUALITY_MONITOR_TABLE_SPEC,
   POSTGRES_DATABASE_TARGET_SPEC,

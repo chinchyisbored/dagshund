@@ -2,6 +2,7 @@ import { mapActionToDiffState } from "../parser/map-diff-state.ts";
 import {
   buildEdge,
   buildHierarchyGraphNode,
+  type DerivedGraphNode,
   filterDefinedEdges,
   type GraphEdge,
   type PhantomGraphNode,
@@ -29,6 +30,12 @@ import {
   collectPhantomDatabaseInstances,
   collectPhantomExternalRefs,
 } from "./collect-phantom-nodes.ts";
+import {
+  buildDerivedNodeId,
+  type DerivedNodeRef,
+  extractDerivedNodeRefs,
+  extractPromotedPhantomKind,
+} from "./derived-node-specs.ts";
 import { extractLateralEdges } from "./extract-lateral-edges.ts";
 import {
   extractResourceState,
@@ -174,6 +181,28 @@ const buildResourceNode = (
   };
 };
 
+const buildDerivedNode = (
+  ownerResourceKey: string,
+  ownerEntry: PlanEntry,
+  ref: DerivedNodeRef,
+): DerivedGraphNode => {
+  const id = buildDerivedNodeId(ref.derivedKind, ref.identity);
+  return {
+    id,
+    label: ref.identity.split(".").at(-1) ?? ref.identity,
+    nodeKind: "derived",
+    derivedKind: ref.derivedKind,
+    ownerResourceKey,
+    diffState: mapActionToDiffState(ownerEntry.action),
+    resourceKey: id,
+    changes: undefined,
+    resourceState: undefined,
+    newState: undefined,
+    remoteState: undefined,
+    resourceHasShapeDrift: false,
+  };
+};
+
 /** Keep the first item for an ID when multiple builders/collectors produce it. */
 const dedupeById = <T extends { readonly id: string }>(items: readonly T[]): readonly T[] => {
   const seen = new Set<string>();
@@ -250,6 +279,8 @@ type TierSpec = {
   readonly useHierarchyId?: boolean;
   /** Extract semantic references that may need phantom nodes before lateral edges are built. */
   readonly resolveMissingHierarchyRefs?: (entry: PlanEntry) => readonly string[];
+  /** Phantom kind created for missing hierarchy refs, used for compatible derived promotion. */
+  readonly missingHierarchyRefPhantomKind?: PhantomKind;
 };
 
 /** A complete hierarchy definition: root + ordered tiers from root-adjacent to leaf. */
@@ -269,11 +300,17 @@ type ExternalLeafPhantomRef = {
   readonly phantomId: string;
   /** Display label (e.g. "phantom_model"). */
   readonly label: string;
+  readonly phantomKind: PhantomKind;
 };
 
 type ExternalHierarchyRef = {
   readonly identity: string;
   readonly tierIndex: number;
+};
+
+type ExternalDerivedLeafRef = {
+  readonly identity: string;
+  readonly node: DerivedGraphNode;
 };
 
 // ---------------------------------------------------------------------------
@@ -335,6 +372,7 @@ const UC_CHAIN: ChainSpec = {
         if (name === undefined) return [];
         return parseThreePartName(name) !== undefined ? [name] : [];
       },
+      missingHierarchyRefPhantomKind: "sourceTable",
     },
   ],
 };
@@ -577,6 +615,27 @@ const resolveEntryParent = (
     : spec.rootId;
 };
 
+const collectPromotedPhantomIdentities = (
+  refs: readonly ExternalDerivedLeafRef[],
+): ReadonlyMap<PhantomKind, ReadonlySet<string>> => {
+  const identitiesByKind = new Map<PhantomKind, Set<string>>();
+  for (const ref of refs) {
+    const phantomKind = extractPromotedPhantomKind(ref.node.derivedKind);
+    if (phantomKind === undefined) continue;
+    const identities = identitiesByKind.get(phantomKind) ?? new Set<string>();
+    identities.add(ref.identity);
+    identitiesByKind.set(phantomKind, identities);
+  }
+  return identitiesByKind;
+};
+
+const isPromotedPhantomIdentity = (
+  identitiesByKind: ReadonlyMap<PhantomKind, ReadonlySet<string>>,
+  phantomKind: PhantomKind | undefined,
+  identity: string,
+): boolean =>
+  phantomKind !== undefined && (identitiesByKind.get(phantomKind)?.has(identity) ?? false);
+
 /**
  * Build a hierarchy subgraph from a chain spec.
  * Creates root + resource nodes + phantom ancestors + all hierarchy edges.
@@ -586,17 +645,21 @@ const buildChainGraph = (
   spec: ChainSpec,
   externalLeafPhantomRefs?: readonly ExternalLeafPhantomRef[],
   externalHierarchyRefs?: readonly ExternalHierarchyRef[],
+  externalDerivedLeafRefs?: readonly ExternalDerivedLeafRef[],
 ): PlanGraph => {
   const hasExternalRefs =
     (externalLeafPhantomRefs !== undefined && externalLeafPhantomRefs.length > 0) ||
-    (externalHierarchyRefs !== undefined && externalHierarchyRefs.length > 0);
+    (externalHierarchyRefs !== undefined && externalHierarchyRefs.length > 0) ||
+    (externalDerivedLeafRefs !== undefined && externalDerivedLeafRefs.length > 0);
   if (entries.length === 0 && !hasExternalRefs) return { nodes: [], edges: [] };
 
   const root = buildHierarchyGraphNode("root", spec.rootId, spec.rootLabel);
   const tierIndexes = buildTierIndexes(entries, spec.tiers);
+  const promotedPhantomIdentities = collectPromotedPhantomIdentities(externalDerivedLeafRefs ?? []);
 
   // Accumulators (local mutation within this pure function)
   const resourceNodes: ResourceGraphNode[] = [];
+  const derivedNodes = new Map<string, DerivedGraphNode>();
   const phantomNodes = new Map<string, PhantomGraphNode>();
   const phantomEdges: (GraphEdge | undefined)[] = [];
   const hierarchyEdges: (GraphEdge | undefined)[] = [];
@@ -643,7 +706,16 @@ const buildChainGraph = (
     const resolveMissingHierarchyRefs = referencedTier.resolveMissingHierarchyRefs;
     for (const [, entry] of entries) {
       for (const ref of resolveMissingHierarchyRefs(entry)) {
-        if (realNames.has(ref)) continue;
+        if (
+          realNames.has(ref) ||
+          isPromotedPhantomIdentity(
+            promotedPhantomIdentities,
+            referencedTier.missingHierarchyRefPhantomKind,
+            ref,
+          )
+        ) {
+          continue;
+        }
         const phantomId = resolveParentChain(
           ref,
           referencedTierIndex,
@@ -671,12 +743,17 @@ const buildChainGraph = (
     }
   }
 
-  // External leaf phantom refs: workspace entries (serving endpoints, quality monitors, apps)
-  // that reference three-part UC names — inject them as phantom leaves with custom IDs.
+  // Plan entries that reference external three-part UC names inject phantom leaves
+  // into the UC hierarchy with reference-specific IDs.
   if (externalLeafPhantomRefs !== undefined && externalLeafPhantomRefs.length > 0) {
     const schemaTierIndex = spec.tiers.length - 2; // schema is one above leaf
-    for (const { identity, phantomId, label } of externalLeafPhantomRefs) {
-      if (phantomNodes.has(phantomId)) continue;
+    for (const { identity, phantomId, label, phantomKind } of externalLeafPhantomRefs) {
+      if (
+        isPromotedPhantomIdentity(promotedPhantomIdentities, phantomKind, identity) ||
+        phantomNodes.has(phantomId)
+      ) {
+        continue;
+      }
       const parsed = parseThreePartName(identity);
       if (parsed === undefined) continue;
 
@@ -697,8 +774,27 @@ const buildChainGraph = (
     }
   }
 
+  if (externalDerivedLeafRefs !== undefined && externalDerivedLeafRefs.length > 0) {
+    const schemaTierIndex = spec.tiers.length - 2;
+    for (const { identity, node } of externalDerivedLeafRefs) {
+      if (derivedNodes.has(node.id)) continue;
+      const parsed = parseThreePartName(identity);
+      if (parsed === undefined) continue;
+      const parentNodeId = resolveParentChain(
+        `${parsed.catalog}.${parsed.schema}`,
+        schemaTierIndex,
+        spec,
+        tierIndexes,
+        phantomNodes,
+        phantomEdges,
+      );
+      derivedNodes.set(node.id, node);
+      hierarchyEdges.push(buildEdge(parentNodeId, node.id, toEdgeDiffState(node.diffState)));
+    }
+  }
+
   return {
-    nodes: [root, ...resourceNodes, ...[...phantomNodes.values()]],
+    nodes: [root, ...resourceNodes, ...derivedNodes.values(), ...phantomNodes.values()],
     edges: [...filterDefinedEdges(hierarchyEdges), ...filterDefinedEdges(phantomEdges)],
   };
 };
@@ -852,10 +948,20 @@ const buildWorkspaceGraph = (
 };
 
 // ---------------------------------------------------------------------------
-// External leaf phantom refs
+// External UC leaf refs
 // ---------------------------------------------------------------------------
 
-/** Collect phantom leaf references from workspace entries that reference three-part UC names.
+const collectExternalDerivedLeafRefs = (
+  entries: readonly (readonly [string, PlanEntry])[],
+): readonly ExternalDerivedLeafRef[] =>
+  entries.flatMap(([ownerResourceKey, ownerEntry]) =>
+    extractDerivedNodeRefs(ownerResourceKey, ownerEntry).map((ref) => ({
+      identity: ref.identity,
+      node: buildDerivedNode(ownerResourceKey, ownerEntry, ref),
+    })),
+  );
+
+/** Collect phantom leaf references from plan entries that reference three-part UC names.
  *  These are placed in the UC hierarchy (not under workspace-root) via buildChainGraph. */
 const collectExternalLeafPhantomRefs = (
   entries: readonly (readonly [string, PlanEntry])[],
@@ -874,6 +980,7 @@ const collectExternalLeafPhantomRefs = (
           identity,
           phantomId: buildPrefixedNodeId(spec.phantomKind, identity),
           label: extractExternalLeafLabel(identity),
+          phantomKind: spec.phantomKind,
         });
       }
     }
@@ -1010,13 +1117,20 @@ export const buildResourceGraph = (
   );
 
   const existingUcKeys = new Set(ucEntries.map(([key]) => key));
+  const externalDerivedLeafRefs = collectExternalDerivedLeafRefs(entries);
   const externalLeafPhantomRefs = collectExternalLeafPhantomRefs(
     entries,
     existingUcKeys,
     registeredModelFullNameIndex,
   );
 
-  const ucGraph = buildChainGraph(ucEntries, UC_CHAIN, externalLeafPhantomRefs);
+  const ucGraph = buildChainGraph(
+    ucEntries,
+    UC_CHAIN,
+    externalLeafPhantomRefs,
+    undefined,
+    externalDerivedLeafRefs,
+  );
   const externalPostgresDatabaseRefs = collectExternalPostgresDatabaseRefs(entries);
   const { graph: workspaceGraph, placement: workspacePlacement } = buildWorkspaceGraph(
     workspaceEntries,

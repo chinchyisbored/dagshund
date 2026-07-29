@@ -19,6 +19,7 @@ import {
   LATERAL_TOP_OUT,
 } from "../utils/diff-state-styles.ts";
 import { extractTaskNodeParentId } from "../utils/resource-key.ts";
+import { extractDerivedRenderingConvention } from "./derived-node-specs.ts";
 
 /** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner).
  *  No crash recovery: if the Worker dies the layout call rejects and the UI shows an error state,
@@ -329,7 +330,10 @@ const toFlatFlowNode = (
   position: { readonly x: number; readonly y: number },
 ): Node => ({
   id: node.id,
-  type: node.nodeKind,
+  type:
+    node.nodeKind === "derived"
+      ? extractDerivedRenderingConvention(node.derivedKind)
+      : node.nodeKind,
   position: { x: position.x, y: position.y },
   data: toNodeData(node),
   ariaLabel: buildAriaLabel(node),

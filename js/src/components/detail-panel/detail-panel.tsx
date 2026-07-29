@@ -13,6 +13,7 @@ import { DriftRemovalSection } from "./drift-removal-section.tsx";
 import { splitMeaningfulChanges } from "./filter-changes.ts";
 import { FormatToggle, NEXT_FORMAT } from "./format-toggle.tsx";
 import { LateralDependencies } from "./lateral-dependencies.tsx";
+import { ManagedOutputCard } from "./managed-output-card.tsx";
 import { ModifiedBody } from "./modified-body.tsx";
 import { ObjectStateCard } from "./object-state-card.tsx";
 import { RawJsonDisclosure } from "./raw-json-disclosure.tsx";
@@ -92,6 +93,7 @@ export function DetailPanel({
       : undefined;
 
   const showNoChanges =
+    data.nodeKind !== "derived" &&
     data.diffState === "modified" &&
     fieldChanges.length === 0 &&
     !hasDriftReentries &&
@@ -112,7 +114,9 @@ export function DetailPanel({
             {isDriftNode && <DriftPill />}
           </div>
           <div className="ml-2 flex shrink-0 items-center gap-1.5">
-            <FormatToggle format={valueFormat} onToggle={toggleFormat} />
+            {data.nodeKind !== "derived" && (
+              <FormatToggle format={valueFormat} onToggle={toggleFormat} />
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -132,6 +136,10 @@ export function DetailPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {data.nodeKind === "derived" && (
+            <ManagedOutputCard data={data} onNavigateToOwner={onNavigateToNode} />
+          )}
+
           {data.nodeKind === "phantom" && (
             <div className="mb-3 rounded border border-dashed border-outline/60 bg-surface-inset/40 px-3 py-2 text-xs text-ink-muted">
               <p>Untracked by this bundle</p>
@@ -183,17 +191,18 @@ export function DetailPanel({
           )}
           {hasDriftRemovals && <DriftRemovalSection driftRemovalChanges={driftRemovalChanges} />}
 
-          {(data.diffState === "added" || data.diffState === "removed") && (
-            <ObjectStateCard
-              label={data.label}
-              nodeKind={data.nodeKind}
-              resourceState={expandedState}
-              variant={data.diffState}
-              isDriftReentry={isDriftNode && data.diffState === "added"}
-            />
-          )}
+          {data.nodeKind !== "derived" &&
+            (data.diffState === "added" || data.diffState === "removed") && (
+              <ObjectStateCard
+                label={data.label}
+                nodeKind={data.nodeKind}
+                resourceState={expandedState}
+                variant={data.diffState}
+                isDriftReentry={isDriftNode && data.diffState === "added"}
+              />
+            )}
 
-          {data.diffState === "modified" && (
+          {data.nodeKind !== "derived" && data.diffState === "modified" && (
             <ModifiedBody
               data={data}
               fieldChanges={fieldChanges}
@@ -204,9 +213,10 @@ export function DetailPanel({
             />
           )}
 
-          {(data.diffState === "unchanged" || data.diffState === "unknown") && (
-            <ResourceStateView resourceState={expandedState} />
-          )}
+          {data.nodeKind !== "derived" &&
+            (data.diffState === "unchanged" || data.diffState === "unknown") && (
+              <ResourceStateView resourceState={expandedState} />
+            )}
 
           {showNoChanges && <p className="py-8 text-center text-sm text-ink-muted">No changes</p>}
 

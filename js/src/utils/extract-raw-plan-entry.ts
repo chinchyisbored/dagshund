@@ -87,12 +87,14 @@ const collectSubResourceEntries = (
 };
 
 /** Extract the original (pre-merge) plan JSON for a given node.
- *  Returns a discriminated slice describing what to render, or undefined for root/phantom nodes. */
+ *  Returns a discriminated slice describing what to render, or undefined for structural/derived nodes. */
 export const extractRawPlanSlice = (plan: Plan, data: DagNodeData): RawPlanSlice | undefined => {
   const planEntries = plan.plan;
   if (planEntries === undefined) return undefined;
 
-  if (data.nodeKind === "root" || data.nodeKind === "phantom") return undefined;
+  if (data.nodeKind === "root" || data.nodeKind === "phantom" || data.nodeKind === "derived") {
+    return undefined;
+  }
 
   const entry = planEntries[data.resourceKey];
   if (entry === undefined) return undefined;

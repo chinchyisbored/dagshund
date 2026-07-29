@@ -5,13 +5,17 @@ import { useJobNavigation } from "../hooks/contexts.ts";
 import { useNodeDimming } from "../hooks/use-node-dimming.ts";
 import type { DagNodeData } from "../types/graph-types.ts";
 import { getDiffBadge } from "../utils/diff-state-styles.ts";
-import { extractResourceType, extractTypeBadge } from "../utils/resource-key.ts";
+import { extractNodeBadge } from "../utils/node-data.ts";
+import { extractResourceType } from "../utils/resource-key.ts";
 import { DriftPill } from "./detail-panel/drift-pill.tsx";
 import { LateralHandles } from "./lateral-handles.tsx";
 import { LateralIsolateButton } from "./lateral-isolate-button.tsx";
 import { RunEffectBadge } from "./run-effect-badge.tsx";
 
-type ResourceNodeType = Node<DagNodeData, "resource">;
+type ResourceNodeType = Node<
+  Extract<DagNodeData, { nodeKind: "resource" | "derived" }>,
+  "resource"
+>;
 
 export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<ResourceNodeType>) {
   const {
@@ -24,10 +28,10 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
     hasLateralEdges,
     isLateralIsolated,
   } = useNodeDimming(id, data.diffState);
-  const typeBadge = extractTypeBadge(data.resourceKey);
+  const typeBadge = extractNodeBadge(data);
   const diffBadge = getDiffBadge(data.diffState);
   const navigateToJob = useJobNavigation();
-  const isJob = extractResourceType(data.resourceKey) === "jobs";
+  const isJob = data.nodeKind === "resource" && extractResourceType(data.resourceKey) === "jobs";
   // Orthogonal drift dimension — override to dashed border. See task-node.tsx
   // for the note on the `unknown` diffState border-dashed collision.
   const isDrift = data.nodeKind === "resource" && data.isDrift === true;

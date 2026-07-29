@@ -1,18 +1,13 @@
 import type { DagNodeData } from "../types/graph-types.ts";
-import { extractPhantomBadge, extractTypeBadge } from "./resource-key.ts";
+import { extractNodeBadge } from "./node-data.ts";
 import { extractTaskTypeBadge } from "./task-type.ts";
 
 /** Collect all badge strings for a node (type badge, task type badge, phantom badge). */
 const collectBadges = (data: DagNodeData): string[] => {
   const badges: string[] = [];
 
-  if (data.nodeKind === "phantom") {
-    const phantomBadge = extractPhantomBadge(data.resourceKey);
-    if (phantomBadge !== undefined) badges.push(phantomBadge);
-  } else {
-    const typeBadge = extractTypeBadge(data.resourceKey);
-    if (typeBadge !== undefined) badges.push(typeBadge);
-  }
+  const nodeBadge = extractNodeBadge(data);
+  if (nodeBadge !== undefined) badges.push(nodeBadge);
 
   if (data.nodeKind === "task") {
     const taskBadge = extractTaskTypeBadge(data.resourceState);

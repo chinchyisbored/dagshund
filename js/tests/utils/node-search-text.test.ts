@@ -45,6 +45,20 @@ const makePhantomNode = (label: string, resourceKey: string): DagNodeData => ({
   resourceHasShapeDrift: false,
 });
 
+const makeDerivedNode = (label: string): DagNodeData => ({
+  nodeKind: "derived",
+  derivedKind: "ucSyncedTable",
+  ownerResourceKey: "resources.postgres_synced_tables.output",
+  label,
+  diffState: "added",
+  resourceKey: `uc-synced-table::catalog.schema.${label}`,
+  changes: undefined,
+  resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
+});
+
 const makeResourceNode = (label: string, resourceKey: string): DagNodeData => ({
   nodeKind: "resource",
   label,
@@ -89,6 +103,12 @@ describe("extractNodeSearchText", () => {
 
     expect(result.badgeText).toContain("catalog");
     expect(result.text).toContain("catalog");
+  });
+
+  test("includes registry badge for derived nodes", () => {
+    const result = extractNodeSearchText(makeDerivedNode("output"));
+
+    expect(result.badgeText).toContain("synced table");
   });
 
   test("includes task type badge for task nodes with known task type", () => {

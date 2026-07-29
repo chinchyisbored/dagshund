@@ -1,3 +1,4 @@
+import type { DerivedKind } from "../graph/derived-node-specs.ts";
 import type { JobRunEffect } from "../utils/normalize-plan.ts";
 import type { WheelUpdate } from "../utils/wheel-updates.ts";
 import type { DiffState } from "./diff-state.ts";
@@ -11,7 +12,7 @@ type TaskChangeSummaryEntry = {
 
 export type TaskChangeSummary = readonly TaskChangeSummaryEntry[];
 
-export type NodeKind = "job" | "task" | "resource" | "root" | "phantom";
+export type NodeKind = "job" | "task" | "resource" | "derived" | "root" | "phantom";
 
 /** Fields shared across all node kinds (composed via intersection, not inheritance). */
 type BaseGraphNode = {
@@ -67,6 +68,12 @@ export type ResourceGraphNode = BaseGraphNode & {
   readonly effects?: readonly JobRunEffect[];
 };
 
+export type DerivedGraphNode = BaseGraphNode & {
+  readonly nodeKind: "derived";
+  readonly derivedKind: DerivedKind;
+  readonly ownerResourceKey: string;
+};
+
 export type RootGraphNode = BaseGraphNode & {
   readonly nodeKind: "root";
 };
@@ -81,6 +88,7 @@ export type GraphNode =
   | JobGraphNode
   | TaskGraphNode
   | ResourceGraphNode
+  | DerivedGraphNode
   | RootGraphNode
   | PhantomGraphNode;
 

@@ -77,6 +77,20 @@ const buildPhantomData = (): DagNodeData => ({
   resourceHasShapeDrift: false,
 });
 
+const buildDerivedData = (): DagNodeData => ({
+  nodeKind: "derived",
+  derivedKind: "ucSyncedTable",
+  ownerResourceKey: "resources.postgres_synced_tables.output",
+  label: "output",
+  diffState: "added",
+  resourceKey: "uc-synced-table::catalog.schema.output",
+  changes: undefined,
+  resourceState: undefined,
+  newState: undefined,
+  remoteState: undefined,
+  resourceHasShapeDrift: false,
+});
+
 const SIMPLE_ENTRY: PlanEntry = {
   action: "create",
   new_state: { value: { display_name: "My Alert" } },
@@ -129,6 +143,11 @@ describe("extractRawPlanSlice", () => {
   test("returns undefined for phantom nodes", () => {
     const plan = buildPlan({ "resources.alerts.foo": SIMPLE_ENTRY });
     expect(extractRawPlanSlice(plan, buildPhantomData())).toBeUndefined();
+  });
+
+  test("returns undefined for derived nodes", () => {
+    const plan = buildPlan({ "resources.postgres_synced_tables.output": SIMPLE_ENTRY });
+    expect(extractRawPlanSlice(plan, buildDerivedData())).toBeUndefined();
   });
 
   test("returns undefined when resource key not found in plan", () => {

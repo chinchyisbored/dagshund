@@ -1032,7 +1032,38 @@ describe("extractSourceTableEdges", () => {
     });
   });
 
-  test("postgres synced table links to source-table phantom when both exist", () => {
+  test("source reference prefers a promoted derived table", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.synced_database_tables.customer_360",
+        makeEntry({
+          name: "cat.schema.customer_360",
+          spec: { source_table_full_name: "dagshund.analytics.customer_profiles" },
+        }),
+      ],
+    ];
+    const nodeIds = new Set([
+      "resources.synced_database_tables.customer_360",
+      "uc-synced-table::dagshund.analytics.customer_profiles",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      [
+        "resources.synced_database_tables.customer_360",
+        "resources.synced_database_tables.customer_360",
+      ],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.synced_database_tables.customer_360",
+        target: "uc-synced-table::dagshund.analytics.customer_profiles",
+      }),
+    );
+  });
+
+  test("postgres synced table links to source phantom and derived output", () => {
     const entries: [string, PlanEntry][] = [
       [
         "resources.postgres_synced_tables.phantom_table",
@@ -1047,6 +1078,7 @@ describe("extractSourceTableEdges", () => {
     const nodeIds = new Set([
       "resources.postgres_synced_tables.phantom_table",
       "source-table::dagshund.phantom_schema.phantom_table",
+      "uc-synced-table::dagshund_lakebase.public.phantom_table",
     ]);
     const nodeIdByResourceKey = new Map([
       [
@@ -1057,13 +1089,30 @@ describe("extractSourceTableEdges", () => {
 
     const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
 
-    const sourceTableEdges = edges.filter((e) => e.target.startsWith("source-table::"));
-    expect(sourceTableEdges).toHaveLength(1);
-    expect(sourceTableEdges[0]).toMatchObject({
-      source: "resources.postgres_synced_tables.phantom_table",
-      target: "source-table::dagshund.phantom_schema.phantom_table",
-      diffState: "unchanged",
-    });
+    expect(edges.map((edge) => `${edge.source}→${edge.target}`)).toEqual([
+      "resources.postgres_synced_tables.phantom_table→source-table::dagshund.phantom_schema.phantom_table",
+      "uc-synced-table::dagshund_lakebase.public.phantom_table→resources.postgres_synced_tables.phantom_table",
+    ]);
+  });
+
+  test("identical source and output emits only the derived ownership dependency", () => {
+    const resourceKey = "resources.postgres_synced_tables.shared";
+    const derivedId = "uc-synced-table::shared.data.table";
+    const entries: [string, PlanEntry][] = [
+      [
+        resourceKey,
+        makeEntry({
+          source_table_full_name: "shared.data.table",
+          synced_table_id: "shared.data.table",
+        }),
+      ],
+    ];
+    const nodeIds = new Set([resourceKey, derivedId]);
+    const nodeIdByResourceKey = new Map([[resourceKey, resourceKey]]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toEqual([expect.objectContaining({ source: derivedId, target: resourceKey })]);
   });
 
   test("no edge when source_table_full_name is missing", () => {
@@ -1894,6 +1943,39 @@ describe("extractAppUcSecurableEdges", () => {
     });
   });
 
+  test("app UC securable prefers a promoted derived table", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.apps.my_app",
+        makeEntry({
+          resources: [
+            {
+              uc_securable: { securable_full_name: "dagshund.analytics.table1" },
+              name: "data",
+            },
+          ],
+        }),
+      ],
+    ];
+    const nodeIds = new Set([
+      "resources.apps.my_app",
+      "uc-synced-table::dagshund.analytics.table1",
+    ]);
+    const nodeIdByResourceKey = new Map([["resources.apps.my_app", "resources.apps.my_app"]]);
+
+    const edges = extractLateralEdges(
+      { entries, nodeIdByResourceKey, nodeIds },
+      buildIndexes(entries),
+    );
+
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.apps.my_app",
+        target: "uc-synced-table::dagshund.analytics.table1",
+      }),
+    );
+  });
+
   test("no edge when source-table phantom not in nodeIds", () => {
     const entries: [string, PlanEntry][] = [
       [
@@ -1948,6 +2030,28 @@ describe("extractQualityMonitorTableEdges", () => {
       "source-table::dagshund.analytics.orders",
       "sql-warehouse::wh1",
     ]);
+  });
+
+  test("quality monitor prefers a promoted derived table", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.quality_monitors.drift", makeEntry({ table_name: "dagshund.analytics.orders" })],
+    ];
+    const nodeIds = new Set([
+      "resources.quality_monitors.drift",
+      "uc-synced-table::dagshund.analytics.orders",
+    ]);
+    const nodeIdByResourceKey = new Map([
+      ["resources.quality_monitors.drift", "resources.quality_monitors.drift"],
+    ]);
+
+    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
+
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.quality_monitors.drift",
+        target: "uc-synced-table::dagshund.analytics.orders",
+      }),
+    );
   });
 
   test("no edge when table_name is not a valid three-part name", () => {
