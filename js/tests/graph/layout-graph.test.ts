@@ -457,14 +457,14 @@ describe("toLateralFlowEdges", () => {
     });
   });
 
-  test("uses straight edge type with shortest-path lateral handles", async () => {
+  test("uses curved edges with shortest-path lateral handles", async () => {
     const { toLateralFlowEdges } = await loadModule();
     const edges = toLateralFlowEdges(
       [{ id: "a→b", source: "a", target: "b", label: undefined, diffState: "unchanged" }],
       nodeLayouts,
     );
 
-    expect(edges[0]?.type).toBe("straight");
+    expect(edges[0]?.type).toBe("bezier");
     expect(edges[0]?.sourceHandle).toMatch(/^lateral-/);
     expect(edges[0]?.targetHandle).toMatch(/^lateral-/);
     expect(edges[0]?.zIndex).toBe(10);

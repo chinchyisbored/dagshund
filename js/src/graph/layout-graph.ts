@@ -372,7 +372,7 @@ const chooseLateralHandles = (
 type NodeLayout = { readonly position: Position2D; readonly height: number };
 
 /** Convert lateral GraphEdges to React Flow edges with the lateral visual style.
- *  Routes each edge through the handle pair that produces the shortest straight line. */
+ *  Routes each edge through the nearest handle pair, then renders a Bezier path. */
 export const toLateralFlowEdges = (
   edges: readonly GraphEdge[],
   nodeLayouts: ReadonlyMap<string, NodeLayout>,
@@ -396,7 +396,7 @@ export const toLateralFlowEdges = (
         target: edge.target,
         sourceHandle: handles.sourceHandle,
         targetHandle: handles.targetHandle,
-        type: "straight",
+        type: "bezier",
         zIndex: 10,
         style: {
           stroke: LATERAL_EDGE_STYLE.stroke,
