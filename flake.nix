@@ -15,8 +15,8 @@
             hash = "sha256-Edw+4RvBaV4UlzfGyj1WGTAs9DRua4pux5iJZ+8B3cU=";
           };
           databricks = {
-            archive = "databricks_cli_1.8.0_linux_amd64.tar.gz";
-            hash = "sha256-l/UHWBmrx09GS5KqxBIKZsiQyvUXwn5+ZUNNw7By8is=";
+            archive = "databricks_cli_1.10.0_linux_amd64.tar.gz";
+            hash = "sha256-cPTAyBfG5ebhRQzISJzQmQLO1s6FNDzQoxyDIik571M=";
           };
           beadsRust = {
             archive = "br-0.2.16-linux_musl_amd64.tar.gz";
@@ -55,9 +55,9 @@
 
           databricksCli = pkgs.stdenvNoCC.mkDerivation {
             pname = "databricks-cli";
-            version = "1.8.0";
+            version = "1.10.0";
             src = pkgs.fetchurl {
-              url = "https://github.com/databricks/cli/releases/download/v1.8.0/${artifact.databricks.archive}";
+              url = "https://github.com/databricks/cli/releases/download/v1.10.0/${artifact.databricks.archive}";
               inherit (artifact.databricks) hash;
             };
             sourceRoot = ".";

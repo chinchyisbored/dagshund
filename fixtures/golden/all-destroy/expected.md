@@ -1,4 +1,4 @@
-### dagshund plan (v2, cli 1.6.0)
+### dagshund plan (v2, cli 1.10.0)
 
 #### alerts (1)
 - `-` `alerts/stale_pipeline_alert` — delete

@@ -1,4 +1,4 @@
-dagshund plan (v2, cli 1.7.0)
+dagshund plan (v2, cli 1.10.0)
 
   job_runs (1)
   + job_runs/ping_healthcheck  (create)

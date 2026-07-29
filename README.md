@@ -18,7 +18,7 @@ Dagshund sits between `databricks bundle plan` and `databricks bundle deploy`. T
 
 ## Install
 
-Requires Python 3.12+. Last validated against Databricks CLI 1.6.0. Dagshund reads `databricks bundle plan -o json`, whose JSON shape can change between CLI releases.
+Requires Python 3.12+. Last validated against Databricks CLI 1.10.0. Dagshund reads `databricks bundle plan -o json`, whose JSON shape can change between CLI releases.
 
 ```bash
 # Install (recommended for regular use)
@@ -227,7 +227,7 @@ nix develop
 just install
 ```
 
-The shell provides Python 3.14, uv, Bun 1.3.12, the repository workflow tools, and Databricks CLI 1.8.0. The Databricks CLI is built from its checksummed GitHub release artifact rather than the Nixpkgs package. uv remains responsible for the Python virtual environment and dependencies, but is configured to use the Nix-provided interpreter without downloading Python.
+The shell provides Python 3.14, uv, Bun 1.3.12, the repository workflow tools, and Databricks CLI 1.10.0. The Databricks CLI is built from its checksummed GitHub release artifact rather than the Nixpkgs package. uv remains responsible for the Python virtual environment and dependencies, but is configured to use the Nix-provided interpreter without downloading Python.
 
 Run the full quality and build checks from the development shell:
 

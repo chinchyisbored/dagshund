@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.6.0",
-  "lineage": "e7cc1fa8-9c90-4e8e-8bab-3cefe3525ed1",
+  "cli_version": "1.10.0",
+  "lineage": "3c67318f-a157-4b88-91c4-2cc150594f35",
   "serial": 1,
   "plan": {
     "resources.apps.my_test_app": {
@@ -31,7 +31,7 @@
           "resources": [
             {
               "job": {
-                "id": "161680698375847",
+                "id": "357078766422667",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -55,13 +55,13 @@
               "genie_space": {
                 "name": "nyc_taxi_genie",
                 "permission": "CAN_RUN",
-                "space_id": "01f1765d87e61a01b45ddbd5b495d83f"
+                "space_id": "01f18b9f68641d27adafddaedcd9a414"
               },
               "name": "taxi_genie"
             },
             {
               "experiment": {
-                "experiment_id": "1135475236385494",
+                "experiment_id": "3306662354887981",
                 "permission": "CAN_READ"
               },
               "name": "experiment_tracker"
@@ -95,24 +95,24 @@
           "message": "Start the app compute to deploy the app.",
           "state": "STOPPED"
         },
-        "create_time": "2026-07-02T21:32:33Z",
+        "create_time": "2026-07-29T22:47:00Z",
         "creator": "user1@example.com",
         "description": "Test app with all resource dependency types",
         "effective_user_api_scopes": [
-          "iam.current-user:read",
-          "iam.access-control:read"
+          "iam.access-control:read",
+          "iam.current-user:read"
         ],
-        "id": "cb6addb2-9ab7-4298-b570-0e9d32f22586",
+        "id": "43ef04bc-581e-476b-ad52-3121c4a97fa3",
         "lifecycle": {
           "started": false
         },
         "name": "my-test-app",
-        "oauth2_app_client_id": "23a49bbd-9c29-4704-9723-65731379fd56",
-        "oauth2_app_integration_id": "23a49bbd-9c29-4704-9723-65731379fd56",
+        "oauth2_app_client_id": "7e33923e-71f9-426a-8514-20e2caf20b6b",
+        "oauth2_app_integration_id": "7e33923e-71f9-426a-8514-20e2caf20b6b",
         "resources": [
           {
             "job": {
-              "id": "161680698375847",
+              "id": "357078766422667",
               "permission": "CAN_MANAGE_RUN"
             },
             "name": "etl_job"
@@ -133,11 +133,11 @@
             }
           }
         ],
-        "service_principal_client_id": "cb6addb2-9ab7-4298-b570-0e9d32f22586",
-        "service_principal_id": 77080574531758,
+        "service_principal_client_id": "43ef04bc-581e-476b-ad52-3121c4a97fa3",
+        "service_principal_id": 76274093953326,
         "service_principal_name": "app-4u0gcs my-test-app",
         "thumbnail_url": "",
-        "update_time": "2026-07-02T21:32:57Z",
+        "update_time": "2026-07-29T22:47:30Z",
         "updater": "user1@example.com",
         "url": "https://my-test-app-7474654640708173.aws.databricksapps.com"
       },
@@ -166,7 +166,7 @@
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-07-02T21:32:33Z"
+          "remote": "2026-07-29T22:47:00Z"
         },
         "creator": {
           "action": "skip",
@@ -177,14 +177,14 @@
           "action": "skip",
           "reason": "spec:output_only",
           "remote": [
-            "iam.current-user:read",
-            "iam.access-control:read"
+            "iam.access-control:read",
+            "iam.current-user:read"
           ]
         },
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "cb6addb2-9ab7-4298-b570-0e9d32f22586"
+          "remote": "43ef04bc-581e-476b-ad52-3121c4a97fa3"
         },
         "lifecycle": {
           "action": "skip",
@@ -196,19 +196,19 @@
         "oauth2_app_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "23a49bbd-9c29-4704-9723-65731379fd56"
+          "remote": "7e33923e-71f9-426a-8514-20e2caf20b6b"
         },
         "oauth2_app_integration_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "23a49bbd-9c29-4704-9723-65731379fd56"
+          "remote": "7e33923e-71f9-426a-8514-20e2caf20b6b"
         },
         "resources": {
           "action": "update",
           "old": [
             {
               "job": {
-                "id": "161680698375847",
+                "id": "357078766422667",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -232,7 +232,7 @@
           "new": [
             {
               "job": {
-                "id": "161680698375847",
+                "id": "357078766422667",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -256,13 +256,13 @@
               "genie_space": {
                 "name": "nyc_taxi_genie",
                 "permission": "CAN_RUN",
-                "space_id": "01f1765d87e61a01b45ddbd5b495d83f"
+                "space_id": "01f18b9f68641d27adafddaedcd9a414"
               },
               "name": "taxi_genie"
             },
             {
               "experiment": {
-                "experiment_id": "1135475236385494",
+                "experiment_id": "3306662354887981",
                 "permission": "CAN_READ"
               },
               "name": "experiment_tracker"
@@ -286,7 +286,7 @@
           "remote": [
             {
               "job": {
-                "id": "161680698375847",
+                "id": "357078766422667",
                 "permission": "CAN_MANAGE_RUN"
               },
               "name": "etl_job"
@@ -311,12 +311,12 @@
         "service_principal_client_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "cb6addb2-9ab7-4298-b570-0e9d32f22586"
+          "remote": "43ef04bc-581e-476b-ad52-3121c4a97fa3"
         },
         "service_principal_id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": 77080574531758
+          "remote": 76274093953326
         },
         "service_principal_name": {
           "action": "skip",
@@ -325,7 +325,7 @@
         },
         "source_code_path": {
           "action": "skip",
-          "reason": "no deployment",
+          "reason": "no active deployment",
           "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-app-deps/default/files/app_src",
           "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-app-deps/default/files/app_src"
         },
@@ -337,7 +337,7 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-07-02T21:32:57Z"
+          "remote": "2026-07-29T22:47:30Z"
         },
         "updater": {
           "action": "skip",
@@ -354,10 +354,10 @@
     "resources.experiments.my_experiment": {
       "action": "skip",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/1135475236385494",
-        "creation_time": 1783027950354,
-        "experiment_id": "1135475236385494",
-        "last_update_time": 1783027950354,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/3306662354887981",
+        "creation_time": 1785365218756,
+        "experiment_id": "3306662354887981",
+        "last_update_time": 1785365218756,
         "lifecycle_stage": "active",
         "name": "/experiments/my_experiment",
         "tags": [
@@ -387,7 +387,7 @@
         "artifact_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "dbfs:/databricks/mlflow-tracking/1135475236385494"
+          "remote": "dbfs:/databricks/mlflow-tracking/3306662354887981"
         },
         "name": {
           "action": "skip",
@@ -460,7 +460,7 @@
       "action": "update",
       "new_state": {
         "value": {
-          "object_id": "/genie/01f1765d87e61a01b45ddbd5b495d83f",
+          "object_id": "/genie/01f18b9f68641d27adafddaedcd9a414",
           "__embed__": [
             {
               "level": "CAN_MANAGE",
@@ -474,7 +474,7 @@
         }
       },
       "remote_state": {
-        "object_id": "/genie/01f1765d87e61a01b45ddbd5b495d83f",
+        "object_id": "/genie/01f18b9f68641d27adafddaedcd9a414",
         "__embed__": [
           {
             "level": "CAN_MANAGE",
@@ -498,7 +498,7 @@
     "resources.jobs.my_etl_job": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1783027950454,
+        "created_time": 1785365218960,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -507,7 +507,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 161680698375847,
+        "job_id": 357078766422667,
         "max_concurrent_runs": 1,
         "name": "my_etl_job",
         "queue": {

@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.6.0",
-  "lineage": "e115780b-a9ec-4469-a9a4-e778ccf93488",
+  "cli_version": "1.10.0",
+  "lineage": "59d642f6-e12d-4a4b-b3f8-faefa1d3d3ee",
   "serial": 1,
   "plan": {
     "resources.postgres_branches.dev_branch": {
@@ -55,7 +55,7 @@
       },
       "remote_state": {
         "branch_id": "prd",
-        "create_time": "2026-07-02T21:35:14Z",
+        "create_time": "2026-07-29T22:52:23Z",
         "name": "projects/dagshund/branches/prd",
         "parent": "projects/dagshund",
         "status": {
@@ -64,10 +64,10 @@
           "default": true,
           "is_protected": true,
           "logical_size_bytes": 0,
-          "state_change_time": "2026-07-02T21:35:16Z"
+          "state_change_time": "2026-07-29T22:52:25Z"
         },
-        "uid": "br-shiny-surf-d8q39um1",
-        "update_time": "2026-07-02T21:35:19Z"
+        "uid": "br-twilight-cloud-d8k3bvrn",
+        "update_time": "2026-07-29T22:52:28Z"
       },
       "changes": {
         "is_protected": {
@@ -121,16 +121,17 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-07-02T21:35:20Z",
+        "create_time": "2026-07-29T22:52:32Z",
         "database_id": "app-db",
         "name": "projects/dagshund/branches/prd/databases/app-db",
         "parent": "projects/dagshund/branches/prd",
+        "role": "",
         "status": {
           "database_id": "app-db",
           "postgres_database": "app_db",
           "role": "projects/dagshund/branches/prd/roles/data-engineers"
         },
-        "update_time": "2026-07-02T21:35:21Z"
+        "update_time": "2026-07-29T22:52:34Z"
       },
       "changes": {
         "postgres_database": {
@@ -143,7 +144,8 @@
           "action": "skip",
           "reason": "spec:input_only",
           "old": "projects/dagshund/branches/prd/roles/data-engineers",
-          "new": "projects/dagshund/branches/prd/roles/data-engineers"
+          "new": "projects/dagshund/branches/prd/roles/data-engineers",
+          "remote": ""
         }
       }
     },
@@ -178,7 +180,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-07-02T21:35:14Z",
+        "create_time": "2026-07-29T22:52:23Z",
         "endpoint_id": "primary",
         "endpoint_type": "",
         "name": "projects/dagshund/branches/prd/endpoints/primary",
@@ -196,13 +198,15 @@
             "min": 1
           },
           "hosts": {
-            "host": "ep-icy-pond-d8in01hu.database.us-east-2.cloud.databricks.com"
+            "host": "ep-long-tree-d8645rs2.database.us-east-2.cloud.databricks.com",
+            "read_write_pooled_host": "ep-long-tree-d8645rs2-pooler.database.us-east-2.cloud.databricks.com"
           },
+          "last_active_time": "2000-01-01T00:00:00Z",
           "settings": {},
           "suspend_timeout_duration": "86400s"
         },
-        "uid": "ep-icy-pond-d8in01hu",
-        "update_time": "2026-07-02T21:35:24Z"
+        "uid": "ep-long-tree-d8645rs2",
+        "update_time": "2026-07-29T22:52:34Z"
       },
       "changes": {
         "autoscaling_limit_max_cu": {
@@ -250,7 +254,7 @@
         }
       },
       "remote_state": {
-        "create_time": "2026-07-02T21:35:14Z",
+        "create_time": "2026-07-29T22:52:23Z",
         "name": "projects/dagshund",
         "project_id": "dagshund",
         "status": {
@@ -269,8 +273,8 @@
           "project_id": "dagshund",
           "synthetic_storage_size_bytes": 0
         },
-        "uid": "745162d1-0d12-4407-a3d2-897bf22fddaa",
-        "update_time": "2026-07-02T21:35:16Z"
+        "uid": "d4266105-21b8-4172-8c58-1d4df742fada",
+        "update_time": "2026-07-29T22:52:25Z"
       },
       "changes": {
         "custom_tags": {
@@ -367,7 +371,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-07-02T21:35:20Z",
+        "create_time": "2026-07-29T22:52:29Z",
         "name": "projects/dagshund/branches/prd/roles/data-engineers",
         "parent": "projects/dagshund/branches/prd",
         "role_id": "data-engineers",
@@ -382,7 +386,7 @@
           "postgres_role": "data_engineers",
           "role_id": "data-engineers"
         },
-        "update_time": "2026-07-02T21:35:21Z"
+        "update_time": "2026-07-29T22:52:29Z"
       },
       "changes": {
         "attributes": {

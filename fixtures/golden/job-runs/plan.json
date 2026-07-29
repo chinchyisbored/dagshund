@@ -1,8 +1,8 @@
 {
   "plan_version": 2,
-  "cli_version": "1.7.0",
-  "lineage": "634c6c2b-5321-4ac2-8265-d5efcf005c7e",
-  "serial": 3,
+  "cli_version": "1.10.0",
+  "lineage": "a1baea4f-6dd7-4c97-8959-239e21498782",
+  "serial": 1,
   "plan": {
     "resources.job_runs.apply_migrations": {
       "depends_on": [
@@ -14,24 +14,23 @@
       "action": "recreate",
       "new_state": {
         "value": {
-          "job_id": 39890217972931,
+          "job_id": 1055377491175506,
           "job_parameters": {
             "migration_version": "v2"
           }
         }
       },
       "remote_state": {
-        "job_id": 39890217972931,
+        "job_id": 1055377491175506,
         "job_parameters": {
           "migration_version": "v1"
         },
-        "run_id": 1114600517425159,
+        "run_id": 68045634068767,
         "run_name": "schema_migration",
-        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/39890217972931/run/1114600517425159",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/1055377491175506/run/68045634068767",
         "run_type": "JOB_RUN",
         "state": {
-          "life_cycle_state": "TERMINATED",
-          "result_state": "SUCCESS",
+          "life_cycle_state": "RUNNING",
           "state_message": "",
           "user_cancelled_or_timedout": false
         }
@@ -56,7 +55,7 @@
       "action": "create",
       "new_state": {
         "value": {
-          "job_id": 585779686184508
+          "job_id": 154779333618261
         }
       }
     },
@@ -69,14 +68,13 @@
       ],
       "action": "delete",
       "remote_state": {
-        "job_id": 805591898206038,
-        "run_id": 648429988786839,
+        "job_id": 708871805319302,
+        "run_id": 596973884122537,
         "run_name": "smoke_check",
-        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/805591898206038/run/648429988786839",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/708871805319302/run/596973884122537",
         "run_type": "JOB_RUN",
         "state": {
-          "life_cycle_state": "TERMINATED",
-          "result_state": "SUCCESS",
+          "life_cycle_state": "RUNNING",
           "state_message": "",
           "user_cancelled_or_timedout": false
         }
@@ -99,14 +97,13 @@
       ],
       "action": "skip",
       "remote_state": {
-        "job_id": 358297749448342,
-        "run_id": 160668634253625,
+        "job_id": 828445533162707,
+        "run_id": 662476000693781,
         "run_name": "nightly_report",
-        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/358297749448342/run/160668634253625",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/828445533162707/run/662476000693781",
         "run_type": "JOB_RUN",
         "state": {
-          "life_cycle_state": "TERMINATED",
-          "result_state": "SUCCESS",
+          "life_cycle_state": "RUNNING",
           "state_message": "",
           "user_cancelled_or_timedout": false
         }
@@ -122,7 +119,7 @@
       "action": "create",
       "new_state": {
         "value": {
-          "job_id": 859083714790909,
+          "job_id": 642579520123604,
           "job_parameters": {
             "region": "eu"
           }
@@ -138,17 +135,16 @@
       ],
       "action": "skip",
       "remote_state": {
-        "job_id": 859083714790909,
+        "job_id": 642579520123604,
         "job_parameters": {
           "region": "us"
         },
-        "run_id": 119135840650016,
+        "run_id": 440905141337111,
         "run_name": "cache_warmup",
-        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/859083714790909/run/119135840650016",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/?o=7474654640708173#job/642579520123604/run/440905141337111",
         "run_type": "JOB_RUN",
         "state": {
-          "life_cycle_state": "TERMINATED",
-          "result_state": "SUCCESS",
+          "life_cycle_state": "RUNNING",
           "state_message": "",
           "user_cancelled_or_timedout": false
         }
@@ -157,7 +153,7 @@
     "resources.jobs.cache_warmup": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1783774984936,
+        "created_time": 1785365453518,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -166,7 +162,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 859083714790909,
+        "job_id": 642579520123604,
         "max_concurrent_runs": 1,
         "name": "cache_warmup",
         "parameters": [
@@ -241,7 +237,7 @@
     "resources.jobs.nightly_report": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1783774984942,
+        "created_time": 1785365453509,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -250,7 +246,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 358297749448342,
+        "job_id": 828445533162707,
         "max_concurrent_runs": 1,
         "name": "nightly_report",
         "queue": {
@@ -319,7 +315,7 @@
     "resources.jobs.schema_migration": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1783774984912,
+        "created_time": 1785365453581,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -328,7 +324,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 39890217972931,
+        "job_id": 1055377491175506,
         "max_concurrent_runs": 1,
         "name": "schema_migration",
         "parameters": [
@@ -403,7 +399,7 @@
     "resources.jobs.seed_lookup_tables": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1783774984890,
+        "created_time": 1785365453514,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -412,7 +408,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 585779686184508,
+        "job_id": 154779333618261,
         "max_concurrent_runs": 1,
         "name": "seed_lookup_tables",
         "queue": {
@@ -481,7 +477,7 @@
     "resources.jobs.smoke_check": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1783774984869,
+        "created_time": 1785365453517,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -490,7 +486,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 805591898206038,
+        "job_id": 708871805319302,
         "max_concurrent_runs": 1,
         "name": "smoke_check",
         "queue": {
