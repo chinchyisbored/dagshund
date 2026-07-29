@@ -36,6 +36,11 @@ from dagshund.plan import (
     is_topology_drift_change,
     resource_has_shape_drift,
 )
+from dagshund.synced_table_outputs import (
+    OutputRelationship,
+    SyncedTableOutput,
+    extract_synced_table_outputs,
+)
 from dagshund.types import (
     DagshundError,
     DiffState,
@@ -164,6 +169,18 @@ def _render_field_change(
 _EFFECT_FIELD_EXTRA_INDENT = 4
 
 
+def _render_synced_table_output(
+    output: SyncedTableOutput,
+    owner_action: ActionType,
+    *,
+    use_color: bool,
+) -> str:
+    action = owner_action if output.relationship == OutputRelationship.MANAGED else ActionType.EMPTY
+    cfg = action_config(action)
+    line = f"      {cfg.symbol} {output.relationship} {output.resource_type}: {output.name}"
+    return _colorize(line, _action_color(cfg), use_color=use_color)
+
+
 def _render_effect_lines(
     effect: JobRunEffect,
     *,
@@ -196,6 +213,9 @@ def _render_resource(
     label = f"  ({cfg.display})" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
     header = f"  {cfg.symbol} {resource_type}/{resource_name}{label}"
     yield _colorize(header, _action_color(cfg), use_color=use_color)
+
+    for output in extract_synced_table_outputs(key, entry):
+        yield _render_synced_table_output(output, entry.action, use_color=use_color)
 
     # Effect lines render even for skip/unchanged parents (before the early
     # return below) — a deploy-triggered run never changes the job itself.

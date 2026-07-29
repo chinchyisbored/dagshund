@@ -26,5 +26,7 @@
 
 #### postgres_synced_tables (1)
 - `+` `postgres_synced_tables/phantom_table` — create
+  - `+` managed pipeline: `phantom_table pipeline`
+  - `+` managed Unity Catalog registration: `dagshund_lakebase.public.phantom_table`
 
 **+5** create, **=3** unchanged, **~2** update

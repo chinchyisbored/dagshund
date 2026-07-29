@@ -368,6 +368,103 @@ def test_render_resource_delete_action() -> None:
     assert "(delete)" in lines[0]
 
 
+def test_render_resource_postgres_synced_table_create_shows_managed_outputs() -> None:
+    key = "resources.postgres_synced_tables.orders"
+    entry = make_resource(
+        key,
+        action="create",
+        new_state={"value": {"synced_table_id": "lakebase.public.orders"}},
+    )
+
+    lines = list(_render_resource(key, entry, use_color=False))
+
+    assert lines == [
+        "  + postgres_synced_tables/orders  (create)",
+        "      + managed pipeline: orders pipeline",
+        "      + managed Unity Catalog registration: lakebase.public.orders",
+    ]
+
+
+def test_render_resource_postgres_synced_table_update_inherits_owner_action() -> None:
+    key = "resources.postgres_synced_tables.orders"
+    entry = make_resource(
+        key,
+        action="update",
+        new_state={"value": {"synced_table_id": "lakebase.public.orders"}},
+    )
+
+    lines = list(_render_resource(key, entry, use_color=False))
+
+    assert lines[1:] == [
+        "      ~ managed pipeline: orders pipeline",
+        "      ~ managed Unity Catalog registration: lakebase.public.orders",
+    ]
+
+
+def test_render_resource_synced_database_table_unchanged_inherits_owner_action() -> None:
+    key = "resources.synced_database_tables.customer_360"
+    entry = make_resource(
+        key,
+        action="skip",
+        remote_state={"name": "registered.analytics.customer_360"},
+    )
+
+    lines = list(_render_resource(key, entry, use_color=False))
+
+    assert lines[1:] == [
+        "      = managed pipeline: customer_360 pipeline",
+        "      = managed PostgreSQL table: customer_360",
+        "      = managed Unity Catalog registration: registered.analytics.customer_360",
+    ]
+
+
+def test_render_resource_synced_database_table_delete_shows_managed_outputs() -> None:
+    key = "resources.synced_database_tables.customer_360"
+    entry = make_resource(
+        key,
+        action="delete",
+        remote_state={
+            "name": "registered.analytics.customer_360",
+            "database_instance_name": "analytics_db",
+            "logical_database_name": "analytics_data",
+        },
+    )
+
+    lines = list(_render_resource(key, entry, use_color=False))
+
+    assert lines == [
+        "  - synced_database_tables/customer_360  (delete)",
+        "      - managed pipeline: customer_360 pipeline",
+        "      - managed PostgreSQL table: customer_360 (analytics_db/analytics_data)",
+        "      - managed Unity Catalog registration: registered.analytics.customer_360",
+    ]
+
+
+def test_render_resource_existing_pipeline_is_unchanged_reference() -> None:
+    key = "resources.postgres_synced_tables.orders"
+    entry = make_resource(
+        key,
+        action="delete",
+        remote_state={"existing_pipeline_id": "shared-pipeline", "synced_table_id": "c.s.orders"},
+    )
+
+    lines = list(_render_resource(key, entry, use_color=False))
+
+    assert "      = referenced pipeline: shared-pipeline" in lines
+
+
+def test_render_resource_managed_outputs_follow_color_setting() -> None:
+    key = "resources.postgres_synced_tables.orders"
+    entry = make_resource(key, action="create")
+
+    plain_lines = list(_render_resource(key, entry, use_color=False))
+    color_lines = list(_render_resource(key, entry, use_color=True))
+
+    assert RESET not in plain_lines[1]
+    assert GREEN in color_lines[1]
+    assert RESET in color_lines[1]
+
+
 def test_render_resource_update_shows_field_changes() -> None:
     entry = make_resource(
         action="update",
@@ -1594,6 +1691,52 @@ def test_render_text_skip_only_effects_render_run_records(capsys: pytest.Capture
     out = capsys.readouterr().out
     assert "No changes" not in out
     assert "      = run nightly (already ran)" in out
+
+
+def test_render_text_synced_outputs_do_not_change_summary_counts(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    key = "resources.postgres_synced_tables.orders"
+    plan = make_plan(
+        {
+            key: make_resource(
+                key,
+                action="create",
+                new_state={"value": {"synced_table_id": "lakebase.public.orders"}},
+            )
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "  +1 create" in out
+    assert "+2" not in out
+    assert "+3" not in out
+
+
+def test_render_text_filter_hides_owner_and_managed_outputs_together(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    key = "resources.postgres_synced_tables.orders"
+    plan = make_plan(
+        {
+            key: make_resource(
+                key,
+                action="create",
+                new_state={"value": {"synced_table_id": "lakebase.public.orders"}},
+            ),
+            "resources.jobs.etl": make_resource("resources.jobs.etl", action="create"),
+        }
+    )
+
+    render_text(plan, filter_query="type:jobs")
+
+    out = capsys.readouterr().out
+    assert "jobs/etl" in out
+    assert "postgres_synced_tables/orders" not in out
+    assert "orders pipeline" not in out
+    assert "lakebase.public.orders" not in out
 
 
 def test_render_text_summary_includes_effect_tally(capsys: pytest.CaptureFixture[str]) -> None:
