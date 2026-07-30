@@ -2,27 +2,31 @@
 name: update-fixtures
 description: >
   Regenerate dagshund golden fixtures against a new Databricks CLI version.
-  Re-runs `just regen`, walks the user through the manual-drift fixture,
-  triages cosmetic vs substantive drift, blesses new expected output, updates
+  Regenerates fixtures in the Nix development shell, walks the user through
+  the manual-drift fixture, triages cosmetic vs substantive drift, blesses
+  new expected output, updates
   README + screenshots, and commits.
 ---
 
 # Update Fixtures Workflow
 
 Follow these steps in order. Stop and report if any step fails. Fixture
-regeneration hits a real Databricks workspace — be deliberate.
+regeneration hits a real Databricks workspace — be deliberate. Run every
+command through `nix develop --command`; use `nix develop --command bash -c`
+when a step needs shell syntax. Never use tools inherited from the host
+environment.
 
 ## Step 1: Guards
 
-1. Run `git status` — working tree must be clean (stash or commit first).
-2. Run `databricks auth profiles` — the DEFAULT profile must show `Valid: YES`.
-   If not, ask the user to run `! databricks auth login --host <workspace-url>`
-   from the session prompt, then re-verify.
+1. Run `nix develop --command git status` — working tree must be clean (stash or commit first).
+2. Run `nix develop --command databricks auth profiles` — the DEFAULT profile must show `Valid: YES`.
+   If not, ask the user to run `nix develop --command databricks auth login --host <workspace-url>`
+   interactively, then re-verify. Never attempt to bypass the authentication prompt.
 
 ## Step 2: File a tracking bead
 
-`br create "regen fixtures on Databricks CLI X.Y.Z" -t chore -p 2`, then
-`br update <id> --description "..."` with:
+`nix develop --command br create "regen fixtures on Databricks CLI X.Y.Z" -t chore -p 2`, then
+`nix develop --command br update <id> --description "..."` with:
 - Which CLI version and what released
 - Steps 1–N of this workflow
 - Workspace prerequisites (catalog, schemas, groups, SQL warehouse)
@@ -32,7 +36,8 @@ Mark `in_progress`.
 ## Step 3: Regenerate the bundle schema
 
 ```bash
-databricks bundle schema > fixtures/golden/bundle_config_schema.json
+nix develop --command bash -c \
+  'databricks bundle schema > fixtures/golden/bundle_config_schema.json'
 ```
 
 This file is gitignored — not committed, but regenerate to keep the
@@ -41,7 +46,7 @@ yaml-language-server validation accurate.
 ## Step 4: Regenerate unattended fixtures
 
 ```bash
-just regen
+nix develop --command just regen
 ```
 
 This runs a full deploy/plan/destroy cycle for fixtures that can regenerate
@@ -51,13 +56,13 @@ supervised fixtures and prints their follow-up commands.
 `wheel-bump` is also skipped by `--all`: it needs classic compute (job
 clusters with task libraries), which the default fixture workspace
 (serverless-only) rejects. It does NOT regenerate as part of a routine CLI
-refresh — regenerate it ad hoc with `just regen wheel-bump` against a
-workspace that allows job clusters, then `just gen-expected wheel-bump`.
+refresh — regenerate it ad hoc with `nix develop --command just regen wheel-bump` against a
+workspace that allows job clusters, then `nix develop --command just gen-expected wheel-bump`.
 During a routine refresh, leave its `plan.json` untouched; only re-bless its
-expected output if `just test-golden` flags drift from dagshund's own
+expected output if `nix develop --command just test-golden` flags drift from dagshund's own
 rendering changes.
 
-**Do not run `just regen` or `just dev` as background tasks** — they hang on
+**Do not run `nix develop --command just regen` or `nix develop --command just dev` as background tasks** — they hang on
 TaskOutput polling.
 
 ## Step 5: Regenerate supervised fixtures
@@ -67,8 +72,7 @@ TaskOutput polling.
 `regen.sh` can't generate manual-drift because it requires UI edits between
 deploy and plan. Follow `fixtures/golden/manual-drift/README.md` literally:
 
-1. `cd fixtures/golden/manual-drift/before && databricks bundle deploy`
-   (source `fixtures/golden/.env` first so `BUNDLE_VAR_secondary_user` is set).
+1. Run `nix develop --command bash -c 'source fixtures/golden/.env && cd fixtures/golden/manual-drift/before && databricks bundle deploy'` so `BUNDLE_VAR_secondary_user` is set.
 2. Tell the user to make **7 UI edits** in the workspace:
    - Delete the `transform` task from `drift_pipeline`
    - Change `publish`'s dep from `transform` → `ingest`
@@ -78,28 +82,31 @@ deploy and plan. Follow `fixtures/golden/manual-drift/README.md` literally:
    - On `dagshund.drift_grants`, revoke only `SELECT` from `data_readers` (leave `USE_SCHEMA`)
    - On `dagshund.drift_grants`, grant `USE_SCHEMA` and `SELECT` to `account users`
 3. **Wait for explicit confirmation** from the user that all 7 edits are done.
-4. **Wipe stale local state in `after/.databricks/` before planning**. If `after/.databricks/` contains state from a previous run, `databricks bundle plan` can emit everything as `action: create` with no `remote_state` block. `regen.sh` avoids this by `rm -rf`'ing both `before/.databricks/` and `after/.databricks/` at the start of each fixture run; the manual flow has to do it explicitly:
+4. **Wipe stale local state in `after/.databricks/` before planning**. If `after/.databricks/` contains state from a previous run, `databricks bundle plan` can emit everything as `action: create` with no `remote_state` block. `regen.sh` avoids this by removing both `before/.databricks/` and `after/.databricks/` at the start of each fixture run; the manual flow has to do it explicitly:
 
    ```bash
-   rm -rf fixtures/golden/manual-drift/after/.databricks
+   nix develop --command rm -rf fixtures/golden/manual-drift/after/.databricks
    ```
 
-5. `cd ../after && databricks bundle plan -o json | python3 ../../../tooling/sanitize.py > ../plan.json` — sanity-check that drift_pipeline is `update` (not `create`) and drift_grants.grants has a `remote_state` block. If you see all-creates with only `new_state`, step 4 was missed.
-6. `databricks bundle deploy` (optional — reconciles the drift cleanly before destroy)
-7. `databricks bundle destroy --auto-approve`
+5. Run `nix develop --command bash -c 'cd fixtures/golden/manual-drift/after && databricks bundle plan -o json | python3 ../../../tooling/sanitize.py > ../plan.json'` — sanity-check that drift_pipeline is `update` (not `create`) and drift_grants.grants has a `remote_state` block. If you see all-creates with only `new_state`, step 4 was missed.
+6. Run `nix develop --command bash -c 'cd fixtures/golden/manual-drift/after && databricks bundle deploy'` if reconciling the drift before destroy.
+7. Run `nix develop --command bash -c 'cd fixtures/golden/manual-drift/after && databricks bundle destroy --auto-approve'`.
 
 ## Step 6: Classify drift
 
 ```bash
-just test-golden
+nix develop --command just test-golden
 ```
 
-For every failing fixture, `diff` the current dagshund output against the
+For every failing fixture, compare the current dagshund output against the
 stored expected file **with the CLI version masked**:
 
 ```bash
-sed -E 's/cli [0-9.]+/cli X.Y.Z/' fixtures/golden/<name>/expected.txt \
-  | diff -u - <(uv run python -m dagshund fixtures/golden/<name>/plan.json 2>&1 | sed -E 's/cli [0-9.]+/cli X.Y.Z/')
+nix develop --command bash -c '
+sed -E '\''s/cli [0-9.]+/cli X.Y.Z/'\'' fixtures/golden/<name>/expected.txt \
+  | diff -u - <(uv run python -m dagshund fixtures/golden/<name>/plan.json 2>&1 \
+    | sed -E '\''s/cli [0-9.]+/cli X.Y.Z/'\'')
+'
 ```
 
 Bucket each fixture as:
@@ -120,14 +127,14 @@ dagshund bug. Link to any known CLI PR that caused the change.
 
 ## Step 7: Review with the user before blessing
 
-**Do not run `just gen-expected` without explicit user approval.** Confirmation
+**Do not run `nix develop --command just gen-expected` without explicit user approval.** Confirmation
 of analysis is not approval for action (see memory
 `feedback_context_is_not_approval`). Wait for a clear go-ahead word.
 
 ## Step 8: Bless new expected output
 
 ```bash
-just gen-expected
+nix develop --command just gen-expected
 ```
 
 Writes fresh `expected.txt`, `expected.md`, `expected-exit.txt`, and
@@ -138,7 +145,7 @@ changes the output (currently only wheel-bump).
 ## Step 9: Run the full quality gate
 
 ```bash
-just check
+nix develop --command just check
 ```
 
 Expect occasional test failures: Python or JS unit tests that hardcoded the
@@ -173,7 +180,7 @@ cases:
 For the browser-based screenshots (`drift_web.png`, `schem_detail.png`,
 `dag.png`, `resources.png`, `phantom_node.png`, `lateral_dependencies.png`):
 tell the user they need a refresh and pause for them to recapture via
-`just dev` in the browser. Do **not** try to regenerate screenshots yourself.
+`nix develop --command just dev` in the browser. Do **not** try to regenerate screenshots yourself.
 
 For terminal screenshots (`terminal.png`, `drift.png`): same — user captures
 manually from a terminal running dagshund against the relevant fixture.
@@ -182,9 +189,9 @@ manually from a terminal running dagshund against the relevant fixture.
 
 ## Step 12: Browser verification
 
-`just dev <path-to-plan.json>` — load a substantive fixture and confirm
-the browser rendering looks sane. `just dev-down` to stop. Per
-`docs/guidelines/WORKFLOW.md`, a passing `just build` does not guarantee a
+`nix develop --command just dev <path-to-plan.json>` — load a substantive fixture and confirm
+the browser rendering looks sane. `nix develop --command just dev-down` to stop. Per
+`.agents/guidelines/WORKFLOW.md`, a passing `nix develop --command just build` does not guarantee a
 working app.
 
 ## Step 13: File follow-up beads
@@ -209,26 +216,30 @@ what a user would actually see. Follow this extended flow:
    description).** Run a representative fixture through dagshund in md mode:
 
    ```bash
-   uv run python -m dagshund fixtures/golden/<representative>/plan.json --format md
+   nix develop --command uv run python -m dagshund \
+     fixtures/golden/<representative>/plan.json --format md
    ```
 
-   Post the output as a separate MR comment via
-   `glab mr note <iid> --message "..."`. The description stays reserved for
+   Post the output as a separate non-resolvable MR comment via
+   `nix develop --command glab mr note create <iid> --message "..." --resolvable=false`. The description stays reserved for
    the normal summary + test plan — the markdown dump is transient content
    captured by the screenshot. `mixed-changes` is a good pick (creates,
    updates, deletes, and drift warnings all in one).
 6. Wait for the user to screenshot the rendered markdown note and save it
    to `docs/pictures/pr_comment.png`.
-7. Commit the new screenshot and push again:
-   `git add docs/pictures/pr_comment.png && git commit -m "docs: refresh pr_comment.png for cli X.Y.Z"`
+7. Commit the new screenshot and push again. Stage with
+   `nix develop --command git add docs/pictures/pr_comment.png`, verify with
+   `nix develop --command git status`, commit with
+   `nix develop --command bash -c 'source .venv/bin/activate && git commit -m "docs: refresh pr_comment.png for cli X.Y.Z"'`,
+   then push with `nix develop --command git push` after explicit approval.
 8. Wait for the user to confirm, then **delete the markdown-dump MR note**
-   (via the MR UI or `glab mr note delete <iid> <note-id>`). The screenshot
+   (via the MR UI or `nix develop --command glab mr note delete <iid> <note-id> --yes`). The screenshot
    lives in the repo now; the raw markdown comment was only a fixture.
 9. Before merging, verify the MR title is a conventional commit subject
    (for example `fixtures(cli X.Y.Z): regenerate goldens`). GitLab uses the
    MR title as the squash commit subject on `main`.
-10. Wait for the pipeline to go green, then `glab mr merge --squash` (with
+10. Wait for the pipeline to go green, then `nix develop --command glab mr merge <iid> --squash --yes` (with
    explicit user approval — see `feedback_context_is_not_approval`).
-11. `br close <tracking-bead-id>` only after merge.
+11. `nix develop --command br close <tracking-bead-id>` only after merge.
 
 Never push to `main`. Never skip the MR.

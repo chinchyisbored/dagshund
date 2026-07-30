@@ -2,6 +2,8 @@
 
 Golden test fixtures generated from real Databricks workspaces. These are deterministic, sanitized snapshots of `databricks bundle plan -o json` output used by both JS and Python test suites.
 
+Run every fixture maintenance command through the repository's Nix development shell.
+
 ## Directory structure
 
 ```
@@ -29,7 +31,8 @@ fixtures/
 All `databricks.yaml` files reference a local bundle schema for editor validation. Generate it once:
 
 ```bash
-databricks bundle schema > fixtures/golden/bundle_config_schema.json
+nix develop --command bash -c \
+  'databricks bundle schema > fixtures/golden/bundle_config_schema.json'
 ```
 
 This file is gitignored — regenerate it after upgrading the Databricks CLI.
@@ -63,18 +66,18 @@ Starter SQL warehouse (`9d0afa601cb95187`) is used by the app-dependencies fixtu
 Regeneration runs a full deploy/plan/capture/destroy cycle against a real workspace. Local only, never runs in CI.
 
 ```bash
-just regen <fixture-name>   # One fixture
-just regen                  # All unattended fixtures
+nix develop --command just regen <fixture-name>   # One fixture
+nix develop --command just regen                  # All unattended fixtures
 ```
 
-`just regen` skips fixtures that cannot regenerate unattended against the default workspace:
+`nix develop --command just regen` skips fixtures that cannot regenerate unattended against the default workspace:
 
 | Fixture | Regeneration path |
 |---|---|
 | `manual-drift` | Follow `fixtures/golden/manual-drift/README.md`. It requires workspace UI edits between deploy and plan. |
-| `wheel-bump` | Needs classic compute (job clusters with task libraries); the default fixture workspace is serverless-only. Regenerate ad hoc with `just regen wheel-bump` against a workspace that allows job clusters, then `just gen-expected wheel-bump`. |
+| `wheel-bump` | Needs classic compute (job clusters with task libraries); the default fixture workspace is serverless-only. Regenerate ad hoc with `nix develop --command just regen wheel-bump` against a workspace that allows job clusters, then `nix develop --command just gen-expected wheel-bump`. |
 
-`lakebase-autoscaling` is part of the unattended `just regen` set. If it fails
+`lakebase-autoscaling` is part of the unattended `nix develop --command just regen` set. If it fails
 because a Lakebase endpoint is left list-visible but not get/delete-addressable,
 clean up the workspace endpoint and rerun the fixture.
 
@@ -89,26 +92,27 @@ record via `jobs/runs/delete`.
 After regenerating, update the expected dagshund output:
 
 ```bash
-just gen-expected <fixture-name>
-just gen-expected
+nix develop --command just gen-expected <fixture-name>
+nix develop --command just gen-expected
 ```
 
 ## Checking expected output
 
-`just test-golden` (also part of `just check`) diffs current CLI output against the stored `expected.txt` / `expected.md` for every fixture. It also runs `--suppress-wheel-updates` in both formats: fixtures with a stored `expected-suppressed.txt` / `expected-suppressed.md` are diffed against those, and all others are diffed against the plain expected files, asserting that suppression is a no-op there. For a single fixture:
+`nix develop --command just test-golden` (also part of `nix develop --command just check`) diffs current CLI output against the stored `expected.txt` / `expected.md` for every fixture. It also runs `--suppress-wheel-updates` in both formats: fixtures with a stored `expected-suppressed.txt` / `expected-suppressed.md` are diffed against those, and all others are diffed against the plain expected files, asserting that suppression is a no-op there.
 
 ```bash
-./fixtures/tooling/generate_expected.sh --check <fixture-name>
+nix develop --command just test-golden
 ```
 
-Exits 0 on match, 1 on any mismatch or missing file, 2 on bad args.
+Exits 0 on match and 1 on any mismatch or missing file.
 
 ## Sanitization
 
 `sanitize.py` replaces email addresses with deterministic fakes (`user1@example.com`, `user2@example.com`, ...). UUIDs, numeric IDs, and timestamps pass through untouched. Same input always produces the same output.
 
 ```bash
-python3 fixtures/tooling/sanitize.py < raw-plan.json > sanitized-plan.json
+nix develop --command bash -c \
+  'python3 fixtures/tooling/sanitize.py < raw-plan.json > sanitized-plan.json'
 ```
 
 Sanitization is called automatically by `regen.sh`. You only need to run it directly if processing plans manually.

@@ -15,9 +15,9 @@
 ### Running Tests
 
 ```bash
-just test          # All tests (JS + Python)
-just test-py       # Python only
-just check         # lint + typecheck + all tests
+nix develop --command just test          # All tests (JS + Python)
+nix develop --command just test-py       # Python only
+nix develop --command just check         # lint + typecheck + all tests
 ```
 
 ### Conventions
@@ -31,7 +31,7 @@ just check         # lint + typecheck + all tests
 - **Mocking**: `monkeypatch` over `unittest.mock.patch`. Use mock only for method chains, with a comment explaining why.
 - **Assertions**: no redundant messages — pytest shows expected vs actual. Add messages only for parametrized or multi-step assertions.
 - **Side effects**: `try/finally` when monkeypatch can't handle cleanup (e.g., reassigning `__file__`).
-- **Fixtures**: built-in (`tmp_path`, `capsys`, `monkeypatch`). Golden plan fixtures live in `fixtures/golden/<name>/` (shared with JS). See [fixtures/README.md](../../fixtures/README.md) for layout, regen tooling, and the `--check` mode used by `just test-golden`.
+- **Fixtures**: built-in (`tmp_path`, `capsys`, `monkeypatch`). Golden plan fixtures live in `fixtures/golden/<name>/` (shared with JS). See [fixtures/README.md](../../fixtures/README.md) for layout, regen tooling, and the `--check` mode used by `nix develop --command just test-golden`.
 
 ---
 
@@ -40,7 +40,7 @@ just check         # lint + typecheck + all tests
 ### Running Tests
 
 ```bash
-just test-js             # All JS tests
+nix develop --command just test-js       # All JS tests
 ```
 
 ### Conventions

@@ -8,20 +8,25 @@ All tracking of work to do uses `br` (beads_rust). Do NOT use markdown files for
 
 ## Session Start
 
-1. `br ready --json` — see what's unblocked
-2. `br list --status in_progress --json` — see anything mid-flight
+1. `nix develop --command br ready --json` — see what's unblocked
+2. `nix develop --command br list --status in_progress --json` — see anything mid-flight
 3. Present summary: what's ready, what's in progress, what you recommend
 4. **Wait for the human to choose.** Do not auto-pick.
 
 ## During Work
 
-- Discover a bug or task → file it: `br create "short title" -t bug -p <priority>`, then `br update <id> --description "..."` for details. Titles are short labels — context, examples, and rationale go in the description.
-- Link to current task: `br dep add <new-id> <current-id> --type discovered-from`
-- Mark when starting: `br update <id> --status in_progress`
+- Discover a bug or task → file it: `nix develop --command br create "short title" -t bug -p <priority>`, then `nix develop --command br update <id> --description "..."` for details. Titles are short labels — context, examples, and rationale go in the description.
+- Link to current task: `nix develop --command br dep add <new-id> <current-id> --type discovered-from`
+- Mark when starting: `nix develop --command br update <id> --status in_progress`
 - Create subtasks with dependencies if work grows
 - Keep the human informed — mention what you're filing, don't silently create issues
 
 ## Dev Commands
+
+**Run every command inside the Nix development shell.** For one-off commands,
+use `nix develop --command`. For pipelines, redirection, activation, command
+substitution, or multiple commands, use `nix develop --command bash -c
+'<commands>'`. Never rely on the host environment.
 
 **Always use `just` commands.** Never call `pytest`, `ruff`, `biome`, or `tsc` directly.
 Never manually edit code to fix lint/format issues — let the tools do it.
@@ -33,26 +38,26 @@ run a command only to hit a predictable sandbox failure and then retry.
 
 ### Testing
 ```bash
-just test              # All tests (JS + Python)
-just test-py           # All Python tests with coverage
-just test-js           # All JS tests with coverage
+nix develop --command just test              # All tests (JS + Python)
+nix develop --command just test-py           # All Python tests with coverage
+nix develop --command just test-js           # All JS tests with coverage
 ```
 
 ### Fixing lint & format issues
 ```bash
-just lint              # Lint all (applies safe fixes automatically)
-just lint-py           # Ruff check --fix
-just lint-js           # Biome check --fix
-just format            # Format all
-just format-py         # Ruff format
-just format-js         # Biome format
+nix develop --command just lint              # Lint all (applies safe fixes automatically)
+nix develop --command just lint-py           # Ruff check --fix
+nix develop --command just lint-js           # Biome check --fix
+nix develop --command just format            # Format all
+nix develop --command just format-py         # Ruff format
+nix develop --command just format-js         # Biome format
 ```
 
 ### Typechecking
 ```bash
-just typecheck         # All typecheckers
-just typecheck-py      # ty
-just typecheck-js      # tsc
+nix develop --command just typecheck         # All typecheckers
+nix develop --command just typecheck-py      # ty
+nix develop --command just typecheck-js      # tsc
 ```
 
 ### Code Intelligence
@@ -69,26 +74,26 @@ After writing or editing code, check LSP diagnostics and fix errors before proce
 
 ### Full quality gate
 ```bash
-just check             # lint + typecheck + test (run before completing work)
-just build             # JS template + Python wheel
+nix develop --command just check             # lint + typecheck + test (run before completing work)
+nix develop --command just build             # JS template + Python wheel
 ```
 
 ## Completing Work
 
 When code is working, follow this exact order. No skipping steps.
 
-1. `just check` — lint + typecheck + all tests
-2. `just build` — verify production build
-3. **Browser verification** — ask the human to run `just dev`, check the browser, and stop it with `just dev-down`. `just build` and `just dev` use different Bun code paths; a passing build doesn't guarantee a working app.
+1. `nix develop --command just check` — lint + typecheck + all tests
+2. `nix develop --command just build` — verify production build
+3. **Browser verification** — ask the human to run `nix develop --command just dev`, check the browser, and stop it with `nix develop --command just dev-down`. Build and dev use different Bun code paths; a passing build doesn't guarantee a working app.
 4. **3-pass review** (see below) — present findings to human for decision
 5. Fix what human approves, file beads for the rest
 6. **Pause for explicit approval before committing or pushing.** Present the diff summary and wait for a clear go-ahead ("yes", "commit", "push"). Context, acknowledgement, or a follow-up question is NOT approval.
-7. `git add <specific files>` — stage changes, verify with `git status`
-8. `source .venv/bin/activate && git commit -m "..."`
-9. `git push -u origin <feature-branch>` — push the feature branch
+7. `nix develop --command git add <specific files>` — stage changes, verify with `nix develop --command git status`
+8. `nix develop --command bash -c 'source .venv/bin/activate && git commit -m "..."'`
+9. `nix develop --command git push -u origin <feature-branch>` — push the feature branch
 10. Open the MR non-interactively:
    ```bash
-   glab mr create \
+   nix develop --command glab mr create \
      --source-branch <feature-branch> \
      --target-branch main \
      --remove-source-branch \
@@ -100,18 +105,18 @@ When code is working, follow this exact order. No skipping steps.
 11. Before merging, verify the MR title is a conventional commit subject
     (for example `chore(agents): make skill layout neutral`). GitLab uses the
     MR title as the squash commit subject on `main`.
-12. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `glab mr merge <iid> --squash --yes`
-13. `git checkout main && git pull --ff-only origin main`
-14. `br close <id>` — only AFTER the MR is merged, main is up to date, AND the user has explicitly approved closing. Never close a bead on your own judgment.
+12. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `nix develop --command glab mr merge <iid> --squash --yes`
+13. `nix develop --command bash -c 'git checkout main && git pull --ff-only origin main'`
+14. `nix develop --command br close <id>` — only AFTER the MR is merged, main is up to date, AND the user has explicitly approved closing. Never close a bead on your own judgment.
 
-**`main` is MR-only and history is linear.** Never push directly to `main`. Every feature branch lands via `glab mr create` followed by `glab mr merge --squash` — always squash, never a merge commit. The git commit IS the deliverable; the squash-merge IS the handoff.
+**`main` is MR-only and history is linear.** Never push directly to `main`. Every feature branch lands via `nix develop --command glab mr create` followed by `nix develop --command glab mr merge --squash` — always squash, never a merge commit. The git commit IS the deliverable; the squash-merge IS the handoff.
 
 ### Git Rules
 
-- NEVER combine `git add` and `git commit` — stage first, verify, then commit
-- NEVER run `git reset HEAD` or `git checkout --` on working files
-- Activate venv before committing: `source .venv/bin/activate && git commit ...`
-- `br sync --flush-only` is the final JSONL export and merge-base snapshot check before staging `.beads/`; it does NOT commit or stage
+- NEVER combine `nix develop --command git add` and `nix develop --command git commit` — stage first, verify, then commit
+- NEVER run `nix develop --command git reset HEAD` or `nix develop --command git checkout --` on working files
+- Activate venv before committing: `nix develop --command bash -c 'source .venv/bin/activate && git commit ...'`
+- `nix develop --command br sync --flush-only` is the final JSONL export and merge-base snapshot check before staging `.beads/`; it does NOT commit or stage
 - **Beads ride feature commits** (interim practice): after `br` updates, leave `.beads/` dirty and stage it together with the next feature-branch commit. No standalone `chore(beads): sync` commits, no separate sync branches. If a session ends with beads-only changes, leave `.beads/` dirty for the next session.
 
 ## Review Process
@@ -124,9 +129,9 @@ Find all files changed on this branch plus any uncommitted work:
 
 ```bash
 # Changed files on branch (not yet pushed)
-git diff origin/main...HEAD --name-only
+nix develop --command git diff origin/main...HEAD --name-only
 # Uncommitted changes (staged + unstaged)
-git diff HEAD --name-only
+nix develop --command git diff HEAD --name-only
 ```
 
 Combine and deduplicate into a single file list.
@@ -141,7 +146,7 @@ model or agent-type names. The subagent receives:
 - The file list from Step 1
 - All three review criteria below
 - Instruction to read the changed files once, then evaluate against all criteria
-- Instruction to check closed beads (`br list --status=closed`) for won't-fix decisions — do not flag things already decided
+- Instruction to check closed beads (`nix develop --command br list --status=closed`) for won't-fix decisions — do not flag things already decided
 
 One agent reads the files once and runs all 3 passes over the same context. No fixes, no scripts, just observations.
 
@@ -185,9 +190,9 @@ After all work is complete:
 1. File issues for any loose threads discussed but not implemented
 2. Commit all code (follow Completing Work above, including the approval pause)
 3. Close finished beads — only those the user has explicitly approved closing
-4. Run `br sync --flush-only`; `.beads/` changes ride the feature commit (see Git Rules). Beads-only leftovers stay dirty for the next session.
-5. With explicit approval: `git pull --rebase` then `git push`
-6. `git status` — clean tree (a dirty `.beads/` from step 4 is the allowed exception), up to date with origin
+4. Run `nix develop --command br sync --flush-only`; `.beads/` changes ride the feature commit (see Git Rules). Beads-only leftovers stay dirty for the next session.
+5. With explicit approval: `nix develop --command git pull --rebase` then `nix develop --command git push`
+6. `nix develop --command git status` — clean tree (a dirty `.beads/` from step 4 is the allowed exception), up to date with origin
 7. Hand off — session summary: what got done, what's open, suggested next starting point
 
 ## Collaboration

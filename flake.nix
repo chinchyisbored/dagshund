@@ -94,10 +94,12 @@
               pkgs.coreutils
               pkgs.diffutils
               pkgs.findutils
+              pkgs.gh
               pkgs.git
               pkgs.glab
               pkgs.gnugrep
               pkgs.gnused
+              pkgs.jq
               pkgs.just
               pkgs.prek
               pkgs.psmisc
