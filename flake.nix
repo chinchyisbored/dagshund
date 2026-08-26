@@ -12,11 +12,11 @@
         x86_64-linux = {
           bun = {
             archive = "bun-linux-x64.zip";
-            hash = "sha256-Edw+4RvBaV4UlzfGyj1WGTAs9DRua4pux5iJZ+8B3cU=";
+            hash = "sha256-LQP7X7g6yLVnrKCigbLOGhoZ1Ij1bClo2Iw/Jekv5FI=";
           };
           databricks = {
-            archive = "databricks_cli_1.10.0_linux_amd64.tar.gz";
-            hash = "sha256-cPTAyBfG5ebhRQzISJzQmQLO1s6FNDzQoxyDIik571M=";
+            archive = "databricks_cli_1.14.0_linux_amd64.tar.gz";
+            hash = "sha256-biMitrRIzNomHBWwRFtUY5Gaym++kolz6O6+ur2UhOk=";
           };
           beadsRust = {
             archive = "br-0.2.16-linux_musl_amd64.tar.gz";
@@ -35,9 +35,9 @@
 
           bun = pkgs.stdenvNoCC.mkDerivation {
             pname = "bun";
-            version = "1.3.12";
+            version = "1.4.0";
             src = pkgs.fetchurl {
-              url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.12/${artifact.bun.archive}";
+              url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/${artifact.bun.archive}";
               inherit (artifact.bun) hash;
             };
             nativeBuildInputs = [
@@ -55,9 +55,9 @@
 
           databricksCli = pkgs.stdenvNoCC.mkDerivation {
             pname = "databricks-cli";
-            version = "1.10.0";
+            version = "1.14.0";
             src = pkgs.fetchurl {
-              url = "https://github.com/databricks/cli/releases/download/v1.10.0/${artifact.databricks.archive}";
+              url = "https://github.com/databricks/cli/releases/download/v1.14.0/${artifact.databricks.archive}";
               inherit (artifact.databricks) hash;
             };
             sourceRoot = ".";

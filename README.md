@@ -236,8 +236,8 @@ For interactive work, enter the shell once and run commands there:
 nix develop
 ```
 
-The shell provides Python 3.14, uv, Bun 1.3.12, Git and repository workflow
-CLIs, and Databricks CLI 1.10.0. The Databricks CLI is built from its
+The shell provides Python 3.14, uv, Bun 1.4.0, Git and repository workflow
+CLIs, and Databricks CLI 1.14.0. The Databricks CLI is built from its
 checksummed GitHub release artifact rather than the Nixpkgs package. uv remains
 responsible for the Python virtual environment and dependencies, but is
 configured to use the Nix-provided interpreter without downloading Python.
