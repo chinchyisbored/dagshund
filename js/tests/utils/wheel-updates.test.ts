@@ -53,6 +53,19 @@ describe("parseWheelFilename", () => {
     });
   });
 
+  test("pip extras", () => {
+    expect(
+      parseWheelFilename("/Workspace/artifacts/etl_lib-0.1.0-py3-none-any.whl[train,gpu]"),
+    ).toEqual({
+      distribution: "etl_lib",
+      version: "0.1.0",
+    });
+  });
+
+  test("malformed pip extras return undefined", () => {
+    expect(parseWheelFilename("etl_lib-0.1.0-py3-none-any.whl[train,]")).toBeUndefined();
+  });
+
   test("too few segments returns undefined", () => {
     expect(parseWheelFilename("/wheels/bundle.whl")).toBeUndefined();
   });

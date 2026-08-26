@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.10.0",
-  "lineage": "59d642f6-e12d-4a4b-b3f8-faefa1d3d3ee",
+  "cli_version": "1.14.0",
+  "lineage": "3b36e66d-0ffa-4535-aa7d-97f597532368",
   "serial": 1,
   "plan": {
     "resources.postgres_branches.dev_branch": {
@@ -55,7 +55,7 @@
       },
       "remote_state": {
         "branch_id": "prd",
-        "create_time": "2026-07-29T22:52:23Z",
+        "create_time": "2026-08-26T20:23:28Z",
         "name": "projects/dagshund/branches/prd",
         "parent": "projects/dagshund",
         "status": {
@@ -64,10 +64,10 @@
           "default": true,
           "is_protected": true,
           "logical_size_bytes": 0,
-          "state_change_time": "2026-07-29T22:52:25Z"
+          "state_change_time": "2026-08-26T20:23:31Z"
         },
-        "uid": "br-twilight-cloud-d8k3bvrn",
-        "update_time": "2026-07-29T22:52:28Z"
+        "uid": "br-lively-truth-d8vhgo2k",
+        "update_time": "2026-08-26T20:23:37Z"
       },
       "changes": {
         "is_protected": {
@@ -121,7 +121,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-07-29T22:52:32Z",
+        "create_time": "2026-08-26T20:23:39Z",
         "database_id": "app-db",
         "name": "projects/dagshund/branches/prd/databases/app-db",
         "parent": "projects/dagshund/branches/prd",
@@ -131,7 +131,7 @@
           "postgres_database": "app_db",
           "role": "projects/dagshund/branches/prd/roles/data-engineers"
         },
-        "update_time": "2026-07-29T22:52:34Z"
+        "update_time": "2026-08-26T20:23:41Z"
       },
       "changes": {
         "postgres_database": {
@@ -180,7 +180,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-07-29T22:52:23Z",
+        "create_time": "2026-08-26T20:23:28Z",
         "endpoint_id": "primary",
         "endpoint_type": "",
         "name": "projects/dagshund/branches/prd/endpoints/primary",
@@ -198,15 +198,15 @@
             "min": 1
           },
           "hosts": {
-            "host": "ep-long-tree-d8645rs2.database.us-east-2.cloud.databricks.com",
-            "read_write_pooled_host": "ep-long-tree-d8645rs2-pooler.database.us-east-2.cloud.databricks.com"
+            "host": "ep-misty-wave-d8mzn5wc.database.us-east-2.cloud.databricks.com",
+            "read_write_pooled_host": "ep-misty-wave-d8mzn5wc-pooler.database.us-east-2.cloud.databricks.com"
           },
           "last_active_time": "2000-01-01T00:00:00Z",
           "settings": {},
           "suspend_timeout_duration": "86400s"
         },
-        "uid": "ep-long-tree-d8645rs2",
-        "update_time": "2026-07-29T22:52:34Z"
+        "uid": "ep-misty-wave-d8mzn5wc",
+        "update_time": "2026-08-26T20:23:41Z"
       },
       "changes": {
         "autoscaling_limit_max_cu": {
@@ -254,7 +254,7 @@
         }
       },
       "remote_state": {
-        "create_time": "2026-07-29T22:52:23Z",
+        "create_time": "2026-08-26T20:23:28Z",
         "name": "projects/dagshund",
         "project_id": "dagshund",
         "status": {
@@ -273,8 +273,8 @@
           "project_id": "dagshund",
           "synthetic_storage_size_bytes": 0
         },
-        "uid": "d4266105-21b8-4172-8c58-1d4df742fada",
-        "update_time": "2026-07-29T22:52:25Z"
+        "uid": "eb33ab24-774b-4abd-9809-cb2ff6cae8ef",
+        "update_time": "2026-08-26T20:23:31Z"
       },
       "changes": {
         "custom_tags": {
@@ -371,7 +371,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-07-29T22:52:29Z",
+        "create_time": "2026-08-26T20:23:38Z",
         "name": "projects/dagshund/branches/prd/roles/data-engineers",
         "parent": "projects/dagshund/branches/prd",
         "role_id": "data-engineers",
@@ -386,7 +386,7 @@
           "postgres_role": "data_engineers",
           "role_id": "data-engineers"
         },
-        "update_time": "2026-07-29T22:52:29Z"
+        "update_time": "2026-08-26T20:23:38Z"
       },
       "changes": {
         "attributes": {

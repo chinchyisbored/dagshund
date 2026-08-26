@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.10.0",
-  "lineage": "1a8f57ce-2222-4026-824f-ebbab99af3bb",
+  "cli_version": "1.14.0",
+  "lineage": "7a687f67-225f-4f64-9c87-2fd168e9debe",
   "serial": 1,
   "plan": {
     "resources.alerts.stale_pipeline_alert": {
@@ -30,7 +30,7 @@
         }
       },
       "remote_state": {
-        "create_time": "2026-07-29T22:54:57Z",
+        "create_time": "2026-08-26T20:28:24Z",
         "display_name": "stale_pipeline_alert",
         "effective_run_as": {
           "user_name": "user1@example.com"
@@ -46,7 +46,7 @@
             }
           }
         },
-        "id": "3306662354888048",
+        "id": "2744890152743598",
         "lifecycle_state": "ACTIVE",
         "owner_user_name": "user1@example.com",
         "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-mixed-changes/default/resources",
@@ -55,14 +55,14 @@
           "quartz_cron_schedule": "0 0 8 * * ?",
           "timezone_id": "UTC"
         },
-        "update_time": "2026-07-29T22:54:57Z",
+        "update_time": "2026-08-26T20:28:24Z",
         "warehouse_id": "9d0afa601cb95187"
       },
       "changes": {
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-07-29T22:54:57Z"
+          "remote": "2026-08-26T20:28:24Z"
         },
         "effective_run_as": {
           "action": "skip",
@@ -80,7 +80,7 @@
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "3306662354888048"
+          "remote": "2744890152743598"
         },
         "lifecycle_state": {
           "action": "skip",
@@ -95,17 +95,17 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-07-29T22:54:57Z"
+          "remote": "2026-08-26T20:28:24Z"
         }
       }
     },
     "resources.experiments.audit_analysis": {
       "action": "skip",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/3306662354888047",
-        "creation_time": 1785365697177,
-        "experiment_id": "3306662354888047",
-        "last_update_time": 1785365697177,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/2744890152743597",
+        "creation_time": 1787776104594,
+        "experiment_id": "2744890152743597",
+        "last_update_time": 1787776104594,
         "lifecycle_stage": "active",
         "name": "/experiments/audit_analysis",
         "tags": [
@@ -135,7 +135,7 @@
         "artifact_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "dbfs:/databricks/mlflow-tracking/3306662354888047"
+          "remote": "dbfs:/databricks/mlflow-tracking/2744890152743597"
         },
         "name": {
           "action": "skip",
@@ -310,7 +310,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1785365697292,
+        "created_time": 1787776104716,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -319,7 +319,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 889031960971756,
+        "job_id": 936386806295352,
         "max_concurrent_runs": 1,
         "name": "data_quality_pipeline",
         "queue": {
@@ -786,7 +786,7 @@
                 }
               ],
               "run_job_task": {
-                "job_id": 889031960971756
+                "job_id": 936386806295352
               },
               "task_key": "trigger_quality_check"
             }
@@ -794,7 +794,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1785365697283,
+        "created_time": 1787776104725,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -803,7 +803,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 786539637698793,
+        "job_id": 545006310040415,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline",
         "queue": {
@@ -984,7 +984,7 @@
               }
             ],
             "run_job_task": {
-              "job_id": 889031960971756
+              "job_id": 936386806295352
             },
             "task_key": "trigger_quality_check"
           }
@@ -1037,7 +1037,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1785365697260,
+        "created_at": 1787776104693,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -1049,9 +1049,21 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics",
         "owner": "user1@example.com",
-        "schema_id": "6d1083cf-da53-4b26-b7f6-fba8dc2fe7e8",
-        "updated_at": 1785365697260,
-        "updated_by": "user1@example.com"
+        "properties": {
+          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+        },
+        "schema_id": "96cc745c-cfc6-42a9-be97-66bcb70c1158",
+        "updated_at": 1787776107093,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      },
+      "changes": {
+        "properties": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": {
+            "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+          }
+        }
       }
     },
     "resources.schemas.analytics_staging": {
@@ -1073,7 +1085,7 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1785365697934,
+        "created_at": 1787776105507,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics.old_exports",
@@ -1081,10 +1093,10 @@
         "name": "old_exports",
         "owner": "user1@example.com",
         "schema_name": "analytics",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/c6217e3b-3705-451a-a2c7-a8a701838a57",
-        "updated_at": 1785365697934,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/e37787a6-616e-474f-ad41-45c70ca6a5cd",
+        "updated_at": 1787776105507,
         "updated_by": "user1@example.com",
-        "volume_id": "c6217e3b-3705-451a-a2c7-a8a701838a57",
+        "volume_id": "e37787a6-616e-474f-ad41-45c70ca6a5cd",
         "volume_type": "MANAGED"
       }
     },
@@ -1098,7 +1110,7 @@
       "action": "skip",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1785365697874,
+        "created_at": 1787776105455,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics.raw_data",
@@ -1106,17 +1118,17 @@
         "name": "raw_data",
         "owner": "user1@example.com",
         "schema_name": "analytics",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/39c553e0-47a7-4c7a-babd-bf899f5627d8",
-        "updated_at": 1785365697874,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/33b12241-f38f-405b-bf5e-69fb4a1c455e",
+        "updated_at": 1787776105455,
         "updated_by": "user1@example.com",
-        "volume_id": "39c553e0-47a7-4c7a-babd-bf899f5627d8",
+        "volume_id": "33b12241-f38f-405b-bf5e-69fb4a1c455e",
         "volume_type": "MANAGED"
       },
       "changes": {
         "storage_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/39c553e0-47a7-4c7a-babd-bf899f5627d8"
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/33b12241-f38f-405b-bf5e-69fb4a1c455e"
         }
       }
     }

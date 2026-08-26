@@ -81,6 +81,16 @@ def test_parse_wheel_filename_build_tag() -> None:
     assert parse_wheel_filename("model_lib-2.0.0-1-py3-none-any.whl") == ("model_lib", "2.0.0")
 
 
+def test_parse_wheel_filename_with_extras() -> None:
+    path = "/Workspace/artifacts/etl_lib-0.1.0-py3-none-any.whl[train,gpu]"
+
+    assert parse_wheel_filename(path) == ("etl_lib", "0.1.0")
+
+
+def test_parse_wheel_filename_malformed_extras_returns_none() -> None:
+    assert parse_wheel_filename("etl_lib-0.1.0-py3-none-any.whl[train,]") is None
+
+
 def test_parse_wheel_filename_too_few_segments_returns_none() -> None:
     assert parse_wheel_filename("/wheels/bundle.whl") is None
 

@@ -41,24 +41,45 @@ const TASK_WHEEL_CHANGE_KEY_PATTERN =
 const ENVIRONMENT_WHEEL_CHANGE_KEY_PATTERN =
   /^environments\[environment_key='([^']+)'\]\.spec\.dependencies\[\d+\]$/;
 
+type ParsedWheelRequirement = {
+  readonly distribution: string;
+  readonly version: string;
+  readonly extras: readonly string[];
+};
+
+const EXTRA_NAME = "[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?";
+const WHEEL_REQUIREMENT_PATTERN = new RegExp(
+  String.raw`^(?<wheel>.+\.whl)(?:\[(?<extras>${EXTRA_NAME}(?:,${EXTRA_NAME})*)\])?$`,
+);
+
+const parseWheelRequirement = (path: string): ParsedWheelRequirement | undefined => {
+  const basename = path.split("/").at(-1) ?? path;
+  const match = WHEEL_REQUIREMENT_PATTERN.exec(basename);
+  if (match === null) return undefined;
+  const wheel = match.groups?.["wheel"];
+  if (wheel === undefined) return undefined;
+  const parts = wheel.slice(0, -".whl".length).split("-");
+  const [distribution, version] = parts;
+  if (parts.length < 5 || distribution === undefined || version === undefined) return undefined;
+  const extras = match.groups?.["extras"];
+  return { distribution, version, extras: extras?.split(",") ?? [] };
+};
+
 /**
  * Extract `{ distribution, version }` from a wheel path's basename.
  *
  * PEP 427 filenames are `{dist}-{version}(-{build})?-{python}-{abi}-{platform}.whl`
  * with hyphens in the distribution name escaped to underscores, so the first
- * two dash-separated segments are unambiguous. Returns undefined for anything
- * that does not look like a wheel filename.
+ * two dash-separated segments are unambiguous. A validated pip extras suffix
+ * such as `[train,gpu]` may follow the filename.
  */
 export const parseWheelFilename = (
   path: string,
 ): { readonly distribution: string; readonly version: string } | undefined => {
-  const basename = path.split("/").at(-1) ?? path;
-  if (!basename.endsWith(".whl")) return undefined;
-  const parts = basename.slice(0, -".whl".length).split("-");
-  if (parts.length < 5) return undefined;
-  const [distribution, version] = parts;
-  if (distribution === undefined || version === undefined) return undefined;
-  return { distribution, version };
+  const parsed = parseWheelRequirement(path);
+  return parsed === undefined
+    ? undefined
+    : { distribution: parsed.distribution, version: parsed.version };
 };
 
 /**
@@ -81,10 +102,11 @@ export const classifyWheelUpdate = (
   }
   if (typeof change.old !== "string" || typeof change.new !== "string") return undefined;
   if (change.old === change.new) return undefined;
-  const oldParsed = parseWheelFilename(change.old);
-  const newParsed = parseWheelFilename(change.new);
+  const oldParsed = parseWheelRequirement(change.old);
+  const newParsed = parseWheelRequirement(change.new);
   if (oldParsed === undefined || newParsed === undefined) return undefined;
   if (oldParsed.distribution !== newParsed.distribution) return undefined;
+  if (oldParsed.extras.join(",") !== newParsed.extras.join(",")) return undefined;
   return {
     distribution: oldParsed.distribution,
     oldVersion: oldParsed.version,

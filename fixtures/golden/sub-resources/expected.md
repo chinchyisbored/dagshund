@@ -1,4 +1,4 @@
-### dagshund plan (v2, cli 1.10.0)
+### dagshund plan (v2, cli 1.14.0)
 
 #### jobs (2)
 - `=` `jobs/job_noop`

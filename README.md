@@ -18,7 +18,7 @@ Dagshund sits between `databricks bundle plan` and `databricks bundle deploy`. T
 
 ## Install
 
-Requires Python 3.12+. Last validated against Databricks CLI 1.10.0. Dagshund reads `databricks bundle plan -o json`, whose JSON shape can change between CLI releases.
+Requires Python 3.12+. Last validated against Databricks CLI 1.14.0. Dagshund reads `databricks bundle plan -o json`, whose JSON shape can change between CLI releases.
 
 ```bash
 # Install (recommended for regular use)

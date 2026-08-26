@@ -320,7 +320,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 13,
+      "total_change_entries": 15,
       "total_effect_entries": 0,
       "with_resource_state": 4,
       "task_change_summary_total": 0,
@@ -410,7 +410,12 @@
           "kind": "resource",
           "diffState": "unchanged",
           "isDrift": false,
-          "changes": [],
+          "changes": [
+            {
+              "key": "properties",
+              "action": "skip"
+            }
+          ],
           "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
@@ -434,6 +439,10 @@
             {
               "key": "grants.[principal='viewers']",
               "action": "update"
+            },
+            {
+              "key": "properties",
+              "action": "skip"
             }
           ],
           "effects": [],

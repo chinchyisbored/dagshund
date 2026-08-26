@@ -16,6 +16,7 @@ import re
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
 
 from dagshund.model import FieldChange
 
@@ -47,21 +48,35 @@ class WheelUpdateUsage:
     environment_count: int
 
 
+_EXTRA_NAME = r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
+_WHEEL_REQUIREMENT_RE = re.compile(rf"^(.+\.whl)(?:\[({_EXTRA_NAME}(?:,{_EXTRA_NAME})*)\])?$")
+
+
+def _parse_wheel_requirement(path: str) -> tuple[str, str, tuple[str, ...]] | None:
+    basename = path.rsplit("/", 1)[-1]
+    match = _WHEEL_REQUIREMENT_RE.fullmatch(basename)
+    if match is None:
+        return None
+    parts = match.group(1)[: -len(".whl")].split("-")
+    if len(parts) < 5:
+        return None
+    distribution = cast("str", parts[0])
+    version = cast("str", parts[1])
+    extras = match.group(2)
+    parsed_extras: tuple[str, ...] = tuple(extras.split(",")) if extras else ()
+    return distribution, version, parsed_extras
+
+
 def parse_wheel_filename(path: str) -> tuple[str, str] | None:
     """Extract ``(distribution, version)`` from a wheel path's basename.
 
     PEP 427 filenames are ``{dist}-{version}(-{build})?-{python}-{abi}-{platform}.whl``
     with hyphens in the distribution name escaped to underscores, so the first
-    two dash-separated segments are unambiguous. Returns ``None`` for anything
-    that does not look like a wheel filename.
+    two dash-separated segments are unambiguous. A validated pip extras suffix
+    such as ``[train,gpu]`` may follow the filename.
     """
-    basename = path.rsplit("/", 1)[-1]
-    if not basename.endswith(".whl"):
-        return None
-    parts = basename[: -len(".whl")].split("-")
-    if len(parts) < 5:
-        return None
-    return parts[0], parts[1]
+    parsed = _parse_wheel_requirement(path)
+    return (parsed[0], parsed[1]) if parsed is not None else None
 
 
 def classify_wheel_update(change_key: str, change: FieldChange) -> WheelUpdate | None:
@@ -81,9 +96,11 @@ def classify_wheel_update(change_key: str, change: FieldChange) -> WheelUpdate |
         return None
     if change.old == change.new:
         return None
-    old_parsed = parse_wheel_filename(change.old)
-    new_parsed = parse_wheel_filename(change.new)
-    if old_parsed is None or new_parsed is None or old_parsed[0] != new_parsed[0]:
+    old_parsed = _parse_wheel_requirement(change.old)
+    new_parsed = _parse_wheel_requirement(change.new)
+    if old_parsed is None or new_parsed is None:
+        return None
+    if old_parsed[0] != new_parsed[0] or old_parsed[2] != new_parsed[2]:
         return None
     return WheelUpdate(
         distribution=old_parsed[0],

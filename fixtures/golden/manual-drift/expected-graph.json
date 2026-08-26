@@ -350,7 +350,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 8,
+      "total_change_entries": 9,
       "total_effect_entries": 0,
       "with_resource_state": 3,
       "task_change_summary_total": 2,
@@ -442,6 +442,10 @@
             {
               "key": "grants.[principal='data_readers'].privileges",
               "action": "update"
+            },
+            {
+              "key": "properties",
+              "action": "skip"
             }
           ],
           "effects": [],

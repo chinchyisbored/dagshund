@@ -1,13 +1,13 @@
 {
   "plan_version": 2,
-  "cli_version": "1.10.0",
-  "lineage": "067ea85b-3e2a-46a4-b200-2ac3ea794fae",
+  "cli_version": "1.14.0",
+  "lineage": "1fafac5d-48e6-43e5-aebb-315dccc2a89e",
   "serial": 1,
   "plan": {
     "resources.jobs.job_noop": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1785365727542,
+        "created_time": 1787776136121,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -16,7 +16,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 51137209726234,
+        "job_id": 770519230991194,
         "max_concurrent_runs": 1,
         "name": "job_noop",
         "queue": {
@@ -91,7 +91,7 @@
       ],
       "action": "skip",
       "remote_state": {
-        "object_id": "/jobs/51137209726234",
+        "object_id": "/jobs/770519230991194",
         "__embed__": [
           {
             "level": "IS_OWNER",
@@ -133,7 +133,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1785365727687,
+        "created_time": 1787776136083,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -142,7 +142,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 394324534367719,
+        "job_id": 11519999583050,
         "max_concurrent_runs": 1,
         "name": "job_perm_change",
         "queue": {
@@ -224,7 +224,7 @@
       "action": "update",
       "new_state": {
         "value": {
-          "object_id": "/jobs/394324534367719",
+          "object_id": "/jobs/11519999583050",
           "__embed__": [
             {
               "level": "CAN_MANAGE",
@@ -246,7 +246,7 @@
         }
       },
       "remote_state": {
-        "object_id": "/jobs/394324534367719",
+        "object_id": "/jobs/11519999583050",
         "__embed__": [
           {
             "level": "IS_OWNER",
@@ -299,7 +299,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1785365727449,
+        "created_at": 1787776135969,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -311,9 +311,21 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "schema_noop",
         "owner": "user1@example.com",
-        "schema_id": "c46cf7f0-d5de-4ff1-8edf-a9bdc5e93f5c",
-        "updated_at": 1785365728094,
-        "updated_by": "user1@example.com"
+        "properties": {
+          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+        },
+        "schema_id": "fef7444f-a6ac-4de9-8f74-896c18a1a422",
+        "updated_at": 1787776139160,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      },
+      "changes": {
+        "properties": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": {
+            "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+          }
+        }
       }
     },
     "resources.schemas.schema_noop.grants": {
@@ -350,7 +362,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1785365727434,
+        "created_at": 1787776135950,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -362,9 +374,21 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "schema_perm_change",
         "owner": "user1@example.com",
-        "schema_id": "1abd1650-1830-4b6c-b976-2a70eda22d8b",
-        "updated_at": 1785365728147,
-        "updated_by": "user1@example.com"
+        "properties": {
+          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+        },
+        "schema_id": "af4cc6d7-b7c2-41da-a2b3-35a69a10f19e",
+        "updated_at": 1787776137838,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      },
+      "changes": {
+        "properties": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": {
+            "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+          }
+        }
       }
     },
     "resources.schemas.schema_perm_change.grants": {

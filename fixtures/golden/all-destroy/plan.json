@@ -1,13 +1,13 @@
 {
   "plan_version": 2,
-  "cli_version": "1.10.0",
-  "lineage": "19491d91-eac1-4026-a3ce-ab668fd3f785",
+  "cli_version": "1.14.0",
+  "lineage": "b36ffa5d-b9b1-402d-9f42-b6aa26750ca3",
   "serial": 1,
   "plan": {
     "resources.alerts.stale_pipeline_alert": {
       "action": "delete",
       "remote_state": {
-        "create_time": "2026-07-29T22:46:44Z",
+        "create_time": "2026-08-26T20:14:41Z",
         "display_name": "stale_pipeline_alert",
         "effective_run_as": {
           "user_name": "user1@example.com"
@@ -23,7 +23,7 @@
             }
           }
         },
-        "id": "3306662354887964",
+        "id": "2744890152743514",
         "lifecycle_state": "ACTIVE",
         "owner_user_name": "user1@example.com",
         "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-all-destroy/default/resources",
@@ -32,17 +32,17 @@
           "quartz_cron_schedule": "0 0 8 * * ?",
           "timezone_id": "UTC"
         },
-        "update_time": "2026-07-29T22:46:44Z",
+        "update_time": "2026-08-26T20:14:41Z",
         "warehouse_id": "9d0afa601cb95187"
       }
     },
     "resources.experiments.audit_analysis": {
       "action": "delete",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/3306662354887963",
-        "creation_time": 1785365203909,
-        "experiment_id": "3306662354887963",
-        "last_update_time": 1785365203909,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/2744890152743513",
+        "creation_time": 1787775281930,
+        "experiment_id": "2744890152743513",
+        "last_update_time": 1787775281930,
         "lifecycle_stage": "active",
         "name": "/experiments/audit_analysis",
         "tags": [
@@ -72,7 +72,7 @@
     "resources.jobs.data_quality_pipeline": {
       "action": "delete",
       "remote_state": {
-        "created_time": 1785365204140,
+        "created_time": 1787775282045,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -81,7 +81,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 492446474150194,
+        "job_id": 281101863159487,
         "max_concurrent_runs": 1,
         "name": "data_quality_pipeline",
         "queue": {
@@ -159,7 +159,7 @@
     "resources.jobs.etl_pipeline": {
       "action": "delete",
       "remote_state": {
-        "created_time": 1785365204176,
+        "created_time": 1787775282068,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -168,7 +168,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 147566714165443,
+        "job_id": 98362330061322,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline",
         "queue": {
@@ -228,15 +228,15 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1785365204133,
+        "created_at": 1787775282048,
         "created_by": "user1@example.com",
         "full_name": "dagshund.models.quality_metrics",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "quality_metrics",
         "owner": "user1@example.com",
         "schema_name": "models",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/e1fcb4a4-f5e0-4a77-8eed-e81e21180f98",
-        "updated_at": 1785365204133,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/bb2ebc08-9b14-42b3-9fdb-c50340432dd5",
+        "updated_at": 1787775282048,
         "updated_by": "user1@example.com"
       }
     },
@@ -246,7 +246,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1785365203868,
+        "created_at": 1787775281981,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -258,9 +258,12 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics",
         "owner": "user1@example.com",
-        "schema_id": "3bcf0db8-e408-46db-9b41-1bd3437c2d65",
-        "updated_at": 1785365203868,
-        "updated_by": "user1@example.com"
+        "properties": {
+          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+        },
+        "schema_id": "a5893938-f677-49f7-80d5-504dafb5fe5c",
+        "updated_at": 1787775284485,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
       }
     },
     "resources.schemas.analytics_staging": {
@@ -269,7 +272,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1785365203886,
+        "created_at": 1787775281882,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -281,9 +284,12 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics_staging",
         "owner": "user1@example.com",
-        "schema_id": "56593287-34bf-43b0-b0f2-50c25355410a",
-        "updated_at": 1785365203886,
-        "updated_by": "user1@example.com"
+        "properties": {
+          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+        },
+        "schema_id": "c6a4f11c-a28d-41dd-91b2-3f3861042dd3",
+        "updated_at": 1787775285014,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
       }
     },
     "resources.volumes.external_imports": {
@@ -296,7 +302,7 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1785365204778,
+        "created_at": 1787775282429,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics_staging.external_imports",
@@ -304,10 +310,10 @@
         "name": "external_imports",
         "owner": "user1@example.com",
         "schema_name": "analytics_staging",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/56877136-5154-4dce-b0a8-fb3089441d25",
-        "updated_at": 1785365204778,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/fcd7b22f-294d-494f-ac74-ec0305fcb13d",
+        "updated_at": 1787775282429,
         "updated_by": "user1@example.com",
-        "volume_id": "56877136-5154-4dce-b0a8-fb3089441d25",
+        "volume_id": "fcd7b22f-294d-494f-ac74-ec0305fcb13d",
         "volume_type": "MANAGED"
       }
     },
@@ -321,7 +327,7 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1785365204702,
+        "created_at": 1787775282556,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics.raw_data",
@@ -329,10 +335,10 @@
         "name": "raw_data",
         "owner": "user1@example.com",
         "schema_name": "analytics",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/42b6b717-a7d2-4b56-ac94-6be483aa34c9",
-        "updated_at": 1785365204702,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/b133c910-a926-40e4-8e83-a252f0473eeb",
+        "updated_at": 1787775282556,
         "updated_by": "user1@example.com",
-        "volume_id": "42b6b717-a7d2-4b56-ac94-6be483aa34c9",
+        "volume_id": "b133c910-a926-40e4-8e83-a252f0473eeb",
         "volume_type": "MANAGED"
       }
     }

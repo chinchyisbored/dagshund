@@ -859,7 +859,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 17,
+      "total_change_entries": 18,
       "total_effect_entries": 0,
       "with_resource_state": 9,
       "task_change_summary_total": 12,
@@ -1085,7 +1085,12 @@
           "kind": "resource",
           "diffState": "unchanged",
           "isDrift": false,
-          "changes": [],
+          "changes": [
+            {
+              "key": "properties",
+              "action": "skip"
+            }
+          ],
           "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []

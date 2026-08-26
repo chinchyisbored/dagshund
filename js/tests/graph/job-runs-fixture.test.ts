@@ -65,13 +65,14 @@ describe("job-runs fixture — effects as annotations", () => {
       expect(migration?.[0]?.action).toBe("recreate");
       expect(Object.keys(migration?.[0]?.changes ?? {})).toEqual([
         "job_parameters['migration_version']",
+        "result_state",
       ]);
 
       const audit = readEffects(findNode(nodes, "resources.jobs.smoke_check"));
       expect(audit?.map((effect) => `${effect.name}:${effect.action}`)).toEqual([
         "one_off_audit:delete",
       ]);
-      expect(audit?.[0]?.runPageUrl).toContain("/run/");
+      expect(audit?.[0]?.runPageUrl).toContain("/runs/");
     }
   });
 });

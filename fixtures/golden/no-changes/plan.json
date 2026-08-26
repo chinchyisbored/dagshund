@@ -1,13 +1,13 @@
 {
   "plan_version": 2,
-  "cli_version": "1.10.0",
-  "lineage": "9c0c5192-43fe-4928-ab88-5d17a2fb7f2b",
+  "cli_version": "1.14.0",
+  "lineage": "ef66ab59-4a2a-4bb2-812f-01897cb08942",
   "serial": 1,
   "plan": {
     "resources.alerts.stale_pipeline_alert": {
       "action": "skip",
       "remote_state": {
-        "create_time": "2026-07-29T22:55:13Z",
+        "create_time": "2026-08-26T20:28:41Z",
         "display_name": "stale_pipeline_alert",
         "effective_run_as": {
           "user_name": "user1@example.com"
@@ -23,7 +23,7 @@
             }
           }
         },
-        "id": "3306662354888065",
+        "id": "2744890152743615",
         "lifecycle_state": "ACTIVE",
         "owner_user_name": "user1@example.com",
         "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-no-changes/default/resources",
@@ -32,14 +32,14 @@
           "quartz_cron_schedule": "0 0 8 * * ?",
           "timezone_id": "UTC"
         },
-        "update_time": "2026-07-29T22:55:13Z",
+        "update_time": "2026-08-26T20:28:41Z",
         "warehouse_id": "9d0afa601cb95187"
       },
       "changes": {
         "create_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-07-29T22:55:13Z"
+          "remote": "2026-08-26T20:28:41Z"
         },
         "effective_run_as": {
           "action": "skip",
@@ -51,7 +51,7 @@
         "id": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "3306662354888065"
+          "remote": "2744890152743615"
         },
         "lifecycle_state": {
           "action": "skip",
@@ -66,17 +66,17 @@
         "update_time": {
           "action": "skip",
           "reason": "spec:output_only",
-          "remote": "2026-07-29T22:55:13Z"
+          "remote": "2026-08-26T20:28:41Z"
         }
       }
     },
     "resources.experiments.audit_analysis": {
       "action": "skip",
       "remote_state": {
-        "artifact_location": "dbfs:/databricks/mlflow-tracking/3306662354888064",
-        "creation_time": 1785365713196,
-        "experiment_id": "3306662354888064",
-        "last_update_time": 1785365713196,
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/2744890152743614",
+        "creation_time": 1787776121290,
+        "experiment_id": "2744890152743614",
+        "last_update_time": 1787776121290,
         "lifecycle_stage": "active",
         "name": "/experiments/audit_analysis",
         "tags": [
@@ -106,7 +106,7 @@
         "artifact_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "dbfs:/databricks/mlflow-tracking/3306662354888064"
+          "remote": "dbfs:/databricks/mlflow-tracking/2744890152743614"
         },
         "name": {
           "action": "skip",
@@ -146,7 +146,7 @@
     "resources.jobs.etl_pipeline": {
       "action": "skip",
       "remote_state": {
-        "created_time": 1785365713320,
+        "created_time": 1787776121452,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -155,7 +155,7 @@
         "edit_mode": "UI_LOCKED",
         "email_notifications": {},
         "format": "MULTI_TASK",
-        "job_id": 524423744573842,
+        "job_id": 908485785890092,
         "max_concurrent_runs": 1,
         "name": "etl_pipeline",
         "queue": {
@@ -309,7 +309,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1785365713179,
+        "created_at": 1787776121288,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -321,9 +321,21 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "analytics",
         "owner": "user1@example.com",
-        "schema_id": "47ce9671-e1e4-452f-9388-0f24f0574e28",
-        "updated_at": 1785365713179,
-        "updated_by": "user1@example.com"
+        "properties": {
+          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+        },
+        "schema_id": "f9c92a46-fa76-4575-a410-4a9e238bb27f",
+        "updated_at": 1787776123376,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      },
+      "changes": {
+        "properties": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": {
+            "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+          }
+        }
       }
     },
     "resources.volumes.raw_data": {
@@ -336,7 +348,7 @@
       "action": "skip",
       "remote_state": {
         "catalog_name": "dagshund",
-        "created_at": 1785365714053,
+        "created_at": 1787776122014,
         "created_by": "user1@example.com",
         "encryption_details": {},
         "full_name": "dagshund.analytics.raw_data",
@@ -344,17 +356,17 @@
         "name": "raw_data",
         "owner": "user1@example.com",
         "schema_name": "analytics",
-        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/a489b436-99d4-42b3-9c00-7168771b38e3",
-        "updated_at": 1785365714053,
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/92321469-d73b-4d25-8ba9-6a8d203e8b16",
+        "updated_at": 1787776122014,
         "updated_by": "user1@example.com",
-        "volume_id": "a489b436-99d4-42b3-9c00-7168771b38e3",
+        "volume_id": "92321469-d73b-4d25-8ba9-6a8d203e8b16",
         "volume_type": "MANAGED"
       },
       "changes": {
         "storage_location": {
           "action": "skip",
           "reason": "backend_default",
-          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/a489b436-99d4-42b3-9c00-7168771b38e3"
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/92321469-d73b-4d25-8ba9-6a8d203e8b16"
         }
       }
     }

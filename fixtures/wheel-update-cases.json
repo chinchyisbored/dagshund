@@ -112,6 +112,62 @@
       "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
     },
     {
+      "name": "environment_dependency_version_bump_with_one_extra",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/Users/user1@example.com/.bundle/etl/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train]",
+      "new": "/Workspace/Users/user1@example.com/.bundle/etl/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[train]",
+      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
+    },
+    {
+      "name": "environment_dependency_version_bump_with_multiple_extras",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train,gpu]",
+      "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[train,gpu]",
+      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
+    },
+    {
+      "name": "environment_dependency_extra_added_is_real_change",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+      "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[train]",
+      "expected": null
+    },
+    {
+      "name": "environment_dependency_extra_removed_is_real_change",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train]",
+      "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+      "expected": null
+    },
+    {
+      "name": "environment_dependency_extra_changed_is_real_change",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train]",
+      "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[gpu]",
+      "expected": null
+    },
+    {
+      "name": "environment_dependency_empty_extras_suffix_is_malformed",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[]",
+      "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[]",
+      "expected": null
+    },
+    {
+      "name": "environment_dependency_trailing_comma_in_extras_is_malformed",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train,]",
+      "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[train,]",
+      "expected": null
+    },
+    {
+      "name": "environment_dependency_unclosed_extras_suffix_is_malformed",
+      "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
+      "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train",
+      "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[train",
+      "expected": null
+    },
+    {
       "name": "environment_dependency_different_distribution",
       "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
       "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
