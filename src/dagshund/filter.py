@@ -13,6 +13,7 @@ All tokens AND together.
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 from dagshund.model import ResourceChange
 from dagshund.plan import action_to_diff_state
@@ -48,7 +49,7 @@ type _SearchToken = _TypeToken | _StatusToken | _FieldToken | _ExactToken | _Fuz
 
 
 def _tokenize(query: str) -> list[str]:
-    return re.findall(r'"[^"]*"|\S+', query)
+    return cast("list[str]", re.findall(r'"[^"]*"|\S+', query))
 
 
 def _classify_token(raw: str) -> _SearchToken | None:

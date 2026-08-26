@@ -3,6 +3,7 @@ from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sized
 from dataclasses import dataclass
 from itertools import groupby
+from typing import cast
 
 from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
 from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
@@ -255,7 +256,8 @@ def _extract_drift_label_noun(key: str) -> tuple[str, str]:
     match = _DRIFT_KEY_RE.search(key)
     if match is None:
         return "entity", key
-    noun_raw, label = match.group(1), match.group(2)
+    noun_raw = cast("str | None", match.group(1))
+    label = cast("str", match.group(2))
     return (_singularize(noun_raw) if noun_raw else "entity"), label
 
 

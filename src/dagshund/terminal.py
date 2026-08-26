@@ -4,6 +4,7 @@ import textwrap
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from itertools import groupby
+from typing import cast
 
 from dagshund.change_path import FieldChangeContext
 from dagshund.format import (
@@ -92,7 +93,7 @@ def _supports_color() -> bool:
     force = os.environ.get("FORCE_COLOR", "")
     if force and force != "0":
         return True
-    return sys.stdout.isatty()
+    return cast("bool", sys.stdout.isatty())
 
 
 def _colorize(text: str, color: str, *, use_color: bool) -> str:

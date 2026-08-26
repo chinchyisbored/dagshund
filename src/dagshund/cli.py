@@ -4,6 +4,7 @@ import os
 import sys
 from enum import IntEnum
 from pathlib import Path
+from typing import cast
 
 from dagshund import __version__
 from dagshund.merge import normalize_plan
@@ -159,7 +160,7 @@ def _read_plan(plan_file: str | None) -> str:
             raise DagshundError(f"could not read file: {exc}") from exc
 
     if not sys.stdin.isatty():
-        return sys.stdin.read()
+        return cast("str", sys.stdin.read())
 
     raise DagshundError(
         "no input file specified and stdin is a TTY\n"

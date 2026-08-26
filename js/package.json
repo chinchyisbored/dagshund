@@ -14,24 +14,24 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xyflow/react": "12.10.2",
-    "elkjs": "0.11.1",
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
-    "yaml": "2.8.3",
-    "zod": "4.3.6"
+    "@xyflow/react": "12.11.5",
+    "elkjs": "0.12.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.4",
-    "@happy-dom/global-registrator": "20.9.0",
-    "@tailwindcss/cli": "4.2.2",
+    "@biomejs/biome": "2.5.9",
+    "@happy-dom/global-registrator": "20.11.6",
+    "@tailwindcss/cli": "4.3.3",
     "@testing-library/react": "16.3.2",
-    "@testing-library/user-event": "14.6.1",
+    "@testing-library/user-event": "14.6.6",
     "@types/bun": "1.4.0",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "tailwindcss": "4.2.2",
-    "typescript": "6.0.3"
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2"
   },
   "overrides": {
     "picomatch": "4.0.4",

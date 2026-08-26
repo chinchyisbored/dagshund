@@ -21,8 +21,8 @@ variables:
   # source. Tooling tarballs carry both a tarball hash (checked on download) and
   # an extracted-binary hash (checked on every run, so a poisoned cache cannot
   # bypass integrity).
-  # uv 0.11.7-python3.14-trixie
-  UV_IMAGE: ghcr.io/astral-sh/uv@sha256:9e9b645dc1a26a9e10ec64073c37e05d85b0d41c2b6946603c8863792f38cade
+  # uv 0.12.5-python3.14-trixie
+  UV_IMAGE: ghcr.io/astral-sh/uv@sha256:4b491b0f815b336cfe629253cc7eaff1ec1547f6a094e2139265c65544007381
   # osv-scanner 2.3.5
   OSV_SCANNER_IMAGE: ghcr.io/google/osv-scanner@sha256:4d3d1a42ba435ac706286fec518c044f049c9753d21260b5bae60bab8740ed97
   # alpine 3.20.10
