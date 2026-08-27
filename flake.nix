@@ -19,8 +19,8 @@
             hash = "sha256-biMitrRIzNomHBWwRFtUY5Gaym++kolz6O6+ur2UhOk=";
           };
           beadsRust = {
-            archive = "br-0.2.16-linux_musl_amd64.tar.gz";
-            hash = "sha256-7htuBq+zqUFoRr0dAdgBH6qjbDAaPX4wkWyzhaXHefU=";
+            archive = "br-0.5.3-linux_musl_amd64.tar.gz";
+            hash = "sha256-BvEdNVo22lRvEUtUnXVZ3bHH/neFn3lKsvtqFGbxtsg=";
           };
         };
       };
@@ -70,9 +70,9 @@
 
           beadsRust = pkgs.stdenvNoCC.mkDerivation {
             pname = "beads-rust";
-            version = "0.2.16";
+            version = "0.5.3";
             src = pkgs.fetchurl {
-              url = "https://github.com/Dicklesworthstone/beads_rust/releases/download/v0.2.16/${artifact.beadsRust.archive}";
+              url = "https://github.com/Dicklesworthstone/beads_rust/releases/download/v0.5.3/${artifact.beadsRust.archive}";
               inherit (artifact.beadsRust) hash;
             };
             sourceRoot = ".";

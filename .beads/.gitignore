@@ -7,6 +7,8 @@ bd.sock
 bd.sock.startlock
 sync-state.json
 last-touched
+.br-db-write-*.lock
+.br-jsonl-write-*.lock
 
 # Local version tracking (prevents upgrade notification spam after git ops)
 .local_version
@@ -22,6 +24,7 @@ redirect
 .jsonl.lock
 sync_base.jsonl
 export-state/
+.br_recovery/
 
 # Ephemeral store (SQLite - wisps/molecules, intentionally not versioned)
 ephemeral.sqlite3

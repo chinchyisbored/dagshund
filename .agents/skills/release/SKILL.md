@@ -1,9 +1,7 @@
 ---
 name: release
 description: >
-  Automated release workflow for dagshund. Branches, bumps version, opens an
-  MR to main, squash-merges, tags the merged commit, pushes, and creates a
-  GitLab release with curated notes.
+  Automated release workflow for dagshund. Branches, bumps version, opens an MR for human squash merge, tags the merged commit, pushes, and creates GitLab and GitHub releases with curated notes.
 ---
 
 # Release Workflow

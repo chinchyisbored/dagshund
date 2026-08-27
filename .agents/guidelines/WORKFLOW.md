@@ -8,10 +8,7 @@ All tracking of work to do uses `br` (beads_rust). Do NOT use markdown files for
 
 ## Session Start
 
-1. `nix develop --command br ready --json` — see what's unblocked
-2. `nix develop --command br list --status in_progress --json` — see anything mid-flight
-3. Present summary: what's ready, what's in progress, what you recommend
-4. **Wait for the human to choose.** Do not auto-pick.
+1. **Wait for the human to choose a br to work on.** Do not auto-pick.
 
 ## During Work
 
@@ -31,46 +28,6 @@ substitution, or multiple commands, use `nix develop --command bash -c
 **Always use `just` commands.** Never call `pytest`, `ruff`, `biome`, or `tsc` directly.
 Never manually edit code to fix lint/format issues — let the tools do it.
 
-**Sandboxed agents:** if a required workflow command is known to write outside
-the workspace (for example `uv` cache, Just runtime state, Git refs, or dev
-server runtime files), request the needed approval before running it. Do not
-run a command only to hit a predictable sandbox failure and then retry.
-
-### Testing
-```bash
-nix develop --command just test              # All tests (JS + Python)
-nix develop --command just test-py           # All Python tests with coverage
-nix develop --command just test-js           # All JS tests with coverage
-```
-
-### Fixing lint & format issues
-```bash
-nix develop --command just lint              # Lint all (applies safe fixes automatically)
-nix develop --command just lint-py           # Ruff check --fix
-nix develop --command just lint-js           # Biome check --fix
-nix develop --command just format            # Format all
-nix develop --command just format-py         # Ruff format
-nix develop --command just format-js         # Biome format
-```
-
-### Typechecking
-```bash
-nix develop --command just typecheck         # All typecheckers
-nix develop --command just typecheck-py      # ty
-nix develop --command just typecheck-js      # tsc
-```
-
-### Code Intelligence
-
-Prefer LSP over Grep/Read for code navigation — it's faster, precise, and avoids reading entire files:
-- `workspaceSymbol` to find where something is defined
-- `findReferences` to see all usages across the codebase
-- `goToDefinition` / `goToImplementation` to jump to source
-- `hover` for type info without reading the file
-
-Use Grep only when LSP isn't available or for text/pattern searches (comments, strings, config).
-
-After writing or editing code, check LSP diagnostics and fix errors before proceeding.
 
 ### Full quality gate
 ```bash
@@ -80,43 +37,41 @@ nix develop --command just build             # JS template + Python wheel
 
 ## Completing Work
 
-When code is working, follow this exact order. No skipping steps.
+For implementation work, follow this exact order without skipping steps. Release orchestration follows the [release skill](../skills/release/SKILL.md) instead.
 
 1. `nix develop --command just check` — lint + typecheck + all tests
 2. `nix develop --command just build` — verify production build
 3. **Browser verification** — ask the human to run `nix develop --command just dev`, check the browser, and stop it with `nix develop --command just dev-down`. Build and dev use different Bun code paths; a passing build doesn't guarantee a working app.
 4. **3-pass review** (see below) — present findings to human for decision
-5. Fix what human approves, file beads for the rest
-6. **Pause for explicit approval before committing or pushing.** Present the diff summary and wait for a clear go-ahead ("yes", "commit", "push"). Context, acknowledgement, or a follow-up question is NOT approval.
-7. `nix develop --command git add <specific files>` — stage changes, verify with `nix develop --command git status`
-8. `nix develop --command bash -c 'source .venv/bin/activate && git commit -m "..."'`
-9. `nix develop --command git push -u origin <feature-branch>` — push the feature branch
-10. Open the MR non-interactively:
-   ```bash
-   nix develop --command glab mr create \
-     --source-branch <feature-branch> \
-     --target-branch main \
-     --remove-source-branch \
-     --squash-before-merge \
-     --title "<title>" \
-     --description "<summary and verification>" \
-     --yes
-   ```
-11. Before merging, verify the MR title is a conventional commit subject
-    (for example `chore(agents): make skill layout neutral`). GitLab uses the
-    MR title as the squash commit subject on `main`.
-12. Wait for the MR pipeline to go green, then squash-merge with explicit user approval: `nix develop --command glab mr merge <iid> --squash --yes`
-13. `nix develop --command bash -c 'git checkout main && git pull --ff-only origin main'`
-14. `nix develop --command br close <id>` — only AFTER the MR is merged, main is up to date, AND the user has explicitly approved closing. Never close a bead on your own judgment.
+5. Fix what the human approves and file approved follow-up beads.
+6. **Pause for explicit approval before closing the selected bead, committing, or pushing.** Present the diff summary, review outcome, verification, and intended bead closure. Wait for a clear go-ahead that names the approved actions; context, acknowledgement, or a follow-up question is not approval.
+7. If the work is tracked by a bead, close it with the approved reason: `nix develop --command br close <id> --reason "<reason>"`.
+8. Run `nix develop --command br sync --flush-only` after the final bead mutation.
+9. `nix develop --command git add <specific files>` — stage the implementation and `.beads/`, then verify with `nix develop --command git status`.
+10. `nix develop --command bash -c 'source .venv/bin/activate && git commit -m "..."'`
+11. `nix develop --command git push -u origin <feature-branch>` — push the feature branch.
+12. Open the MR non-interactively:
+    ```bash
+    nix develop --command glab mr create \
+      --source-branch <feature-branch> \
+      --target-branch main \
+      --remove-source-branch \
+      --squash-before-merge \
+      --title "<title>" \
+      --description "<summary and verification>" \
+      --yes
+    ```
+13. Verify the MR title is a conventional commit subject (for example `chore(agents): make skill layout neutral`). GitLab uses the MR title as the squash commit subject on `main`.
+14. Wait for the human to merge. Do not poll anything. The closed bead lands on `main` with the implementation; reopen it on the feature branch if the MR is abandoned or work resumes.
 
-**`main` is MR-only and history is linear.** Never push directly to `main`. Every feature branch lands via `nix develop --command glab mr create` followed by `nix develop --command glab mr merge --squash` — always squash, never a merge commit. The git commit IS the deliverable; the squash-merge IS the handoff.
+**`main` is MR-only and history is linear.** Never push directly to `main`. Every feature branch lands via `nix develop --command glab mr create` followed by human squash merge.
 
 ### Git Rules
 
 - NEVER combine `nix develop --command git add` and `nix develop --command git commit` — stage first, verify, then commit
 - NEVER run `nix develop --command git reset HEAD` or `nix develop --command git checkout --` on working files
 - Activate venv before committing: `nix develop --command bash -c 'source .venv/bin/activate && git commit ...'`
-- `nix develop --command br sync --flush-only` is the final JSONL export and merge-base snapshot check before staging `.beads/`; it does NOT commit or stage
+- Run `nix develop --command br sync --flush-only` after the final bead mutation and before staging `.beads/`; it exports the current issue state but does not commit or stage files
 - **Beads ride feature commits** (interim practice): after `br` updates, leave `.beads/` dirty and stage it together with the next feature-branch commit. No standalone `chore(beads): sync` commits, no separate sync branches. If a session ends with beads-only changes, leave `.beads/` dirty for the next session.
 
 ## Review Process
@@ -138,27 +93,15 @@ Combine and deduplicate into a single file list.
 
 ### Step 2: Spawn a single review subagent
 
-Use a single review/exploration subagent with the strongest available reasoning model.
-For Claude Code, use `subagent_type: "Explore"` and do not pin a model name — leave
-`model` unset to inherit the session's model, or pick the strongest currently available.
-For Codex, use the available explorer/review subagent and do not request unsupported
-model or agent-type names. The subagent receives:
-- The file list from Step 1
-- All three review criteria below
-- Instruction to read the changed files once, then evaluate against all criteria
-- Instruction to check closed beads (`nix develop --command br list --status=closed`) for won't-fix decisions — do not flag things already decided
+Start exactly one managed subagent with `profile: reviewer`. Do not use a scout or generic exploration profile, and do not pin a model. Give the reviewer a self-contained assignment containing:
 
-One agent reads the files once and runs all 3 passes over the same context. No fixes, no scripts, just observations.
+- **Objective:** independently review the completed implementation against the selected bead, its acceptance criteria, and all three review passes below
+- **Scope:** the exact file list from Step 1 plus the relevant bead or specification context; include `AGENTS.md` and the applicable language guideline files as review context, not as changed implementation scope
+- **Exclusions:** no edits, fixes, new scripts, or review outside the stated scope
+- **Expected output:** prioritized findings grouped by pass, each with severity, file and line evidence, rationale, and a suggested disposition; include verification performed and state explicitly when there are no findings
+- **Stop condition:** stop after every scoped file and review criterion has been evaluated once
 
-**Devil's advocate check — required before filing any finding:**
-
-Before proposing a change, the reviewer must argue *against* their own finding:
-- "Why might the current code be intentionally written this way?"
-- For "consistency" findings: is the inconsistency intentional because the cases are semantically different?
-- For "simplification" findings: does the current approach handle edge cases (concurrent mode, timing, error recovery) that the simpler version wouldn't?
-- For "missing pattern" findings: does the context actually benefit from the pattern, or is it cargo-culting from a different context?
-
-Include the devil's advocate argument with every finding. The human decides whether it holds — the reviewer does not filter.
+Retrieve the completed review with `get_subagent_result`. Do not start additional reviewers for the same implementation.
 
 **Pass 1 — Functional Correctness:**
 - Does the code do what the issue described?
@@ -176,7 +119,7 @@ Include the devil's advocate argument with every finding. The human decides whet
 
 ### Step 3: Present findings to human
 
-Present findings organized by pass. Each finding includes its devil's advocate counter-argument. For each finding, suggest one of:
+Present findings organized by pass. For each finding, suggest one of:
 - **Fix** — should be addressed now
 - **Bead** — file as an issue for later
 - **Skip** — already a won't-fix or not worth changing
@@ -185,21 +128,10 @@ Present findings organized by pass. Each finding includes its devil's advocate c
 
 ## Session Close
 
-After all work is complete:
+Before ending a session:
 
-1. File issues for any loose threads discussed but not implemented
-2. Commit all code (follow Completing Work above, including the approval pause)
-3. Close finished beads — only those the user has explicitly approved closing
-4. Run `nix develop --command br sync --flush-only`; `.beads/` changes ride the feature commit (see Git Rules). Beads-only leftovers stay dirty for the next session.
-5. With explicit approval: `nix develop --command git pull --rebase` then `nix develop --command git push`
-6. `nix develop --command git status` — clean tree (a dirty `.beads/` from step 4 is the allowed exception), up to date with origin
-7. Hand off — session summary: what got done, what's open, suggested next starting point
-
-## Collaboration
-
-- Always wait for human input before choosing work
-- Always run 3-pass review before presenting work
-- Never silently skip filing an issue — if worth noting, worth tracking
-- Keep the human in the loop — this is a partnership, not delegation
-- Don't plan when you should be doing — if next steps are known, just do them
-- Committing, pushing, merging, and closing beads each require an explicit user go-ahead. Present the work, ask once, and wait — context or acknowledgement in the reply is not approval.
+1. Ensure approved follow-up work has been filed as beads and mention any proposed follow-ups still awaiting human approval.
+2. If the implementation is ready for delivery, follow [Completing Work](#completing-work). If approval or merge is pending, stop and report that state.
+3. After any bead mutation not already included in the feature commit, run `nix develop --command br sync --flush-only`. Do not create a standalone beads commit; beads-only changes remain dirty for the next feature commit.
+4. Run `nix develop --command git status` and report the branch, MR state, and any uncommitted files. Do not pull, rebase, or push solely to make the session clean.
+5. Hand off with what was completed, what remains open, and the suggested next starting point.
