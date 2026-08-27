@@ -86,13 +86,16 @@ class JobRunEffect:
 
     Effects annotate the job without touching its action or diff state; only
     change detection (exit code, "No changes" gate) considers their actions.
-    Mirrors ``JobRunEffect`` in ``js/src/utils/normalize-plan.ts``.
+    The raw states are retained for semantic outcome classification. Mirrors
+    ``JobRunEffect`` in ``js/src/utils/normalize-plan.ts``.
     """
 
     name: str
     action: ActionType = ActionType.EMPTY
     changes: Mapping[str, FieldChange] = field(default_factory=dict)
     run_page_url: str | None = None
+    new_state: object | None = None
+    remote_state: object | None = None
 
 
 @dataclass(frozen=True, slots=True)

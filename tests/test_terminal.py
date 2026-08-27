@@ -1652,6 +1652,105 @@ def test_render_text_delete_effect_uses_destructive_wording(capsys: pytest.Captu
     assert "      - run audit (run record will be deleted)" in out
 
 
+def test_render_text_job_run_outcomes_hide_generated_fields(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.completed": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "skip",
+                    "remote_state": {
+                        "job_id": 100,
+                        "result_state": "SUCCESS",
+                        "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"},
+                    },
+                    "changes": {
+                        "result_state": {"action": "skip", "reason": "remote_already_set", "new": "SUCCESS"},
+                    },
+                },
+                "resources.job_runs.running": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "skip",
+                    "remote_state": {
+                        "job_id": 100,
+                        "state": {
+                            "life_cycle_state": "RUNNING",
+                            "state_message": "The existing run is still active.",
+                        },
+                    },
+                    "changes": {"result_state": {"action": "skip", "reason": "run in progress"}},
+                },
+                "resources.job_runs.removed": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "skip",
+                    "remote_state": {"job_id": 100},
+                    "changes": {
+                        "lifecycle.triggers.on_bundle_deploy": {
+                            "action": "skip",
+                            "reason": "trigger removed",
+                            "old": "fingerprint-before",
+                        },
+                    },
+                },
+                "resources.job_runs.failed": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "remote_state": {
+                        "job_id": 100,
+                        "result_state": "FAILED",
+                        "state": {"life_cycle_state": "TERMINATED", "state_message": "The task failed."},
+                    },
+                    "changes": {"result_state": {"action": "recreate", "new": "FAILED"}},
+                },
+                "resources.job_runs.every": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "remote_state": {"job_id": 100},
+                    "changes": {
+                        "lifecycle": {
+                            "action": "recreate",
+                            "old": {"triggers": {"on_bundle_deploy": "fingerprint-before"}},
+                            "new": {"triggers": {"on_bundle_deploy": "fingerprint-after"}},
+                        },
+                        "lifecycle.triggers": {
+                            "action": "recreate",
+                            "old": {"on_bundle_deploy": "fingerprint-before"},
+                            "new": {"on_bundle_deploy": "fingerprint-after"},
+                        },
+                        "lifecycle.triggers.on_bundle_deploy": {
+                            "action": "recreate",
+                            "old": "fingerprint-before",
+                            "new": "fingerprint-after",
+                        },
+                        "job_parameters['region']": {
+                            "action": "recreate",
+                            "old": "us",
+                            "new": "eu",
+                        },
+                    },
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    out = capsys.readouterr().out
+    assert "already ran successfully" in out
+    assert "run still in progress" in out
+    assert "deploy trigger removed; no run will start" in out
+    assert "re-runs on deploy; previous run FAILED" in out
+    assert "runs on every deploy" in out
+    assert "state: The existing run is still active." in out
+    assert "state: The task failed." in out
+    assert "job_parameters['region']" in out
+    assert "fingerprint-before" not in out
+    assert "result_state" not in out
+    assert "Manual Edits Detected" not in out
+    assert "job_runs/" not in out
+
+
 def test_render_text_effect_only_plan_is_not_no_changes(capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(
         {

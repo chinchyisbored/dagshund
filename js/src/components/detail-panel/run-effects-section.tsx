@@ -1,19 +1,28 @@
+import {
+  classifyJobRunEffect,
+  filterJobRunChanges,
+  type JobRunEffectKind,
+} from "../../utils/job-run-effects.ts";
 import type { JobRunEffect } from "../../utils/normalize-plan.ts";
-import { JOB_RUN_EFFECT_WORDING } from "../../utils/normalize-plan.ts";
 import { ChangeEntry } from "./change-entry.tsx";
 import { SectionDivider } from "./section-divider.tsx";
 
-const EFFECT_BADGE_COLORS: Readonly<Record<string, string>> = {
+const EFFECT_BADGE_COLORS: Readonly<Record<JobRunEffectKind, string>> = {
   create: "text-action-create bg-action-create-soft",
   recreate: "text-action-recreate bg-action-recreate-soft",
-  skip: "text-badge-text bg-badge-bg",
+  "every-deploy": "text-action-recreate bg-action-recreate-soft",
+  "completed-success": "text-badge-text bg-badge-bg",
+  "legacy-skip": "text-badge-text bg-badge-bg",
+  "in-progress": "text-action-resize bg-action-resize-soft",
+  "trigger-removed": "text-badge-text bg-badge-bg",
   delete: "text-action-delete bg-action-delete-soft",
+  unknown: "text-badge-text bg-badge-bg",
 };
 
 function RunEffectEntry({ effect }: { readonly effect: JobRunEffect }) {
-  const wording = JOB_RUN_EFFECT_WORDING[effect.action] ?? effect.action;
-  const colors = EFFECT_BADGE_COLORS[effect.action] ?? "text-badge-text bg-badge-bg";
-  const fieldChanges = Object.entries(effect.changes ?? {});
+  const semantics = classifyJobRunEffect(effect);
+  const colors = EFFECT_BADGE_COLORS[semantics.kind];
+  const fieldChanges = Object.entries(filterJobRunChanges(effect.changes));
 
   return (
     <div className="rounded border border-outline-subtle bg-surface-raised/50 p-3">
@@ -22,9 +31,12 @@ function RunEffectEntry({ effect }: { readonly effect: JobRunEffect }) {
           {"▶"} {effect.name}
         </span>
         <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${colors}`}>
-          {wording}
+          {semantics.wording}
         </span>
       </div>
+      {semantics.stateMessage !== undefined && (
+        <p className="mt-2 text-xs text-ink-muted">State: {semantics.stateMessage}</p>
+      )}
       {effect.runPageUrl !== undefined && (
         <a
           href={effect.runPageUrl}

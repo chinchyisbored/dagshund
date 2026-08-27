@@ -53,18 +53,6 @@ const EFFECT_SPECS_BY_RESOURCE_TYPE: ReadonlyMap<string, EffectTypeSpec> = new M
   Object.values(EFFECT_TYPE_SPECS).map((spec) => [spec.resourceType, spec]),
 );
 
-/** Wording shown for each effect lifecycle state (badge tooltip + panel).
- *  Mirrored in Python: `effect_wording` in src/dagshund/format.py. */
-export const JOB_RUN_EFFECT_WORDING: Readonly<Record<string, string>> = {
-  create: "runs on deploy",
-  recreate: "re-runs on deploy",
-  skip: "already ran",
-  delete: "run record will be deleted",
-};
-
-export const describeJobRunEffect = (effect: JobRunEffect): string =>
-  `${effect.name}: ${JOB_RUN_EFFECT_WORDING[effect.action] ?? effect.action}`;
-
 /** A plan entry after normalization — may carry the effects targeting it. */
 export type NormalizedEntry = PlanEntry & {
   readonly effects?: readonly JobRunEffect[];

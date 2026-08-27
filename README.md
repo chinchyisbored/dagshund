@@ -89,7 +89,7 @@ dagshund plan.json
 #       - run one_off_audit (run record will be deleted)
 ```
 
-Deleting a run entry really erases the run record from the job's history, so the output says so. With `--detailed-exitcode`, a plan whose only changes are deploy-triggered runs exits 2.
+Deleting a `job_runs` entry deletes the recorded run from the job's history and reports `run record will be deleted`. Removing only `lifecycle.triggers.on_bundle_deploy` removes the deploy trigger, starts no run, and shows no play badge. With `--detailed-exitcode`, a plan whose only changes are deploy-triggered runs exits 2.
 
 Export the HTML report with `-o` for detailed inspection in a browser:
 
@@ -139,7 +139,7 @@ When a plan contains wheel version bumps, the **Hide wheel updates** toolbar but
 
 ### Deploy-Triggered Runs
 
-Jobs targeted by `resources.job_runs` entries (experimental, Databricks CLI 1.7.0+) get a play badge: green when a run fires on this deploy (create or recreate), grey when the recorded run already happened (skip). The detail panel lists each run with its lifecycle, a link to the existing run page, and the parameter diff that forces a re-run. Removing a run entry deletes the run record from the job's history; the panel shows that removal, and the badge stays off. Deploy-triggered runs never count toward tab counts or diff filters, and the target job itself stays unchanged.
+Jobs targeted by `resources.job_runs` entries (experimental, Databricks CLI 1.7.0+) get a play badge: green when a run fires on this deploy, grey when a completed run already succeeded, and a distinct activity badge while a run is still in progress. The detail panel lists each run with its semantic outcome, a link to the existing run page, and the parameter diff that forces a re-run. A recreate with an armed `on_bundle_deploy` trigger says it runs on every deploy. Removing only `lifecycle.triggers.on_bundle_deploy` says the deploy trigger was removed and shows no badge. Deleting a `job_runs` entry reports `run record will be deleted`. Deploy-triggered runs never count toward tab counts or diff filters, and the target job itself stays unchanged.
 
 ### Search
 

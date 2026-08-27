@@ -63,6 +63,74 @@ describe("RunEffectsSection", () => {
     expect(container.querySelector("a")).toBeNull();
   });
 
+  test("in-progress effect renders its state message and semantic wording", () => {
+    const { container, getByText } = render(
+      <RunEffectsSection
+        effects={[
+          makeEffect({
+            name: "running",
+            action: "skip",
+            remoteState: {
+              state: {
+                life_cycle_state: "RUNNING",
+                state_message: "The existing run is still active.",
+              },
+            },
+            changes: {
+              result_state: { action: "skip", reason: "run in progress", new: "" },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    expect(getByText("run still in progress")).toBeDefined();
+    expect(container.textContent).toContain("State: The existing run is still active.");
+    expect(container.textContent).not.toContain("result_state");
+  });
+
+  test("hides trigger fingerprints but keeps real parameter changes", () => {
+    const { container } = render(
+      <RunEffectsSection
+        effects={[
+          makeEffect({
+            name: "every_deploy",
+            action: "recreate",
+            changes: {
+              lifecycle: {
+                action: "recreate",
+                old: { triggers: { on_bundle_deploy: "fingerprint-before" } },
+                new: { triggers: { on_bundle_deploy: "fingerprint-after" } },
+              },
+              "lifecycle.triggers": {
+                action: "recreate",
+                old: { on_bundle_deploy: "fingerprint-before" },
+                new: { on_bundle_deploy: "fingerprint-after" },
+              },
+              "lifecycle.triggers.on_bundle_deploy": {
+                action: "recreate",
+                old: "fingerprint-before",
+                new: "fingerprint-after",
+              },
+              "job_parameters['region']": {
+                action: "recreate",
+                old: "us",
+                new: "eu",
+              },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    expect(container.textContent).toContain("runs on every deploy");
+    expect(container.textContent).toContain("job_parameters['region']");
+    expect(container.textContent).toContain("us");
+    expect(container.textContent).toContain("eu");
+    expect(container.textContent).not.toContain("fingerprint-before");
+    expect(container.textContent).not.toContain("fingerprint-after");
+  });
+
   test("recreate effect renders its field changes through ChangeEntry", () => {
     const { container } = render(
       <RunEffectsSection

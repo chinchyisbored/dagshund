@@ -39,6 +39,70 @@ describe("RunEffectBadge", () => {
     expect(badge?.getAttribute("title")).toBe("seed_report: already ran");
   });
 
+  test("successful skip uses the completed outcome in its tooltip", () => {
+    const { container } = render(
+      <RunEffectBadge
+        effects={[
+          makeEffect({
+            name: "completed",
+            action: "skip",
+            remoteState: {
+              result_state: "SUCCESS",
+              state: { life_cycle_state: "TERMINATED" },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("span")?.getAttribute("title")).toBe(
+      "completed: already ran successfully",
+    );
+  });
+
+  test("in-progress skip uses a distinct activity badge", () => {
+    const { container } = render(
+      <RunEffectBadge
+        effects={[
+          makeEffect({
+            name: "running",
+            action: "skip",
+            remoteState: { state: { life_cycle_state: "RUNNING" } },
+            changes: { result_state: { action: "skip", reason: "run in progress" } },
+          }),
+        ]}
+      />,
+    );
+
+    const badge = container.querySelector("span");
+    expect(badge?.textContent).toBe("⏳");
+    expect(badge?.textContent).not.toContain("▶");
+    expect(badge?.className).toContain("bg-action-resize-soft");
+    expect(badge?.getAttribute("title")).toBe("running: run still in progress");
+  });
+
+  test("trigger-removal-only effects render no badge", () => {
+    const { container } = render(
+      <RunEffectBadge
+        effects={[
+          makeEffect({
+            name: "removed",
+            action: "skip",
+            changes: {
+              "lifecycle.triggers.on_bundle_deploy": {
+                action: "skip",
+                reason: "trigger removed",
+                old: "fingerprint",
+              },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    expect(container.textContent).toBe("");
+  });
+
   test("mixed create and skip effects render green with the visible count", () => {
     const { container } = render(
       <RunEffectBadge

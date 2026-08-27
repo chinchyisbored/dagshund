@@ -12,7 +12,6 @@ from dagshund.format import (
     count_effects_by_action,
     detect_drift_fields,
     detect_drift_reentries,
-    effect_wording,
     field_action_config,
     filter_resources,
     format_drift_subline_body,
@@ -22,6 +21,7 @@ from dagshund.format import (
     group_by_resource_type,
     iter_non_topology_field_changes,
 )
+from dagshund.job_run_effects import classify_job_run_effect, filter_job_run_changes
 from dagshund.merge import normalize_plan
 from dagshund.model import ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
 from dagshund.plan import (
@@ -70,10 +70,17 @@ def _render_synced_table_output(output: SyncedTableOutput, owner_action: ActionT
 def _render_effect_lines(effect: JobRunEffect) -> Iterator[str]:
     """Nested bullets for a deploy-triggered run; the run name links to the
     existing run page when the record carries one."""
+    semantics = classify_job_run_effect(effect)
     cfg = action_config(effect.action)
     name = f"[`{effect.name}`]({effect.run_page_url})" if effect.run_page_url else f"`{effect.name}`"
-    yield f"  - `{cfg.symbol}` run {name} ({effect_wording(effect.action)})"
-    for field_name, change, ctx in iter_non_topology_field_changes(effect.changes):
+    yield f"  - `{cfg.symbol}` run {name} ({semantics.wording})"
+    if semantics.state_message is not None:
+        yield f"    - state: {semantics.state_message}"
+    for field_name, change, ctx in iter_non_topology_field_changes(
+        filter_job_run_changes(effect.changes),
+        new_state=effect.new_state,
+        remote_state=effect.remote_state,
+    ):
         rendered = _render_field_change(field_name, change, ctx=ctx)
         if rendered is not None:
             yield f"  {rendered}"

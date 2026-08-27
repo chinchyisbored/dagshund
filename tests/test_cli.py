@@ -348,6 +348,33 @@ def test_detailed_exitcode_with_effect_only_changes_exits_two(fixtures_dir: Path
     assert result.returncode == 2
 
 
+@pytest.mark.parametrize(
+    ("case_name", "expected_exit"),
+    [
+        ("completed_success_skip", 0),
+        ("in_progress_skip", 0),
+        ("trigger_removal_skip", 0),
+        ("failed_recreate_with_message_and_link", 2),
+        ("every_deploy_trigger_fingerprint_churn", 2),
+    ],
+    ids=["completed-success", "in-progress", "trigger-removal", "failed", "every-deploy"],
+)
+def test_detailed_exitcode_job_run_outcomes(
+    case_name: str,
+    expected_exit: int,
+    tmp_path: Path,
+) -> None:
+    fixture_path = Path(__file__).resolve().parent.parent / "fixtures" / "job-run-outcome-cases.json"
+    fixture = json.loads(fixture_path.read_text())
+    case = next(case for case in fixture["cases"] if case["name"] == case_name)
+    plan_path = tmp_path / f"{case_name}.json"
+    plan_path.write_text(json.dumps({"plan": case["plan"]}))
+
+    result = _run_dagshund(str(plan_path), "--detailed-exitcode")
+
+    assert result.returncode == expected_exit
+
+
 def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
 

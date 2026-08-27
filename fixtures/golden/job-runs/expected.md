@@ -6,9 +6,9 @@
 #### jobs (5)
 - `=` `jobs/cache_warmup`
   - `+` run `warm_eu_cache` (runs on deploy)
-  - `=` run [`warm_us_cache`](https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/428524523425937/runs/1051306693093236?o=7474654640708173) (already ran)
+  - `=` run [`warm_us_cache`](https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/428524523425937/runs/1051306693093236?o=7474654640708173) (already ran successfully)
 - `=` `jobs/nightly_report`
-  - `=` run [`seed_report`](https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/895867617366646/runs/680077031090160?o=7474654640708173) (already ran)
+  - `=` run [`seed_report`](https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/895867617366646/runs/680077031090160?o=7474654640708173) (already ran successfully)
 - `=` `jobs/schema_migration`
   - `~` run [`apply_migrations`](https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/800870044780677/runs/37190725007976?o=7474654640708173) (re-runs on deploy)
     - `~` `job_parameters['migration_version']`: "v1" -> "v2"

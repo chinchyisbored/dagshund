@@ -17,7 +17,6 @@ from dagshund.format import (
     count_effects_by_action,
     detect_drift_fields,
     detect_drift_reentries,
-    effect_wording,
     field_action_config,
     filter_resources,
     format_display_value,
@@ -29,6 +28,7 @@ from dagshund.format import (
     group_by_resource_type,
     iter_non_topology_field_changes,
 )
+from dagshund.job_run_effects import classify_job_run_effect, filter_job_run_changes
 from dagshund.merge import normalize_plan
 from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
 from dagshund.plan import (
@@ -189,12 +189,22 @@ def _render_effect_lines(
     width: int | None = None,
 ) -> Iterator[str]:
     """Trailing per-job lines for a deploy-triggered run, one per effect."""
+    semantics = classify_job_run_effect(effect)
     cfg = action_config(effect.action)
-    line = f"      {cfg.symbol} run {effect.name} ({effect_wording(effect.action)})"
+    line = f"      {cfg.symbol} run {effect.name} ({semantics.wording})"
     yield _colorize(line, _action_color(cfg), use_color=use_color)
-    narrowed = width - _EFFECT_FIELD_EXTRA_INDENT if width is not None else None
+
     indent = " " * _EFFECT_FIELD_EXTRA_INDENT
-    for field_name, change, ctx in iter_non_topology_field_changes(effect.changes):
+    if semantics.state_message is not None:
+        state_line = f"{indent}state: {semantics.state_message}"
+        yield _colorize(state_line, DIM, use_color=use_color)
+
+    narrowed = width - _EFFECT_FIELD_EXTRA_INDENT if width is not None else None
+    for field_name, change, ctx in iter_non_topology_field_changes(
+        filter_job_run_changes(effect.changes),
+        new_state=effect.new_state,
+        remote_state=effect.remote_state,
+    ):
         rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=narrowed)
         if rendered is not None:
             yield "\n".join(f"{indent}{part}" for part in rendered.split("\n"))

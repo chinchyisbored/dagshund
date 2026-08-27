@@ -1,9 +1,7 @@
-import { describeJobRunEffect, type JobRunEffect } from "../utils/normalize-plan.ts";
+import { classifyJobRunEffect, describeJobRunEffect } from "../utils/job-run-effects.ts";
+import type { JobRunEffect } from "../utils/normalize-plan.ts";
 
-/** Play badge summarizing a node's deploy-triggered runs: green when any run
- *  fires on deploy (create/recreate), grey when every run already ran (skip).
- *  Delete-only effects render no badge — the record removal is shown in the
- *  detail panel instead (dagshund-ocb1). */
+/** Summarize a node's deploy-triggered runs without changing the node's diff state. */
 export function RunEffectBadge({
   effects,
   className = "",
@@ -11,21 +9,26 @@ export function RunEffectBadge({
   readonly effects: readonly JobRunEffect[];
   readonly className?: string;
 }) {
-  const visible = effects.filter((effect) => effect.action !== "delete");
+  const classified = effects.map((effect) => ({ effect, semantics: classifyJobRunEffect(effect) }));
+  const visible = classified.filter(({ semantics }) => semantics.badgeVisible);
   if (visible.length === 0) return null;
-  const firesOnDeploy = visible.some(
-    (effect) => effect.action === "create" || effect.action === "recreate",
-  );
+
+  const firesOnDeploy = visible.some(({ semantics }) => semantics.firesOnDeploy);
+  const isInProgress =
+    !firesOnDeploy && visible.some(({ semantics }) => semantics.kind === "in-progress");
   const colors = firesOnDeploy
     ? "bg-action-create-soft text-action-create"
-    : "bg-badge-bg text-badge-text";
+    : isInProgress
+      ? "bg-action-resize-soft text-action-resize"
+      : "bg-badge-bg text-badge-text";
+  const symbol = isInProgress ? "⏳" : "▶";
 
   return (
     <span
       className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal ${colors} ${className}`}
       title={effects.map(describeJobRunEffect).join(", ")}
     >
-      {"▶"}
+      {symbol}
       {visible.length > 1 ? ` ${visible.length}` : ""}
     </span>
   );

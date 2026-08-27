@@ -6,9 +6,9 @@ dagshund plan (v2, cli 1.14.0)
   jobs (5)
   = jobs/cache_warmup
       + run warm_eu_cache (runs on deploy)
-      = run warm_us_cache (already ran)
+      = run warm_us_cache (already ran successfully)
   = jobs/nightly_report
-      = run seed_report (already ran)
+      = run seed_report (already ran successfully)
   = jobs/schema_migration
       ~ run apply_migrations (re-runs on deploy)
           ~ job_parameters['migration_version']: "v1" -> "v2"

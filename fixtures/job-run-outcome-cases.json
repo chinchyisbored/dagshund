@@ -1,0 +1,255 @@
+{
+  "description": "Shared hand-authored plan vectors for semantic job_runs effect rendering in Python and TypeScript.",
+  "cases": [
+    {
+      "name": "completed_success_skip",
+      "plan": {
+        "resources.jobs.completed": {
+          "action": "skip",
+          "remote_state": { "job_id": 101 }
+        },
+        "resources.job_runs.completed": {
+          "depends_on": [{ "node": "resources.jobs.completed" }],
+          "action": "skip",
+          "remote_state": {
+            "job_id": 101,
+            "result_state": "SUCCESS",
+            "state": {
+              "life_cycle_state": "TERMINATED",
+              "result_state": "SUCCESS"
+            }
+          },
+          "changes": {
+            "result_state": {
+              "action": "skip",
+              "reason": "remote_already_set",
+              "new": "SUCCESS",
+              "remote": "SUCCESS"
+            }
+          }
+        }
+      },
+      "effectKey": "resources.job_runs.completed",
+      "expected": {
+        "kind": "completed-success",
+        "wording": "already ran successfully",
+        "outcome": null,
+        "stateMessage": null,
+        "firesOnDeploy": false,
+        "badgeVisible": true,
+        "visibleChangeKeys": []
+      }
+    },
+    {
+      "name": "in_progress_skip",
+      "plan": {
+        "resources.jobs.running": {
+          "action": "skip",
+          "remote_state": { "job_id": 102 }
+        },
+        "resources.job_runs.running": {
+          "depends_on": [{ "node": "resources.jobs.running" }],
+          "action": "skip",
+          "remote_state": {
+            "job_id": 102,
+            "state": {
+              "life_cycle_state": "RUNNING",
+              "state_message": "The existing run is still active."
+            }
+          },
+          "changes": {
+            "result_state": {
+              "action": "skip",
+              "reason": "run in progress"
+            }
+          }
+        }
+      },
+      "effectKey": "resources.job_runs.running",
+      "expected": {
+        "kind": "in-progress",
+        "wording": "run still in progress",
+        "outcome": null,
+        "stateMessage": "The existing run is still active.",
+        "firesOnDeploy": false,
+        "badgeVisible": true,
+        "visibleChangeKeys": []
+      }
+    },
+    {
+      "name": "trigger_removal_skip",
+      "plan": {
+        "resources.jobs.removed_trigger": {
+          "action": "skip",
+          "remote_state": { "job_id": 103 }
+        },
+        "resources.job_runs.removed_trigger": {
+          "depends_on": [{ "node": "resources.jobs.removed_trigger" }],
+          "action": "skip",
+          "remote_state": {
+            "job_id": 103,
+            "state": { "life_cycle_state": "TERMINATED" }
+          },
+          "changes": {
+            "lifecycle.triggers.on_bundle_deploy": {
+              "action": "skip",
+              "reason": "trigger removed",
+              "old": "fingerprint-before"
+            }
+          }
+        }
+      },
+      "effectKey": "resources.job_runs.removed_trigger",
+      "expected": {
+        "kind": "trigger-removed",
+        "wording": "deploy trigger removed; no run will start",
+        "outcome": null,
+        "stateMessage": null,
+        "firesOnDeploy": false,
+        "badgeVisible": false,
+        "visibleChangeKeys": []
+      }
+    },
+    {
+      "name": "failed_recreate_with_message_and_link",
+      "plan": {
+        "resources.jobs.failed": {
+          "action": "skip",
+          "remote_state": { "job_id": 104 }
+        },
+        "resources.job_runs.failed": {
+          "depends_on": [{ "node": "resources.jobs.failed" }],
+          "action": "recreate",
+          "remote_state": {
+            "job_id": 104,
+            "result_state": "FAILED",
+            "run_page_url": "https://example.test/runs/failed",
+            "state": {
+              "life_cycle_state": "TERMINATED",
+              "state_message": "The notebook task failed.",
+              "result_state": "FAILED"
+            }
+          },
+          "changes": {
+            "result_state": {
+              "action": "recreate",
+              "old": "SUCCESS",
+              "new": "FAILED",
+              "remote": "FAILED"
+            }
+          }
+        }
+      },
+      "effectKey": "resources.job_runs.failed",
+      "expected": {
+        "kind": "recreate",
+        "wording": "re-runs on deploy; previous run FAILED",
+        "outcome": "FAILED",
+        "stateMessage": "The notebook task failed.",
+        "firesOnDeploy": true,
+        "badgeVisible": true,
+        "runPageUrl": "https://example.test/runs/failed",
+        "visibleChangeKeys": []
+      }
+    },
+    {
+      "name": "every_deploy_trigger_fingerprint_churn",
+      "plan": {
+        "resources.jobs.every_deploy": {
+          "action": "skip",
+          "remote_state": { "job_id": 105 }
+        },
+        "resources.job_runs.every_deploy": {
+          "depends_on": [{ "node": "resources.jobs.every_deploy" }],
+          "action": "recreate",
+          "remote_state": {
+            "job_id": 105,
+            "state": {
+              "life_cycle_state": "TERMINATED",
+              "result_state": "SUCCESS"
+            }
+          },
+          "changes": {
+            "lifecycle": {
+              "action": "recreate",
+              "old": { "triggers": { "on_bundle_deploy": "fingerprint-before" } },
+              "new": { "triggers": { "on_bundle_deploy": "fingerprint-after" } }
+            },
+            "lifecycle.triggers": {
+              "action": "recreate",
+              "old": { "on_bundle_deploy": "fingerprint-before" },
+              "new": { "on_bundle_deploy": "fingerprint-after" }
+            },
+            "lifecycle.triggers.on_bundle_deploy": {
+              "action": "recreate",
+              "old": "fingerprint-before",
+              "new": "fingerprint-after"
+            }
+          }
+        }
+      },
+      "effectKey": "resources.job_runs.every_deploy",
+      "expected": {
+        "kind": "every-deploy",
+        "wording": "runs on every deploy",
+        "outcome": null,
+        "stateMessage": null,
+        "firesOnDeploy": true,
+        "badgeVisible": true,
+        "visibleChangeKeys": []
+      }
+    },
+    {
+      "name": "every_deploy_preserves_real_parameter_change",
+      "plan": {
+        "resources.jobs.every_deploy_with_parameter": {
+          "action": "skip",
+          "remote_state": { "job_id": 106 }
+        },
+        "resources.job_runs.every_deploy_with_parameter": {
+          "depends_on": [{ "node": "resources.jobs.every_deploy_with_parameter" }],
+          "action": "recreate",
+          "remote_state": {
+            "job_id": 106,
+            "state": {
+              "life_cycle_state": "TERMINATED",
+              "result_state": "SUCCESS"
+            }
+          },
+          "changes": {
+            "lifecycle": {
+              "action": "recreate",
+              "old": { "triggers": { "on_bundle_deploy": "fingerprint-before" } },
+              "new": { "triggers": { "on_bundle_deploy": "fingerprint-after" } }
+            },
+            "lifecycle.triggers": {
+              "action": "recreate",
+              "old": { "on_bundle_deploy": "fingerprint-before" },
+              "new": { "on_bundle_deploy": "fingerprint-after" }
+            },
+            "lifecycle.triggers.on_bundle_deploy": {
+              "action": "recreate",
+              "old": "fingerprint-before",
+              "new": "fingerprint-after"
+            },
+            "job_parameters['region']": {
+              "action": "recreate",
+              "old": "us",
+              "new": "eu"
+            }
+          }
+        }
+      },
+      "effectKey": "resources.job_runs.every_deploy_with_parameter",
+      "expected": {
+        "kind": "every-deploy",
+        "wording": "runs on every deploy",
+        "outcome": null,
+        "stateMessage": null,
+        "firesOnDeploy": true,
+        "badgeVisible": true,
+        "visibleChangeKeys": ["job_parameters['region']"]
+      }
+    }
+  ]
+}

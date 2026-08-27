@@ -240,6 +240,8 @@ def _build_job_run_effect(name: str, entry: ResourceChange) -> JobRunEffect:
         action=entry.action,
         changes=entry.changes,
         run_page_url=_extract_run_page_url(entry.remote_state),
+        new_state=entry.new_state,
+        remote_state=entry.remote_state,
     )
 
 

@@ -523,7 +523,12 @@ def test_normalize_plan_effect_carries_action_changes_and_run_page_url() -> None
         _job_with_run(
             {
                 "action": "recreate",
-                "remote_state": {"job_id": 100, "run_page_url": "https://example.test/run/1"},
+                "new_state": {"value": {"job_id": 100, "result_state": "SUCCESS"}},
+                "remote_state": {
+                    "job_id": 100,
+                    "result_state": "SUCCESS",
+                    "run_page_url": "https://example.test/run/1",
+                },
                 "changes": {"job_parameters['v']": {"action": "recreate", "old": "1", "new": "2"}},
             }
         )
@@ -534,6 +539,12 @@ def test_normalize_plan_effect_carries_action_changes_and_run_page_url() -> None
     (effect,) = normalized["resources.jobs.etl"].effects
     assert effect.action == ActionType.RECREATE
     assert effect.run_page_url == "https://example.test/run/1"
+    assert effect.new_state == {"value": {"job_id": 100, "result_state": "SUCCESS"}}
+    assert effect.remote_state == {
+        "job_id": 100,
+        "result_state": "SUCCESS",
+        "run_page_url": "https://example.test/run/1",
+    }
     assert list(effect.changes) == ["job_parameters['v']"]
 
 

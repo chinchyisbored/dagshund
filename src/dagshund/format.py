@@ -59,19 +59,6 @@ def action_config(action: ActionType) -> ActionConfig:
     return ACTIONS.get(action, DEFAULT_ACTION)
 
 
-# Mirror of JOB_RUN_EFFECT_WORDING in js/src/utils/normalize-plan.ts.
-_EFFECT_WORDING: dict[ActionType, str] = {
-    ActionType.CREATE: "runs on deploy",
-    ActionType.RECREATE: "re-runs on deploy",
-    ActionType.SKIP: "already ran",
-    ActionType.DELETE: "run record will be deleted",
-}
-
-
-def effect_wording(action: ActionType) -> str:
-    return _EFFECT_WORDING.get(action, action_config(action).display)
-
-
 def field_action_config(change: FieldChange, ctx: FieldChangeContext | None = None) -> ActionConfig:
     """Derive the display config for a field change from data presence, not the action label.
 

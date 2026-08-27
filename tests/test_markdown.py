@@ -634,6 +634,65 @@ def test_render_markdown_effect_field_changes_render_nested() -> None:
     assert "    - `~` `job_parameters['v']`" in out
 
 
+def test_render_markdown_job_run_outcomes_keep_links_and_hide_generated_fields() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.failed": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "remote_state": {
+                        "job_id": 100,
+                        "result_state": "FAILED",
+                        "run_page_url": "https://example.test/runs/failed",
+                        "state": {"life_cycle_state": "TERMINATED", "state_message": "The task failed."},
+                    },
+                    "changes": {"result_state": {"action": "recreate", "new": "FAILED"}},
+                },
+                "resources.job_runs.every": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "remote_state": {"job_id": 100},
+                    "changes": {
+                        "lifecycle": {
+                            "action": "recreate",
+                            "old": {"triggers": {"on_bundle_deploy": "fingerprint-before"}},
+                            "new": {"triggers": {"on_bundle_deploy": "fingerprint-after"}},
+                        },
+                        "lifecycle.triggers": {
+                            "action": "recreate",
+                            "old": {"on_bundle_deploy": "fingerprint-before"},
+                            "new": {"on_bundle_deploy": "fingerprint-after"},
+                        },
+                        "lifecycle.triggers.on_bundle_deploy": {
+                            "action": "recreate",
+                            "old": "fingerprint-before",
+                            "new": "fingerprint-after",
+                        },
+                        "job_parameters['region']": {
+                            "action": "recreate",
+                            "old": "us",
+                            "new": "eu",
+                        },
+                    },
+                },
+            }
+        }
+    )
+
+    out = render_markdown(plan)
+
+    assert "re-runs on deploy; previous run FAILED" in out
+    assert "state: The task failed." in out
+    assert "https://example.test/runs/failed" in out
+    assert "runs on every deploy" in out
+    assert "job_parameters['region']" in out
+    assert "fingerprint-before" not in out
+    assert "result_state" not in out
+    assert "Manual Edits Detected" not in out
+
+
 def test_render_markdown_skip_only_effects_render_run_records() -> None:
     plan = plan_from_dict(
         {
