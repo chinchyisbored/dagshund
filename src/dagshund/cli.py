@@ -1,15 +1,21 @@
 import argparse
+import hashlib
 import logging
 import os
 import sys
 from enum import IntEnum
 from pathlib import Path
-from typing import cast
 
 from dagshund import __version__
 from dagshund.merge import normalize_plan
 from dagshund.model import Plan, parse_plan
 from dagshund.plan import detect_changes, detect_dangerous_actions, detect_manual_edits
+from dagshund.provenance import (
+    PlanSource,
+    RawPlanInput,
+    build_html_provenance,
+    format_source_modified_at,
+)
 from dagshund.types import DagshundError, DiffState
 
 
@@ -147,20 +153,32 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _read_plan(plan_file: str | None) -> str:
+def _read_plan(plan_file: str | None, *, include_source_metadata: bool = False) -> RawPlanInput:
     if plan_file is not None:
         try:
-            with open(plan_file, encoding="utf-8") as f:
-                return f.read()
+            with open(plan_file, "rb") as plan_handle:
+                raw_bytes = plan_handle.read()
+                source = (
+                    PlanSource(
+                        source_name=Path(plan_file).name,
+                        source_modified_at=format_source_modified_at(os.fstat(plan_handle.fileno()).st_mtime),
+                    )
+                    if include_source_metadata
+                    else None
+                )
+                return RawPlanInput(raw_bytes=raw_bytes, source=source)
         except FileNotFoundError as exc:
             raise DagshundError(f"file not found: {plan_file}") from exc
-        except UnicodeDecodeError as exc:
-            raise DagshundError(f"file is not valid UTF-8: {plan_file}") from exc
         except OSError as exc:
             raise DagshundError(f"could not read file: {exc}") from exc
 
     if not sys.stdin.isatty():
-        return cast("str", sys.stdin.read())
+        try:
+            raw_bytes = sys.stdin.buffer.read()
+        except OSError as exc:
+            raise DagshundError(f"could not read stdin: {exc}") from exc
+        source = PlanSource("stdin", None) if include_source_metadata else None
+        return RawPlanInput(raw_bytes=raw_bytes, source=source)
 
     raise DagshundError(
         "no input file specified and stdin is a TTY\n"
@@ -169,6 +187,15 @@ def _read_plan(plan_file: str | None) -> str:
         "       cat plan.json | dagshund\n"
         "       dagshund <plan.json> --format md"
     )
+
+
+def _decode_plan(raw_bytes: bytes, plan_file: str | None) -> str:
+    try:
+        return raw_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        if plan_file is None:
+            raise DagshundError("stdin is not valid UTF-8") from exc
+        raise DagshundError(f"file is not valid UTF-8: {plan_file}") from exc
 
 
 def _install_skill(target_dir: str) -> None:
@@ -255,15 +282,27 @@ def _render_stdout(
 
 def _run(args: argparse.Namespace) -> ExitCode:
     visible_states = _build_visible_states(args)
-    raw = _read_plan(args.plan_file)
+    html_output_requested = args.output is not None
+    plan_input = _read_plan(args.plan_file, include_source_metadata=html_output_requested)
+    source = plan_input.source
+    source_plan_sha256 = hashlib.sha256(plan_input.raw_bytes).hexdigest() if html_output_requested else None
+    raw = _decode_plan(plan_input.raw_bytes, args.plan_file)
+    del plan_input
     plan = parse_plan(raw)
+    del raw
     if not plan.resources:
         raise DagshundError("plan is empty")
 
-    if args.output:
+    if html_output_requested:
         from dagshund.browser import render_browser
 
-        render_browser(plan, output_path=args.output)
+        if source is None or source_plan_sha256 is None:
+            raise DagshundError("could not calculate source provenance")
+        render_browser(
+            plan,
+            output_path=args.output,
+            provenance=build_html_provenance(source, source_plan_sha256, plan),
+        )
 
         if args.browser:
             import webbrowser

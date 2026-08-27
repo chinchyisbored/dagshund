@@ -5,11 +5,13 @@ from factories import plan_from_dict
 
 from dagshund.browser import (
     PLACEHOLDER,
+    PROVENANCE_PLACEHOLDER,
     _escape_for_script_tag,
     _inject_plan,
     _load_template,
     render_browser,
 )
+from dagshund.provenance import HtmlProvenance
 from dagshund.types import DagshundError
 
 # --- _load_template ---
@@ -152,6 +154,47 @@ def test_inject_plan_placeholder_string_in_plan_data() -> None:
     assert result.endswith(":after")
     injected = result.removeprefix("before:").removesuffix(":after")
     assert f'"key":"{PLACEHOLDER}"' in injected
+
+
+def test_inject_plan_replaces_provenance_with_compact_json() -> None:
+    template = f"{PLACEHOLDER}|{PROVENANCE_PLACEHOLDER}"
+    provenance = HtmlProvenance("plan.json", "2026-08-27T12:00:00Z", "a" * 64, "0.15.0", "1.14.0")
+
+    result = _inject_plan(template, plan_from_dict({"plan": {}}), provenance)
+
+    assert result == (
+        '{"plan":{}}|{"source_name":"plan.json","source_modified_at":"2026-08-27T12:00:00Z",'
+        '"source_plan_sha256":"' + "a" * 64 + '","dagshund_version":"0.15.0","plan_cli_version":"1.14.0"}'
+    )
+
+
+def test_inject_plan_validates_duplicate_provenance_placeholder() -> None:
+    template = f"{PLACEHOLDER}{PROVENANCE_PLACEHOLDER}{PROVENANCE_PLACEHOLDER}"
+    provenance = HtmlProvenance("plan.json", None, "a" * 64, "0.15.0", None)
+
+    with pytest.raises(DagshundError, match="found 2"):
+        _inject_plan(template, plan_from_dict({"plan": {}}), provenance)
+
+
+def test_inject_plan_keeps_placeholder_like_values_literal() -> None:
+    template = f"{PLACEHOLDER}|{PROVENANCE_PLACEHOLDER}"
+    provenance = HtmlProvenance(PLACEHOLDER, None, "a" * 64, PROVENANCE_PLACEHOLDER, None)
+
+    result = _inject_plan(template, plan_from_dict({"value": PROVENANCE_PLACEHOLDER}), provenance)
+
+    assert f'"value":"{PROVENANCE_PLACEHOLDER}"' in result
+    assert f'"source_name":"{PLACEHOLDER}"' in result
+    assert f'"dagshund_version":"{PROVENANCE_PLACEHOLDER}"' in result
+
+
+def test_inject_plan_escapes_provenance_script_content() -> None:
+    template = f"<script>{PLACEHOLDER}|{PROVENANCE_PLACEHOLDER}</script>"
+    provenance = HtmlProvenance("</script>", None, "a" * 64, "0.15.0", None)
+
+    result = _inject_plan(template, plan_from_dict({"plan": {}}), provenance)
+
+    assert '</script>"' not in result
+    assert "\\u003c/script>" in result
 
 
 # --- render_browser (integration) ---

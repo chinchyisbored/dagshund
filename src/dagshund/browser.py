@@ -1,12 +1,15 @@
 import json
+import re
 import sys
 from importlib.resources import files
 from pathlib import Path
 
 from dagshund.model import Plan
+from dagshund.provenance import HtmlProvenance
 from dagshund.types import DagshundError
 
 PLACEHOLDER = "__DAGSHUND_PLAN_JSON__"
+PROVENANCE_PLACEHOLDER = "__DAGSHUND_PROVENANCE_JSON__"
 
 
 def _load_template() -> str:
@@ -32,16 +35,40 @@ def _escape_for_script_tag(content: str) -> str:
     return content.replace("<", "\\u003c")
 
 
-def _inject_plan(template: str, plan: Plan) -> str:
-    count = template.count(PLACEHOLDER)
+def _serialize_provenance(provenance: HtmlProvenance) -> str:
+    return json.dumps(
+        {
+            "source_name": provenance.source_name,
+            "source_modified_at": provenance.source_modified_at,
+            "source_plan_sha256": provenance.source_plan_sha256,
+            "dagshund_version": provenance.dagshund_version,
+            "plan_cli_version": provenance.plan_cli_version,
+        },
+        separators=(",", ":"),
+    )
+
+
+def _validate_placeholder(template: str, placeholder: str) -> None:
+    count = template.count(placeholder)
     if count == 0:
         raise DagshundError(
-            f"placeholder {PLACEHOLDER} not found in template — template may be outdated, rebuild with 'just build'"
+            f"placeholder {placeholder} not found in template - template may be outdated, rebuild with 'just build'"
         )
     if count > 1:
         raise DagshundError(f"expected 1 placeholder in template, found {count}")
-    safe_json = _escape_for_script_tag(json.dumps(plan.raw, separators=(",", ":")))
-    return template.replace(PLACEHOLDER, safe_json, 1)
+
+
+def _inject_plan(template: str, plan: Plan, provenance: HtmlProvenance | None = None) -> str:
+    replacements = {PLACEHOLDER: _escape_for_script_tag(json.dumps(plan.raw, separators=(",", ":")))}
+    if provenance is not None or PROVENANCE_PLACEHOLDER in template:
+        provenance_json = "null" if provenance is None else _serialize_provenance(provenance)
+        replacements[PROVENANCE_PLACEHOLDER] = _escape_for_script_tag(provenance_json)
+
+    for placeholder in replacements:
+        _validate_placeholder(template, placeholder)
+
+    pattern = re.compile("|".join(re.escape(placeholder) for placeholder in replacements))
+    return pattern.sub(lambda match: replacements[match.group(0)], template)
 
 
 def _validate_output_path(raw: str) -> Path:
@@ -58,10 +85,10 @@ def _validate_output_path(raw: str) -> Path:
     return path.resolve()
 
 
-def render_browser(plan: Plan, *, output_path: str) -> None:
+def render_browser(plan: Plan, *, output_path: str, provenance: HtmlProvenance | None = None) -> None:
     resolved = _validate_output_path(output_path)
     template = _load_template()
-    html = _inject_plan(template, plan)
+    html = _inject_plan(template, plan, provenance)
 
     try:
         resolved.write_text(html, encoding="utf-8")

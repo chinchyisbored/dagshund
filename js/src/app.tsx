@@ -5,12 +5,14 @@ import "./styles/output.css";
 import { ErrorBoundary } from "./components/error-boundary.tsx";
 import { FlowCanvas } from "./components/flow-canvas.tsx";
 import { JobNode } from "./components/job-node.tsx";
+import { ProvenancePanel } from "./components/provenance-panel.tsx";
 import { ResourcesView } from "./components/resources-view.tsx";
 import { TabBar } from "./components/tab-bar.tsx";
 import { TaskNode } from "./components/task-node.tsx";
 import { ThemeToggle } from "./components/theme-toggle.tsx";
 import { JobNavigationContext, PlanContext, TabVisibilityContext } from "./hooks/contexts.ts";
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
+import { useProvenance } from "./hooks/use-provenance.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 import { normalizePlan } from "./utils/normalize-plan.ts";
@@ -130,10 +132,12 @@ function PlanView({ plan }: { readonly plan: Plan }) {
 
 export function App() {
   const planState = useStdinPlan();
+  const provenance = useProvenance();
 
   return (
     <div className="relative h-screen w-screen bg-surface">
-      <div className="absolute top-2 right-2 z-50">
+      <div className="absolute top-2 right-2 z-50 flex items-center gap-0.5">
+        <ProvenancePanel provenance={provenance} />
         <ThemeToggle />
       </div>
       {planState.status === "loading" && <LoadingIndicator />}

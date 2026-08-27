@@ -96,6 +96,7 @@ describe("assembleHtml", () => {
   const MINIMAL_CSS = "body { margin: 0; }";
   const MINIMAL_JS = "console.log('hello');";
   const PLAN_SLOT = '{"test":true}';
+  const PROVENANCE_SLOT = '{"source_name":"plan.json"}';
 
   test("produces valid HTML structure", () => {
     const html = assembleHtml(MINIMAL_CSS, MINIMAL_JS, PLAN_SLOT);
@@ -120,9 +121,36 @@ describe("assembleHtml", () => {
     expect(html).toContain(`window.__DAGSHUND_PLAN__ = ${PLAN_SLOT};`);
   });
 
-  test("works with placeholder token for template builds", () => {
-    const html = assembleHtml(MINIMAL_CSS, MINIMAL_JS, "__DAGSHUND_PLAN_JSON__");
+  test("inserts provenanceSlot into the dedicated metadata global", () => {
+    const html = assembleHtml(MINIMAL_CSS, MINIMAL_JS, PLAN_SLOT, PROVENANCE_SLOT);
+    expect(html).toContain(`window.__DAGSHUND_PROVENANCE__ = ${PROVENANCE_SLOT};`);
+  });
+
+  test("works with placeholder tokens for template builds", () => {
+    const html = assembleHtml(
+      MINIMAL_CSS,
+      MINIMAL_JS,
+      "__DAGSHUND_PLAN_JSON__",
+      "__DAGSHUND_PROVENANCE_JSON__",
+    );
     expect(html).toContain("window.__DAGSHUND_PLAN__ = __DAGSHUND_PLAN_JSON__;");
+    expect(html).toContain("window.__DAGSHUND_PROVENANCE__ = __DAGSHUND_PROVENANCE_JSON__;");
+  });
+
+  test("keeps escaped provenance JSON inside the inline script", () => {
+    const provenanceJson = JSON.stringify({ source_name: "</script><script>evil()</script>" });
+    const safeProvenanceJson = escapeJsonForScript(provenanceJson);
+    const html = assembleHtml(MINIMAL_CSS, MINIMAL_JS, PLAN_SLOT, safeProvenanceJson);
+
+    expect(html).toContain(`window.__DAGSHUND_PROVENANCE__ = ${safeProvenanceJson};`);
+    expect(html).not.toContain(`window.__DAGSHUND_PROVENANCE__ = ${provenanceJson};`);
+  });
+
+  test("keeps placeholder-like provenance values literal", () => {
+    const provenanceSlot = '{"source_name":"__DAGSHUND_PLAN_JSON__"}';
+    const html = assembleHtml(MINIMAL_CSS, MINIMAL_JS, PLAN_SLOT, provenanceSlot);
+
+    expect(html).toContain(`window.__DAGSHUND_PROVENANCE__ = ${provenanceSlot};`);
   });
 
   test("includes theme init script", () => {

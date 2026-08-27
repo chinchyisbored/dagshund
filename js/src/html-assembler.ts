@@ -57,11 +57,18 @@ const RESIZE_OBSERVER_SCRIPT = `window.addEventListener("error", function(e) {
  *
  * @param css      - CSS content to inline in a <style> tag
  * @param js       - JS bundle content to inline in a <script type="module"> tag
- * @param planSlot - Either a JSON string (for live export) or a raw placeholder
- *                   token like `__DAGSHUND_PLAN_JSON__` (for the Python template).
- *                   Inserted verbatim into `window.__DAGSHUND_PLAN__ = <planSlot>;`
+ * @param planSlot        - Either a JSON string (for live export) or a raw placeholder
+ *                           token like `__DAGSHUND_PLAN_JSON__` (for the Python template).
+ *                           Inserted verbatim into `window.__DAGSHUND_PLAN__ = <planSlot>;`
+ * @param provenanceSlot  - Either a JSON string or the provenance placeholder token used by
+ *                           the Python template. Inserted verbatim into the dedicated global.
  */
-export const assembleHtml = (css: string, js: string, planSlot: string): string => {
+export const assembleHtml = (
+  css: string,
+  js: string,
+  planSlot: string,
+  provenanceSlot = "null",
+): string => {
   const safeJs = escapeForScriptTag(js);
 
   return `<!doctype html>
@@ -79,7 +86,10 @@ export const assembleHtml = (css: string, js: string, planSlot: string): string 
     ${THEME_INIT_SCRIPT}
     ${RESIZE_OBSERVER_SCRIPT}
   </script>
-  <script>window.__DAGSHUND_PLAN__ = ${planSlot};</script>
+  <script>
+    window.__DAGSHUND_PLAN__ = ${planSlot};
+    window.__DAGSHUND_PROVENANCE__ = ${provenanceSlot};
+  </script>
   <script type="module">${safeJs}</script>
 </body>
 </html>`;

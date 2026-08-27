@@ -45,4 +45,13 @@ describe("SearchBar", () => {
     fireEvent.keyDown(input, { key: "Escape" });
     expect(input.value).toBe("");
   });
+
+  test("search help uses an accessible information icon", () => {
+    const { getByRole } = render(<SearchBar onSearch={() => {}} matchCount={0} />);
+    const button = getByRole("button", { name: "Search syntax help" });
+
+    expect(button.getAttribute("title")).toBe("Search syntax help");
+    expect(button.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    expect(button.textContent).toBe("");
+  });
 });

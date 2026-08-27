@@ -1,17 +1,25 @@
 import argparse
+import hashlib
 import json
 import os
 import subprocess
 import sys
-from io import StringIO
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
+from typing import NoReturn
 
 import pytest
 
 from dagshund import __version__
-from dagshund.cli import ExitCode, _build_visible_states, _read_plan, main
+from dagshund.cli import ExitCode, _build_visible_states, _decode_plan, _read_plan, _run, main
+from dagshund.provenance import format_source_modified_at
 from dagshund.types import DagshundError, DiffState
+
+
+def _make_stdin(raw: str | bytes, *, isatty: bool = False) -> SimpleNamespace:
+    raw_bytes = raw.encode() if isinstance(raw, str) else raw
+    return SimpleNamespace(isatty=lambda: isatty, buffer=BytesIO(raw_bytes))
 
 
 def _run_dagshund(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -42,11 +50,16 @@ def test_main_text_mode_with_file_prints_output(fixtures_dir: Path) -> None:
 # --- _read_plan ---
 
 
-def test_read_plan_reads_file(tmp_path: Path) -> None:
+def test_read_plan_reads_file_bytes_and_source_metadata(tmp_path: Path) -> None:
     plan_file = tmp_path / "plan.json"
-    plan_file.write_text('{"plan": {}}')
+    plan_file.write_bytes(b'{"plan": {}}')
 
-    assert _read_plan(str(plan_file)) == '{"plan": {}}'
+    result = _read_plan(str(plan_file), include_source_metadata=True)
+
+    assert result.raw_bytes == b'{"plan": {}}'
+    assert result.source is not None
+    assert result.source.source_name == "plan.json"
+    assert result.source.source_modified_at is not None
 
 
 def test_read_plan_file_not_found_raises() -> None:
@@ -66,12 +79,21 @@ def test_read_plan_permission_denied_raises(tmp_path: Path) -> None:
         plan_file.chmod(0o644)
 
 
-def test_read_plan_non_utf8_file_raises(tmp_path: Path) -> None:
+def test_decode_plan_non_utf8_file_raises(tmp_path: Path) -> None:
     plan_file = tmp_path / "binary.json"
     plan_file.write_bytes(b"\x80\x81\x82\xff")
+    raw_input = _read_plan(str(plan_file))
 
     with pytest.raises(DagshundError, match="not valid UTF-8"):
-        _read_plan(str(plan_file))
+        _decode_plan(raw_input.raw_bytes, str(plan_file))
+
+
+def test_decode_plan_non_utf8_stdin_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.stdin", _make_stdin(b"\x80\x81\x82\xff"))
+    raw_input = _read_plan(None)
+
+    with pytest.raises(DagshundError, match="stdin is not valid UTF-8"):
+        _decode_plan(raw_input.raw_bytes, None)
 
 
 def test_read_plan_directory_raises(tmp_path: Path) -> None:
@@ -79,9 +101,15 @@ def test_read_plan_directory_raises(tmp_path: Path) -> None:
         _read_plan(str(tmp_path))
 
 
-def test_read_plan_reads_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("sys.stdin", StringIO('{"plan": {}}'))
-    assert _read_plan(None) == '{"plan": {}}'
+def test_read_plan_reads_bytes_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.stdin", _make_stdin(b'{"plan": {}}'))
+
+    result = _read_plan(None, include_source_metadata=True)
+
+    assert result.raw_bytes == b'{"plan": {}}'
+    assert result.source is not None
+    assert result.source.source_name == "stdin"
+    assert result.source.source_modified_at is None
 
 
 def test_read_plan_tty_stdin_raises(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -113,7 +141,7 @@ def test_main_text_mode_from_stdin(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr("sys.argv", ["dagshund"])
-    monkeypatch.setattr("sys.stdin", StringIO(real_plan_json))
+    monkeypatch.setattr("sys.stdin", _make_stdin(real_plan_json))
 
     with pytest.raises(SystemExit) as exc_info:
         main()
@@ -215,7 +243,7 @@ def test_main_invalid_json_on_stdin_exits_with_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr("sys.argv", ["dagshund"])
-    monkeypatch.setattr("sys.stdin", StringIO("not valid json"))
+    monkeypatch.setattr("sys.stdin", _make_stdin("not valid json"))
 
     with pytest.raises(SystemExit) as exc_info:
         main()
@@ -229,7 +257,7 @@ def test_main_empty_plan_quiet_detailed_exitcode_exits_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr("sys.argv", ["dagshund", "-q", "-e"])
-    monkeypatch.setattr("sys.stdin", StringIO('{"plan": {}}'))
+    monkeypatch.setattr("sys.stdin", _make_stdin('{"plan": {}}'))
 
     with pytest.raises(SystemExit) as exc_info:
         main()
@@ -268,7 +296,7 @@ def test_main_stdin_with_output_flag_writes_html(
 ) -> None:
     output = tmp_path / "out.html"
     monkeypatch.setattr("sys.argv", ["dagshund", "-o", str(output)])
-    monkeypatch.setattr("sys.stdin", StringIO(real_plan_json))
+    monkeypatch.setattr("sys.stdin", _make_stdin(real_plan_json))
 
     with pytest.raises(SystemExit) as exc_info:
         main()
@@ -382,6 +410,81 @@ def test_subprocess_output_flag_writes_html(require_template: None, fixtures_dir
     assert output.exists()
     assert "exported to" in result.stderr
     assert "etl_pipeline" in result.stdout
+
+
+def test_subprocess_file_output_embeds_exact_bytes_and_basename(require_template: None, tmp_path: Path) -> None:
+    plan_file = tmp_path / "source.json"
+    output = tmp_path / "out.html"
+    raw_bytes = b'{\r\n  "cli_version": "1.14.0",\r\n  "plan": {\r\n    "resources.jobs.etl": {}\r\n  }\r\n}\r\n'
+    modified_at = 1_704_165_600
+    plan_file.write_bytes(raw_bytes)
+    os.utime(plan_file, (modified_at, modified_at))
+
+    result = _run_dagshund(str(plan_file), "-o", str(output))
+
+    assert result.returncode == 0
+    content = output.read_text()
+    assert '"source_name":"source.json"' in content
+    assert f'"source_modified_at":"{format_source_modified_at(modified_at)}"' in content
+    assert f'"source_plan_sha256":"{hashlib.sha256(raw_bytes).hexdigest()}"' in content
+    assert str(tmp_path) not in content
+    normalized_bytes = b'{"cli_version":"1.14.0","plan":{"resources.jobs.etl":{}}}'
+    assert hashlib.sha256(normalized_bytes).hexdigest() not in content
+
+
+@pytest.mark.parametrize(
+    "raw_bytes",
+    [
+        b'{"cli_version":"1.14.0","plan":{"resources.jobs.etl":{}}}',
+        b'{\r\n  "cli_version": "1.14.0",\r\n  "plan": {\r\n    "resources.jobs.etl": {}\r\n  }\r\n}\r\n',
+    ],
+    ids=["compact-whitespace", "crlf-whitespace"],
+)
+def test_subprocess_stdin_output_embeds_stdin_and_exact_digest(
+    require_template: None, tmp_path: Path, raw_bytes: bytes
+) -> None:
+    output = tmp_path / "out.html"
+    expected_plan = {"cli_version": "1.14.0", "plan": {"resources.jobs.etl": {}}}
+
+    assert json.loads(raw_bytes) == expected_plan
+    result = _run_dagshund("-o", str(output), stdin=raw_bytes.decode())
+
+    assert result.returncode == 0
+    content = output.read_text()
+    assert '"source_name":"stdin"' in content
+    assert '"source_modified_at":null' in content
+    assert f'"source_plan_sha256":"{hashlib.sha256(raw_bytes).hexdigest()}"' in content
+
+
+@pytest.mark.parametrize("output_format", ["term", "md"], ids=["terminal", "markdown"])
+def test_run_non_html_modes_do_not_hash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, output_format: str) -> None:
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_bytes(b'{"plan":{"resources.jobs.etl":{}}}')
+    args = argparse.Namespace(
+        changes_only=False,
+        added=False,
+        modified=False,
+        removed=False,
+        plan_file=str(plan_file),
+        output=None,
+        browser=False,
+        quiet=False,
+        detailed_exitcode=False,
+        format=output_format,
+        filter=None,
+        suppress_wheel_updates=False,
+    )
+
+    def fail_hash(_raw_bytes: bytes) -> NoReturn:
+        raise AssertionError("non-HTML mode calculated a source hash")
+
+    def fail_fstat(_file_descriptor: int) -> NoReturn:
+        raise AssertionError("non-HTML mode collected source metadata")
+
+    monkeypatch.setattr("dagshund.cli.hashlib.sha256", fail_hash)
+    monkeypatch.setattr("dagshund.cli.os.fstat", fail_fstat)
+
+    assert _run(args) == ExitCode.OK
 
 
 # --- _build_visible_states ---
