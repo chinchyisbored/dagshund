@@ -990,15 +990,15 @@
       ]
     },
     "edges": {
-      "total": 37,
+      "total": 33,
       "by_kind": {
         "dag": 19,
-        "lateral": 18
+        "lateral": 14
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
-        "unchanged": 36
+        "unchanged": 32
       },
       "by_kind_and_diff_state": {
         "dag": {
@@ -1009,7 +1009,7 @@
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 18
+          "unchanged": 14
         }
       },
       "entries": [
@@ -1196,30 +1196,6 @@
         {
           "source": "resources.model_serving_endpoints.phantom_endpoint",
           "target": "registered-model::dagshund.phantom_schema.phantom_model",
-          "diffState": "unchanged",
-          "kind": "lateral"
-        },
-        {
-          "source": "resources.pipelines.etl_pipeline",
-          "target": "catalog::dagshund",
-          "diffState": "unchanged",
-          "kind": "lateral"
-        },
-        {
-          "source": "resources.pipelines.etl_pipeline",
-          "target": "schema::dagshund.phantom_schema",
-          "diffState": "unchanged",
-          "kind": "lateral"
-        },
-        {
-          "source": "resources.pipelines.first_deploy_pipeline",
-          "target": "catalog::dagshund",
-          "diffState": "unchanged",
-          "kind": "lateral"
-        },
-        {
-          "source": "resources.pipelines.first_deploy_pipeline",
-          "target": "schema::dagshund.phantom_schema",
           "diffState": "unchanged",
           "kind": "lateral"
         },

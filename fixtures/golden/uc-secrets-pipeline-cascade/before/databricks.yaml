@@ -1,0 +1,100 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Real CLI 1.14 coverage for Unity Catalog secrets and pipeline deletion policy.
+bundle:
+  name: dagshund-golden-uc-secrets-pipeline-cascade
+  databricks_cli_version: ">=1.14.0"
+  engine: direct
+
+variables:
+  updated_secret_value_before:
+    description: Fake pre-update fixture value, supplied through BUNDLE_VAR_updated_secret_value_before
+  recreated_secret_value:
+    description: Fake fixture value, supplied through BUNDLE_VAR_recreated_secret_value
+  deleted_secret_value:
+    description: Fake deleted fixture value, supplied through BUNDLE_VAR_deleted_secret_value
+  grants_secret_value:
+    description: Fake grants fixture value, supplied through BUNDLE_VAR_grants_secret_value
+
+resources:
+  schemas:
+    cli_resources:
+      catalog_name: dagshund
+      name: cli_resources
+      comment: Dagshund CLI resource fixture
+
+  secrets:
+    updated_secret:
+      catalog_name: dagshund
+      schema_name: ${resources.schemas.cli_resources.name}
+      name: updated_secret
+      comment: Before update
+      value: ${var.updated_secret_value_before}
+
+    recreated_secret:
+      catalog_name: dagshund
+      schema_name: ${resources.schemas.cli_resources.name}
+      name: recreated_secret_before
+      value: ${var.recreated_secret_value}
+
+    deleted_secret:
+      catalog_name: dagshund
+      schema_name: ${resources.schemas.cli_resources.name}
+      name: deleted_secret
+      value: ${var.deleted_secret_value}
+
+    grants_secret:
+      catalog_name: dagshund
+      schema_name: ${resources.schemas.cli_resources.name}
+      name: grants_secret
+      value: ${var.grants_secret_value}
+      grants:
+        - principal: data_engineers
+          privileges:
+            - READ_SECRET
+        - principal: data_readers
+          privileges:
+            - READ_SECRET
+
+  pipelines:
+    retain_on_delete:
+      name: cli_resources_retain_on_delete
+      catalog: dagshund
+      target: models
+      serverless: true
+      cascade_on_destroy: false
+      libraries:
+        - notebook:
+            path: ./pipeline.py
+
+    cascade_on_delete:
+      name: cli_resources_cascade_on_delete
+      catalog: dagshund
+      target: models
+      serverless: true
+      cascade_on_destroy: true
+      libraries:
+        - notebook:
+            path: ./pipeline.py
+
+    default_on_delete:
+      name: cli_resources_default_on_delete
+      catalog: dagshund
+      target: models
+      serverless: true
+      libraries:
+        - notebook:
+            path: ./pipeline.py
+
+    update_cascade_only:
+      name: cli_resources_update_cascade_only
+      catalog: dagshund
+      target: models
+      serverless: true
+      cascade_on_destroy: false
+      event_log:
+        catalog: dagshund
+        schema: ${resources.schemas.cli_resources.name}
+        name: pipeline_events
+      libraries:
+        - notebook:
+            path: ./pipeline.py

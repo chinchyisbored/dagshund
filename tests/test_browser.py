@@ -101,6 +101,47 @@ def test_inject_plan_uses_compact_json() -> None:
     assert '", ' not in injected
 
 
+def test_inject_plan_excludes_uc_secret_values() -> None:
+    template = f"<script>{PLACEHOLDER}</script>"
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.secrets.api_token": {
+                    "action": "create",
+                    "new_state": {
+                        "effective_value": "plaintext-effective-secret",
+                        "value": {"name": "api_token", "value": "plaintext-secret"},
+                    },
+                }
+            }
+        }
+    )
+
+    result = _inject_plan(template, plan)
+
+    assert "plaintext-secret" not in result
+    assert "plaintext-effective-secret" not in result
+    assert "[redacted]" in result
+
+
+def test_inject_plan_keeps_secret_scopes_unchanged() -> None:
+    template = f"<script>{PLACEHOLDER}</script>"
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.secret_scopes.legacy": {
+                    "action": "create",
+                    "new_state": {"value": {"name": "legacy", "value": "scope-value"}},
+                }
+            }
+        }
+    )
+
+    result = _inject_plan(template, plan)
+
+    assert "scope-value" in result
+
+
 def test_inject_plan_placeholder_string_in_plan_data() -> None:
     """Plan data containing the placeholder string should not break injection."""
     template = f"before:{PLACEHOLDER}:after"

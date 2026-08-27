@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from typing import Any, cast
 
+from dagshund.redaction import redact_uc_secret_values
 from dagshund.types import DagshundError, ResourceKey
 
 
@@ -146,9 +147,9 @@ def _parse_depends_on(value: object) -> tuple[tuple[str, str | None], ...]:
 class Plan:
     """Top-level plan envelope.
 
-    `raw` is the untouched `json.loads` output. Browser rendering serialises
-    it directly (`json.dumps(plan.raw, ...)`) to guarantee bit-identical JSON
-    output to the interactive HTML template. Nothing in the codebase mutates it.
+    `raw` preserves the parsed input after UC secret values are redacted.
+    Browser rendering serialises it directly so no secret payload reaches HTML.
+    Nothing in the codebase mutates it.
     """
 
     resources: Mapping[ResourceKey, ResourceChange]
@@ -174,6 +175,7 @@ def parse_plan(raw: str) -> Plan:
 
 
 def parse_plan_data(raw: Mapping[str, object]) -> Plan:
+    raw = redact_uc_secret_values(raw)
     raw_resources = raw.get("plan")
     resources: dict[ResourceKey, ResourceChange] = {}
     if isinstance(raw_resources, dict):

@@ -14,6 +14,40 @@ import {
 import type { PlanEntry } from "../../src/types/plan-schema.ts";
 
 describe("derived node specs", () => {
+  test("extracts a pipeline event-log table identity from new and remote state", () => {
+    const newEntry: PlanEntry = {
+      new_state: {
+        value: {
+          event_log: { catalog: "dagshund", schema: "operations", name: "pipeline_events" },
+        },
+      },
+    };
+    const deletedEntry: PlanEntry = {
+      action: "delete",
+      remote_state: {
+        event_log: { catalog: "dagshund", schema: "operations", name: "old_events" },
+      },
+    };
+
+    expect(extractDerivedNodeRefs("resources.pipelines.ingest", newEntry)).toEqual([
+      {
+        derivedKind: "pipelineEventLog",
+        identity: "dagshund.operations.pipeline_events",
+      },
+    ]);
+    expect(extractDerivedNodeRefs("resources.pipelines.ingest", deletedEntry)).toEqual([
+      { derivedKind: "pipelineEventLog", identity: "dagshund.operations.old_events" },
+    ]);
+  });
+
+  test("rejects incomplete pipeline event-log identities", () => {
+    const entry: PlanEntry = {
+      new_state: { value: { event_log: { catalog: "dagshund", schema: "operations" } } },
+    };
+
+    expect(extractDerivedNodeRefs("resources.pipelines.ingest", entry)).toEqual([]);
+  });
+
   test("extracts a valid UC synced table identity", () => {
     const entry: PlanEntry = {
       new_state: {
@@ -79,6 +113,14 @@ describe("derived node specs", () => {
   });
 
   test("registry provides IDs labels badges placement and rendering conventions", () => {
+    const eventLogIdentity = "dagshund.operations.pipeline_events";
+    expect(buildDerivedNodeId("pipelineEventLog", eventLogIdentity)).toBe(
+      `pipeline-event-log::${eventLogIdentity}`,
+    );
+    expect(extractDerivedNodeBadge("pipelineEventLog")).toBe("event log");
+    expect(extractDerivedPlacement("pipelineEventLog")).toEqual({ kind: "ucLeaf" });
+    expect(extractPromotedPhantomKind("pipelineEventLog")).toBe("sourceTable");
+
     expect(buildDerivedNodeId("ucSyncedTable", "generated.weather.conditions")).toBe(
       "uc-synced-table::generated.weather.conditions",
     );

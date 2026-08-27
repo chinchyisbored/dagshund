@@ -197,6 +197,7 @@ const RESOURCE_TYPE_BADGES: Readonly<Record<string, string>> = {
   quality_monitors: "monitor",
   sql_warehouses: "warehouse",
   secret_scopes: "secret",
+  secrets: "secret",
   synced_database_tables: "synced database table",
 };
 

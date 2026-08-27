@@ -88,6 +88,7 @@ const UC_TYPES: ReadonlySet<string> = new Set([
   ...SCHEMA_TIER_TYPES,
   "volumes",
   "registered_models",
+  "secrets",
   "synced_database_tables",
 ]);
 
@@ -349,7 +350,7 @@ const UC_CHAIN: ChainSpec = {
     },
     {
       name: "leaf",
-      resourceTypes: new Set(["volumes", "registered_models", "synced_database_tables"]),
+      resourceTypes: new Set(["volumes", "registered_models", "secrets", "synced_database_tables"]),
       resolveIdentity: () => undefined, // leaves are never parents
       resolveParentRef: (entry) => {
         const catalog = extractStateField(entry, "catalog_name");

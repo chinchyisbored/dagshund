@@ -89,9 +89,9 @@ def test_summarize_value_broken_repr_falls_back() -> None:
 def populated_files() -> Iterator[None]:
     """Snapshot _DAGSHUND_FILES the way enable_profile_tracing would."""
     root = Path(debug_mod.__file__).parent.resolve()
-    self_path = str(Path(debug_mod.__file__).resolve())
+    excluded_paths = {str(Path(debug_mod.__file__).resolve()), str(root / "redaction.py")}
     original = debug_mod._DAGSHUND_FILES
-    debug_mod._DAGSHUND_FILES = frozenset(str(p) for p in root.rglob("*.py") if str(p) != self_path)
+    debug_mod._DAGSHUND_FILES = frozenset(str(p) for p in root.rglob("*.py") if str(p) not in excluded_paths)
     try:
         yield
     finally:
@@ -106,6 +106,12 @@ def test_should_trace_dagshund_function(populated_files: None) -> None:
 
 def test_should_trace_excludes_debug_module(populated_files: None) -> None:
     assert not _should_trace(_summarize_value.__code__)
+
+
+def test_should_trace_excludes_redaction_module(populated_files: None) -> None:
+    from dagshund.redaction import redact_uc_secret_values
+
+    assert not _should_trace(redact_uc_secret_values.__code__)
 
 
 def test_should_trace_excludes_stdlib(populated_files: None) -> None:
@@ -490,6 +496,20 @@ def test_integration_nested_calls_indented(profile_tracing: pytest.LogCaptureFix
     assert any(m.startswith("→ parse_plan(") for m in msgs)
     # Nested call is indented two spaces (depth 1).
     assert any(m.startswith("  → parse_plan_data(") for m in msgs)
+
+
+def test_integration_uc_secret_value_never_reaches_trace_logs(
+    profile_tracing: pytest.LogCaptureFixture,
+) -> None:
+    from dagshund.model import parse_plan
+
+    parse_plan(
+        '{"plan":{"resources.secrets.api_token":{"action":"create",'
+        '"new_state":{"value":{"name":"api_token","value":"short-secret"}},'
+        '"changes":{"value":{"action":"update","new":"short-secret"}}}}}'
+    )
+
+    assert "short-secret" not in "\n".join(_messages(profile_tracing))
 
 
 def test_integration_exception_emits_unwind_line(profile_tracing: pytest.LogCaptureFixture) -> None:

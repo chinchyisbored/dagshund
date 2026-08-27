@@ -43,6 +43,7 @@ describe("isUnityCatalogType", () => {
     expect(isUnityCatalogType("schemas")).toBe(true);
     expect(isUnityCatalogType("volumes")).toBe(true);
     expect(isUnityCatalogType("registered_models")).toBe(true);
+    expect(isUnityCatalogType("secrets")).toBe(true);
     expect(isUnityCatalogType("catalogs")).toBe(true);
     expect(isUnityCatalogType("database_catalogs")).toBe(true);
     expect(isUnityCatalogType("postgres_catalogs")).toBe(true);
@@ -170,6 +171,67 @@ describe("buildResourceGraph", () => {
     const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
     expect(edgePairs).toContain(
       "resources.schemas.analytics→resources.registered_models.quality_metrics",
+    );
+  });
+
+  test("links secrets to a real schema without a duplicate phantom", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.schemas.cli_resources": {
+          action: "update",
+          new_state: { value: { catalog_name: "dagshund", name: "cli_resources" } },
+        },
+        "resources.secrets.api_token": {
+          action: "create",
+          new_state: {
+            value: {
+              catalog_name: "dagshund",
+              schema_name: "cli_resources",
+              name: "api_token",
+              value: "[redacted]",
+            },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((node) => node.id);
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(nodeIds).toContain("resources.secrets.api_token");
+    expect(nodeIds).not.toContain("schema::dagshund.cli_resources");
+    expect(edgePairs).toContain("resources.schemas.cli_resources→resources.secrets.api_token");
+  });
+
+  test("creates the standard phantom catalog and schema path for a secret", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.secrets.api_token": {
+          action: "create",
+          new_state: {
+            value: {
+              catalog_name: "external_catalog",
+              schema_name: "external_schema",
+              name: "api_token",
+              value: "[redacted]",
+            },
+          },
+        },
+      },
+    });
+
+    const catalog = graph.nodes.find((node) => node.id === "catalog::external_catalog");
+    const schema = graph.nodes.find(
+      (node) => node.id === "schema::external_catalog.external_schema",
+    );
+    const edgePairs = graph.edges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(catalog?.nodeKind).toBe("phantom");
+    expect(schema?.nodeKind).toBe("phantom");
+    expect(edgePairs).toContain("uc-root→catalog::external_catalog");
+    expect(edgePairs).toContain(
+      "catalog::external_catalog→schema::external_catalog.external_schema",
+    );
+    expect(edgePairs).toContain(
+      "schema::external_catalog.external_schema→resources.secrets.api_token",
     );
   });
 
@@ -1122,6 +1184,55 @@ describe("synced_database_tables in UC", () => {
     );
     expect(edgePairs).toContain(
       "resources.schemas.analytics→resources.synced_database_tables.table_b",
+    );
+  });
+});
+
+describe("pipeline event-log derived UC tables", () => {
+  test("places the event log under its schema and promotes a table phantom", () => {
+    const identity = "dagshund.operations.pipeline_events";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.pipelines.ingest": {
+          action: "update",
+          new_state: {
+            value: {
+              event_log: { catalog: "dagshund", schema: "operations", name: "pipeline_events" },
+            },
+          },
+        },
+        "resources.quality_monitors.event_monitor": {
+          action: "create",
+          new_state: { value: { table_name: identity } },
+        },
+      },
+    });
+
+    const derivedId = `pipeline-event-log::${identity}`;
+    expect(graph.nodes).toContainEqual(
+      expect.objectContaining({
+        id: derivedId,
+        nodeKind: "derived",
+        derivedKind: "pipelineEventLog",
+        ownerResourceKey: "resources.pipelines.ingest",
+        diffState: "modified",
+      }),
+    );
+    expect(graph.nodes.some((node) => node.id === `source-table::${identity}`)).toBe(false);
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "schema::dagshund.operations",
+        target: derivedId,
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({ source: derivedId, target: "resources.pipelines.ingest" }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.quality_monitors.event_monitor",
+        target: derivedId,
+      }),
     );
   });
 });

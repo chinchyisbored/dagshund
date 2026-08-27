@@ -65,6 +65,74 @@ describe("parsePlanJson", () => {
     }
   });
 
+  test("redacts Unity Catalog secret values without mutating input", () => {
+    const input = {
+      plan: {
+        "resources.secrets.api_token": {
+          action: "update",
+          new_state: {
+            effective_value: "outer-effective-value",
+            value: {
+              name: "api_token",
+              value: "new-secret-value",
+              effective_value: "new-effective-value",
+            },
+          },
+          remote_state: {
+            name: "api_token",
+            value: "[redacted]",
+            effective_value: "[redacted]",
+          },
+          changes: {
+            value: {
+              action: "update",
+              old: "",
+              new: "[redacted]",
+              remote: "[redacted]",
+            },
+          },
+        },
+        "resources.secret_scopes.legacy": {
+          new_state: { value: { value: "not-a-uc-secret-value" } },
+        },
+      },
+    };
+
+    const result = parsePlanJson(input);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const secret = result.data.plan?.["resources.secrets.api_token"];
+      expect(secret?.new_state).toEqual({
+        effective_value: "[redacted]",
+        value: {
+          name: "api_token",
+          value: "[redacted]",
+          effective_value: "[redacted]",
+        },
+      });
+      expect(secret?.remote_state).toEqual({
+        name: "api_token",
+        value: "[redacted]",
+        effective_value: "[redacted]",
+      });
+      expect(secret?.changes?.["value"]).toEqual({
+        action: "update",
+        old: "",
+        new: "[redacted]",
+        remote: "[redacted]",
+      });
+      expect(result.data.plan?.["resources.secret_scopes.legacy"]?.new_state).toEqual({
+        value: { value: "not-a-uc-secret-value" },
+      });
+      expect(JSON.stringify(result.data)).not.toContain("new-secret-value");
+      expect(JSON.stringify(result.data)).not.toContain("outer-effective-value");
+    }
+    expect(input.plan["resources.secrets.api_token"].new_state.value.value).toBe(
+      "new-secret-value",
+    );
+  });
+
   test("parses entries with missing optional fields", () => {
     const input = {
       plan: {

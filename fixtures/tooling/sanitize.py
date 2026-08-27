@@ -2,8 +2,8 @@
 """Deterministic PII sanitizer for databricks bundle plan JSON.
 
 Reads JSON from stdin, writes sanitized JSON to stdout.
-Replaces email addresses with deterministic fake values.
-Same input always produces same output.
+Replaces email addresses with deterministic fake values and redacts Unity
+Catalog secret payloads. Same input always produces same output.
 
 Usage:
     python3 fixtures/tooling/sanitize.py < raw-plan.json > sanitized-plan.json
@@ -19,6 +19,68 @@ from typing import Any
 EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})*")
 
 type EmailMapping = dict[str, str]
+
+REDACTED_SECRET_VALUE = "[redacted]"
+SECRET_FIELDS = frozenset({"value", "effective_value"})
+CHANGE_PAYLOAD_FIELDS = frozenset({"old", "new", "remote"})
+
+
+def _is_uc_secret_key(key: str) -> bool:
+    return key.startswith("resources.secrets.")
+
+
+def _redact_secret_state(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
+    if not isinstance(raw, dict):
+        return raw
+    wrapped = raw.get("value")
+    if isinstance(wrapped, dict):
+        redacted_state = {key: REDACTED_SECRET_VALUE if key in SECRET_FIELDS else value for key, value in raw.items()}
+        return {
+            **redacted_state,
+            "value": {key: REDACTED_SECRET_VALUE if key in SECRET_FIELDS else value for key, value in wrapped.items()},
+        }
+    return {key: REDACTED_SECRET_VALUE if key in SECRET_FIELDS else value for key, value in raw.items()}
+
+
+def _redact_change_payload(value: Any) -> Any:  # noqa: ANN401 - JSON boundary
+    if value == "" or (isinstance(value, str) and value.lower() == REDACTED_SECRET_VALUE):
+        return value
+    return REDACTED_SECRET_VALUE
+
+
+def _redact_secret_change(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
+    if not isinstance(raw, dict):
+        return _redact_change_payload(raw)
+    return {key: _redact_change_payload(value) if key in CHANGE_PAYLOAD_FIELDS else value for key, value in raw.items()}
+
+
+def _redact_secret_changes(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
+    if not isinstance(raw, dict):
+        return raw
+    return {field: _redact_secret_change(change) if field in SECRET_FIELDS else change for field, change in raw.items()}
+
+
+def _redact_secret_entry(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
+    if not isinstance(raw, dict):
+        return raw
+    return {
+        key: _redact_secret_state(value)
+        if key in {"new_state", "remote_state"}
+        else _redact_secret_changes(value)
+        if key == "changes"
+        else value
+        for key, value in raw.items()
+    }
+
+
+def _redact_uc_secret_values(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
+    if not isinstance(raw, dict) or not isinstance(raw.get("plan"), dict):
+        return raw
+    plan = raw["plan"]
+    return {
+        **raw,
+        "plan": {key: _redact_secret_entry(entry) if _is_uc_secret_key(key) else entry for key, entry in plan.items()},
+    }
 
 
 def _fake_email(real: str, emails: EmailMapping) -> tuple[str, EmailMapping]:
@@ -42,7 +104,7 @@ def _replace_emails_in_string(text: str, emails: EmailMapping) -> tuple[str, Ema
     return "".join(parts), current_emails
 
 
-def _walk(value: Any, emails: EmailMapping) -> tuple[Any, EmailMapping]:  # noqa: ANN401 — JSON boundary
+def _walk(value: Any, emails: EmailMapping) -> tuple[Any, EmailMapping]:  # noqa: ANN401 - JSON boundary
     """Recursively walk a JSON value, replacing email addresses in strings."""
     current_emails = emails
     match value:
@@ -70,7 +132,7 @@ def sanitize_plan(raw: str) -> str:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON input: {exc}") from exc
-    sanitized, _ = _walk(data, {})
+    sanitized, _ = _walk(_redact_uc_secret_values(data), {})
     return json.dumps(sanitized, indent=2, ensure_ascii=False) + "\n"
 
 

@@ -1,0 +1,463 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.14.0",
+  "lineage": "455b416d-266b-4e7f-bc96-709246a6bb62",
+  "serial": 1,
+  "plan": {
+    "resources.pipelines.cascade_on_delete": {
+      "action": "delete",
+      "remote_state": {
+        "catalog": "dagshund",
+        "channel": "CURRENT",
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/state/metadata.json"
+        },
+        "edition": "ADVANCED",
+        "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
+        "effective_serverless_compute_id": "26f5d666-fa69-3ea6-a255-6494b61e9026",
+        "id": "ee3834ef-bc82-4d3e-adb7-c15af38f6816",
+        "last_modified": 1787782925773,
+        "libraries": [
+          {
+            "notebook": {
+              "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/files/pipeline"
+            }
+          }
+        ],
+        "name": "cli_resources_cascade_on_delete",
+        "pipeline_id": "ee3834ef-bc82-4d3e-adb7-c15af38f6816",
+        "run_as_user_name": "user1@example.com",
+        "serverless": true,
+        "state": "IDLE",
+        "target": "models"
+      }
+    },
+    "resources.pipelines.default_on_delete": {
+      "action": "delete",
+      "remote_state": {
+        "catalog": "dagshund",
+        "channel": "CURRENT",
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/state/metadata.json"
+        },
+        "edition": "ADVANCED",
+        "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
+        "effective_serverless_compute_id": "26f5d666-fa69-3ea6-a255-6494b61e9026",
+        "id": "6d3463c5-d907-468e-bbd7-e5d80d4613c0",
+        "last_modified": 1787782925703,
+        "libraries": [
+          {
+            "notebook": {
+              "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/files/pipeline"
+            }
+          }
+        ],
+        "name": "cli_resources_default_on_delete",
+        "pipeline_id": "6d3463c5-d907-468e-bbd7-e5d80d4613c0",
+        "run_as_user_name": "user1@example.com",
+        "serverless": true,
+        "state": "IDLE",
+        "target": "models"
+      }
+    },
+    "resources.pipelines.retain_on_delete": {
+      "action": "delete",
+      "remote_state": {
+        "catalog": "dagshund",
+        "channel": "CURRENT",
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/state/metadata.json"
+        },
+        "edition": "ADVANCED",
+        "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
+        "effective_serverless_compute_id": "26f5d666-fa69-3ea6-a255-6494b61e9026",
+        "id": "c70079df-5a82-463e-aa4c-1c000327ae27",
+        "last_modified": 1787782925742,
+        "libraries": [
+          {
+            "notebook": {
+              "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/files/pipeline"
+            }
+          }
+        ],
+        "name": "cli_resources_retain_on_delete",
+        "pipeline_id": "c70079df-5a82-463e-aa4c-1c000327ae27",
+        "run_as_user_name": "user1@example.com",
+        "serverless": true,
+        "state": "IDLE",
+        "target": "models"
+      }
+    },
+    "resources.pipelines.update_cascade_only": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.cli_resources",
+          "label": "${resources.schemas.cli_resources.name}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "cascade_on_destroy": true,
+          "catalog": "dagshund",
+          "channel": "CURRENT",
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/state/metadata.json"
+          },
+          "edition": "ADVANCED",
+          "event_log": {
+            "catalog": "dagshund",
+            "name": "pipeline_events",
+            "schema": "cli_resources"
+          },
+          "libraries": [
+            {
+              "notebook": {
+                "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/files/pipeline"
+              }
+            }
+          ],
+          "name": "cli_resources_update_cascade_only",
+          "serverless": true,
+          "target": "models"
+        }
+      },
+      "remote_state": {
+        "catalog": "dagshund",
+        "channel": "CURRENT",
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/state/metadata.json"
+        },
+        "edition": "ADVANCED",
+        "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
+        "effective_serverless_compute_id": "26f5d666-fa69-3ea6-a255-6494b61e9026",
+        "event_log": {
+          "catalog": "dagshund",
+          "name": "pipeline_events",
+          "schema": "cli_resources"
+        },
+        "id": "1535b259-9a59-4401-bd8d-5de761fe33be",
+        "last_modified": 1787782926257,
+        "libraries": [
+          {
+            "notebook": {
+              "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-uc-secrets-pipeline-cascade/default/files/pipeline"
+            }
+          }
+        ],
+        "name": "cli_resources_update_cascade_only",
+        "pipeline_id": "1535b259-9a59-4401-bd8d-5de761fe33be",
+        "run_as_user_name": "user1@example.com",
+        "serverless": true,
+        "state": "IDLE",
+        "target": "models"
+      },
+      "changes": {
+        "cascade_on_destroy": {
+          "action": "update",
+          "old": false,
+          "new": true
+        }
+      }
+    },
+    "resources.schemas.cli_resources": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "comment": "Dagshund CLI resource fixture",
+        "created_at": 1787782925412,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.cli_resources",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "cli_resources",
+        "owner": "user1@example.com",
+        "properties": {
+          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+        },
+        "schema_id": "6ff0d464-f7b6-4bcf-bbda-a606a7665857",
+        "updated_at": 1787782927766,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      },
+      "changes": {
+        "properties": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": {
+            "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
+          }
+        }
+      }
+    },
+    "resources.secrets.created_secret": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.cli_resources",
+          "label": "${resources.schemas.cli_resources.name}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "created_secret",
+          "schema_name": "cli_resources",
+          "value": "[redacted]"
+        }
+      }
+    },
+    "resources.secrets.deleted_secret": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.cli_resources",
+          "label": "${resources.schemas.cli_resources.name}"
+        }
+      ],
+      "action": "delete",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "create_time": "2026-08-26T22:22:06.140Z",
+        "created_by": "user1@example.com",
+        "effective_owner": "user1@example.com",
+        "effective_value": "[redacted]",
+        "full_name": "dagshund.cli_resources.deleted_secret",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "deleted_secret",
+        "schema_name": "cli_resources",
+        "update_time": "2026-08-26T22:22:06.140Z",
+        "updated_by": "user1@example.com",
+        "value": "[redacted]"
+      }
+    },
+    "resources.secrets.grants_secret": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.cli_resources",
+          "label": "${resources.schemas.cli_resources.name}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "create_time": "2026-08-26T22:22:06.037Z",
+        "created_by": "user1@example.com",
+        "effective_owner": "user1@example.com",
+        "effective_value": "[redacted]",
+        "full_name": "dagshund.cli_resources.grants_secret",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "grants_secret",
+        "schema_name": "cli_resources",
+        "update_time": "2026-08-26T22:22:06.037Z",
+        "updated_by": "user1@example.com",
+        "value": "[redacted]"
+      },
+      "changes": {
+        "owner": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "remote": "user1@example.com"
+        },
+        "value": {
+          "action": "skip",
+          "reason": "custom",
+          "old": "",
+          "new": "[redacted]",
+          "remote": "[redacted]"
+        }
+      }
+    },
+    "resources.secrets.grants_secret.grants": {
+      "depends_on": [
+        {
+          "node": "resources.secrets.grants_secret",
+          "label": "${resources.secrets.grants_secret.id}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "securable_type": "secret",
+          "full_name": "dagshund.cli_resources.grants_secret",
+          "__embed__": [
+            {
+              "principal": "data_engineers",
+              "privileges": [
+                "READ_SECRET"
+              ]
+            },
+            {
+              "principal": "data_analysts",
+              "privileges": [
+                "READ_SECRET"
+              ]
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "securable_type": "secret",
+        "full_name": "dagshund.cli_resources.grants_secret",
+        "__embed__": [
+          {
+            "principal": "data_engineers",
+            "privileges": [
+              "READ_SECRET"
+            ]
+          },
+          {
+            "principal": "data_readers",
+            "privileges": [
+              "READ_SECRET"
+            ]
+          }
+        ]
+      },
+      "changes": {
+        "[principal='data_analysts']": {
+          "action": "update",
+          "new": {
+            "principal": "data_analysts",
+            "privileges": [
+              "READ_SECRET"
+            ]
+          }
+        },
+        "[principal='data_readers']": {
+          "action": "update",
+          "old": {
+            "principal": "data_readers",
+            "privileges": [
+              "READ_SECRET"
+            ]
+          },
+          "remote": {
+            "principal": "data_readers",
+            "privileges": [
+              "READ_SECRET"
+            ]
+          }
+        }
+      }
+    },
+    "resources.secrets.recreated_secret": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.cli_resources",
+          "label": "${resources.schemas.cli_resources.name}"
+        }
+      ],
+      "action": "recreate",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "name": "recreated_secret_after",
+          "schema_name": "cli_resources",
+          "value": "[redacted]"
+        }
+      },
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "create_time": "2026-08-26T22:22:05.913Z",
+        "created_by": "user1@example.com",
+        "effective_owner": "user1@example.com",
+        "effective_value": "[redacted]",
+        "full_name": "dagshund.cli_resources.recreated_secret_before",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "recreated_secret_before",
+        "schema_name": "cli_resources",
+        "update_time": "2026-08-26T22:22:05.913Z",
+        "updated_by": "user1@example.com",
+        "value": "[redacted]"
+      },
+      "changes": {
+        "name": {
+          "action": "recreate",
+          "reason": "spec:immutable",
+          "old": "recreated_secret_before",
+          "new": "recreated_secret_after",
+          "remote": "recreated_secret_before"
+        },
+        "owner": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "remote": "user1@example.com"
+        },
+        "value": {
+          "action": "skip",
+          "reason": "custom",
+          "old": "",
+          "new": "[redacted]",
+          "remote": "[redacted]"
+        }
+      }
+    },
+    "resources.secrets.updated_secret": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.cli_resources",
+          "label": "${resources.schemas.cli_resources.name}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "catalog_name": "dagshund",
+          "comment": "After update",
+          "name": "updated_secret",
+          "schema_name": "cli_resources",
+          "value": "[redacted]"
+        }
+      },
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "comment": "Before update",
+        "create_time": "2026-08-26T22:22:05.801Z",
+        "created_by": "user1@example.com",
+        "effective_owner": "user1@example.com",
+        "effective_value": "[redacted]",
+        "full_name": "dagshund.cli_resources.updated_secret",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "updated_secret",
+        "schema_name": "cli_resources",
+        "update_time": "2026-08-26T22:22:05.801Z",
+        "updated_by": "user1@example.com",
+        "value": "[redacted]"
+      },
+      "changes": {
+        "comment": {
+          "action": "update",
+          "old": "Before update",
+          "new": "After update",
+          "remote": "Before update"
+        },
+        "owner": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "remote": "user1@example.com"
+        },
+        "value": {
+          "action": "update",
+          "old": "",
+          "new": "[redacted]",
+          "remote": "[redacted]"
+        }
+      }
+    }
+  }
+}

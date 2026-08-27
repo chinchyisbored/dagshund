@@ -637,6 +637,59 @@ def test_collect_warnings_ignores_stateful_skip() -> None:
     assert collect_warnings(resources) == []
 
 
+@pytest.mark.parametrize("action", ["delete", "recreate"])
+def test_collect_warnings_pipeline_cascade_true_warns_of_dataset_loss(action: str) -> None:
+    resources = resources_from_dict(
+        {
+            "resources.pipelines.ingest": {
+                "action": action,
+                "new_state": {"value": {"cascade_on_destroy": True}},
+            }
+        }
+    )
+
+    warnings = collect_warnings(resources)
+
+    assert len(warnings) == 1
+    assert "pipeline-managed materialized views, streaming tables, and views will also be deleted" in warnings[0]
+
+
+def test_collect_warnings_pipeline_cascade_false_does_not_warn() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.pipelines.ingest": {
+                "action": "delete",
+                "remote_state": {"cascade_on_destroy": False},
+            }
+        }
+    )
+
+    assert collect_warnings(resources) == []
+
+
+def test_collect_warnings_pipeline_missing_cascade_uses_conservative_warning() -> None:
+    resources = resources_from_dict({"resources.pipelines.ingest": {"action": "delete"}})
+
+    warnings = collect_warnings(resources)
+
+    assert len(warnings) == 1
+    assert "may also be deleted" in warnings[0]
+    assert "cascade_on_destroy is unavailable in this plan" in warnings[0]
+
+
+def test_collect_warnings_pipeline_state_only_update_does_not_warn() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.pipelines.ingest": {
+                "action": "update",
+                "new_state": {"value": {"cascade_on_destroy": True}},
+            }
+        }
+    )
+
+    assert collect_warnings(resources) == []
+
+
 @pytest.mark.parametrize(
     ("resource_type", "expected_risk"),
     [

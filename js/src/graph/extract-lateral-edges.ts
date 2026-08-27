@@ -156,24 +156,6 @@ const createServingEndpointModelSpec = (
   },
 });
 
-/** Collect catalog/schema target IDs from a pipeline's direct catalog and target fields. */
-const collectPipelineCatalogTargets = (
-  entry: PlanEntry,
-  nodeIds: ReadonlySet<string>,
-): readonly string[] => {
-  const targets: string[] = [];
-  const catalogName = extractStateField(entry, "catalog");
-  if (catalogName === undefined) return targets;
-  const catalogId = buildPrefixedNodeId("catalog", catalogName);
-  if (nodeIds.has(catalogId)) targets.push(catalogId);
-  const targetSchemaName = extractStateField(entry, "target");
-  if (targetSchemaName !== undefined) {
-    const schemaId = buildPrefixedNodeId("schema", `${catalogName}.${targetSchemaName}`);
-    if (nodeIds.has(schemaId)) targets.push(schemaId);
-  }
-  return targets;
-};
-
 /** Collect schema target IDs from a pipeline's ingestion_definition.objects. */
 const collectPipelineIngestionTargets = (
   entry: PlanEntry,
@@ -197,16 +179,17 @@ const collectPipelineIngestionTargets = (
   return targets;
 };
 
-/** pipeline → catalog/schema (hierarchy-ID resolution). */
-const PIPELINE_TARGET_SPEC: LateralEdgeSpec = {
+/** pipeline → ingestion source schema.
+ *  Direct catalog/target fields intentionally have no edge because they only
+ *  define output placement, not a concrete resource dependency. */
+const PIPELINE_INGESTION_SOURCE_SPEC: LateralEdgeSpec = {
   sourceTypes: new Set(["pipelines"]),
-  extractTargetIds: (entry, context) => [
-    ...collectPipelineCatalogTargets(entry, context.nodeIds),
-    ...collectPipelineIngestionTargets(entry, context.nodeIds),
-  ],
+  extractTargetIds: (entry, context) => collectPipelineIngestionTargets(entry, context.nodeIds),
 };
 
-/** quality_monitor → source-table phantom (via three-part table_name resolution). */
+/** quality_monitor → source-table phantom (via three-part table_name resolution).
+ *  output_schema_name intentionally has no edge because it is only placement
+ *  for generated monitoring tables, not the concrete table being monitored. */
 const QUALITY_MONITOR_TABLE_SPEC: LateralEdgeSpec = {
   sourceTypes: new Set(["quality_monitors"]),
   extractTargetIds: (entry, context) => {
@@ -284,7 +267,9 @@ const POSTGRES_BRANCH_SOURCE_SPEC: LateralEdgeSpec = {
   },
 };
 
-/** postgres_database → postgres_role via semantic owner role field. */
+/** postgres_database → postgres_role via semantic owner role field.
+ *  postgres_roles.membership_roles intentionally has no edge: CLI 1.14 only
+ *  permits the fixed DATABRICKS_SUPERUSER role, not another bundle role. */
 const POSTGRES_DATABASE_ROLE_SPEC: LateralEdgeSpec = {
   sourceTypes: new Set(["postgres_databases"]),
   extractTargetIds: (entry, context) => {
@@ -378,7 +363,7 @@ const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
   DATABASE_INSTANCE_SPEC,
   SOURCE_TABLE_SPEC,
   DERIVED_OUTPUT_SPEC,
-  PIPELINE_TARGET_SPEC,
+  PIPELINE_INGESTION_SOURCE_SPEC,
   QUALITY_MONITOR_TABLE_SPEC,
   POSTGRES_DATABASE_TARGET_SPEC,
   POSTGRES_BRANCH_SOURCE_SPEC,

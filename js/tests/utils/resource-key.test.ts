@@ -83,6 +83,7 @@ describe("extractTypeBadge", () => {
       "postgres synced table",
     );
     expect(extractTypeBadge("resources.registered_models.fraud_detector")).toBe("model");
+    expect(extractTypeBadge("resources.secrets.api_token")).toBe("secret");
     expect(extractTypeBadge("resources.external_locations.my_loc")).toBe("external location");
   });
 

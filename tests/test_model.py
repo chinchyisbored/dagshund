@@ -323,6 +323,82 @@ def test_parse_plan_data_preserves_raw() -> None:
     assert result.raw["extra_key"] == "preserved"
 
 
+def test_parse_plan_data_redacts_uc_secret_values_without_mutating_input() -> None:
+    raw = {
+        "plan": {
+            "resources.secrets.api_token": {
+                "action": "update",
+                "new_state": {
+                    "effective_value": "outer-effective-value",
+                    "value": {
+                        "name": "api_token",
+                        "value": "new-secret-value",
+                        "effective_value": "new-effective-value",
+                    },
+                },
+                "remote_state": {
+                    "name": "api_token",
+                    "value": "[redacted]",
+                    "effective_value": "[redacted]",
+                },
+                "changes": {
+                    "value": {
+                        "action": "update",
+                        "old": "",
+                        "new": "[redacted]",
+                        "remote": "[redacted]",
+                    }
+                },
+            },
+            "resources.secret_scopes.legacy": {"new_state": {"value": {"value": "not-a-uc-secret-value"}}},
+        }
+    }
+
+    result = parse_plan_data(raw)
+
+    secret = result.resources["resources.secrets.api_token"]
+    assert secret.new_state == {
+        "effective_value": "[redacted]",
+        "value": {
+            "name": "api_token",
+            "value": "[redacted]",
+            "effective_value": "[redacted]",
+        },
+    }
+    assert secret.remote_state == {
+        "name": "api_token",
+        "value": "[redacted]",
+        "effective_value": "[redacted]",
+    }
+    assert secret.changes["value"].old == ""
+    assert secret.changes["value"].new == "[redacted]"
+    assert secret.changes["value"].remote == "[redacted]"
+    assert result.resources["resources.secret_scopes.legacy"].new_state == {"value": {"value": "not-a-uc-secret-value"}}
+    assert "new-secret-value" not in json.dumps(result.raw)
+    assert raw["plan"]["resources.secrets.api_token"]["new_state"]["value"]["value"] == "new-secret-value"
+    assert raw["plan"]["resources.secrets.api_token"]["new_state"]["effective_value"] == "outer-effective-value"
+
+
+def test_parse_plan_data_redacts_malformed_uc_secret_change_payloads() -> None:
+    result = parse_plan_data(
+        {
+            "plan": {
+                "resources.secrets.api_token": {
+                    "changes": {
+                        "value": "plaintext-value-change",
+                        "effective_value": ["plaintext-effective-change"],
+                    }
+                }
+            }
+        }
+    )
+
+    serialized = json.dumps(result.raw)
+    assert "plaintext-value-change" not in serialized
+    assert "plaintext-effective-change" not in serialized
+    assert serialized.count("[redacted]") == 2
+
+
 # --- UnsetSentinel identity ---
 
 

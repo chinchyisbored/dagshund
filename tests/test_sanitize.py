@@ -116,6 +116,70 @@ def test_sanitize_handles_multi_segment_tld() -> None:
     assert result["plan"]["runner"] == "user2@example.com"
 
 
+# --- UC secret redaction ---
+
+
+def test_sanitize_redacts_uc_secret_state_and_change_values() -> None:
+    plan = {
+        "plan": {
+            "resources.secrets.api_token": {
+                "new_state": {
+                    "effective_value": "outer-effective-value",
+                    "value": {
+                        "name": "api_token",
+                        "value": "new-secret-value",
+                        "effective_value": "new-effective-value",
+                    },
+                },
+                "remote_state": {
+                    "value": "[redacted]",
+                    "effective_value": "[redacted]",
+                },
+                "changes": {
+                    "value": {
+                        "action": "update",
+                        "old": "",
+                        "new": "[redacted]",
+                        "remote": "[redacted]",
+                    }
+                },
+            },
+            "resources.secret_scopes.legacy": {"new_state": {"value": {"value": "not-a-uc-secret-value"}}},
+        }
+    }
+
+    result = _sanitize_dict(plan)
+
+    serialized = json.dumps(result)
+    assert "new-secret-value" not in serialized
+    assert "new-effective-value" not in serialized
+    assert "outer-effective-value" not in serialized
+    assert result["plan"]["resources.secrets.api_token"]["new_state"]["effective_value"] == "[redacted]"
+    assert result["plan"]["resources.secrets.api_token"]["new_state"]["value"]["value"] == "[redacted]"
+    assert result["plan"]["resources.secrets.api_token"]["changes"]["value"]["old"] == ""
+    assert result["plan"]["resources.secret_scopes.legacy"]["new_state"]["value"]["value"] == "not-a-uc-secret-value"
+
+
+def test_sanitize_redacts_malformed_uc_secret_change_payloads() -> None:
+    plan = {
+        "plan": {
+            "resources.secrets.api_token": {
+                "changes": {
+                    "value": "plaintext-value-change",
+                    "effective_value": ["plaintext-effective-change"],
+                }
+            }
+        }
+    }
+
+    result = _sanitize_dict(plan)
+
+    serialized = json.dumps(result)
+    assert "plaintext-value-change" not in serialized
+    assert "plaintext-effective-change" not in serialized
+    assert serialized.count("[redacted]") == 2
+
+
 # --- Passthrough ---
 
 

@@ -1,10 +1,11 @@
 import { type Plan, planSchema } from "../types/plan-schema.ts";
 import { err, ok, type Result } from "../types/result.ts";
+import { redactUcSecretValues } from "./redact-uc-secret-values.ts";
 
 export const parsePlanJson = (input: unknown): Result<Plan, string> => {
   const result = planSchema.safeParse(input);
   if (result.success) {
-    return ok(result.data);
+    return ok(redactUcSecretValues(result.data));
   }
   return err(result.error.message);
 };

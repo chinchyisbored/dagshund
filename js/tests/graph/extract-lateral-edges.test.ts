@@ -883,29 +883,11 @@ describe("container node ID remapping", () => {
 });
 
 // ---------------------------------------------------------------------------
-// pipeline → catalog/schema (hierarchy-ID resolution)
+// pipeline ingestion source schemas
 // ---------------------------------------------------------------------------
 
-describe("extractPipelineTargetEdges", () => {
-  test("pipeline links to catalog via direct catalog field", () => {
-    const entries: [string, PlanEntry][] = [
-      ["resources.pipelines.ingest", makeEntry({ catalog: "production" })],
-    ];
-    const nodeIds = new Set(["resources.pipelines.ingest", "catalog::production"]);
-    const nodeIdByResourceKey = new Map([
-      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
-    ]);
-
-    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
-
-    expect(edges).toHaveLength(1);
-    expect(edges[0]).toMatchObject({
-      source: "resources.pipelines.ingest",
-      target: "catalog::production",
-    });
-  });
-
-  test("pipeline links to both catalog and schema when target field present", () => {
+describe("extractPipelineIngestionSourceEdges", () => {
+  test("catalog and target output placement fields produce no edge", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.pipelines.ingest", makeEntry({ catalog: "production", target: "reporting" })],
     ];
@@ -920,67 +902,16 @@ describe("extractPipelineTargetEdges", () => {
 
     const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
 
-    expect(edges).toHaveLength(2);
-    expect(edges.map((e) => e.target).toSorted()).toEqual([
-      "catalog::production",
-      "schema::production.reporting",
-    ]);
-  });
-
-  test("no edge when catalog node missing from graph", () => {
-    const entries: [string, PlanEntry][] = [
-      ["resources.pipelines.ingest", makeEntry({ catalog: "missing" })],
-    ];
-    const nodeIds = new Set(["resources.pipelines.ingest"]);
-    const nodeIdByResourceKey = new Map([
-      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
-    ]);
-
-    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
-
     expect(edges).toHaveLength(0);
   });
 
-  test("deduplicates when direct target and ingestion_definition reference same schema", () => {
+  test("pipeline links to deduplicated ingestion source schemas", () => {
+    const schema = { source_catalog: "dagshund", source_schema: "analytics" };
     const entries: [string, PlanEntry][] = [
       [
         "resources.pipelines.ingest",
         makeEntry({
-          catalog: "production",
-          target: "reporting",
-          ingestion_definition: {
-            objects: [{ schema: { source_catalog: "production", source_schema: "reporting" } }],
-          },
-        }),
-      ],
-    ];
-    const nodeIds = new Set([
-      "resources.pipelines.ingest",
-      "catalog::production",
-      "schema::production.reporting",
-    ]);
-    const nodeIdByResourceKey = new Map([
-      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
-    ]);
-
-    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
-
-    // catalog + schema = 2 edges, NOT 3 (schema deduped)
-    expect(edges).toHaveLength(2);
-    expect(edges.map((e) => e.target).toSorted()).toEqual([
-      "catalog::production",
-      "schema::production.reporting",
-    ]);
-  });
-
-  test("pipeline links to schema via ingestion_definition.objects", () => {
-    const entries: [string, PlanEntry][] = [
-      [
-        "resources.pipelines.ingest",
-        makeEntry({
-          ingestion_definition: {
-            objects: [{ schema: { source_catalog: "dagshund", source_schema: "analytics" } }],
-          },
+          ingestion_definition: { objects: [{ schema }, { schema }] },
         }),
       ],
     ];
@@ -991,11 +922,12 @@ describe("extractPipelineTargetEdges", () => {
 
     const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
 
-    expect(edges).toHaveLength(1);
-    expect(edges[0]).toMatchObject({
-      source: "resources.pipelines.ingest",
-      target: "schema::dagshund.analytics",
-    });
+    expect(edges).toEqual([
+      expect.objectContaining({
+        source: "resources.pipelines.ingest",
+        target: "schema::dagshund.analytics",
+      }),
+    ]);
   });
 });
 
@@ -2243,7 +2175,7 @@ describe("lateral-deps integration", () => {
     const plan = await loadFixture("lateral-deps");
     const graph = buildResourceGraph(plan);
 
-    expect(graph.lateralEdges).toHaveLength(18);
+    expect(graph.lateralEdges).toHaveLength(14);
   });
 
   test("produces expected phantom node count", async () => {

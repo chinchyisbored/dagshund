@@ -6,7 +6,11 @@ import {
   type PhantomKind,
 } from "../utils/resource-key.ts";
 import { getUnknownProp } from "../utils/unknown-record.ts";
-import { extractStateField, parseThreePartName } from "./extract-resource-state.ts";
+import {
+  extractResourceState,
+  extractStateField,
+  parseThreePartName,
+} from "./extract-resource-state.ts";
 
 type DerivedRenderingConvention = "resource";
 
@@ -50,7 +54,29 @@ const extractPipelineOutputId = (entry: PlanEntry): string | undefined =>
   extractPipelineIdFromState(getUnknownProp(entry.new_state, "value")) ??
   extractPipelineIdFromState(entry.remote_state);
 
+const extractPipelineEventLogIdentity = (entry: PlanEntry): string | undefined => {
+  const eventLog = getUnknownProp(extractResourceState(entry), "event_log");
+  const catalog = getUnknownProp(eventLog, "catalog");
+  const schema = getUnknownProp(eventLog, "schema");
+  const name = getUnknownProp(eventLog, "name");
+  return typeof catalog === "string" && typeof schema === "string" && typeof name === "string"
+    ? `${catalog}.${schema}.${name}`
+    : undefined;
+};
+
 export const DERIVED_NODE_SPECS = {
+  pipelineEventLog: {
+    idPrefix: "pipeline-event-log::",
+    badge: "event log",
+    renderingConvention: "resource",
+    placement: { kind: "ucLeaf" },
+    promotesPhantomKind: "sourceTable",
+    sourceTypes: createReadonlySet(["pipelines"]),
+    reference: undefined,
+    extractIdentity: (_resourceKey, entry) => extractPipelineEventLogIdentity(entry),
+    extractLabel: extractIdentityLabel,
+    isValidIdentity: (identity) => parseThreePartName(identity) !== undefined,
+  },
   ucSyncedTable: {
     idPrefix: "uc-synced-table::",
     badge: "synced table",
