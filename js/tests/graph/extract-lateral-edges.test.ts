@@ -2037,6 +2037,128 @@ describe("extractQualityMonitorTableEdges", () => {
 });
 
 // ---------------------------------------------------------------------------
+// cluster/job/pipeline → instance_pool
+// ---------------------------------------------------------------------------
+
+describe("extractInstancePoolEdges", () => {
+  test("links every schema-supported cluster shape to symbolic pool references", () => {
+    const workerPoolRef = "$" + "{resources.instance_pools.workers.id}";
+    const driverPoolRef = "$" + "{resources.instance_pools.drivers.id}";
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.clusters.interactive",
+        makeEntry({ instance_pool_id: workerPoolRef, driver_instance_pool_id: workerPoolRef }),
+      ],
+      [
+        "resources.jobs.etl",
+        makeEntry({
+          job_clusters: [
+            {
+              job_cluster_key: "shared",
+              new_cluster: {
+                instance_pool_id: workerPoolRef,
+                driver_instance_pool_id: driverPoolRef,
+              },
+            },
+          ],
+          tasks: [
+            {
+              task_key: "direct",
+              new_cluster: { instance_pool_id: workerPoolRef },
+            },
+          ],
+        }),
+      ],
+      [
+        "resources.pipelines.ingest",
+        makeSkipEntry({
+          clusters: [{ instance_pool_id: workerPoolRef, driver_instance_pool_id: driverPoolRef }],
+        }),
+      ],
+      ["resources.instance_pools.workers", makeEntry({ instance_pool_name: "workers" })],
+      ["resources.instance_pools.drivers", makeEntry({ instance_pool_name: "drivers" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual([
+      "resources.clusters.interactive→resources.instance_pools.workers",
+      "resources.jobs.etl→resources.instance_pools.drivers",
+      "resources.jobs.etl→resources.instance_pools.workers",
+      "resources.pipelines.ingest→resources.instance_pools.drivers",
+      "resources.pipelines.ingest→resources.instance_pools.workers",
+    ]);
+  });
+
+  test("rejects an unevidenced pool name reference", () => {
+    const poolNameRef = "$" + "{resources.instance_pools.workers.name}";
+    const entries: [string, PlanEntry][] = [
+      ["resources.clusters.interactive", makeEntry({ instance_pool_id: poolNameRef })],
+      ["resources.instance_pools.workers", makeEntry({ instance_pool_name: "workers" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+
+  test("does not guess a deployed instance pool API ID relationship", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.clusters.interactive", makeEntry({ instance_pool_id: "pool-api-id" })],
+      ["resources.instance_pools.workers", makeEntry({ instance_pool_name: "workers" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// vector_search_index → vector_search_endpoint
+// ---------------------------------------------------------------------------
+
+describe("extractVectorSearchEndpointEdges", () => {
+  test("links symbolic and concrete endpoint names", () => {
+    const endpointRef = "$" + "{resources.vector_search_endpoints.search.name}";
+    const entries: [string, PlanEntry][] = [
+      ["resources.vector_search_indexes.symbolic", makeEntry({ endpoint_name: endpointRef })],
+      ["resources.vector_search_indexes.deployed", makeSkipEntry({ endpoint_name: "edge-search" })],
+      ["resources.vector_search_endpoints.search", makeSkipEntry({ name: "edge-search" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual([
+      "resources.vector_search_indexes.deployed→resources.vector_search_endpoints.search",
+      "resources.vector_search_indexes.symbolic→resources.vector_search_endpoints.search",
+    ]);
+  });
+
+  test("rejects an unevidenced endpoint ID reference", () => {
+    const endpointIdRef = "$" + "{resources.vector_search_endpoints.search.id}";
+    const entries: [string, PlanEntry][] = [
+      ["resources.vector_search_indexes.docs", makeEntry({ endpoint_name: endpointIdRef })],
+      ["resources.vector_search_endpoints.search", makeEntry({ name: "edge-search" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+
+  test("does not link an endpoint outside the plan", () => {
+    const entries: [string, PlanEntry][] = [
+      ["resources.vector_search_indexes.docs", makeEntry({ endpoint_name: "external-search" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // job → job via run_job_task.job_id
 // ---------------------------------------------------------------------------
 

@@ -2174,6 +2174,41 @@ describe("source table phantom nodes", () => {
   });
 });
 
+describe("schema-supported workspace resource relationships", () => {
+  test("builds instance pool and Vector Search endpoint lateral edges without fixtures", () => {
+    const poolRef = "$" + "{resources.instance_pools.workers.id}";
+    const endpointRef = "$" + "{resources.vector_search_endpoints.search.name}";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.clusters.interactive": {
+          action: "create",
+          new_state: { value: { instance_pool_id: poolRef } },
+        },
+        "resources.instance_pools.workers": {
+          action: "create",
+          new_state: { value: { instance_pool_name: "workers" } },
+        },
+        "resources.vector_search_indexes.docs": {
+          action: "create",
+          new_state: { value: { endpoint_name: endpointRef } },
+        },
+        "resources.vector_search_endpoints.search": {
+          action: "create",
+          new_state: { value: { name: "edge-search" } },
+        },
+      },
+    });
+
+    const lateralEdgePairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(lateralEdgePairs).toContain(
+      "resources.clusters.interactive→resources.instance_pools.workers",
+    );
+    expect(lateralEdgePairs).toContain(
+      "resources.vector_search_indexes.docs→resources.vector_search_endpoints.search",
+    );
+  });
+});
+
 describe("external leaf phantom refs (UC hierarchy placement)", () => {
   test("app uc_securable phantom is placed under correct catalog and schema", () => {
     const graph = buildResourceGraph({

@@ -25,6 +25,7 @@ import {
 } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
 import {
+  extractBundleResourceIdRef,
   resolvePostgresBranchRefIdentity,
   resolvePostgresBranchRefIdentityFromEntries,
   resolvePostgresBranchResourceKey,
@@ -128,6 +129,80 @@ const DERIVED_OUTPUT_SPEC: LateralEdgeSpec = {
       const targetId = buildDerivedNodeId(ref.derivedKind, ref.identity);
       return context.nodeIds.has(targetId) ? [targetId] : [];
     }),
+};
+
+const collectArrayItems = (
+  record: Readonly<Record<string, unknown>>,
+  field: string,
+): readonly unknown[] => {
+  const value = record[field];
+  return Array.isArray(value) ? value : [];
+};
+
+const extractNewClusters = (items: readonly unknown[]): readonly unknown[] =>
+  items.map((item) => getUnknownProp(item, "new_cluster"));
+
+const extractInstancePoolRefs = (entry: PlanEntry, resourceType: string): readonly string[] => {
+  const state = extractResourceState(entry);
+  if (state === undefined) return [];
+  const clusterSpecs =
+    resourceType === "clusters"
+      ? [state]
+      : resourceType === "jobs"
+        ? [
+            ...extractNewClusters(collectArrayItems(state, "job_clusters")),
+            ...extractNewClusters(collectArrayItems(state, "tasks")),
+          ]
+        : collectArrayItems(state, "clusters");
+  return clusterSpecs.flatMap((cluster) =>
+    [
+      getUnknownProp(cluster, "instance_pool_id"),
+      getUnknownProp(cluster, "driver_instance_pool_id"),
+    ].filter((ref): ref is string => typeof ref === "string"),
+  );
+};
+
+const extractTypedBundleResourceRef = (
+  resourceRef: string,
+  resourceType: string,
+  attribute: "id" | "name",
+): string | undefined => {
+  const targetKey = extractBundleResourceIdRef(resourceRef);
+  if (targetKey === undefined || extractResourceType(targetKey) !== resourceType) return undefined;
+  return resourceRef === `\${${targetKey}.${attribute}}` ? targetKey : undefined;
+};
+
+/** cluster/job/pipeline → instance_pool via schema-supported symbolic references. */
+const INSTANCE_POOL_SPEC: LateralEdgeSpec = {
+  sourceTypes: new Set(["clusters", "jobs", "pipelines"]),
+  extractTargetIds: (entry, context, resourceKey) =>
+    extractInstancePoolRefs(entry, extractResourceType(resourceKey) ?? "").flatMap((ref) => {
+      const targetKey = extractTypedBundleResourceRef(ref, "instance_pools", "id");
+      if (targetKey === undefined) return [];
+      const targetId = resolveExistingTargetId(targetKey, context);
+      return targetId !== undefined ? [targetId] : [];
+    }),
+};
+
+/** vector_search_index → vector_search_endpoint via symbolic reference or concrete name. */
+const VECTOR_SEARCH_ENDPOINT_SPEC: LateralEdgeSpec = {
+  sourceTypes: new Set(["vector_search_indexes"]),
+  extractTargetIds: (entry, context) => {
+    const endpointName = extractStateField(entry, "endpoint_name");
+    if (endpointName === undefined) return [];
+    const bundleResourceKey = extractBundleResourceIdRef(endpointName);
+    const targetKey =
+      bundleResourceKey !== undefined
+        ? extractTypedBundleResourceRef(endpointName, "vector_search_endpoints", "name")
+        : context.entries.find(
+            ([key, target]) =>
+              extractResourceType(key) === "vector_search_endpoints" &&
+              extractStateField(target, "name") === endpointName,
+          )?.[0];
+    if (targetKey === undefined) return [];
+    const targetId = resolveExistingTargetId(targetKey, context);
+    return targetId !== undefined ? [targetId] : [];
+  },
 };
 
 /** Factory: model_serving_endpoint → registered_model (full_name index + phantom fallback). */
@@ -361,6 +436,8 @@ const createAppResourcesSpec = (indexes: ReferenceIndexes): LateralEdgeSpec => (
 
 const LATERAL_EDGE_SPECS: readonly LateralEdgeSpec[] = [
   DATABASE_INSTANCE_SPEC,
+  INSTANCE_POOL_SPEC,
+  VECTOR_SEARCH_ENDPOINT_SPEC,
   SOURCE_TABLE_SPEC,
   DERIVED_OUTPUT_SPEC,
   PIPELINE_INGESTION_SOURCE_SPEC,

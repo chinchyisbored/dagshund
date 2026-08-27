@@ -63,6 +63,15 @@ Branches created from another branch keep their project hierarchy placement. The
 `postgres_roles.membership_roles` intentionally produces no graph edge. The CLI 1.14 schema only
 permits the fixed `DATABRICKS_SUPERUSER` role, not a reference to another bundle-managed role.
 
+Top-level clusters, job-level `job_clusters[].new_cluster`, task-level `new_cluster`, and pipeline
+clusters link to bundle-managed instance pools through schema-validated symbolic references.
+Concrete instance-pool API IDs intentionally remain unresolved because the free fixture workspace
+cannot provide deployed direct-engine evidence for their state shape.
+
+Vector Search indexes link to bundle-managed Vector Search endpoints through `endpoint_name`. The
+relationship resolves both a schema-validated symbolic endpoint `name` reference and a concrete
+name matching the endpoint state.
+
 ## File Structure
 
 ```
