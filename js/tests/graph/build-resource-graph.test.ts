@@ -2207,6 +2207,39 @@ describe("schema-supported workspace resource relationships", () => {
       "resources.vector_search_indexes.docs→resources.vector_search_endpoints.search",
     );
   });
+
+  test("builds a nested for-each task instance pool lateral edge", () => {
+    const poolRef = "$" + "{resources.instance_pools.workers.id}";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.jobs.foreach": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [
+                {
+                  task_key: "loop",
+                  for_each_task: {
+                    task: {
+                      new_cluster: { instance_pool_id: poolRef },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.instance_pools.workers": {
+          action: "create",
+          new_state: { value: { instance_pool_name: "workers" } },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      "resources.jobs.foreach→resources.instance_pools.workers",
+    );
+  });
 });
 
 describe("external leaf phantom refs (UC hierarchy placement)", () => {

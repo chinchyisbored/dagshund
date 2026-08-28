@@ -11,6 +11,7 @@ from dagshund.plan import (
     DANGEROUS_ACTIONS,
     STATEFUL_RESOURCE_WARNINGS,
     action_to_diff_state,
+    classify_pipeline_cascade_risk,
     has_drifted_field,
     is_topology_drift_change,
     resource_has_shape_drift,
@@ -347,28 +348,14 @@ def format_group_header(resource_type: ResourceType, total: int, visible: int) -
     return f"{resource_type} {count}"
 
 
-def _as_mapping(value: object | None) -> Mapping[str, object] | None:
-    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else None
-
-
-def _extract_pipeline_cascade_on_destroy(entry: ResourceChange) -> bool | None:
-    new_state = _as_mapping(entry.new_state)
-    new_value = _as_mapping(new_state.get("value")) if new_state is not None else None
-    remote_state = _as_mapping(entry.remote_state)
-    value = new_value.get("cascade_on_destroy") if new_value is not None else None
-    if not isinstance(value, bool) and remote_state is not None:
-        value = remote_state.get("cascade_on_destroy")
-    return value if isinstance(value, bool) else None
-
-
 def _extract_resource_loss_risk(resource_type: str, entry: ResourceChange) -> str | None:
     if resource_type != "pipelines":
         return STATEFUL_RESOURCE_WARNINGS.get(resource_type)
-    cascade_on_destroy = _extract_pipeline_cascade_on_destroy(entry)
-    if cascade_on_destroy is False:
+    cascade_risk = classify_pipeline_cascade_risk(entry)
+    if cascade_risk == "safe":
         return None
     datasets = "pipeline-managed materialized views, streaming tables, and views"
-    if cascade_on_destroy is True:
+    if cascade_risk == "enabled":
         return f"{datasets} will also be deleted"
     return f"{datasets} may also be deleted because cascade_on_destroy is unavailable in this plan"
 

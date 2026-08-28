@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from dagshund import __version__
@@ -13,7 +13,7 @@ class PlanSource:
 
 @dataclass(frozen=True, slots=True)
 class RawPlanInput:
-    raw_bytes: bytes
+    raw_bytes: bytes = field(repr=False)
     source: PlanSource | None
 
 

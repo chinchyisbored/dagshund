@@ -142,6 +142,20 @@ const collectArrayItems = (
 const extractNewClusters = (items: readonly unknown[]): readonly unknown[] =>
   items.map((item) => getUnknownProp(item, "new_cluster"));
 
+const extractForEachTaskClusters = (tasks: readonly unknown[]): readonly unknown[] =>
+  extractNewClusters(
+    tasks.map((task) => getUnknownProp(getUnknownProp(task, "for_each_task"), "task")),
+  );
+
+const extractJobClusterSpecs = (state: Readonly<Record<string, unknown>>): readonly unknown[] => {
+  const tasks = collectArrayItems(state, "tasks");
+  return [
+    ...extractNewClusters(collectArrayItems(state, "job_clusters")),
+    ...extractNewClusters(tasks),
+    ...extractForEachTaskClusters(tasks),
+  ];
+};
+
 const extractInstancePoolRefs = (entry: PlanEntry, resourceType: string): readonly string[] => {
   const state = extractResourceState(entry);
   if (state === undefined) return [];
@@ -149,10 +163,7 @@ const extractInstancePoolRefs = (entry: PlanEntry, resourceType: string): readon
     resourceType === "clusters"
       ? [state]
       : resourceType === "jobs"
-        ? [
-            ...extractNewClusters(collectArrayItems(state, "job_clusters")),
-            ...extractNewClusters(collectArrayItems(state, "tasks")),
-          ]
+        ? extractJobClusterSpecs(state)
         : collectArrayItems(state, "clusters");
   return clusterSpecs.flatMap((cluster) =>
     [

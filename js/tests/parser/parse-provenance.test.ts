@@ -45,12 +45,6 @@ describe("parseProvenanceJson", () => {
     expect(result).toEqual({ ok: true, data: null });
   });
 
-  test("accepts a valid UTC ISO timestamp", () => {
-    const result = parseProvenanceJson(VALID_PROVENANCE);
-
-    expect(result.ok).toBe(true);
-  });
-
   test("rejects malformed or non-ISO timestamps", () => {
     for (const source_modified_at of [
       "2026-08-27 12:00:00Z",

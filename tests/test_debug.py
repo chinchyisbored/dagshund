@@ -73,6 +73,13 @@ def test_summarize_value_tuple_shows_item_count() -> None:
     assert _summarize_value((1, 2, 3)) == "tuple(3 items)"
 
 
+def test_summarize_value_bytes_shows_length_without_payload() -> None:
+    result = _summarize_value(b"secret")
+
+    assert result == "bytes(6)"
+    assert "secret" not in result
+
+
 def test_summarize_value_broken_repr_falls_back() -> None:
     class Broken:
         @override

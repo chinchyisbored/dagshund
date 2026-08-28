@@ -33,7 +33,6 @@
       "expected": {
         "kind": "completed-success",
         "wording": "already ran successfully",
-        "outcome": null,
         "stateMessage": null,
         "firesOnDeploy": false,
         "badgeVisible": true,
@@ -69,7 +68,6 @@
       "expected": {
         "kind": "in-progress",
         "wording": "run still in progress",
-        "outcome": null,
         "stateMessage": "The existing run is still active.",
         "firesOnDeploy": false,
         "badgeVisible": true,
@@ -103,7 +101,6 @@
       "expected": {
         "kind": "trigger-removed",
         "wording": "deploy trigger removed; no run will start",
-        "outcome": null,
         "stateMessage": null,
         "firesOnDeploy": false,
         "badgeVisible": false,
@@ -144,7 +141,6 @@
       "expected": {
         "kind": "recreate",
         "wording": "re-runs on deploy; previous run FAILED",
-        "outcome": "FAILED",
         "stateMessage": "The notebook task failed.",
         "firesOnDeploy": true,
         "badgeVisible": true,
@@ -192,7 +188,6 @@
       "expected": {
         "kind": "every-deploy",
         "wording": "runs on every deploy",
-        "outcome": null,
         "stateMessage": null,
         "firesOnDeploy": true,
         "badgeVisible": true,
@@ -244,7 +239,6 @@
       "expected": {
         "kind": "every-deploy",
         "wording": "runs on every deploy",
-        "outcome": null,
         "stateMessage": null,
         "firesOnDeploy": true,
         "badgeVisible": true,

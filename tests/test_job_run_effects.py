@@ -58,7 +58,6 @@ def test_classify_job_run_effect_shared_vectors(case: JobRunOutcomeCase) -> None
 
     assert semantics.kind == expected["kind"]
     assert semantics.wording == expected["wording"]
-    assert semantics.outcome == expected.get("outcome")
     assert semantics.state_message == expected.get("stateMessage")
     assert semantics.fires_on_deploy == expected["firesOnDeploy"]
     assert semantics.badge_visible == expected["badgeVisible"]

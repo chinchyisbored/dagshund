@@ -30,7 +30,6 @@ describe("job run effect classification (shared vectors)", () => {
 
       expect(String(semantics.kind)).toBe(expected.kind);
       expect(semantics.wording).toBe(expected.wording);
-      expect(semantics.outcome).toBe(expected.outcome ?? undefined);
       expect(semantics.stateMessage).toBe(expected.stateMessage ?? undefined);
       expect(semantics.firesOnDeploy).toBe(expected.firesOnDeploy);
       expect(semantics.badgeVisible).toBe(expected.badgeVisible);

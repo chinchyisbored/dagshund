@@ -35,6 +35,8 @@ def _summarize_value(value: object) -> str:
             if len(value) <= 20:
                 return f"str({len(value)}) {value!r}"
             return f"str({len(value)}) {value[:20]!r}..."
+        case bytes():
+            return f"bytes({len(value)})"
         case dict():
             return f"dict({len(value)} keys)"
         case bool():

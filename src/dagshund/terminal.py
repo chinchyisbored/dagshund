@@ -132,10 +132,10 @@ def _wrap_transition(prefix: str, change: FieldChange) -> str | None:
     return f"{first}\n{cont}"
 
 
-def _wrap_warning_line(line: str, width: int) -> str:
+def _wrap_warning_line(line: str, width: int, *, subsequent_indent: str = "    ") -> str:
     if len(line) <= width:
         return line
-    return textwrap.fill(line, width=width, subsequent_indent="    ")
+    return textwrap.fill(line, width=width, subsequent_indent=subsequent_indent)
 
 
 def _render_field_change(
@@ -167,6 +167,7 @@ def _render_field_change(
 
 # Effect field changes render one level deeper than the effect line; the wrap
 # width narrows by the same amount so re-indented lines still fit the terminal.
+_EFFECT_LINE_INDENT = 6
 _EFFECT_FIELD_EXTRA_INDENT = 4
 
 
@@ -191,12 +192,15 @@ def _render_effect_lines(
     """Trailing per-job lines for a deploy-triggered run, one per effect."""
     semantics = classify_job_run_effect(effect)
     cfg = action_config(effect.action)
-    line = f"      {cfg.symbol} run {effect.name} ({semantics.wording})"
+    line = f"{' ' * _EFFECT_LINE_INDENT}{cfg.symbol} run {effect.name} ({semantics.wording})"
     yield _colorize(line, _action_color(cfg), use_color=use_color)
 
-    indent = " " * _EFFECT_FIELD_EXTRA_INDENT
+    state_indent = " " * (_EFFECT_LINE_INDENT + _EFFECT_FIELD_EXTRA_INDENT)
+    field_indent = " " * _EFFECT_FIELD_EXTRA_INDENT
     if semantics.state_message is not None:
-        state_line = f"{indent}state: {semantics.state_message}"
+        state_line = f"{state_indent}state: {semantics.state_message}"
+        if width is not None and width >= _MIN_WRAP_WIDTH:
+            state_line = _wrap_warning_line(state_line, width, subsequent_indent=state_indent)
         yield _colorize(state_line, DIM, use_color=use_color)
 
     narrowed = width - _EFFECT_FIELD_EXTRA_INDENT if width is not None else None
@@ -207,7 +211,7 @@ def _render_effect_lines(
     ):
         rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=narrowed)
         if rendered is not None:
-            yield "\n".join(f"{indent}{part}" for part in rendered.split("\n"))
+            yield "\n".join(f"{field_indent}{part}" for part in rendered.split("\n"))
 
 
 def _render_resource(

@@ -2066,6 +2066,17 @@ describe("extractInstancePoolEdges", () => {
               task_key: "direct",
               new_cluster: { instance_pool_id: workerPoolRef },
             },
+            {
+              task_key: "nested",
+              for_each_task: {
+                task: {
+                  new_cluster: {
+                    instance_pool_id: workerPoolRef,
+                    driver_instance_pool_id: driverPoolRef,
+                  },
+                },
+              },
+            },
           ],
         }),
       ],
@@ -2087,6 +2098,40 @@ describe("extractInstancePoolEdges", () => {
       "resources.jobs.etl→resources.instance_pools.workers",
       "resources.pipelines.ingest→resources.instance_pools.drivers",
       "resources.pipelines.ingest→resources.instance_pools.workers",
+    ]);
+  });
+
+  test("links a nested for-each task cluster to worker and driver pools", () => {
+    const workerPoolRef = "$" + "{resources.instance_pools.workers.id}";
+    const driverPoolRef = "$" + "{resources.instance_pools.drivers.id}";
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.foreach",
+        makeEntry({
+          tasks: [
+            {
+              task_key: "loop",
+              for_each_task: {
+                task: {
+                  new_cluster: {
+                    instance_pool_id: workerPoolRef,
+                    driver_instance_pool_id: driverPoolRef,
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      ],
+      ["resources.instance_pools.workers", makeEntry({ instance_pool_name: "workers" })],
+      ["resources.instance_pools.drivers", makeEntry({ instance_pool_name: "drivers" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual([
+      "resources.jobs.foreach→resources.instance_pools.drivers",
+      "resources.jobs.foreach→resources.instance_pools.workers",
     ]);
   });
 

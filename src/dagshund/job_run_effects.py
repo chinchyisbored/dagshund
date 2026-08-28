@@ -31,7 +31,6 @@ class JobRunEffectSemantics:
 
     kind: JobRunEffectKind
     wording: str
-    outcome: str | None = None
     state_message: str | None = None
     fires_on_deploy: bool = False
     badge_visible: bool = True
@@ -210,7 +209,6 @@ def _build_semantics(
     return JobRunEffectSemantics(
         kind=kind,
         wording=wording,
-        outcome=outcome,
         state_message=state_message,
         fires_on_deploy=fires_on_deploy,
         badge_visible=badge_visible,

@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from typing import Literal, cast
 
 from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
 from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
@@ -8,7 +9,9 @@ __all__ = [
     "DANGEROUS_ACTIONS",
     "STATEFUL_RESOURCE_TYPES",
     "STATEFUL_RESOURCE_WARNINGS",
+    "PipelineCascadeRisk",
     "action_to_diff_state",
+    "classify_pipeline_cascade_risk",
     "detect_changes",
     "detect_dangerous_actions",
     "detect_manual_edits",
@@ -34,6 +37,26 @@ STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
 }
 
 STATEFUL_RESOURCE_TYPES: frozenset[str] = frozenset(STATEFUL_RESOURCE_WARNINGS)
+
+type PipelineCascadeRisk = Literal["safe", "enabled", "unavailable"]
+
+
+def _as_mapping(value: object | None) -> Mapping[str, object] | None:
+    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else None
+
+
+def classify_pipeline_cascade_risk(entry: ResourceChange) -> PipelineCascadeRisk:
+    new_state = _as_mapping(entry.new_state)
+    new_value = _as_mapping(new_state.get("value")) if new_state is not None else None
+    remote_state = _as_mapping(entry.remote_state)
+    value = new_value.get("cascade_on_destroy") if new_value is not None else None
+    if not isinstance(value, bool) and remote_state is not None:
+        value = remote_state.get("cascade_on_destroy")
+    if value is False:
+        return "safe"
+    if value is True:
+        return "enabled"
+    return "unavailable"
 
 
 def action_to_diff_state(action: ActionType) -> DiffState:
@@ -134,6 +157,10 @@ def detect_manual_edits(resources: Mapping[ResourceKey, ResourceChange]) -> bool
 
 def detect_dangerous_actions(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
     return any(
-        entry.action in DANGEROUS_ACTIONS and parse_resource_key(key)[0] in STATEFUL_RESOURCE_TYPES
+        entry.action in DANGEROUS_ACTIONS
+        and (
+            (resource_type := parse_resource_key(key)[0]) in STATEFUL_RESOURCE_TYPES
+            or (resource_type == "pipelines" and classify_pipeline_cascade_risk(entry) != "safe")
+        )
         for key, entry in resources.items()
     )

@@ -286,6 +286,36 @@ def test_detect_dangerous_actions_non_stateful_type_returns_false() -> None:
     assert detect_dangerous_actions(resources) is False
 
 
+@pytest.mark.parametrize(
+    ("action", "cascade_on_destroy", "expected"),
+    [
+        ("delete", True, True),
+        ("recreate", True, True),
+        ("delete", False, False),
+        ("recreate", False, False),
+        ("delete", None, True),
+        ("recreate", None, True),
+    ],
+    ids=[
+        "delete-enabled",
+        "recreate-enabled",
+        "delete-safe",
+        "recreate-safe",
+        "delete-unavailable",
+        "recreate-unavailable",
+    ],
+)
+def test_detect_dangerous_actions_pipeline_cascade_risk(
+    action: str,
+    cascade_on_destroy: bool | None,
+    expected: bool,
+) -> None:
+    state = {"value": {"cascade_on_destroy": cascade_on_destroy}} if cascade_on_destroy is not None else {}
+    resources = {"resources.pipelines.ingest": make_resource(action=action, new_state=state)}
+
+    assert detect_dangerous_actions(resources) is expected
+
+
 @pytest.mark.parametrize("action", ["update", "create", "skip"])
 def test_detect_dangerous_actions_safe_action_on_stateful_returns_false(action: str) -> None:
     resources = {"resources.schemas.analytics": make_resource(action=action)}

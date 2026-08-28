@@ -112,6 +112,17 @@ def test_read_plan_reads_bytes_from_stdin(monkeypatch: pytest.MonkeyPatch) -> No
     assert result.source.source_modified_at is None
 
 
+def test_read_plan_repr_hides_raw_bytes(tmp_path: Path) -> None:
+    sentinel = "UC_SECRET_SENTINEL"
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_bytes(sentinel.encode())
+
+    result = _read_plan(str(plan_file))
+
+    assert "RawPlanInput" in repr(result)
+    assert sentinel not in repr(result)
+
+
 def test_read_plan_tty_stdin_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     with pytest.raises(DagshundError, match="no input file specified"):
@@ -407,6 +418,45 @@ def test_debug_env_var_traces_all_functions(fixtures_dir: Path) -> None:
     assert result.returncode == 0
     assert "→ _read_plan" in result.stderr
     assert "→ _supports_color" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("debug_args", "debug_env"),
+    [(("-d",), ""), ((), "1")],
+    ids=["debug-flag", "debug-environment"],
+)
+def test_debug_does_not_leak_uc_secret_input(
+    debug_args: tuple[str, ...],
+    debug_env: str,
+    tmp_path: Path,
+) -> None:
+    sentinel = "UC_SECRET_SENTINEL"
+    plan_file = tmp_path / "secret-plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.secrets.compact": {
+                        "action": "create",
+                        "new_state": {"value": sentinel},
+                    }
+                }
+            },
+            separators=(",", ":"),
+        )
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "dagshund", str(plan_file), *debug_args],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "DAGSHUND_DEBUG": debug_env},
+    )
+
+    assert result.returncode == 0
+    assert sentinel not in result.stderr
+    for function_name in ("_read_plan", "_decode_plan", "parse_plan", "render_text"):
+        assert f"→ {function_name}" in result.stderr
 
 
 def test_no_debug_flag_no_trace_on_stderr(fixtures_dir: Path) -> None:

@@ -16,7 +16,6 @@ export type JobRunEffectKind =
 export type JobRunEffectSemantics = {
   readonly kind: JobRunEffectKind;
   readonly wording: string;
-  readonly outcome: string | undefined;
   readonly stateMessage: string | undefined;
   readonly firesOnDeploy: boolean;
   readonly badgeVisible: boolean;
@@ -215,7 +214,6 @@ const buildSemantics = (
   return {
     kind,
     wording,
-    outcome,
     stateMessage,
     firesOnDeploy: kind === "create" || kind === "recreate" || kind === "every-deploy",
     badgeVisible: kind !== "delete" && kind !== "trigger-removed",

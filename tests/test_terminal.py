@@ -1632,6 +1632,73 @@ def test_render_text_effect_field_changes_render_indented(capsys: pytest.Capture
     assert '          ~ job_parameters[\'v\']: "1" -> "2"' in out
 
 
+@pytest.mark.parametrize(
+    ("width", "expected_state_lines"),
+    [
+        (
+            59,
+            (
+                "          state: This state message is long enough to require wrapping at the "
+                "configured terminal width.",
+            ),
+        ),
+        (
+            60,
+            (
+                "          state: This state message is long enough to",
+                "          require wrapping at the configured terminal width.",
+            ),
+        ),
+        (
+            65,
+            (
+                "          state: This state message is long enough to require",
+                "          wrapping at the configured terminal width.",
+            ),
+        ),
+    ],
+    ids=["below-minimum", "at-minimum", "above-minimum"],
+)
+def test_render_text_long_job_run_state_message_respects_width_threshold(
+    width: int,
+    expected_state_lines: tuple[str, ...],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("dagshund.terminal._supports_color", lambda: False)
+    monkeypatch.setattr("dagshund.terminal._detect_terminal_width", lambda: width)
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.running": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "skip",
+                    "remote_state": {
+                        "job_id": 100,
+                        "state": {
+                            "life_cycle_state": "RUNNING",
+                            "state_message": (
+                                "This state message is long enough to require wrapping at the "
+                                "configured terminal width."
+                            ),
+                        },
+                    },
+                    "changes": {"result_state": {"action": "skip", "reason": "run in progress"}},
+                },
+            }
+        }
+    )
+
+    render_text(plan)
+
+    lines = capsys.readouterr().out.splitlines()
+    parent_index = lines.index("      = run running (run still in progress)")
+    state_start = parent_index + 1
+    assert lines[state_start : state_start + len(expected_state_lines)] == list(expected_state_lines)
+    assert lines[state_start + len(expected_state_lines)] == ""
+
+
 def test_render_text_delete_effect_uses_destructive_wording(capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(
         {
@@ -1742,7 +1809,9 @@ def test_render_text_job_run_outcomes_hide_generated_fields(capsys: pytest.Captu
     assert "deploy trigger removed; no run will start" in out
     assert "re-runs on deploy; previous run FAILED" in out
     assert "runs on every deploy" in out
-    assert "state: The existing run is still active." in out
+    lines = out.splitlines()
+    assert "      = run running (run still in progress)" in lines
+    assert "          state: The existing run is still active." in lines
     assert "state: The task failed." in out
     assert "job_parameters['region']" in out
     assert "fingerprint-before" not in out
