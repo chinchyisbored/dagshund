@@ -58,6 +58,25 @@ export const extractJobApiId = (entry: PlanEntry): string | undefined => {
 export const extractGenieSpaceApiId = (entry: PlanEntry): string | undefined =>
   extractStateField(entry, "space_id") ?? extractStateField(entry, "id");
 
+/** Resolve a synced-table pipeline reference to a real key or the standard pipeline phantom ID. */
+export const resolvePipelineReference = (
+  reference: string,
+  pipelineIndex: ReadonlyMap<string, string>,
+  existingResourceKeys: ReadonlySet<string>,
+): string => {
+  const symbolicResourceKey = extractBundleResourceIdRef(reference);
+  if (symbolicResourceKey !== undefined) {
+    return extractResourceType(symbolicResourceKey) === "pipelines" &&
+      existingResourceKeys.has(symbolicResourceKey)
+      ? symbolicResourceKey
+      : buildPrefixedNodeId("pipeline", reference);
+  }
+  const indexedTarget = pipelineIndex.get(reference);
+  return indexedTarget !== undefined && existingResourceKeys.has(indexedTarget)
+    ? indexedTarget
+    : buildPrefixedNodeId("pipeline", reference);
+};
+
 export type AppResourceRef =
   | { readonly kind: "job"; readonly id: string }
   | { readonly kind: "sql_warehouse"; readonly id: string }

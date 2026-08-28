@@ -17,7 +17,9 @@ const redactStateFields = (
   );
 
 const redactState = (raw: unknown): unknown => {
-  if (!isUnknownRecord(raw)) return raw;
+  if (raw === null || raw === undefined) return raw;
+  // Secret states are an untrusted boundary: unknown non-null shapes must not pass through.
+  if (!isUnknownRecord(raw)) return REDACTED_SECRET_VALUE;
   const wrapped = raw["value"];
   return isUnknownRecord(wrapped)
     ? { ...redactStateFields(raw), value: redactStateFields(wrapped) }
@@ -50,9 +52,11 @@ const redactChanges = (
 
 const redactEntry = (entry: PlanEntry): PlanEntry => ({
   ...entry,
-  new_state: redactState(entry.new_state),
-  remote_state: redactState(entry.remote_state),
-  changes: redactChanges(entry.changes),
+  ...(Object.hasOwn(entry, "new_state") ? { new_state: redactState(entry.new_state) } : {}),
+  ...(Object.hasOwn(entry, "remote_state")
+    ? { remote_state: redactState(entry.remote_state) }
+    : {}),
+  ...(Object.hasOwn(entry, "changes") ? { changes: redactChanges(entry.changes) } : {}),
 });
 
 export const redactUcSecretValues = (plan: Plan): Plan => {

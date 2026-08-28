@@ -30,8 +30,11 @@ def _is_uc_secret_key(key: str) -> bool:
 
 
 def _redact_secret_state(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
-    if not isinstance(raw, dict):
+    if raw is None:
         return raw
+    # Secret states are an untrusted boundary: unknown non-null shapes must not pass through.
+    if not isinstance(raw, dict):
+        return REDACTED_SECRET_VALUE
     wrapped = raw.get("value")
     if isinstance(wrapped, dict):
         redacted_state = {key: REDACTED_SECRET_VALUE if key in SECRET_FIELDS else value for key, value in raw.items()}
@@ -55,14 +58,19 @@ def _redact_secret_change(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
 
 
 def _redact_secret_changes(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
-    if not isinstance(raw, dict):
+    if raw is None:
         return raw
+    if not isinstance(raw, dict):
+        return REDACTED_SECRET_VALUE
     return {field: _redact_secret_change(change) if field in SECRET_FIELDS else change for field, change in raw.items()}
 
 
 def _redact_secret_entry(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
-    if not isinstance(raw, dict):
+    if raw is None:
         return raw
+    # A malformed secret entry is also untrusted and must fail closed.
+    if not isinstance(raw, dict):
+        return REDACTED_SECRET_VALUE
     return {
         key: _redact_secret_state(value)
         if key in {"new_state", "remote_state"}

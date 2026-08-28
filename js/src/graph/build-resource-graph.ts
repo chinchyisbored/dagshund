@@ -28,6 +28,7 @@ import {
   buildOrphanEffectPhantoms,
   collectPhantomAppDependencies,
   collectPhantomDatabaseInstances,
+  collectPhantomExistingPipelines,
   collectPhantomExternalRefs,
 } from "./collect-phantom-nodes.ts";
 import {
@@ -1257,6 +1258,10 @@ export const buildResourceGraph = (
     collectPhantomExternalRefs(entries, referenceIndexes),
     workspacePlacement,
   );
+  const phantomExistingPipelines = buildWorkspacePhantomGraph(
+    collectPhantomExistingPipelines(entries, existingKeys, pipelineIndex),
+    workspacePlacement,
+  );
 
   // Phantom nodes carrying deploy-triggered runs whose target job is not in
   // the plan. Listed before the external-ref phantoms so an id collision with
@@ -1270,6 +1275,7 @@ export const buildResourceGraph = (
     phantomDbInstances,
     phantomAppDeps,
     phantomExternalRefs,
+    phantomExistingPipelines,
   ];
   const otherResourcesGraph = buildOtherResourcesGraph([workspaceGraph, ...workspacePhantomGraphs]);
 

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  extractExistingPipelineId,
   extractResourceState,
   extractSourceTableFullName,
   extractStateField,
@@ -77,6 +78,73 @@ describe("extractStateField", () => {
     };
 
     expect(extractStateField(entry, "something_else")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractExistingPipelineId
+// ---------------------------------------------------------------------------
+
+describe("extractExistingPipelineId", () => {
+  test("extracts a top-level reference from new state", () => {
+    const entry: PlanEntry = {
+      new_state: { value: { existing_pipeline_id: "pipeline-new" } },
+    };
+
+    expect(extractExistingPipelineId(entry)).toBe("pipeline-new");
+  });
+
+  test("extracts a spec-nested reference from new state", () => {
+    const entry: PlanEntry = {
+      new_state: { value: { spec: { existing_pipeline_id: "pipeline-new" } } },
+    };
+
+    expect(extractExistingPipelineId(entry)).toBe("pipeline-new");
+  });
+
+  test("extracts top-level and nested references from remote state", () => {
+    expect(
+      extractExistingPipelineId({ remote_state: { existing_pipeline_id: "pipeline-remote" } }),
+    ).toBe("pipeline-remote");
+    expect(
+      extractExistingPipelineId({
+        remote_state: { spec: { existing_pipeline_id: "pipeline-remote" } },
+      }),
+    ).toBe("pipeline-remote");
+  });
+
+  test("prefers new state over remote state", () => {
+    const entry: PlanEntry = {
+      new_state: { value: { existing_pipeline_id: "pipeline-new" } },
+      remote_state: { existing_pipeline_id: "pipeline-remote" },
+    };
+
+    expect(extractExistingPipelineId(entry)).toBe("pipeline-new");
+  });
+
+  test("falls back to remote state when new state omits the reference", () => {
+    const entry: PlanEntry = {
+      new_state: { value: { name: "orders" } },
+      remote_state: { existing_pipeline_id: "pipeline-remote" },
+    };
+
+    expect(extractExistingPipelineId(entry)).toBe("pipeline-remote");
+  });
+
+  test("falls back to remote state when the new state reference is blank", () => {
+    const entry: PlanEntry = {
+      new_state: { value: { existing_pipeline_id: "  " } },
+      remote_state: { spec: { existing_pipeline_id: "pipeline-remote" } },
+    };
+
+    expect(extractExistingPipelineId(entry)).toBe("pipeline-remote");
+  });
+
+  test("returns undefined when the reference is absent or blank", () => {
+    expect(extractExistingPipelineId({})).toBeUndefined();
+    expect(
+      extractExistingPipelineId({ new_state: { value: { existing_pipeline_id: "  " } } }),
+    ).toBeUndefined();
   });
 });
 

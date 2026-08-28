@@ -7,6 +7,7 @@ import {
 } from "../utils/resource-key.ts";
 import { getUnknownProp } from "../utils/unknown-record.ts";
 import {
+  extractExistingPipelineId,
   extractResourceState,
   extractStateField,
   parseThreePartName,
@@ -53,6 +54,14 @@ const extractPipelineIdFromState = (state: unknown): string | undefined =>
 const extractPipelineOutputId = (entry: PlanEntry): string | undefined =>
   extractPipelineIdFromState(getUnknownProp(entry.new_state, "value")) ??
   extractPipelineIdFromState(entry.remote_state);
+
+const extractGeneratedPipelineIdentity = (
+  resourceKey: string,
+  entry: PlanEntry,
+): string | undefined =>
+  extractExistingPipelineId(entry) === undefined
+    ? (extractPipelineOutputId(entry) ?? resourceKey)
+    : undefined;
 
 const extractPipelineEventLogIdentity = (entry: PlanEntry): string | undefined => {
   const eventLog = getUnknownProp(extractResourceState(entry), "event_log");
@@ -101,7 +110,7 @@ export const DERIVED_NODE_SPECS = {
       targetResourceType: "pipelines",
       extractConcreteId: extractPipelineOutputId,
     },
-    extractIdentity: (resourceKey, entry) => extractPipelineOutputId(entry) ?? resourceKey,
+    extractIdentity: extractGeneratedPipelineIdentity,
     extractLabel: (resourceKey) => `${extractResourceName(resourceKey)} pipeline`,
     isValidIdentity: (identity) => identity !== "",
   },

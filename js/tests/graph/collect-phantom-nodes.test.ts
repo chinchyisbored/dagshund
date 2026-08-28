@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   collectPhantomAppDependencies,
   collectPhantomDatabaseInstances,
+  collectPhantomExistingPipelines,
   collectPhantomExternalRefs,
 } from "../../src/graph/collect-phantom-nodes.ts";
 import { buildDerivedReferenceIndex } from "../../src/graph/derived-node-specs.ts";
@@ -726,5 +727,51 @@ describe("collectPhantomExternalRefs — pipeline_task", () => {
     expect(nodes).toHaveLength(2);
     const ids = nodes.map((n) => n.id).sort();
     expect(ids).toEqual(["pipeline::p1", "sql-warehouse::wh1"]);
+  });
+});
+
+describe("collectPhantomExistingPipelines", () => {
+  test("creates one phantom for repeated external existing pipeline references", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.postgres_synced_tables.orders",
+        makeEntry({ existing_pipeline_id: "external-pipeline" }),
+      ],
+      [
+        "resources.synced_database_tables.customers",
+        makeEntry({ spec: { existing_pipeline_id: "external-pipeline" } }),
+      ],
+    ];
+
+    const nodes = collectPhantomExistingPipelines(entries, new Set(), new Map());
+
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({
+      id: "pipeline::external-pipeline",
+      label: "external-pipeline",
+      nodeKind: "phantom",
+    });
+  });
+
+  test("creates no phantom for symbolic or concrete managed pipeline references", () => {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+    const symbolicId = "${resources.pipelines.shared.id}";
+    const pipelineKey = "resources.pipelines.shared";
+    const entries: [string, PlanEntry][] = [
+      ["resources.postgres_synced_tables.orders", makeEntry({ existing_pipeline_id: symbolicId })],
+      [
+        "resources.synced_database_tables.customers",
+        makeEntry({ existing_pipeline_id: "pipeline-shared" }),
+      ],
+      [pipelineKey, makeEntry({ pipeline_id: "pipeline-shared" })],
+    ];
+
+    const nodes = collectPhantomExistingPipelines(
+      entries,
+      new Set([pipelineKey]),
+      new Map([["pipeline-shared", pipelineKey]]),
+    );
+
+    expect(nodes).toHaveLength(0);
   });
 });

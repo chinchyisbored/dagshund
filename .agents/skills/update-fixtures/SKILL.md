@@ -207,13 +207,21 @@ detail-panel grouping logic needed review.
 `pr_comment.png` is captured from a real GitLab MR so the screenshot matches
 what a user would actually see. Follow this extended flow:
 
-1. 3-pass review
-2. Stage specific files — fixtures, README, test updates, skill itself. Do
-   **not** stage a new `pr_comment.png` yet.
-3. Commit with a message like `fixtures(cli X.Y.Z): regenerate goldens`
-4. Push the feature branch and open the MR
-5. **Post the dagshund markdown output as its own MR note (not in the
-   description).** Run a representative fixture through dagshund in md mode:
+1. Complete the 3-pass review and present the diff summary, review outcome,
+   verification, intended bead closure, commit, push, and MR actions.
+2. Pause for explicit user approval before closing the bead, committing, or
+   pushing. Acknowledgement or screenshot discussion is not approval.
+3. Close the tracking bead with the approved reason, then run
+   `nix develop --command br sync --flush-only` so its closure rides the
+   feature commit.
+4. Stage the fixtures, README, test updates, skill changes, and `.beads/`.
+   **Do not** stage a new `pr_comment.png` yet. Verify with
+   `nix develop --command git status`, then commit with a message like
+   `fixtures(cli X.Y.Z): regenerate goldens`.
+5. Push the feature branch and open the MR using the standard commands in
+   `.agents/guidelines/WORKFLOW.md`.
+6. **Post the dagshund markdown output as its own MR note, not in the
+   description.** Run a representative fixture through dagshund in md mode:
 
    ```bash
    nix develop --command uv run python -m dagshund \
@@ -222,24 +230,24 @@ what a user would actually see. Follow this extended flow:
 
    Post the output as a separate non-resolvable MR comment via
    `nix develop --command glab mr note create <iid> --message "..." --resolvable=false`. The description stays reserved for
-   the normal summary + test plan — the markdown dump is transient content
-   captured by the screenshot. `mixed-changes` is a good pick (creates,
-   updates, deletes, and drift warnings all in one).
-6. Wait for the user to screenshot the rendered markdown note and save it
+   the normal summary and test plan. The markdown dump is transient content
+   captured by the screenshot. `mixed-changes` is a good pick because it has
+   creates, updates, deletes, and drift warnings.
+7. Wait for the user to screenshot the rendered markdown note and save it
    to `docs/pictures/pr_comment.png`.
-7. Commit the new screenshot and push again. Stage with
-   `nix develop --command git add docs/pictures/pr_comment.png`, verify with
-   `nix develop --command git status`, commit with
+8. After explicit user approval for this final MR update, stage only the new
+   screenshot with `nix develop --command git add docs/pictures/pr_comment.png`,
+   verify with `nix develop --command git status`, commit with
    `nix develop --command bash -c 'source .venv/bin/activate && git commit -m "docs: refresh pr_comment.png for cli X.Y.Z"'`,
-   then push with `nix develop --command git push` after explicit approval.
-8. Wait for the user to confirm, then **delete the markdown-dump MR note**
-   (via the MR UI or `nix develop --command glab mr note delete <iid> <note-id> --yes`). The screenshot
-   lives in the repo now; the raw markdown comment was only a fixture.
-9. Before merging, verify the MR title is a conventional commit subject
-   (for example `fixtures(cli X.Y.Z): regenerate goldens`). GitLab uses the
-   MR title as the squash commit subject on `main`.
-10. Wait for the pipeline to go green, then `nix develop --command glab mr merge <iid> --squash --yes` (with
-   explicit user approval — see `feedback_context_is_not_approval`).
-11. `nix develop --command br close <tracking-bead-id>` only after merge.
+   then push with `nix develop --command git push`.
+9. Wait for the user to confirm, then **delete the markdown-dump MR note**
+   via the MR UI or
+   `nix develop --command glab mr note delete <iid> <note-id> --yes`. The
+   screenshot lives in the repo now; the raw markdown comment was only a fixture.
+10. Verify the MR title is a conventional commit subject, for example
+    `fixtures(cli X.Y.Z): regenerate goldens`. GitLab uses the MR title as the
+    squash commit subject on `main`.
+11. Report the MR URL and hand it off to the user. Do not poll the pipeline or
+    merge the MR. The user handles the pipeline and squash merge in GitLab.
 
 Never push to `main`. Never skip the MR.

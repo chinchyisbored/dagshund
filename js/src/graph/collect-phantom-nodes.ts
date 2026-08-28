@@ -6,14 +6,16 @@ import {
   buildResourceKey,
   DATABASE_INSTANCE_SOURCE_TYPES,
   extractResourceType,
+  SYNCED_TABLE_SOURCE_TYPES,
   WAREHOUSE_SOURCE_TYPES,
 } from "../utils/resource-key.ts";
-import { extractStateField } from "./extract-resource-state.ts";
+import { extractExistingPipelineId, extractStateField } from "./extract-resource-state.ts";
 import { resolveTaskEntries } from "./extract-tasks.ts";
 import {
   extractAppResourceReferences,
   type ReferenceIndexes,
   resolveAppPhantomRef,
+  resolvePipelineReference,
   resolveTaskRefTargetKey,
   TASK_REF_SPECS,
 } from "./reference-specs.ts";
@@ -138,5 +140,29 @@ export const collectPhantomExternalRefs = (
     }
   }
 
+  return buildPhantomNodesFromEntries(phantoms);
+};
+
+// ---------------------------------------------------------------------------
+// Phantom existing pipelines referenced by synced tables
+// ---------------------------------------------------------------------------
+
+/** Collect external pipeline phantoms for synced-table existing_pipeline_id references. */
+export const collectPhantomExistingPipelines = (
+  entries: readonly (readonly [string, PlanEntry])[],
+  existingResourceKeys: ReadonlySet<string>,
+  pipelineIndex: ReadonlyMap<string, string>,
+): readonly PhantomGraphNode[] => {
+  const phantoms = new Map<string, PhantomEntry>();
+  for (const [key, entry] of entries) {
+    const resourceType = extractResourceType(key);
+    if (resourceType === undefined || !SYNCED_TABLE_SOURCE_TYPES.has(resourceType)) continue;
+    const reference = extractExistingPipelineId(entry);
+    if (reference === undefined) continue;
+    const target = resolvePipelineReference(reference, pipelineIndex, existingResourceKeys);
+    if (existingResourceKeys.has(target)) continue;
+    const id = buildPrefixedNodeId("pipeline", reference);
+    phantoms.set(id, { id, resourceKey: id, label: reference });
+  }
   return buildPhantomNodesFromEntries(phantoms);
 };

@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 SANITIZE_SCRIPT = Path(__file__).parent.parent / "fixtures" / "tooling" / "sanitize.py"
 
 
@@ -158,6 +160,53 @@ def test_sanitize_redacts_uc_secret_state_and_change_values() -> None:
     assert result["plan"]["resources.secrets.api_token"]["new_state"]["value"]["value"] == "[redacted]"
     assert result["plan"]["resources.secrets.api_token"]["changes"]["value"]["old"] == ""
     assert result["plan"]["resources.secret_scopes.legacy"]["new_state"]["value"]["value"] == "not-a-uc-secret-value"
+
+
+@pytest.mark.parametrize(
+    "malformed_state",
+    ["UC_SECRET_SENTINEL", 42, True, ["UC_SECRET_SENTINEL"]],
+    ids=["string", "number", "boolean", "array"],
+)
+def test_sanitize_redacts_malformed_uc_secret_states(malformed_state: object) -> None:
+    plan = {
+        "plan": {
+            "resources.secrets.api_token": {
+                "new_state": malformed_state,
+                "remote_state": malformed_state,
+            }
+        }
+    }
+
+    result = _sanitize_dict(plan)
+
+    secret = result["plan"]["resources.secrets.api_token"]
+    assert secret["new_state"] == "[redacted]"
+    assert secret["remote_state"] == "[redacted]"
+    assert "UC_SECRET_SENTINEL" not in json.dumps(result)
+    assert plan["plan"]["resources.secrets.api_token"]["new_state"] == malformed_state
+
+
+def test_sanitize_preserves_null_and_absent_uc_secret_states() -> None:
+    plan = {
+        "plan": {
+            "resources.secrets.null_state": {"new_state": None, "remote_state": None},
+            "resources.secrets.absent_state": {},
+        }
+    }
+
+    result = _sanitize_dict(plan)
+
+    assert result["plan"]["resources.secrets.null_state"]["new_state"] is None
+    assert "new_state" not in result["plan"]["resources.secrets.absent_state"]
+
+
+def test_sanitize_redacts_malformed_uc_secret_entry() -> None:
+    plan = {"plan": {"resources.secrets.api_token": "UC_SECRET_SENTINEL"}}
+
+    result = _sanitize_dict(plan)
+
+    assert result["plan"]["resources.secrets.api_token"] == "[redacted]"
+    assert "UC_SECRET_SENTINEL" not in json.dumps(result)
 
 
 def test_sanitize_redacts_malformed_uc_secret_change_payloads() -> None:

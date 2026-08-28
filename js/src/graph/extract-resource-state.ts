@@ -57,6 +57,31 @@ export const extractResourceState = (
   return undefined;
 };
 
+const extractExistingPipelineIdFromState = (state: unknown): string | undefined => {
+  const candidates = [
+    getUnknownProp(state, "existing_pipeline_id"),
+    getUnknownProp(getUnknownProp(state, "spec"), "existing_pipeline_id"),
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const normalized = candidate.trim();
+    if (normalized !== "") return normalized;
+  }
+  return undefined;
+};
+
+/** Extract an existing pipeline reference from new state, falling back to remote state. */
+export const extractExistingPipelineId = (entry: PlanEntry): string | undefined => {
+  const parsedNew = resourceNewStateSchema.safeParse(entry.new_state);
+  if (parsedNew.success) {
+    const newPipelineId = extractExistingPipelineIdFromState(parsedNew.data.value);
+    if (newPipelineId !== undefined) return newPipelineId;
+  }
+
+  const parsedRemote = resourceRemoteStateSchema.safeParse(entry.remote_state);
+  return parsedRemote.success ? extractExistingPipelineIdFromState(parsedRemote.data) : undefined;
+};
+
 /** Extract top-level or spec.source_table_full_name from a synced table entry's state. */
 export const extractSourceTableFullName = (entry: PlanEntry): string | undefined => {
   const state = extractResourceState(entry);

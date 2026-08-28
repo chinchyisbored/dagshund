@@ -126,6 +126,30 @@ def test_inject_plan_excludes_uc_secret_values() -> None:
     assert "[redacted]" in result
 
 
+@pytest.mark.parametrize(
+    "malformed_state",
+    ["UC_SECRET_SENTINEL", 42, True, ["UC_SECRET_SENTINEL"]],
+    ids=["string", "number", "boolean", "array"],
+)
+def test_inject_plan_excludes_malformed_uc_secret_state(malformed_state: object) -> None:
+    template = f"<script>{PLACEHOLDER}</script>"
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.secrets.api_token": {
+                    "action": "create",
+                    "new_state": malformed_state,
+                }
+            }
+        }
+    )
+
+    result = _inject_plan(template, plan)
+
+    assert "UC_SECRET_SENTINEL" not in result
+    assert "[redacted]" in result
+
+
 def test_inject_plan_keeps_secret_scopes_unchanged() -> None:
     template = f"<script>{PLACEHOLDER}</script>"
     plan = plan_from_dict(

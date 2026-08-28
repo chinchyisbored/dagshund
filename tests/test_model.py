@@ -379,6 +379,55 @@ def test_parse_plan_data_redacts_uc_secret_values_without_mutating_input() -> No
     assert raw["plan"]["resources.secrets.api_token"]["new_state"]["effective_value"] == "outer-effective-value"
 
 
+@pytest.mark.parametrize(
+    "malformed_state",
+    ["UC_SECRET_SENTINEL", 42, True, ["UC_SECRET_SENTINEL"]],
+    ids=["string", "number", "boolean", "array"],
+)
+def test_parse_plan_data_redacts_malformed_uc_secret_states(malformed_state: object) -> None:
+    raw = {
+        "plan": {
+            "resources.secrets.api_token": {
+                "new_state": malformed_state,
+                "remote_state": malformed_state,
+            }
+        }
+    }
+
+    result = parse_plan_data(raw)
+
+    secret = result.resources["resources.secrets.api_token"]
+    assert secret.new_state == "[redacted]"
+    assert secret.remote_state == "[redacted]"
+    assert "UC_SECRET_SENTINEL" not in json.dumps(result.raw)
+    assert raw["plan"]["resources.secrets.api_token"]["new_state"] == malformed_state
+
+
+def test_parse_plan_data_preserves_null_and_absent_uc_secret_states() -> None:
+    raw = {
+        "plan": {
+            "resources.secrets.null_state": {"new_state": None, "remote_state": None},
+            "resources.secrets.absent_state": {},
+        }
+    }
+
+    result = parse_plan_data(raw)
+    redacted = json.loads(json.dumps(result.raw))
+
+    assert redacted["plan"]["resources.secrets.null_state"]["new_state"] is None
+    assert "new_state" not in redacted["plan"]["resources.secrets.absent_state"]
+
+
+def test_parse_plan_data_redacts_malformed_uc_secret_entry() -> None:
+    raw = {"plan": {"resources.secrets.api_token": "UC_SECRET_SENTINEL"}}
+
+    result = parse_plan_data(raw)
+    redacted = json.loads(json.dumps(result.raw))
+
+    assert redacted["plan"]["resources.secrets.api_token"] == "[redacted]"
+    assert "UC_SECRET_SENTINEL" not in json.dumps(result.raw)
+
+
 def test_parse_plan_data_redacts_malformed_uc_secret_change_payloads() -> None:
     result = parse_plan_data(
         {

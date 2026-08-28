@@ -194,7 +194,7 @@ Exit codes from `-e`:
 | 2 | Plan parsed, changes detected |
 | 3 | Plan parsed, changes detected AND dangerous actions or manual edits present |
 
-Dangerous actions are deletes or recreates of stateful resources (catalogs, schemas, volumes, registered models). Manual edits are detected whenever the plan's `old` and `remote` states differ.
+Dangerous actions are deletes or recreates of stateful resources, including catalogs, schemas, volumes, registered models, experiments, and stateful Lakebase resources. Pipeline deletes or recreates are also dangerous unless `cascade_on_destroy` is explicitly `false`. Manual edits are detected whenever the plan's `old` and `remote` states differ.
 
 Without `-e`, dagshund always exits 0 on success.
 

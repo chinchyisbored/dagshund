@@ -15,8 +15,11 @@ def _redact_state_fields(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def _redact_state(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
-    if not isinstance(raw, dict):
+    if raw is None:
         return raw
+    # Secret states are an untrusted boundary: unknown non-null shapes must not pass through.
+    if not isinstance(raw, dict):
+        return REDACTED_SECRET_VALUE
     state = cast("dict[str, Any]", raw)
     wrapped = state.get("value")
     if isinstance(wrapped, dict):
@@ -41,15 +44,20 @@ def _redact_change(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
 
 
 def _redact_changes(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
-    if not isinstance(raw, dict):
+    if raw is None:
         return raw
+    if not isinstance(raw, dict):
+        return REDACTED_SECRET_VALUE
     changes = cast("dict[str, Any]", raw)
     return {field: _redact_change(change) if field in _SECRET_FIELDS else change for field, change in changes.items()}
 
 
 def _redact_entry(raw: Any) -> Any:  # noqa: ANN401 - JSON boundary
-    if not isinstance(raw, dict):
+    if raw is None:
         return raw
+    # A malformed secret entry is also untrusted and must fail closed.
+    if not isinstance(raw, dict):
+        return REDACTED_SECRET_VALUE
     entry = cast("dict[str, Any]", raw)
     return {
         key: _redact_state(value)

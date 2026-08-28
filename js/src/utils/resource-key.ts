@@ -148,6 +148,12 @@ export const DATABASE_INSTANCE_SOURCE_TYPES: ReadonlySet<string> = new Set([
   "database_catalogs",
 ]);
 
+/** Synced-table resource types that may reference an existing pipeline. */
+export const SYNCED_TABLE_SOURCE_TYPES: ReadonlySet<string> = new Set([
+  "postgres_synced_tables",
+  "synced_database_tables",
+]);
+
 /** Top-level resource types that carry a `warehouse_id` state field.
  *  Used by both the lateral edge spec and the phantom collector. */
 export const WAREHOUSE_SOURCE_TYPES: ReadonlySet<string> = new Set([

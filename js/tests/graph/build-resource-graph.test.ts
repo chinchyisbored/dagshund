@@ -1567,6 +1567,101 @@ describe("postgres_synced_tables derived pipelines", () => {
   });
 });
 
+describe("existing pipelines referenced by synced tables", () => {
+  test("renders an external existing pipeline as a dashed phantom", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "update",
+          new_state: {
+            value: {
+              existing_pipeline_id: "external-pipeline",
+              synced_table_id: "catalog.schema.orders",
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id.startsWith("postgres-synced-pipeline::"))).toBe(
+      false,
+    );
+    expect(graph.nodes).toContainEqual(
+      expect.objectContaining({
+        id: "pipeline::external-pipeline",
+        label: "external-pipeline",
+        nodeKind: "phantom",
+        resourceKey: "pipeline::external-pipeline",
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_synced_tables.orders",
+        target: "pipeline::external-pipeline",
+        diffState: "unchanged",
+      }),
+    );
+  });
+
+  test("resolves symbolic and concrete existing pipeline references to a real node", () => {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+    const symbolicId = "${resources.pipelines.shared.id}";
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "update",
+          new_state: { value: { existing_pipeline_id: symbolicId } },
+        },
+        "resources.synced_database_tables.customers": {
+          action: "update",
+          new_state: { value: { existing_pipeline_id: "pipeline-shared" } },
+        },
+        "resources.pipelines.shared": {
+          action: "skip",
+          remote_state: { pipeline_id: "pipeline-shared", name: "shared" },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id === "pipeline::pipeline-shared")).toBe(false);
+    expect(graph.lateralEdges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "resources.postgres_synced_tables.orders",
+          target: "resources.pipelines.shared",
+          diffState: "unchanged",
+        }),
+        expect.objectContaining({
+          source: "resources.synced_database_tables.customers",
+          target: "resources.pipelines.shared",
+          diffState: "unchanged",
+        }),
+      ]),
+    );
+  });
+
+  test("uses a remote nested existing pipeline reference for a deleted synced table", () => {
+    const graph = buildResourceGraph({
+      plan: {
+        "resources.synced_database_tables.deleted": {
+          action: "delete",
+          remote_state: {
+            name: "catalog.schema.deleted",
+            spec: { existing_pipeline_id: "external-pipeline" },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.synced_database_tables.deleted",
+        target: "pipeline::external-pipeline",
+      }),
+    );
+  });
+});
+
 describe("database_instances as flat workspace resources", () => {
   test("database_instance appears under workspace-root", () => {
     const graph = buildResourceGraph({

@@ -67,6 +67,31 @@ describe("derived node specs", () => {
     ]);
   });
 
+  test("does not create a managed pipeline for an existing pipeline reference", () => {
+    const newEntry: PlanEntry = {
+      new_state: {
+        value: {
+          existing_pipeline_id: "pipeline-shared",
+          synced_table_id: "generated.weather.conditions",
+        },
+      },
+    };
+    const remoteEntry: PlanEntry = {
+      action: "delete",
+      remote_state: {
+        existing_pipeline_id: "pipeline-shared",
+        synced_table_id: "generated.weather.conditions",
+      },
+    };
+
+    expect(extractDerivedNodeRefs("resources.postgres_synced_tables.conditions", newEntry)).toEqual(
+      [{ derivedKind: "ucSyncedTable", identity: "generated.weather.conditions" }],
+    );
+    expect(
+      extractDerivedNodeRefs("resources.postgres_synced_tables.conditions", remoteEntry),
+    ).toEqual([{ derivedKind: "ucSyncedTable", identity: "generated.weather.conditions" }]);
+  });
+
   test("extracts synced_table_id from remote state", () => {
     const entry: PlanEntry = {
       action: "delete",

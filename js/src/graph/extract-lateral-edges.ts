@@ -6,6 +6,7 @@ import {
   DATABASE_INSTANCE_SOURCE_TYPES,
   extractResourceType,
   LATERAL_EDGE_PREFIX,
+  SYNCED_TABLE_SOURCE_TYPES,
   WAREHOUSE_SOURCE_TYPES,
 } from "../utils/resource-key.ts";
 import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
@@ -17,6 +18,7 @@ import {
   resolvePromotedPhantomNodeId,
 } from "./derived-node-specs.ts";
 import {
+  extractExistingPipelineId,
   extractResourceState,
   extractServedEntities,
   extractSourceTableFullName,
@@ -37,6 +39,7 @@ import {
   type LateralEdgeContext,
   type ReferenceIndexes,
   resolveAppRefTargetKey,
+  resolvePipelineReference,
   resolveTaskRefTargetKey,
   TASK_REF_SPECS,
 } from "./reference-specs.ts";
@@ -119,6 +122,24 @@ const SOURCE_TABLE_SPEC: LateralEdgeSpec = {
     return targetId !== undefined ? [targetId] : [];
   },
 };
+
+/** synced table → existing pipeline reference. */
+const createExistingPipelineSpec = (
+  pipelineIndex: ReadonlyMap<string, string>,
+): LateralEdgeSpec => ({
+  sourceTypes: SYNCED_TABLE_SOURCE_TYPES,
+  extractTargetIds: (entry, context) => {
+    const reference = extractExistingPipelineId(entry);
+    if (reference === undefined) return [];
+    const targetKey = resolvePipelineReference(
+      reference,
+      pipelineIndex,
+      new Set(context.nodeIdByResourceKey.keys()),
+    );
+    const targetId = resolveExistingTargetId(targetKey, context);
+    return targetId !== undefined ? [targetId] : [];
+  },
+});
 
 /** Derived outputs depend on their owning managed resources. */
 const DERIVED_OUTPUT_SPEC: LateralEdgeSpec = {
@@ -466,6 +487,7 @@ export const extractLateralEdges = (
   const { warehouseIndex, registeredModelFullNameIndex, jobIdMap } = indexes;
   const allSpecs = [
     ...LATERAL_EDGE_SPECS,
+    createExistingPipelineSpec(indexes.pipelineIndex),
     createWarehouseSpec(warehouseIndex),
     createJobTaskRefsSpec(indexes),
     createJobRunJobTaskSpec(jobIdMap),

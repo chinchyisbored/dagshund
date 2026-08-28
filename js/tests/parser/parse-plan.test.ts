@@ -133,6 +133,63 @@ describe("parsePlanJson", () => {
     );
   });
 
+  test("redacts malformed Unity Catalog secret states", () => {
+    const malformedStates: readonly unknown[] = [
+      "UC_SECRET_SENTINEL",
+      42,
+      true,
+      ["UC_SECRET_SENTINEL"],
+    ];
+
+    for (const malformedState of malformedStates) {
+      const input = {
+        plan: {
+          "resources.secrets.api_token": {
+            new_state: malformedState,
+            remote_state: malformedState,
+          },
+        },
+      };
+      const result = parsePlanJson(input);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const secret = result.data.plan?.["resources.secrets.api_token"];
+        expect(secret?.new_state).toBe("[redacted]");
+        expect(secret?.remote_state).toBe("[redacted]");
+        expect(JSON.stringify(result.data)).not.toContain("UC_SECRET_SENTINEL");
+      }
+      expect(input.plan["resources.secrets.api_token"].new_state).toBe(malformedState);
+    }
+  });
+
+  test("preserves null and absent Unity Catalog secret states", () => {
+    const result = parsePlanJson({
+      plan: {
+        "resources.secrets.null_state": { new_state: null, remote_state: null },
+        "resources.secrets.absent_state": {},
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const nullState = result.data.plan?.["resources.secrets.null_state"];
+      const absentState = result.data.plan?.["resources.secrets.absent_state"];
+      expect(nullState?.new_state).toBeNull();
+      expect(nullState?.remote_state).toBeNull();
+      expect(Object.hasOwn(absentState ?? {}, "new_state")).toBe(false);
+      expect(Object.hasOwn(absentState ?? {}, "remote_state")).toBe(false);
+    }
+  });
+
+  test("rejects a malformed Unity Catalog secret entry", () => {
+    const result = parsePlanJson({
+      plan: { "resources.secrets.api_token": "UC_SECRET_SENTINEL" },
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
   test("parses entries with missing optional fields", () => {
     const input = {
       plan: {
