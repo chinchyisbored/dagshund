@@ -10,8 +10,6 @@ from dagshund.format import (
     collect_warnings,
     count_by_action,
     count_effects_by_action,
-    detect_drift_fields,
-    detect_drift_reentries,
     field_action_config,
     filter_resources,
     format_drift_subline_body,
@@ -26,9 +24,8 @@ from dagshund.merge import normalize_plan
 from dagshund.model import ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
+    classify_resource_drift,
     detect_changes,
-    is_topology_drift_change,
-    resource_has_shape_drift,
 )
 from dagshund.synced_table_outputs import (
     OutputRelationship,
@@ -110,15 +107,8 @@ def _render_resource(
     if not (changes and cfg.show_field_changes):
         return
 
-    reentries = detect_drift_reentries(changes)
-    shape_drift = resource_has_shape_drift(entry)
-    drift_fields = detect_drift_fields(
-        changes,
-        new_state=entry.new_state,
-        remote_state=entry.remote_state,
-        shape_drift=shape_drift,
-    )
-    if drift_fields or reentries:
+    drift = classify_resource_drift(entry)
+    if drift.has_drift:
         yield "  - :warning: manually edited outside bundle"
 
     wheel_updates = collect_wheel_updates(changes) if suppress_wheel_updates else {}
@@ -126,7 +116,7 @@ def _render_resource(
         changes,
         new_state=entry.new_state,
         remote_state=entry.remote_state,
-        shape_drift=shape_drift,
+        shape_drift=drift.has_shape_drift,
     ):
         if field_name in wheel_updates:
             continue
@@ -137,11 +127,9 @@ def _render_resource(
     for usage in summarize_wheel_updates(wheel_updates):
         yield f"  - `~` {format_wheel_update_body(usage)}"
 
-    if reentries:
+    if drift.topology_readds:
         create_cfg = action_config(ActionType.CREATE)
-        for key_name, change in sorted(changes.items()):
-            if not is_topology_drift_change(change):
-                continue
+        for key_name in drift.topology_readds:
             yield f"  - `{create_cfg.symbol}` `{key_name}` (drift) (re-added)"
 
 

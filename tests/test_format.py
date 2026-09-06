@@ -15,11 +15,10 @@ from dagshund.format import (
     collect_drift_summaries,
     collect_warnings,
     count_by_action,
-    detect_drift_fields,
-    detect_drift_reentries,
     field_action_config,
     filter_resources,
     format_display_value,
+    format_drift_reentries,
     format_drift_subline_body,
     format_field_suffix,
     format_group_header,
@@ -124,7 +123,7 @@ def test_field_action_config_non_list_element_path_falls_back_to_shape() -> None
 
 
 def test_format_field_suffix_drift_shows_remote_to_new() -> None:
-    result = format_field_suffix(make_change(old="val", new="val", remote="drifted"))
+    result = format_field_suffix(make_change(action="update", old="val", new="val", remote="drifted"))
 
     assert result == ': "drifted" -> "val" (drift)'
 
@@ -775,61 +774,6 @@ def test_collect_warnings_covers_all_stateful_types() -> None:
         assert collect_warnings(resources), f"resource type '{resource_type}' should produce a warning"
 
 
-# --- detect_drift_fields ---
-
-
-def test_detect_drift_fields_returns_empty_for_no_changes() -> None:
-    assert detect_drift_fields({}) == []
-
-
-def test_detect_drift_fields_returns_empty_when_old_differs_from_new() -> None:
-    changes = {"field": make_change(action="update", old="a", new="b", remote="c")}
-    assert detect_drift_fields(changes) == []
-
-
-def test_detect_drift_fields_returns_empty_when_old_equals_remote() -> None:
-    changes = {"field": make_change(action="update", old="a", new="a", remote="a")}
-    assert detect_drift_fields(changes) == []
-
-
-def test_detect_drift_fields_detects_remote_differs_from_old() -> None:
-    changes = {"edit_mode": make_change(action="update", old="UI_LOCKED", new="UI_LOCKED", remote="EDITABLE")}
-    assert detect_drift_fields(changes) == ["edit_mode"]
-
-
-def test_detect_drift_fields_remote_absent_not_drift() -> None:
-    changes = {"task": make_change(action="update", old={"task_key": "x"}, new={"task_key": "x"})}
-    assert detect_drift_fields(changes) == []
-
-
-def test_detect_drift_fields_skips_skip_action() -> None:
-    changes = {"field": make_change(action="skip", old="a", new="a", remote="b")}
-    assert detect_drift_fields(changes) == []
-
-
-def test_detect_drift_fields_skips_empty_action() -> None:
-    changes = {"field": make_change(action="", old="a", new="a", remote="b")}
-    assert detect_drift_fields(changes) == []
-
-
-def test_detect_drift_fields_skips_entries_without_old() -> None:
-    changes = {"field": make_change(action="update", new="a", remote="b")}
-    assert detect_drift_fields(changes) == []
-
-
-def test_detect_drift_fields_skips_entries_without_new() -> None:
-    changes = {"field": make_change(action="update", old="a", remote="b")}
-    assert detect_drift_fields(changes) == []
-
-
-def test_detect_drift_fields_returns_multiple_sorted() -> None:
-    changes = {
-        "z_field": make_change(action="update", old=1, new=1, remote=2),
-        "a_field": make_change(action="update", old="x", new="x", remote="y"),
-    }
-    assert detect_drift_fields(changes) == ["a_field", "z_field"]
-
-
 # --- _extract_drift_label_noun ---
 
 
@@ -852,55 +796,19 @@ def test_extract_drift_label_noun(key: str, expected: tuple[str, str]) -> None:
     assert _extract_drift_label_noun(key) == expected
 
 
-# --- detect_drift_reentries ---
+# --- format_drift_reentries ---
 
 
-def test_detect_drift_reentries_empty_returns_empty_list() -> None:
-    assert detect_drift_reentries({}) == []
+def test_format_drift_reentries_empty_returns_empty_tuple() -> None:
+    assert format_drift_reentries(()) == ()
 
 
-def test_detect_drift_reentries_single_topology_drift_entry() -> None:
-    changes = {
-        "tasks[task_key='transform']": make_change(
-            action="update",
-            old={"task_key": "transform"},
-            new={"task_key": "transform"},
-        ),
-    }
-    assert detect_drift_reentries(changes) == [("task", "transform")]
+def test_format_drift_reentries_keys_sorted_by_noun_and_label() -> None:
+    keys = ("tasks[task_key='zulu']", "grants.[principal='readers']", "tasks[task_key='alpha']")
 
+    result = format_drift_reentries(keys)
 
-def test_detect_drift_reentries_skips_field_drift_and_skip_actions() -> None:
-    changes = {
-        "tasks[task_key='transform']": make_change(
-            action="update",
-            old={"task_key": "transform"},
-            new={"task_key": "transform"},
-        ),
-        "edit_mode": make_change(action="update", old="UI", new="UI", remote="EDITABLE"),
-        "noise": make_change(action="skip", remote=0),
-    }
-    assert detect_drift_reentries(changes) == [("task", "transform")]
-
-
-def test_detect_drift_reentries_sort_stability() -> None:
-    """Insertion order must not bleed through — results are sorted by (noun, label)."""
-    entry_zulu = make_change(action="update", old={"x": 1}, new={"x": 1})
-    entry_alpha = make_change(action="update", old={"y": 2}, new={"y": 2})
-    changes = {
-        "tasks[task_key='zulu']": entry_zulu,
-        "tasks[task_key='alpha']": entry_alpha,
-    }
-    assert detect_drift_reentries(changes) == [("task", "alpha"), ("task", "zulu")]
-
-
-def test_detect_drift_reentries_multiple_same_noun() -> None:
-    changes = {
-        "tasks[task_key='alpha']": make_change(action="update", old={"a": 1}, new={"a": 1}),
-        "tasks[task_key='beta']": make_change(action="update", old={"b": 2}, new={"b": 2}),
-    }
-    pairs = detect_drift_reentries(changes)
-    assert pairs == [("task", "alpha"), ("task", "beta")]
+    assert result == (("grant", "readers"), ("task", "alpha"), ("task", "zulu"))
 
 
 # --- iter_non_topology_field_changes ---

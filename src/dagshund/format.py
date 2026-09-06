@@ -8,13 +8,12 @@ from typing import cast
 from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
 from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
 from dagshund.plan import (
-    DANGEROUS_ACTIONS,
-    STATEFUL_RESOURCE_WARNINGS,
+    ResourceLossRisk,
     action_to_diff_state,
-    classify_pipeline_cascade_risk,
+    classify_resource_drift,
+    classify_resource_loss_risk,
     has_drifted_field,
     is_topology_drift_change,
-    resource_has_shape_drift,
 )
 from dagshund.types import (
     DiffState,
@@ -170,13 +169,13 @@ def format_field_suffix(change: FieldChange, ctx: FieldChangeContext | None = No
     if ctx is not None and not has_old and not has_new and has_remote:
         semantic = extract_list_element_semantic(ctx)
         if semantic == "delete":
-            tag = " (drift)" if ctx.resource_has_shape_drift else ""
+            tag = " (drift)" if has_drifted_field(change, ctx) else ""
             return f": {format_value(change.remote)}{tag}"
         if semantic == "create":
             return f": {format_display_value(change.remote)}"
 
     # Drift: old == new but remote differs — show what the deploy will overwrite
-    if has_old and has_new and change.old == change.new and has_remote and change.remote != change.old:
+    if has_drifted_field(change):
         return f": {format_value(change.remote)} -> {format_value(change.new)} (drift)"
 
     # No-op: old == new with no meaningful remote difference — suppress
@@ -194,30 +193,6 @@ def format_field_suffix(change: FieldChange, ctx: FieldChangeContext | None = No
     if has_old:
         return f": {format_display_value(change.old)}"
     return ""
-
-
-def detect_drift_fields(
-    changes: Mapping[str, FieldChange],
-    *,
-    new_state: object | None = None,
-    remote_state: object | None = None,
-    shape_drift: bool = False,
-) -> list[str]:
-    if not changes:
-        return []
-    return sorted(
-        field_name
-        for field_name, change in changes.items()
-        if has_drifted_field(
-            change,
-            FieldChangeContext(
-                change_key=field_name,
-                new_state=new_state,
-                remote_state=remote_state,
-                resource_has_shape_drift=shape_drift,
-            ),
-        )
-    )
 
 
 # Captures optional noun segment + single-quoted label in final bracket group.
@@ -249,18 +224,8 @@ def _extract_drift_label_noun(key: str) -> tuple[str, str]:
     return (_singularize(noun_raw) if noun_raw else "entity"), label
 
 
-def detect_drift_reentries(
-    changes: Mapping[str, FieldChange],
-) -> list[tuple[str, str]]:
-    if not changes:
-        return []
-    pairs: list[tuple[str, str]] = []
-    for key, change in changes.items():
-        if not is_topology_drift_change(change):
-            continue
-        pairs.append(_extract_drift_label_noun(key))
-    pairs.sort()
-    return pairs
+def format_drift_reentries(keys: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted(_extract_drift_label_noun(key) for key in keys))
 
 
 def iter_non_topology_field_changes(
@@ -348,14 +313,24 @@ def format_group_header(resource_type: ResourceType, total: int, visible: int) -
     return f"{resource_type} {count}"
 
 
-def _extract_resource_loss_risk(resource_type: str, entry: ResourceChange) -> str | None:
-    if resource_type != "pipelines":
-        return STATEFUL_RESOURCE_WARNINGS.get(resource_type)
-    cascade_risk = classify_pipeline_cascade_risk(entry)
-    if cascade_risk == "safe":
-        return None
+_STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
+    "catalogs": "all schemas, tables, and volumes in this catalog will be lost",
+    "schemas": "all tables, views, and volumes in this schema will be lost",
+    "volumes": "all files in this volume will be lost",
+    "registered_models": "all model versions will be lost",
+    "experiments": "all experiment runs and metrics will be lost",
+    "database_instances": "all catalogs and tables on this instance will be lost",
+    "postgres_projects": "all branches and endpoints in this project will be lost",
+    "postgres_branches": "all data on this branch will be lost",
+    "postgres_databases": "all data in this Lakebase database will be lost",
+}
+
+
+def _format_resource_loss_risk(resource_type: str, risk: ResourceLossRisk) -> str:
+    if risk == "stateful":
+        return _STATEFUL_RESOURCE_WARNINGS[resource_type]
     datasets = "pipeline-managed materialized views, streaming tables, and views"
-    if cascade_risk == "enabled":
+    if risk == "pipeline-cascade-enabled":
         return f"{datasets} will also be deleted"
     return f"{datasets} may also be deleted because cascade_on_destroy is unavailable in this plan"
 
@@ -372,36 +347,26 @@ def collect_warnings(
         visible_states=visible_states,
         resource_filter=resource_filter,
     ):
-        if entry.action not in DANGEROUS_ACTIONS:
-            continue
         resource_type, resource_name = parse_resource_key(key)
-        risk = _extract_resource_loss_risk(resource_type, entry)
+        risk = classify_resource_loss_risk(resource_type, entry)
         if risk is None:
             continue
         action_display = action_config(entry.action).display
-        warnings.append(f"{resource_type}/{resource_name} will be {action_display}d \u2014 {risk}")
+        description = _format_resource_loss_risk(resource_type, risk)
+        warnings.append(f"{resource_type}/{resource_name} will be {action_display}d \u2014 {description}")
     return warnings
 
 
 def _summarize_resource_drift(key: ResourceKey, entry: ResourceChange) -> DriftSummary | None:
-    shape_drift = resource_has_shape_drift(entry)
-    overwritten = len(
-        detect_drift_fields(
-            entry.changes,
-            new_state=entry.new_state,
-            remote_state=entry.remote_state,
-            shape_drift=shape_drift,
-        )
-    )
-    reentries = tuple(detect_drift_reentries(entry.changes))
-    if overwritten == 0 and not reentries:
+    drift = classify_resource_drift(entry)
+    if not drift.has_drift:
         return None
     resource_type, resource_name = parse_resource_key(key)
     return DriftSummary(
         resource_type=resource_type,
         resource_name=resource_name,
-        overwritten_field_count=overwritten,
-        reentries=reentries,
+        overwritten_field_count=len(drift.overwritten_fields),
+        reentries=format_drift_reentries(drift.topology_readds),
     )
 
 

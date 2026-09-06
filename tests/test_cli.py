@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -320,6 +321,209 @@ def test_main_stdin_with_output_flag_writes_html(
 
 
 # --- --detailed-exitcode ---
+
+
+@dataclass(frozen=True, slots=True)
+class PlanSemanticsCase:
+    name: str
+    resources: dict[str, object]
+    exit_code: int
+    drift: bool = False
+    danger: bool = False
+    expected_lines: tuple[str, ...] = ()
+
+
+_PLAN_SEMANTICS_CASES = (
+    PlanSemanticsCase("unchanged", {"resources.jobs.test": {"action": "skip"}}, 0),
+    PlanSemanticsCase(
+        "ordinary-change",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {"name": {"action": "update", "old": "a", "new": "b"}},
+            }
+        },
+        2,
+    ),
+    PlanSemanticsCase(
+        "equal-remote",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {"name": {"action": "update", "old": "a", "new": "a", "remote": "a"}},
+            }
+        },
+        2,
+    ),
+    PlanSemanticsCase(
+        "field-drift",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {"name": {"action": "update", "old": "a", "new": "a", "remote": "b"}},
+            }
+        },
+        3,
+        drift=True,
+        expected_lines=("1 field will be overwritten",),
+    ),
+    PlanSemanticsCase(
+        "topology-task",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {
+                    "tasks[task_key='transform']": {
+                        "action": "update",
+                        "old": {"task_key": "transform"},
+                        "new": {"task_key": "transform"},
+                    }
+                },
+            }
+        },
+        3,
+        drift=True,
+        expected_lines=("1 task will be re-added (transform)", "(drift) (re-added)"),
+    ),
+    PlanSemanticsCase(
+        "topology-grant-subresource",
+        {
+            "resources.schemas.test": {"action": "skip"},
+            "resources.schemas.test.grants": {
+                "action": "update",
+                "changes": {
+                    "[principal='readers']": {
+                        "action": "update",
+                        "old": {"principal": "readers"},
+                        "new": {"principal": "readers"},
+                    }
+                },
+            },
+        },
+        3,
+        drift=True,
+        expected_lines=("1 grant will be re-added (readers)", "(drift) (re-added)"),
+    ),
+    PlanSemanticsCase(
+        "mixed-list-drift",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {
+                    "name": {"action": "update", "old": "a", "new": "a", "remote": "b"},
+                    "tasks[task_key='removed']": {"action": "update", "remote": {"task_key": "removed"}},
+                    "tasks[task_key='transform']": {
+                        "action": "update",
+                        "old": {"task_key": "transform"},
+                        "new": {"task_key": "transform"},
+                    },
+                },
+                "new_state": {"value": {"tasks": [{"task_key": "transform"}]}},
+                "remote_state": {"tasks": [{"task_key": "removed"}]},
+            }
+        },
+        3,
+        drift=True,
+        expected_lines=(
+            "2 fields will be overwritten",
+            "1 task will be re-added (transform)",
+            ': {task_key: "removed"} (drift)',
+        ),
+    ),
+    PlanSemanticsCase(
+        "list-removal-without-shape-drift",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {"tasks[task_key='removed']": {"action": "update", "remote": {"task_key": "removed"}}},
+                "new_state": {"value": {"tasks": []}},
+                "remote_state": {"tasks": [{"task_key": "removed"}]},
+            }
+        },
+        2,
+    ),
+    PlanSemanticsCase(
+        "skip-fields",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {
+                    "name": {"action": "skip", "old": "a", "new": "a", "remote": "b"},
+                    "tasks[task_key='transform']": {
+                        "action": "skip",
+                        "old": {"task_key": "transform"},
+                        "new": {"task_key": "transform"},
+                    },
+                },
+            }
+        },
+        2,
+    ),
+    PlanSemanticsCase("stateful-delete", {"resources.volumes.test": {"action": "delete"}}, 3, danger=True),
+    PlanSemanticsCase("stateful-recreate", {"resources.schemas.test": {"action": "recreate"}}, 3, danger=True),
+    PlanSemanticsCase("stateless-delete", {"resources.jobs.test": {"action": "delete"}}, 2),
+    PlanSemanticsCase("stateful-update", {"resources.volumes.test": {"action": "update"}}, 2),
+    *(
+        PlanSemanticsCase(
+            f"pipeline-{action}-{name}",
+            {"resources.pipelines.test": {"action": action, **state}},
+            3 if danger else 2,
+            danger=danger,
+        )
+        for action in ("delete", "recreate")
+        for name, state, danger in (
+            ("enabled", {"new_state": {"value": {"cascade_on_destroy": True}}}, True),
+            ("safe", {"new_state": {"value": {"cascade_on_destroy": False}}}, False),
+            ("unavailable", {}, True),
+            ("remote-safe", {"remote_state": {"cascade_on_destroy": False}}, False),
+            ("remote-enabled", {"remote_state": {"cascade_on_destroy": True}}, True),
+            (
+                "new-wins",
+                {"new_state": {"value": {"cascade_on_destroy": False}}, "remote_state": {"cascade_on_destroy": True}},
+                False,
+            ),
+            (
+                "invalid-new-fallback",
+                {"new_state": {"value": {"cascade_on_destroy": "false"}}, "remote_state": {"cascade_on_destroy": True}},
+                True,
+            ),
+            ("invalid-remote", {"remote_state": {"cascade_on_destroy": "false"}}, True),
+        )
+    ),
+)
+
+
+@pytest.mark.parametrize("case", _PLAN_SEMANTICS_CASES, ids=lambda c: c.name)
+def test_detailed_exitcode_semantics_agree_with_both_renderers(case: PlanSemanticsCase) -> None:
+    raw = json.dumps({"plan": case.resources})
+
+    results = tuple(_run_dagshund("-e", "--format", output_format, stdin=raw) for output_format in ("term", "md"))
+
+    for result in results:
+        assert result.stderr == ""
+        assert ("Manual Edits Detected" in result.stdout) is case.drift
+        assert ("manually edited outside bundle" in result.stdout) is case.drift
+        assert ("Dangerous Actions" in result.stdout) is case.danger
+        for line in case.expected_lines:
+            assert line in result.stdout
+        assert result.returncode == case.exit_code
+
+
+@pytest.mark.parametrize(
+    "case", tuple(case for case in _PLAN_SEMANTICS_CASES if case.drift or case.danger), ids=lambda c: c.name
+)
+def test_detailed_exitcode_hidden_risks_still_exit_three(case: PlanSemanticsCase) -> None:
+    raw = json.dumps({"plan": case.resources})
+    options = (("-f", "type:experiments"), ("-a",), ("--suppress-wheel-updates",), ("-q",))
+
+    results = tuple(_run_dagshund("-e", *option, stdin=raw) for option in options)
+
+    for result in results:
+        assert result.stderr == ""
+        assert result.returncode == 3
+    for result in (results[0], results[1], results[3]):
+        assert "Manual Edits Detected" not in result.stdout
+        assert "Dangerous Actions" not in result.stdout
 
 
 def test_detailed_exitcode_no_changes_exits_zero(fixtures_dir: Path) -> None:

@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Literal, cast
 
 from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
@@ -8,10 +9,13 @@ from dagshund.types import DiffState, ResourceKey, parse_resource_key
 __all__ = [
     "DANGEROUS_ACTIONS",
     "STATEFUL_RESOURCE_TYPES",
-    "STATEFUL_RESOURCE_WARNINGS",
     "PipelineCascadeRisk",
+    "ResourceDrift",
+    "ResourceLossRisk",
     "action_to_diff_state",
     "classify_pipeline_cascade_risk",
+    "classify_resource_drift",
+    "classify_resource_loss_risk",
     "detect_changes",
     "detect_dangerous_actions",
     "detect_manual_edits",
@@ -22,23 +26,35 @@ __all__ = [
 
 DANGEROUS_ACTIONS: frozenset[ActionType] = frozenset({ActionType.DELETE, ActionType.RECREATE})
 
-STATEFUL_RESOURCE_WARNINGS: dict[str, str] = {
-    # Unity Catalog
-    "catalogs": "all schemas, tables, and volumes in this catalog will be lost",
-    "schemas": "all tables, views, and volumes in this schema will be lost",
-    "volumes": "all files in this volume will be lost",
-    "registered_models": "all model versions will be lost",
-    "experiments": "all experiment runs and metrics will be lost",
-    # PostgreSQL
-    "database_instances": "all catalogs and tables on this instance will be lost",
-    "postgres_projects": "all branches and endpoints in this project will be lost",
-    "postgres_branches": "all data on this branch will be lost",
-    "postgres_databases": "all data in this Lakebase database will be lost",
-}
-
-STATEFUL_RESOURCE_TYPES: frozenset[str] = frozenset(STATEFUL_RESOURCE_WARNINGS)
+STATEFUL_RESOURCE_TYPES: frozenset[str] = frozenset(
+    {
+        "catalogs",
+        "schemas",
+        "volumes",
+        "registered_models",
+        "experiments",
+        "database_instances",
+        "postgres_projects",
+        "postgres_branches",
+        "postgres_databases",
+    }
+)
 
 type PipelineCascadeRisk = Literal["safe", "enabled", "unavailable"]
+type ResourceLossRisk = Literal["stateful", "pipeline-cascade-enabled", "pipeline-cascade-unavailable"]
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceDrift:
+    """Drift facts for a normalized resource, independent of presentation filters."""
+
+    overwritten_fields: tuple[str, ...]
+    topology_readds: tuple[str, ...]
+    has_shape_drift: bool
+
+    @property
+    def has_drift(self) -> bool:
+        return bool(self.overwritten_fields or self.topology_readds)
 
 
 def _as_mapping(value: object | None) -> Mapping[str, object] | None:
@@ -120,7 +136,7 @@ def is_topology_drift_change(change: FieldChange) -> bool:
 
     Databricks encodes ``bundle has X, remote doesn't — bundle will recreate it``
     as ``action=update`` with ``old == new`` and no ``remote`` field. Operates on
-    post-merge change keys (see ``merge.py``); callers live in ``format.py``.
+    post-merge change keys (see ``merge.py``).
 
     Direct mirror of the JS predicate at ``js/src/utils/structural-diff.ts``.
     Gated strictly on ``action=update`` — ``recreate``/``resize``/``update_id``
@@ -140,27 +156,44 @@ def is_topology_drift_change(change: FieldChange) -> bool:
     return change.old == change.new
 
 
-def detect_manual_edits(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
-    for entry in resources.values():
-        shape_drift = resource_has_shape_drift(entry)
-        for change_key, change in entry.changes.items():
-            ctx = FieldChangeContext(
-                change_key=change_key,
+def classify_resource_drift(entry: ResourceChange) -> ResourceDrift:
+    shape_drift = resource_has_shape_drift(entry)
+    overwritten = tuple(
+        key
+        for key, change in sorted(entry.changes.items())
+        if has_drifted_field(
+            change,
+            FieldChangeContext(
+                change_key=key,
                 new_state=entry.new_state,
                 remote_state=entry.remote_state,
                 resource_has_shape_drift=shape_drift,
-            )
-            if has_drifted_field(change, ctx):
-                return True
-    return False
+            ),
+        )
+    )
+    readds = tuple(key for key, change in sorted(entry.changes.items()) if is_topology_drift_change(change))
+    return ResourceDrift(overwritten_fields=overwritten, topology_readds=readds, has_shape_drift=shape_drift)
+
+
+def detect_manual_edits(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
+    return any(classify_resource_drift(entry).has_drift for entry in resources.values())
+
+
+def classify_resource_loss_risk(resource_type: str, entry: ResourceChange) -> ResourceLossRisk | None:
+    if entry.action not in DANGEROUS_ACTIONS:
+        return None
+    if resource_type in STATEFUL_RESOURCE_TYPES:
+        return "stateful"
+    if resource_type == "pipelines":
+        cascade_risk = classify_pipeline_cascade_risk(entry)
+        if cascade_risk == "enabled":
+            return "pipeline-cascade-enabled"
+        if cascade_risk == "unavailable":
+            return "pipeline-cascade-unavailable"
+    return None
 
 
 def detect_dangerous_actions(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
     return any(
-        entry.action in DANGEROUS_ACTIONS
-        and (
-            (resource_type := parse_resource_key(key)[0]) in STATEFUL_RESOURCE_TYPES
-            or (resource_type == "pipelines" and classify_pipeline_cascade_risk(entry) != "safe")
-        )
-        for key, entry in resources.items()
+        classify_resource_loss_risk(parse_resource_key(key)[0], entry) is not None for key, entry in resources.items()
     )

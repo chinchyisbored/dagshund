@@ -1,12 +1,16 @@
 """Tests for plan parsing, change detection, and drift predicates."""
 
+from dataclasses import dataclass
+
 import pytest
 from factories import make_change, make_resource, resources_from_dict
 
-from dagshund.model import parse_plan
+from dagshund.model import FieldChange, parse_plan
 from dagshund.plan import (
     DANGEROUS_ACTIONS,
     STATEFUL_RESOURCE_TYPES,
+    ResourceDrift,
+    classify_resource_drift,
     detect_changes,
     detect_dangerous_actions,
     detect_manual_edits,
@@ -79,6 +83,71 @@ def test_detect_changes_with_create_returns_true() -> None:
 
 def test_detect_changes_empty_dict_returns_false() -> None:
     assert detect_changes({}) is False
+
+
+# --- classify_resource_drift ---
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceDriftCase:
+    name: str
+    changes: dict[str, FieldChange]
+    expected: ResourceDrift
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ResourceDriftCase("empty", {}, ResourceDrift((), (), False)),
+        ResourceDriftCase(
+            "ordinary",
+            {"field": make_change(action="update", old="a", new="b", remote="c")},
+            ResourceDrift((), (), False),
+        ),
+        ResourceDriftCase(
+            "equal-remote",
+            {"field": make_change(action="update", old="a", new="a", remote="a")},
+            ResourceDrift((), (), False),
+        ),
+        ResourceDriftCase(
+            "missing-old", {"field": make_change(action="update", new="a", remote="b")}, ResourceDrift((), (), False)
+        ),
+        ResourceDriftCase(
+            "missing-new", {"field": make_change(action="update", old="a", remote="b")}, ResourceDrift((), (), False)
+        ),
+        ResourceDriftCase(
+            "skip", {"field": make_change(action="skip", old="a", new="a", remote="b")}, ResourceDrift((), (), False)
+        ),
+        ResourceDriftCase(
+            "empty-action", {"field": make_change(old="a", new="a", remote="b")}, ResourceDrift((), (), False)
+        ),
+        ResourceDriftCase(
+            "topology-only",
+            {"task": make_change(action="update", old={"task_key": "x"}, new={"task_key": "x"})},
+            ResourceDrift((), ("task",), False),
+        ),
+        ResourceDriftCase(
+            "sorted-mixed",
+            {
+                "z_field": make_change(action="update", old=1, new=1, remote=2),
+                "a_field": make_change(action="update", old="x", new="x", remote="y"),
+                "tasks[task_key='zulu']": make_change(action="update", old={"x": 1}, new={"x": 1}),
+                "tasks[task_key='alpha']": make_change(action="update", old={"y": 2}, new={"y": 2}),
+                "noise": make_change(action="skip", old=1, new=1),
+            },
+            ResourceDrift(("a_field", "z_field"), ("tasks[task_key='alpha']", "tasks[task_key='zulu']"), True),
+        ),
+    ],
+    ids=lambda c: c.name,
+)
+def test_classify_resource_drift_partitions_changes(case: ResourceDriftCase) -> None:
+    entry = make_resource(action="update", changes=case.changes)
+
+    result = classify_resource_drift(entry)
+
+    assert result == case.expected
+    assert result.has_drift is bool(case.expected.overwritten_fields or case.expected.topology_readds)
+    assert detect_manual_edits({entry.key: entry}) is result.has_drift
 
 
 # --- has_drifted_field ---

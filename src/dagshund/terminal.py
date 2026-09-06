@@ -15,8 +15,6 @@ from dagshund.format import (
     collect_warnings,
     count_by_action,
     count_effects_by_action,
-    detect_drift_fields,
-    detect_drift_reentries,
     field_action_config,
     filter_resources,
     format_display_value,
@@ -33,9 +31,9 @@ from dagshund.merge import normalize_plan
 from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
+    classify_resource_drift,
     detect_changes,
-    is_topology_drift_change,
-    resource_has_shape_drift,
+    has_drifted_field,
 )
 from dagshund.synced_table_outputs import (
     OutputRelationship,
@@ -115,7 +113,7 @@ def _wrap_transition(prefix: str, change: FieldChange) -> str | None:
 
     # Drift: old == new but remote differs — show remote -> new (drift)
     # Uses format_value (no truncation) to match format_field_suffix drift path
-    if change.old == change.new and change.remote is not UNSET and change.remote != change.old:
+    if has_drifted_field(change):
         left = format_value(change.remote)
         right = format_value(change.new)
         first = f"{prefix}: {left}"
@@ -241,15 +239,8 @@ def _render_resource(
     if not (changes and cfg.show_field_changes):
         return
 
-    reentries = detect_drift_reentries(changes)
-    shape_drift = resource_has_shape_drift(entry)
-    drift_fields = detect_drift_fields(
-        changes,
-        new_state=entry.new_state,
-        remote_state=entry.remote_state,
-        shape_drift=shape_drift,
-    )
-    if drift_fields or reentries:
+    drift = classify_resource_drift(entry)
+    if drift.has_drift:
         yield _colorize("      \u26a0 manually edited outside bundle", YELLOW, use_color=use_color)
 
     wheel_updates = collect_wheel_updates(changes) if suppress_wheel_updates else {}
@@ -257,7 +248,7 @@ def _render_resource(
         changes,
         new_state=entry.new_state,
         remote_state=entry.remote_state,
-        shape_drift=shape_drift,
+        shape_drift=drift.has_shape_drift,
     ):
         if field_name in wheel_updates:
             continue
@@ -269,12 +260,10 @@ def _render_resource(
         line = f"      ~ {format_wheel_update_body(usage)}"
         yield _colorize(line, YELLOW, use_color=use_color)
 
-    if reentries:
+    if drift.topology_readds:
         create_cfg = action_config(ActionType.CREATE)
         create_color = _action_color(create_cfg)
-        for key_name, change in sorted(changes.items()):
-            if not is_topology_drift_change(change):
-                continue
+        for key_name in drift.topology_readds:
             line = f"      {create_cfg.symbol} {key_name} (drift) (re-added)"
             yield _colorize(line, create_color, use_color=use_color)
 
