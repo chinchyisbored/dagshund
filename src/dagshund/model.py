@@ -148,11 +148,14 @@ def _parse_depends_on(value: object) -> tuple[tuple[str, str | None], ...]:
 
 @dataclass(frozen=True, slots=True)
 class Plan:
-    """Top-level plan envelope.
+    """Parsed plan envelope, never a container for normalized resources.
 
-    `raw` preserves the parsed input after UC secret values are redacted.
-    Browser rendering serialises it directly so no secret payload reaches HTML.
-    Nothing in the codebase mutates it.
+    `resources` contains the parsed, redacted entries before sub-resource merging
+    or effect folding. Callers normalize it separately for Python reporting.
+    `raw` preserves the original parsed input after UC secret values are redacted,
+    including entries later absorbed by normalization. Browser rendering serialises
+    it directly. It is not the exact source bytes used for provenance hashing.
+    Neither mapping is mutated during normalization or rendering.
     """
 
     resources: Mapping[ResourceKey, ResourceChange]
@@ -164,6 +167,7 @@ class Plan:
 
 
 def parse_plan(raw: str) -> Plan:
+    """Parse and redact JSON without normalizing its resource entries."""
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -178,6 +182,7 @@ def parse_plan(raw: str) -> Plan:
 
 
 def parse_plan_data(raw: Mapping[str, object]) -> Plan:
+    """Parse and redact a decoded payload, retaining all original plan entries."""
     raw = redact_uc_secret_values(raw)
     raw_resources = raw.get("plan")
     resources: dict[ResourceKey, ResourceChange] = {}

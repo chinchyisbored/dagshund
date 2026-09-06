@@ -555,10 +555,11 @@ def test_integration_generator_path_balanced(
     real_plan_json: str,
 ) -> None:
     from dagshund.markdown import render_markdown
+    from dagshund.merge import normalize_plan
     from dagshund.model import parse_plan
 
     plan = parse_plan(real_plan_json)
-    render_markdown(plan)
+    render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
     msgs = _messages(profile_tracing)
 
     def glyph(m: str) -> str:

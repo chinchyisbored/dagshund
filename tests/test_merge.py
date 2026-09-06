@@ -22,7 +22,7 @@ from dagshund.merge import (
     merge_sub_resources,
     normalize_plan,
 )
-from dagshund.model import UNSET, ActionType
+from dagshund.model import UNSET, ActionType, parse_plan_data
 
 # --- extract_parent_resource_key ---
 
@@ -472,6 +472,39 @@ def test_normalize_plan_target_resolution_shared_fixture(case: _EffectCase) -> N
     else:
         # Unresolved effects stay standalone — Python has no phantom-node concept.
         assert case.effect_key in normalized
+
+
+def test_normalize_plan_leaves_parsed_resources_and_redacted_payload_unchanged() -> None:
+    parsed = parse_plan_data(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "new_state": {"value": {"name": "etl"}}},
+                "resources.jobs.etl.permissions": {
+                    "action": "create",
+                    "new_state": {"value": {"permission_level": "CAN_MANAGE"}},
+                },
+                "resources.job_runs.nightly": {
+                    "action": "create",
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                },
+                "resources.secrets.token": {"new_state": {"value": "UC_SECRET_SENTINEL"}},
+            }
+        }
+    )
+    snapshot = copy.deepcopy(parsed)
+
+    normalized = normalize_plan(parsed.resources)
+
+    assert parsed == snapshot
+    assert "UC_SECRET_SENTINEL" not in json.dumps(parsed.raw)
+    assert "[redacted]" in json.dumps(parsed.raw)
+    assert set(normalized) == {"resources.jobs.etl", "resources.secrets.token"}
+    parent = normalized["resources.jobs.etl"]
+    assert parent.action == ActionType.UPDATE
+    assert "permissions" in parent.changes
+    assert tuple(effect.name for effect in parent.effects) == ("nightly",)
+    assert parsed.resources["resources.jobs.etl"].action == ActionType.SKIP
+    assert parsed.resources["resources.jobs.etl"].effects == ()
 
 
 # --- normalize_plan (folding behavior) ---

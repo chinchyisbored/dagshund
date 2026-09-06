@@ -34,10 +34,10 @@ from dagshund.terminal import (
 )
 from dagshund.types import DagshundError, DiffState
 
-# --- render_text merges sub-resources (integration) ---
+# --- render_text consumes normalized sub-resources (integration) ---
 
 
-def test_render_text_merges_sub_resources(capsys: pytest.CaptureFixture[str]) -> None:
+def test_render_text_normalized_sub_resources_show_under_parent(capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(
         {
             "plan_version": 2,
@@ -58,7 +58,7 @@ def test_render_text_merges_sub_resources(capsys: pytest.CaptureFixture[str]) ->
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "test_job" in out
@@ -650,7 +650,7 @@ def test_render_resource_non_dict_change_entry_skips_that_field() -> None:
 
 
 def test_print_header_shows_version_info(capsys: pytest.CaptureFixture[str]) -> None:
-    _print_header(make_plan(cli_version="0.287.0", plan_version=2), use_color=False)
+    _print_header(cli_version="0.287.0", plan_version=2, use_color=False)
 
     out = capsys.readouterr().out
     assert "v2" in out
@@ -658,7 +658,7 @@ def test_print_header_shows_version_info(capsys: pytest.CaptureFixture[str]) -> 
 
 
 def test_print_header_defaults_when_missing(capsys: pytest.CaptureFixture[str]) -> None:
-    _print_header(make_plan(), use_color=False)
+    _print_header(cli_version=None, plan_version=None, use_color=False)
 
     out = capsys.readouterr().out
     assert "unknown" in out
@@ -744,18 +744,18 @@ def test_print_summary_all_same_action(capsys: pytest.CaptureFixture[str]) -> No
 
 def test_render_text_empty_plan_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
-        render_text(plan_from_dict({"plan": {}}))
+        render_text(normalize_plan(plan_from_dict({"plan": {}}).resources))
 
 
 def test_render_text_missing_plan_key_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
-        render_text(plan_from_dict({"cli_version": "1.0"}))
+        render_text(normalize_plan(plan_from_dict({"cli_version": "1.0"}).resources))
 
 
 def test_render_text_all_unchanged_shows_no_changes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "no-changes" / "plan.json").read_text()))
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "No changes" in out
@@ -770,7 +770,7 @@ def test_render_text_invalid_plan_does_not_raise(fixtures_dir: Path, capsys: pyt
     """A malformed plan (bad action, non-dict changes, wrong-typed version) must render without raising."""
     plan = plan_from_dict(json.loads((fixtures_dir / "invalid-plan.json").read_text()))
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "some_resource" in out
@@ -782,7 +782,8 @@ def test_render_text_force_color_includes_ansi(
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setenv("FORCE_COLOR", "1")
 
-    render_text(plan_from_dict(json.loads(real_plan_json)))
+    plan = plan_from_dict(json.loads(real_plan_json))
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert RESET in out
@@ -793,7 +794,8 @@ def test_render_text_no_color_excludes_ansi(
 ) -> None:
     monkeypatch.setenv("NO_COLOR", "")
 
-    render_text(plan_from_dict(json.loads(real_plan_json)))
+    plan = plan_from_dict(json.loads(real_plan_json))
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert RESET not in out
@@ -859,7 +861,12 @@ def test_render_text_changes_only_hides_unchanged(fixtures_dir: Path, capsys: py
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
     all_changes = frozenset({DiffState.ADDED, DiffState.MODIFIED, DiffState.REMOVED})
 
-    render_text(plan, visible_states=all_changes)
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        visible_states=all_changes,
+    )
 
     out = capsys.readouterr().out
     # Changed resources visible
@@ -875,7 +882,12 @@ def test_render_text_changes_only_hides_unchanged(fixtures_dir: Path, capsys: py
 def test_render_text_added_only_shows_creates(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    render_text(plan, visible_states=frozenset({DiffState.ADDED}))
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        visible_states=frozenset({DiffState.ADDED}),
+    )
 
     out = capsys.readouterr().out
     assert "experiments/audit_analysis_final" in out
@@ -888,7 +900,12 @@ def test_render_text_added_only_shows_creates(fixtures_dir: Path, capsys: pytest
 def test_render_text_removed_only_shows_deletes(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    render_text(plan, visible_states=frozenset({DiffState.REMOVED}))
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        visible_states=frozenset({DiffState.REMOVED}),
+    )
 
     out = capsys.readouterr().out
     assert "volumes/old_exports" in out
@@ -899,7 +916,7 @@ def test_render_text_removed_only_shows_deletes(fixtures_dir: Path, capsys: pyte
 def test_render_text_no_visible_states_shows_everything(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "jobs" in out
@@ -940,7 +957,7 @@ def test_print_warnings_no_color_when_disabled(capsys: pytest.CaptureFixture[str
 def test_render_text_shows_warning_for_volume_delete(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "\u26a0" in out
@@ -951,7 +968,7 @@ def test_render_text_shows_warning_for_volume_delete(fixtures_dir: Path, capsys:
 def test_render_text_warning_appears_after_summary(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     summary_pos = out.index("create,")
@@ -971,7 +988,7 @@ def test_render_text_no_warnings_for_safe_plan(capsys: pytest.CaptureFixture[str
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "\u26a0" not in out
@@ -980,7 +997,12 @@ def test_render_text_no_warnings_for_safe_plan(capsys: pytest.CaptureFixture[str
 def test_render_text_warning_hidden_when_filtered_out(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    render_text(plan, visible_states=frozenset({DiffState.ADDED}))
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        visible_states=frozenset({DiffState.ADDED}),
+    )
 
     out = capsys.readouterr().out
     assert "\u26a0" not in out
@@ -997,7 +1019,7 @@ def test_render_text_schema_recreate_warns(capsys: pytest.CaptureFixture[str]) -
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "\u26a0" in out
@@ -1145,7 +1167,7 @@ def test_render_text_shows_drift_section(capsys: pytest.CaptureFixture[str], mon
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "Manual Edits Detected:" in out
@@ -1186,7 +1208,7 @@ def test_render_text_shows_drift_section_multiple_reentries_same_noun(
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "2 tasks will be re-added (alpha, beta)" in out
@@ -1410,7 +1432,7 @@ def test_render_text_default_width_matches_original(
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     # At width=200, no wrapping should occur — all lines are single
@@ -1441,7 +1463,7 @@ def test_render_text_narrow_width_wraps_transitions(
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "-> " in out
@@ -1559,7 +1581,12 @@ def test_render_text_suppress_wheel_updates_end_to_end(capsys: pytest.CaptureFix
         }
     )
 
-    render_text(plan, suppress_wheel_updates=True)
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        suppress_wheel_updates=True,
+    )
 
     out = capsys.readouterr().out
     assert "wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in out
@@ -1572,7 +1599,12 @@ def test_render_text_suppress_wheel_updates_wheel_bump_fixture(
     """End-to-end against the real mixed-compute golden plan (dagshund-aqcx, dagshund-vuoy)."""
     plan = plan_from_dict(json.loads((fixtures_dir / "wheel-bump" / "plan.json").read_text()))
 
-    render_text(plan, suppress_wheel_updates=True)
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        suppress_wheel_updates=True,
+    )
 
     out = capsys.readouterr().out
     assert "wheel etl_lib updated: 0.1.0 -> 0.2.0 (14 tasks, 2 environments)" in out
@@ -1601,7 +1633,7 @@ def test_render_text_effect_lines_render_for_skip_parent(capsys: pytest.CaptureF
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "      + run nightly (runs on deploy)" in out
@@ -1625,7 +1657,7 @@ def test_render_text_effect_field_changes_render_indented(capsys: pytest.Capture
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "      ~ run migrate (re-runs on deploy)" in out
@@ -1690,7 +1722,7 @@ def test_render_text_long_job_run_state_message_respects_width_threshold(
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     lines = capsys.readouterr().out.splitlines()
     parent_index = lines.index("      = run running (run still in progress)")
@@ -1713,7 +1745,7 @@ def test_render_text_delete_effect_uses_destructive_wording(capsys: pytest.Captu
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "      - run audit (run record will be deleted)" in out
@@ -1801,7 +1833,7 @@ def test_render_text_job_run_outcomes_hide_generated_fields(capsys: pytest.Captu
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "already ran successfully" in out
@@ -1833,7 +1865,7 @@ def test_render_text_effect_only_plan_is_not_no_changes(capsys: pytest.CaptureFi
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "No changes" not in out
@@ -1854,7 +1886,7 @@ def test_render_text_skip_only_effects_render_run_records(capsys: pytest.Capture
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "No changes" not in out
@@ -1875,7 +1907,7 @@ def test_render_text_synced_outputs_do_not_change_summary_counts(
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "  +1 create" in out
@@ -1898,7 +1930,12 @@ def test_render_text_filter_hides_owner_and_managed_outputs_together(
         }
     )
 
-    render_text(plan, filter_query="type:jobs")
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        filter_query="type:jobs",
+    )
 
     out = capsys.readouterr().out
     assert "jobs/etl" in out
@@ -1925,7 +1962,7 @@ def test_render_text_summary_includes_effect_tally(capsys: pytest.CaptureFixture
         }
     )
 
-    render_text(plan)
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
     assert "  =1 unchanged" in out

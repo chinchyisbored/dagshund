@@ -3,12 +3,13 @@ import hashlib
 import logging
 import os
 import sys
+from collections.abc import Mapping
 from enum import IntEnum
 from pathlib import Path
 
 from dagshund import __version__
 from dagshund.merge import normalize_plan
-from dagshund.model import Plan, parse_plan
+from dagshund.model import Plan, ResourceChange, parse_plan
 from dagshund.plan import detect_changes, detect_dangerous_actions, detect_manual_edits
 from dagshund.provenance import (
     PlanSource,
@@ -16,7 +17,7 @@ from dagshund.provenance import (
     build_html_provenance,
     format_source_modified_at,
 )
-from dagshund.types import DagshundError, DiffState
+from dagshund.types import DagshundError, DiffState, ResourceKey
 
 
 class ExitCode(IntEnum):
@@ -253,16 +254,20 @@ def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
 
 
 def _render_stdout(
+    resources: Mapping[ResourceKey, ResourceChange],
     plan: Plan,
     args: argparse.Namespace,
     visible_states: frozenset[DiffState] | None,
 ) -> None:
+    """Render normalized resources with version metadata from the parsed plan."""
     match args.format:
         case "term":
             from dagshund.terminal import render_text
 
             render_text(
-                plan,
+                resources,
+                cli_version=plan.cli_version,
+                plan_version=plan.plan_version,
                 visible_states=visible_states,
                 filter_query=args.filter,
                 suppress_wheel_updates=args.suppress_wheel_updates,
@@ -272,7 +277,9 @@ def _render_stdout(
 
             print(
                 render_markdown(
-                    plan,
+                    resources,
+                    cli_version=plan.cli_version,
+                    plan_version=plan.plan_version,
                     visible_states=visible_states,
                     filter_query=args.filter,
                     suppress_wheel_updates=args.suppress_wheel_updates,
@@ -281,6 +288,7 @@ def _render_stdout(
 
 
 def _run(args: argparse.Namespace) -> ExitCode:
+    """Keep the parsed plan for HTML; normalize once for stdout and exit codes."""
     visible_states = _build_visible_states(args)
     html_output_requested = args.output is not None
     plan_input = _read_plan(args.plan_file, include_source_metadata=html_output_requested)
@@ -309,16 +317,16 @@ def _run(args: argparse.Namespace) -> ExitCode:
 
             webbrowser.open(Path(args.output).resolve().as_uri())
 
+    if args.quiet and not args.detailed_exitcode:
+        return ExitCode.OK
+
+    resources = normalize_plan(plan.resources)
     if not args.quiet:
-        _render_stdout(plan, args, visible_states)
+        _render_stdout(resources, plan, args, visible_states)
 
-    if not args.detailed_exitcode:
+    if not args.detailed_exitcode or not detect_changes(resources):
         return ExitCode.OK
-
-    merged = normalize_plan(plan.resources)
-    if not detect_changes(merged):
-        return ExitCode.OK
-    if detect_manual_edits(merged) or detect_dangerous_actions(merged):
+    if detect_manual_edits(resources) or detect_dangerous_actions(resources):
         return ExitCode.NEEDS_ATTENTION
     return ExitCode.CHANGES
 

@@ -15,6 +15,7 @@ from dagshund.markdown import (
     _render_warnings,
     render_markdown,
 )
+from dagshund.merge import normalize_plan
 from dagshund.types import DagshundError, DiffState
 
 # --- _render_field_change ---
@@ -283,13 +284,13 @@ def test_render_resource_no_drift_warning_for_create() -> None:
 
 
 def test_render_header_shows_version_info() -> None:
-    lines = list(_render_header(make_plan(cli_version="0.287.0", plan_version=2)))
+    lines = list(_render_header(cli_version="0.287.0", plan_version=2))
 
     assert "### dagshund plan (v2, cli 0.287.0)" in lines[0]
 
 
 def test_render_header_defaults_when_missing() -> None:
-    lines = list(_render_header(make_plan()))
+    lines = list(_render_header(cli_version=None, plan_version=None))
 
     assert "unknown" in lines[0]
     assert "?" in lines[0]
@@ -402,13 +403,15 @@ def test_render_drift_warnings_nested_bullets_for_reentries() -> None:
 
 def test_render_markdown_empty_plan_raises_error() -> None:
     with pytest.raises(DagshundError, match="plan is empty"):
-        render_markdown(plan_from_dict({"plan": {}}))
+        render_markdown(normalize_plan(plan_from_dict({"plan": {}}).resources))
 
 
 def test_render_markdown_no_changes(fixtures_dir: Path) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "no-changes" / "plan.json").read_text()))
 
-    result = render_markdown(plan)
+    result = render_markdown(
+        normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version
+    )
 
     assert "No changes" in result
     assert "5 resources unchanged" in result
@@ -416,7 +419,11 @@ def test_render_markdown_no_changes(fixtures_dir: Path) -> None:
 
 
 def test_render_markdown_complex_plan(real_plan_json: str) -> None:
-    result = render_markdown(plan_from_dict(json.loads(real_plan_json)))
+    plan = plan_from_dict(json.loads(real_plan_json))
+
+    result = render_markdown(
+        normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version
+    )
 
     assert "### dagshund plan" in result
     assert "#### jobs" in result
@@ -430,7 +437,9 @@ def test_render_markdown_complex_plan(real_plan_json: str) -> None:
 def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "manual-drift" / "plan.json").read_text()))
 
-    result = render_markdown(plan)
+    result = render_markdown(
+        normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version
+    )
 
     assert ":warning:" in result
     assert "(drift)" in result
@@ -478,7 +487,9 @@ def test_render_markdown_drift_topology_only() -> None:
         }
     )
 
-    result = render_markdown(plan)
+    result = render_markdown(
+        normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version
+    )
 
     assert ":warning: manually edited outside bundle" in result
     assert "`+` `tasks[task_key='transform']` (drift) (re-added)" in result
@@ -488,7 +499,12 @@ def test_render_markdown_drift_topology_only() -> None:
 def test_render_markdown_with_visible_states(fixtures_dir: Path) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    result = render_markdown(plan, visible_states=frozenset({DiffState.ADDED}))
+    result = render_markdown(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        visible_states=frozenset({DiffState.ADDED}),
+    )
 
     assert "create" in result
     assert "delete" not in result.split("create")[0]  # no deletes before create section
@@ -497,14 +513,24 @@ def test_render_markdown_with_visible_states(fixtures_dir: Path) -> None:
 def test_render_markdown_with_filter_query(fixtures_dir: Path) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    result = render_markdown(plan, filter_query="type:alerts")
+    result = render_markdown(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        filter_query="type:alerts",
+    )
 
     assert "#### alerts" in result
     assert "#### jobs" not in result
 
 
 def test_render_markdown_returns_string_not_none(real_plan_json: str) -> None:
-    result = render_markdown(plan_from_dict(json.loads(real_plan_json)))
+    plan = plan_from_dict(json.loads(real_plan_json))
+
+    result = render_markdown(
+        normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version
+    )
+
     assert isinstance(result, str)
     assert len(result) > 0
 
@@ -512,7 +538,9 @@ def test_render_markdown_returns_string_not_none(real_plan_json: str) -> None:
 def test_render_markdown_mixed_plan(fixtures_dir: Path) -> None:
     plan = plan_from_dict(json.loads((fixtures_dir / "mixed-changes" / "plan.json").read_text()))
 
-    result = render_markdown(plan)
+    result = render_markdown(
+        normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version
+    )
 
     assert "create" in result
     assert "delete" in result
@@ -540,7 +568,12 @@ def test_render_markdown_suppress_wheel_updates_collapses_to_summary() -> None:
         }
     )
 
-    result = render_markdown(plan, suppress_wheel_updates=True)
+    result = render_markdown(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        suppress_wheel_updates=True,
+    )
 
     assert "  - `~` wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in result
     assert "libraries[0].whl" not in result
@@ -564,7 +597,9 @@ def test_render_markdown_wheel_updates_visible_by_default() -> None:
         }
     )
 
-    result = render_markdown(plan)
+    result = render_markdown(
+        normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version
+    )
 
     assert "libraries[0].whl" in result
     assert "wheel etl_lib updated" not in result
@@ -587,7 +622,7 @@ def test_render_markdown_effect_lines_render_for_skip_parent() -> None:
         }
     )
 
-    out = render_markdown(plan)
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "  - `+` run `nightly` (runs on deploy)" in out
     assert "job_runs/" not in out
@@ -607,7 +642,7 @@ def test_render_markdown_effect_name_links_to_run_page() -> None:
         }
     )
 
-    out = render_markdown(plan)
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "  - `-` run [`audit`](https://example.test/run/7) (run record will be deleted)" in out
 
@@ -628,7 +663,7 @@ def test_render_markdown_effect_field_changes_render_nested() -> None:
         }
     )
 
-    out = render_markdown(plan)
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "  - `~` run `migrate` (re-runs on deploy)" in out
     assert "    - `~` `job_parameters['v']`" in out
@@ -681,7 +716,7 @@ def test_render_markdown_job_run_outcomes_keep_links_and_hide_generated_fields()
         }
     )
 
-    out = render_markdown(plan)
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "re-runs on deploy; previous run FAILED" in out
     assert "state: The task failed." in out
@@ -707,7 +742,7 @@ def test_render_markdown_skip_only_effects_render_run_records() -> None:
         }
     )
 
-    out = render_markdown(plan)
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "No changes" not in out
     assert "  - `=` run `nightly` (already ran)" in out
@@ -725,7 +760,7 @@ def test_render_markdown_synced_outputs_do_not_change_summary_counts() -> None:
         }
     )
 
-    out = render_markdown(plan)
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "**+1** create" in out
     assert "**+2**" not in out
@@ -745,7 +780,12 @@ def test_render_markdown_filter_hides_owner_and_managed_outputs_together() -> No
         }
     )
 
-    out = render_markdown(plan, filter_query="type:jobs")
+    out = render_markdown(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        filter_query="type:jobs",
+    )
 
     assert "jobs/etl" in out
     assert "postgres_synced_tables/orders" not in out
@@ -766,7 +806,7 @@ def test_render_markdown_summary_includes_effect_tally() -> None:
         }
     )
 
-    out = render_markdown(plan)
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "**=1** unchanged" in out
     assert "runs: **+1** create" in out

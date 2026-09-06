@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -13,9 +14,12 @@ from typing import NoReturn
 import pytest
 
 from dagshund import __version__
+from dagshund.browser import PLACEHOLDER, PROVENANCE_PLACEHOLDER
 from dagshund.cli import ExitCode, _build_visible_states, _decode_plan, _read_plan, _run, main
+from dagshund.merge import merge_sub_resources
+from dagshund.model import ResourceChange
 from dagshund.provenance import format_source_modified_at
-from dagshund.types import DagshundError, DiffState
+from dagshund.types import DagshundError, DiffState, ResourceKey
 
 
 def _make_stdin(raw: str | bytes, *, isatty: bool = False) -> SimpleNamespace:
@@ -766,6 +770,129 @@ def test_run_non_html_modes_do_not_hash(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.setattr("dagshund.cli.os.fstat", fail_fstat)
 
     assert _run(args) == ExitCode.OK
+
+
+@pytest.fixture
+def use_test_template(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise CLI HTML embedding without requiring generated browser assets."""
+    template = (
+        f'<script type="application/json" id="plan-data">{PLACEHOLDER}</script>'
+        f'<script type="application/json" id="provenance-data">{PROVENANCE_PLACEHOLDER}</script>'
+    )
+    monkeypatch.setattr("dagshund.browser._load_template", lambda: template)
+
+
+@pytest.mark.parametrize("output_format", ["term", "md"], ids=["terminal", "markdown"])
+def test_main_combined_output_preserves_redacted_payload_and_source_digest(
+    use_test_template: None,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    output_format: str,
+) -> None:
+    plan_file = tmp_path / "source.json"
+    output = tmp_path / "out.html"
+    payload = {
+        "plan_version": 2,
+        "cli_version": "1.14.0",
+        "plan": {
+            "resources.jobs.etl": {"action": "skip"},
+            "resources.jobs.etl.permissions": {
+                "action": "update",
+                "changes": {"permission_level": {"action": "update", "old": "CAN_VIEW", "new": "CAN_MANAGE"}},
+            },
+            "resources.job_runs.nightly": {
+                "action": "create",
+                "depends_on": [{"node": "resources.jobs.etl"}],
+            },
+            "resources.secrets.token": {
+                "action": "create",
+                "new_state": {"value": "UC_SECRET_SENTINEL"},
+            },
+        },
+    }
+    raw_bytes = (json.dumps(payload, indent=2) + "\n").replace("\n", "\r\n").encode()
+    plan_file.write_bytes(raw_bytes)
+    expected_payload = json.loads(raw_bytes.replace(b"UC_SECRET_SENTINEL", b"[redacted]"))
+
+    monkeypatch.setattr("sys.argv", ["dagshund", str(plan_file), "-o", str(output), "--format", output_format, "-e"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == ExitCode.CHANGES
+    captured = capsys.readouterr()
+    assert "v2, cli 1.14.0" in captured.out
+    assert "permissions.permission_level" in captured.out
+    assert "nightly" in captured.out
+    assert "runs on deploy" in captured.out
+    assert "job_runs/" not in captured.out
+    content = output.read_text()
+    assert json.dumps(expected_payload, separators=(",", ":")) in content
+    assert f'"source_plan_sha256":"{hashlib.sha256(raw_bytes).hexdigest()}"' in content
+    assert "UC_SECRET_SENTINEL" not in content + captured.out + captured.err
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizationCase:
+    name: str
+    arguments: tuple[str, ...] = ()
+    html: bool = False
+    quiet: bool = False
+    exit_code: ExitCode = ExitCode.OK
+    normalizations: int = 1
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        NormalizationCase("stdout-terminal"),
+        NormalizationCase("stdout-markdown", ("--format", "md")),
+        NormalizationCase("quiet-exitcode", ("-q", "-e"), quiet=True, exit_code=ExitCode.NEEDS_ATTENTION),
+        NormalizationCase("terminal-exitcode", ("-e",), exit_code=ExitCode.NEEDS_ATTENTION),
+        NormalizationCase("markdown-exitcode", ("--format", "md", "-e"), exit_code=ExitCode.NEEDS_ATTENTION),
+        NormalizationCase("html-terminal", html=True),
+        NormalizationCase("html-markdown", ("--format", "md"), html=True),
+        NormalizationCase("html-terminal-exitcode", ("-e",), html=True, exit_code=ExitCode.NEEDS_ATTENTION),
+        NormalizationCase(
+            "html-markdown-exitcode", ("--format", "md", "-e"), html=True, exit_code=ExitCode.NEEDS_ATTENTION
+        ),
+        NormalizationCase("html-only", ("-q",), html=True, quiet=True, normalizations=0),
+        NormalizationCase("quiet-only", ("-q",), quiet=True, normalizations=0),
+    ],
+    ids=lambda case: case.name,
+)
+def test_main_output_modes_normalize_once_when_needed(
+    case: NormalizationCase,
+    use_test_template: None,
+    monkeypatch: pytest.MonkeyPatch,
+    fixtures_dir: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "out.html"
+    arguments = ["dagshund", str(fixtures_dir / "mixed-changes" / "plan.json"), *case.arguments]
+    if case.html:
+        arguments.extend(("-o", str(output)))
+    normalization_inputs: list[Mapping[ResourceKey, ResourceChange]] = []
+
+    def record_merge(resources: Mapping[ResourceKey, ResourceChange]) -> dict[ResourceKey, ResourceChange]:
+        normalization_inputs.append(resources)
+        return merge_sub_resources(resources)
+
+    monkeypatch.setattr("dagshund.merge.merge_sub_resources", record_merge)
+    monkeypatch.setattr("sys.argv", arguments)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == case.exit_code
+    captured = capsys.readouterr()
+    assert (captured.out == "") == case.quiet
+    if not case.quiet:
+        assert "etl_pipeline" in captured.out
+    assert output.exists() == case.html
+    assert len(normalization_inputs) == case.normalizations
 
 
 # --- _build_visible_states ---

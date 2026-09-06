@@ -1,5 +1,4 @@
 from collections.abc import Callable, Iterator, Mapping
-from dataclasses import replace
 from itertools import groupby
 
 from dagshund.change_path import FieldChangeContext
@@ -20,8 +19,7 @@ from dagshund.format import (
     iter_non_topology_field_changes,
 )
 from dagshund.job_run_effects import classify_job_run_effect, filter_job_run_changes
-from dagshund.merge import normalize_plan
-from dagshund.model import ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
+from dagshund.model import ActionType, FieldChange, JobRunEffect, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
     classify_resource_drift,
@@ -133,10 +131,10 @@ def _render_resource(
             yield f"  - `{create_cfg.symbol}` `{key_name}` (drift) (re-added)"
 
 
-def _render_header(plan: Plan) -> Iterator[str]:
-    cli_version = plan.cli_version or "unknown"
-    plan_version = plan.plan_version if plan.plan_version is not None else "?"
-    yield f"### dagshund plan (v{plan_version}, cli {cli_version})"
+def _render_header(*, cli_version: str | None, plan_version: int | None) -> Iterator[str]:
+    displayed_cli_version = cli_version or "unknown"
+    displayed_plan_version = plan_version if plan_version is not None else "?"
+    yield f"### dagshund plan (v{displayed_plan_version}, cli {displayed_cli_version})"
     yield ""
 
 
@@ -211,16 +209,20 @@ def _render_drift_warnings(summaries: list[DriftSummary]) -> Iterator[str]:
 
 
 def render_markdown(
-    plan: Plan,
+    resources: Mapping[ResourceKey, ResourceChange],
     *,
+    cli_version: str | None = None,
+    plan_version: int | None = None,
     visible_states: frozenset[DiffState] | None = None,
     filter_query: str | None = None,
     suppress_wheel_updates: bool = False,
 ) -> str:
-    resources = normalize_plan(plan.resources)
+    """Format normalized resources; callers must apply ``normalize_plan`` first.
+
+    Version metadata is optional and does not require a parsed plan envelope.
+    """
     if not resources:
         raise DagshundError("plan is empty")
-    plan = replace(plan, resources=resources)
 
     resource_filter = None
     if filter_query:
@@ -229,7 +231,7 @@ def render_markdown(
         resource_filter = build_query_predicate(filter_query)
 
     lines: list[str] = []
-    lines.extend(_render_header(plan))
+    lines.extend(_render_header(cli_version=cli_version, plan_version=plan_version))
 
     # Skip-only effects don't count as changes (nothing fires on deploy), but
     # their run records should still render — fall through to the group view.

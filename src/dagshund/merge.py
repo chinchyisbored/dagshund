@@ -248,7 +248,12 @@ def _build_job_run_effect(name: str, entry: ResourceChange) -> JobRunEffect:
 def normalize_plan(
     resources: Mapping[ResourceKey, ResourceChange],
 ) -> dict[ResourceKey, ResourceChange]:
-    """Merge sub-resources, then fold job_runs entries onto their target jobs as effects.
+    """Normalize parsed resources without mutating them or their original payload.
+
+    Call once at the orchestration boundary and share the returned mapping with
+    Python renderers and plan detection functions. Input must be parsed resources,
+    not already normalized output. No plan envelope or raw JSON is replaced.
+    Merge sub-resources, then fold job_runs entries onto their target jobs as effects.
 
     The target's own action/changes/state stay untouched — effects never promote
     the parent. Orphan effects (target job absent from the plan) stay standalone
@@ -290,7 +295,7 @@ def normalize_plan(
 def merge_sub_resources(
     resources: Mapping[ResourceKey, ResourceChange],
 ) -> dict[ResourceKey, ResourceChange]:
-    """Merge sub-resources into their parent entries.
+    """Merge parsed sub-resources into their parent entries, before effect folding.
 
     Sub-resource keys (>3 dot-segments) are absorbed into the parent;
     orphans (parent not in plan) are kept as standalone entries.

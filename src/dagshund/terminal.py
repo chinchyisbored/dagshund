@@ -2,7 +2,6 @@ import os
 import sys
 import textwrap
 from collections.abc import Callable, Iterator, Mapping
-from dataclasses import replace
 from itertools import groupby
 from typing import cast
 
@@ -27,8 +26,7 @@ from dagshund.format import (
     iter_non_topology_field_changes,
 )
 from dagshund.job_run_effects import classify_job_run_effect, filter_job_run_changes
-from dagshund.merge import normalize_plan
-from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, Plan, ResourceChange
+from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
     classify_resource_drift,
@@ -268,12 +266,12 @@ def _render_resource(
             yield _colorize(line, create_color, use_color=use_color)
 
 
-def _print_header(plan: Plan, *, use_color: bool) -> None:
-    cli_version = plan.cli_version or "unknown"
-    plan_version = plan.plan_version if plan.plan_version is not None else "?"
+def _print_header(*, cli_version: str | None, plan_version: int | None, use_color: bool) -> None:
+    displayed_cli_version = cli_version or "unknown"
+    displayed_plan_version = plan_version if plan_version is not None else "?"
     print(
         _colorize(
-            f"dagshund plan (v{plan_version}, cli {cli_version})",
+            f"dagshund plan (v{displayed_plan_version}, cli {displayed_cli_version})",
             _BOLD,
             use_color=use_color,
         )
@@ -365,16 +363,20 @@ def _print_drift_warnings(summaries: list[DriftSummary], *, use_color: bool, wid
 
 
 def render_text(
-    plan: Plan,
+    resources: Mapping[ResourceKey, ResourceChange],
     *,
+    cli_version: str | None = None,
+    plan_version: int | None = None,
     visible_states: frozenset[DiffState] | None = None,
     filter_query: str | None = None,
     suppress_wheel_updates: bool = False,
 ) -> None:
-    resources = normalize_plan(plan.resources)
+    """Print normalized resources; callers must apply ``normalize_plan`` first.
+
+    Version metadata is optional and does not require a parsed plan envelope.
+    """
     if not resources:
         raise DagshundError("plan is empty")
-    plan = replace(plan, resources=resources)
 
     resource_filter = None
     if filter_query:
@@ -384,7 +386,7 @@ def render_text(
 
     use_color = _supports_color()
     width = _detect_terminal_width()
-    _print_header(plan, use_color=use_color)
+    _print_header(cli_version=cli_version, plan_version=plan_version, use_color=use_color)
 
     # Skip-only effects don't count as changes (nothing fires on deploy), but
     # their run records should still render — fall through to the group view.
