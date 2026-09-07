@@ -1,29 +1,24 @@
-from collections.abc import Callable, Iterator, Mapping
-from itertools import groupby
+from collections.abc import Iterator, Mapping, Sequence
 
 from dagshund.change_path import FieldChangeContext
 from dagshund.format import (
     DriftSummary,
+    Report,
+    ResourceGroup,
     action_config,
-    collect_drift_summaries,
-    collect_warnings,
-    count_by_action,
-    count_effects_by_action,
     field_action_config,
-    filter_resources,
-    format_drift_subline_body,
     format_field_suffix,
     format_group_header,
     format_wheel_update_body,
-    group_by_resource_type,
-    iter_non_topology_field_changes,
+    iter_drift_subline_bodies,
+    iter_effect_field_changes,
+    prepare_report,
+    select_resource_details,
 )
-from dagshund.job_run_effects import classify_job_run_effect, filter_job_run_changes
+from dagshund.job_run_effects import classify_job_run_effect
 from dagshund.model import ActionType, FieldChange, JobRunEffect, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
-    classify_resource_drift,
-    detect_changes,
 )
 from dagshund.synced_table_outputs import (
     OutputRelationship,
@@ -31,12 +26,10 @@ from dagshund.synced_table_outputs import (
     extract_synced_table_outputs,
 )
 from dagshund.types import (
-    DagshundError,
     DiffState,
     ResourceKey,
     parse_resource_key,
 )
-from dagshund.wheel import collect_wheel_updates, summarize_wheel_updates
 
 
 def _render_field_change(
@@ -71,11 +64,7 @@ def _render_effect_lines(effect: JobRunEffect) -> Iterator[str]:
     yield f"  - `{cfg.symbol}` run {name} ({semantics.wording})"
     if semantics.state_message is not None:
         yield f"    - state: {semantics.state_message}"
-    for field_name, change, ctx in iter_non_topology_field_changes(
-        filter_job_run_changes(effect.changes),
-        new_state=effect.new_state,
-        remote_state=effect.remote_state,
-    ):
+    for field_name, change, ctx in iter_effect_field_changes(effect):
         rendered = _render_field_change(field_name, change, ctx=ctx)
         if rendered is not None:
             yield f"  {rendered}"
@@ -96,38 +85,25 @@ def _render_resource(
     for output in extract_synced_table_outputs(key, entry):
         yield _render_synced_table_output(output, entry.action)
 
-    # Effect lines render even for skip/unchanged parents (before the early
-    # return below) \u2014 a deploy-triggered run never changes the job itself.
+    # Effects remain visible even when the parent has no field details.
     for effect in entry.effects:
         yield from _render_effect_lines(effect)
 
-    changes = entry.changes
-    if not (changes and cfg.show_field_changes):
-        return
-
-    drift = classify_resource_drift(entry)
-    if drift.has_drift:
+    details = select_resource_details(entry, suppress_wheel_updates=suppress_wheel_updates)
+    if details.has_drift:
         yield "  - :warning: manually edited outside bundle"
 
-    wheel_updates = collect_wheel_updates(changes) if suppress_wheel_updates else {}
-    for field_name, change, ctx in iter_non_topology_field_changes(
-        changes,
-        new_state=entry.new_state,
-        remote_state=entry.remote_state,
-        shape_drift=drift.has_shape_drift,
-    ):
-        if field_name in wheel_updates:
-            continue
+    for field_name, change, ctx in details.fields:
         rendered = _render_field_change(field_name, change, ctx=ctx)
         if rendered is not None:
             yield rendered
 
-    for usage in summarize_wheel_updates(wheel_updates):
+    for usage in details.wheel_updates:
         yield f"  - `~` {format_wheel_update_body(usage)}"
 
-    if drift.topology_readds:
+    if details.topology_readds:
         create_cfg = action_config(ActionType.CREATE)
-        for key_name in drift.topology_readds:
+        for key_name in details.topology_readds:
             yield f"  - `{create_cfg.symbol}` `{key_name}` (drift) (re-added)"
 
 
@@ -139,45 +115,29 @@ def _render_header(*, cli_version: str | None, plan_version: int | None) -> Iter
 
 
 def _render_resource_groups(
-    resource_groups: Mapping[str, Mapping[ResourceKey, ResourceChange]],
+    resource_groups: Sequence[ResourceGroup],
     *,
-    visible_states: frozenset[DiffState] | None = None,
-    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
     suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
-    for resource_type, entries in resource_groups.items():
-        visible = filter_resources(entries, visible_states=visible_states, resource_filter=resource_filter)
-        if not visible:
-            continue
-
-        yield f"#### {format_group_header(resource_type, len(entries), len(visible))}"
-        for key, entry in sorted(visible.items()):
+    for group in resource_groups:
+        yield f"#### {format_group_header(group.resource_type, group.total, len(group.entries))}"
+        for key, entry in group.entries:
             yield from _render_resource(key, entry, suppress_wheel_updates=suppress_wheel_updates)
         yield ""
 
 
-def _render_summary(
-    resources: Mapping[ResourceKey, ResourceChange],
-    *,
-    visible_states: frozenset[DiffState] | None = None,
-    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
-) -> Iterator[str]:
-    filtered = filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
-    sorted_counts = sorted(count_by_action(filtered).items(), key=lambda item: item[0].display)
-    parts = ", ".join(f"**{cfg.symbol}{count}** {cfg.display}" for cfg, count in sorted_counts)
+def _render_summary(report: Report) -> Iterator[str]:
+    parts = ", ".join(f"**{cfg.symbol}{count}** {cfg.display}" for cfg, count in report.action_counts)
     if parts:
         yield parts
 
-    # Deploy-triggered runs get their own tally — the resource counts above
-    # stay honest (jobs unchanged) while the runs line discloses what fires.
-    effect_counts = sorted(count_effects_by_action(filtered).items(), key=lambda item: item[0].display)
-    effect_parts = ", ".join(f"**{cfg.symbol}{count}** {cfg.display}" for cfg, count in effect_counts)
+    effect_parts = ", ".join(f"**{cfg.symbol}{count}** {cfg.display}" for cfg, count in report.effect_counts)
     if effect_parts:
         yield ""
         yield f"runs: {effect_parts}"
 
 
-def _render_warnings(warnings: list[str]) -> Iterator[str]:
+def _render_warnings(warnings: Sequence[str]) -> Iterator[str]:
     yield ""
     yield "> [!CAUTION]"
     yield "> **Dangerous Actions**"
@@ -193,14 +153,11 @@ def _iter_drift_warning_md_lines(summary: DriftSummary) -> Iterator[str]:
     use ``> -`` (one space).
     """
     yield f"> - {summary.resource_type}/{summary.resource_name} was edited outside the bundle"
-    if summary.overwritten_field_count > 0:
-        yield f">   - {format_drift_subline_body(summary.overwritten_field_count, 'field', 'overwritten')}"
-    for noun, group in groupby(summary.reentries, key=lambda pair: pair[0]):
-        labels = [pair[1] for pair in group]
-        yield f">   - {format_drift_subline_body(len(labels), noun, 're-added', ', '.join(labels))}"
+    for body in iter_drift_subline_bodies(summary):
+        yield f">   - {body}"
 
 
-def _render_drift_warnings(summaries: list[DriftSummary]) -> Iterator[str]:
+def _render_drift_warnings(summaries: Sequence[DriftSummary]) -> Iterator[str]:
     yield ""
     yield "> [!WARNING]"
     yield "> **Manual Edits Detected**"
@@ -221,41 +178,27 @@ def render_markdown(
 
     Version metadata is optional and does not require a parsed plan envelope.
     """
-    if not resources:
-        raise DagshundError("plan is empty")
-
-    resource_filter = None
-    if filter_query:
-        from dagshund.filter import build_query_predicate
-
-        resource_filter = build_query_predicate(filter_query)
+    report = prepare_report(resources, visible_states=visible_states, filter_query=filter_query)
 
     lines: list[str] = []
     lines.extend(_render_header(cli_version=cli_version, plan_version=plan_version))
 
-    # Skip-only effects don't count as changes (nothing fires on deploy), but
-    # their run records should still render — fall through to the group view.
-    has_effects = any(entry.effects for entry in resources.values())
-    if not detect_changes(resources) and not has_effects:
+    if report.no_changes:
         lines.append(f"No changes ({len(resources)} resources unchanged)")
         return "\n".join(lines)
 
     lines.extend(
         _render_resource_groups(
-            group_by_resource_type(resources),
-            visible_states=visible_states,
-            resource_filter=resource_filter,
+            report.groups,
             suppress_wheel_updates=suppress_wheel_updates,
         )
     )
-    lines.extend(_render_summary(resources, visible_states=visible_states, resource_filter=resource_filter))
+    lines.extend(_render_summary(report))
 
-    warnings = collect_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
-    if warnings:
-        lines.extend(_render_warnings(warnings))
+    if report.warnings:
+        lines.extend(_render_warnings(report.warnings))
 
-    drift_summaries = collect_drift_summaries(resources, visible_states=visible_states, resource_filter=resource_filter)
-    if drift_summaries:
-        lines.extend(_render_drift_warnings(drift_summaries))
+    if report.drift_summaries:
+        lines.extend(_render_drift_warnings(report.drift_summaries))
 
     return "\n".join(lines)

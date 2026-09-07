@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from factories import make_change, make_plan, make_resource, plan_from_dict
 
-from dagshund.format import DriftSummary
+from dagshund.format import DriftSummary, prepare_report
 from dagshund.markdown import (
     _render_drift_warnings,
     _render_field_change,
@@ -300,23 +300,24 @@ def test_render_header_defaults_when_missing() -> None:
 
 
 def test_render_resource_groups_produces_h4_headers() -> None:
-    by_type = {"jobs": {"resources.jobs.etl": make_resource(action="create")}}
+    report = prepare_report({"resources.jobs.etl": make_resource(action="create")})
 
-    lines = list(_render_resource_groups(by_type))
+    lines = list(_render_resource_groups(report.groups))
 
     assert any(line.startswith("#### jobs") for line in lines)
     assert any("`jobs/etl`" in line for line in lines)
 
 
 def test_render_resource_groups_respects_visible_states() -> None:
-    by_type = {
-        "jobs": {
+    report = prepare_report(
+        {
             "resources.jobs.a": make_resource(action="skip"),
             "resources.jobs.b": make_resource(action="create"),
         },
-    }
+        visible_states=frozenset({DiffState.ADDED}),
+    )
 
-    lines = list(_render_resource_groups(by_type, visible_states=frozenset({DiffState.ADDED})))
+    lines = list(_render_resource_groups(report.groups))
 
     text = "\n".join(lines)
     assert "jobs/b" in text
@@ -333,15 +334,19 @@ def test_render_summary_shows_bold_counts() -> None:
         "b": make_resource(action="delete"),
     }
 
-    lines = list(_render_summary(resources))
+    lines = list(_render_summary(prepare_report(resources)))
 
     text = "\n".join(lines)
     assert "**+1** create" in text
     assert "**-1** delete" in text
 
 
-def test_render_summary_empty_plan() -> None:
-    assert list(_render_summary({})) == []
+def test_render_summary_no_visible_resources_yields_nothing() -> None:
+    report = prepare_report({"resources.jobs.etl": make_resource(action="create")}, filter_query="missing")
+
+    lines = list(_render_summary(report))
+
+    assert lines == []
 
 
 # --- _render_warnings ---

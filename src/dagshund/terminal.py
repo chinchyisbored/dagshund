@@ -1,36 +1,31 @@
 import os
 import sys
 import textwrap
-from collections.abc import Callable, Iterator, Mapping
-from itertools import groupby
+from collections.abc import Iterator, Mapping, Sequence
 from typing import cast
 
 from dagshund.change_path import FieldChangeContext
 from dagshund.format import (
     ActionConfig,
     DriftSummary,
+    Report,
+    ResourceGroup,
     action_config,
-    collect_drift_summaries,
-    collect_warnings,
-    count_by_action,
-    count_effects_by_action,
     field_action_config,
-    filter_resources,
     format_display_value,
-    format_drift_subline_body,
     format_field_suffix,
     format_group_header,
     format_value,
     format_wheel_update_body,
-    group_by_resource_type,
-    iter_non_topology_field_changes,
+    iter_drift_subline_bodies,
+    iter_effect_field_changes,
+    prepare_report,
+    select_resource_details,
 )
-from dagshund.job_run_effects import classify_job_run_effect, filter_job_run_changes
+from dagshund.job_run_effects import classify_job_run_effect
 from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
-    classify_resource_drift,
-    detect_changes,
     has_drifted_field,
 )
 from dagshund.synced_table_outputs import (
@@ -39,12 +34,10 @@ from dagshund.synced_table_outputs import (
     extract_synced_table_outputs,
 )
 from dagshund.types import (
-    DagshundError,
     DiffState,
     ResourceKey,
     parse_resource_key,
 )
-from dagshund.wheel import collect_wheel_updates, summarize_wheel_updates
 
 _BLOCK_INDENT = 10  # 6 (field indent) + 4 (content offset for wrapped continuation lines)
 
@@ -200,11 +193,7 @@ def _render_effect_lines(
         yield _colorize(state_line, DIM, use_color=use_color)
 
     narrowed = width - _EFFECT_FIELD_EXTRA_INDENT if width is not None else None
-    for field_name, change, ctx in iter_non_topology_field_changes(
-        filter_job_run_changes(effect.changes),
-        new_state=effect.new_state,
-        remote_state=effect.remote_state,
-    ):
+    for field_name, change, ctx in iter_effect_field_changes(effect):
         rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=narrowed)
         if rendered is not None:
             yield "\n".join(f"{field_indent}{part}" for part in rendered.split("\n"))
@@ -228,40 +217,27 @@ def _render_resource(
     for output in extract_synced_table_outputs(key, entry):
         yield _render_synced_table_output(output, entry.action, use_color=use_color)
 
-    # Effect lines render even for skip/unchanged parents (before the early
-    # return below) — a deploy-triggered run never changes the job itself.
+    # Effects remain visible even when the parent has no field details.
     for effect in entry.effects:
         yield from _render_effect_lines(effect, use_color=use_color, width=width)
 
-    changes = entry.changes
-    if not (changes and cfg.show_field_changes):
-        return
-
-    drift = classify_resource_drift(entry)
-    if drift.has_drift:
+    details = select_resource_details(entry, suppress_wheel_updates=suppress_wheel_updates)
+    if details.has_drift:
         yield _colorize("      \u26a0 manually edited outside bundle", YELLOW, use_color=use_color)
 
-    wheel_updates = collect_wheel_updates(changes) if suppress_wheel_updates else {}
-    for field_name, change, ctx in iter_non_topology_field_changes(
-        changes,
-        new_state=entry.new_state,
-        remote_state=entry.remote_state,
-        shape_drift=drift.has_shape_drift,
-    ):
-        if field_name in wheel_updates:
-            continue
+    for field_name, change, ctx in details.fields:
         rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=width)
         if rendered is not None:
             yield rendered
 
-    for usage in summarize_wheel_updates(wheel_updates):
+    for usage in details.wheel_updates:
         line = f"      ~ {format_wheel_update_body(usage)}"
         yield _colorize(line, YELLOW, use_color=use_color)
 
-    if drift.topology_readds:
+    if details.topology_readds:
         create_cfg = action_config(ActionType.CREATE)
         create_color = _action_color(create_cfg)
-        for key_name in drift.topology_readds:
+        for key_name in details.topology_readds:
             line = f"      {create_cfg.symbol} {key_name} (drift) (re-added)"
             yield _colorize(line, create_color, use_color=use_color)
 
@@ -280,22 +256,16 @@ def _print_header(*, cli_version: str | None, plan_version: int | None, use_colo
 
 
 def _print_resource_groups(
-    resource_groups: Mapping[str, Mapping[ResourceKey, ResourceChange]],
+    resource_groups: Sequence[ResourceGroup],
     *,
     use_color: bool,
-    visible_states: frozenset[DiffState] | None = None,
-    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
     width: int | None = None,
     suppress_wheel_updates: bool = False,
 ) -> None:
-    for resource_type, entries in resource_groups.items():  # already sorted by group_by_resource_type
-        visible = filter_resources(entries, visible_states=visible_states, resource_filter=resource_filter)
-        if not visible:
-            continue
-
-        header = f"  {format_group_header(resource_type, len(entries), len(visible))}"
+    for group in resource_groups:
+        header = f"  {format_group_header(group.resource_type, group.total, len(group.entries))}"
         print(_colorize(header, _CYAN + _BOLD, use_color=use_color))
-        for key, entry in sorted(visible.items()):
+        for key, entry in group.entries:
             for line in _render_resource(
                 key,
                 entry,
@@ -311,28 +281,19 @@ def _format_action_count(cfg: ActionConfig, count: int, *, use_color: bool) -> s
     return _colorize(f"{cfg.symbol}{count} {cfg.display}", _action_color(cfg), use_color=use_color)
 
 
-def _print_summary(
-    resources: Mapping[ResourceKey, ResourceChange],
-    *,
-    use_color: bool,
-    visible_states: frozenset[DiffState] | None = None,
-    resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
-) -> None:
-    filtered = filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
-    sorted_counts = sorted(count_by_action(filtered).items(), key=lambda item: item[0].display)
-    parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in sorted_counts)
+def _print_summary(report: Report, *, use_color: bool) -> None:
+    parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in report.action_counts)
     if parts:
         print(f"  {parts}")
 
-    # Deploy-triggered runs get their own tally — the resource counts above
-    # stay honest (jobs unchanged) while the runs line discloses what fires.
-    effect_counts = sorted(count_effects_by_action(filtered).items(), key=lambda item: item[0].display)
-    effect_parts = ", ".join(_format_action_count(cfg, count, use_color=use_color) for cfg, count in effect_counts)
+    effect_parts = ", ".join(
+        _format_action_count(cfg, count, use_color=use_color) for cfg, count in report.effect_counts
+    )
     if effect_parts:
         print(f"  runs: {effect_parts}")
 
 
-def _print_warnings(warnings: list[str], *, use_color: bool, width: int | None = None) -> None:
+def _print_warnings(warnings: Sequence[str], *, use_color: bool, width: int | None = None) -> None:
     print()
     print(_colorize("  Dangerous Actions:", RED + _BOLD, use_color=use_color))
     for warning in warnings:
@@ -344,15 +305,11 @@ def _print_warnings(warnings: list[str], *, use_color: bool, width: int | None =
 
 def _iter_drift_warning_lines(summary: DriftSummary) -> Iterator[str]:
     yield f"  \u26a0 {summary.resource_type}/{summary.resource_name} was edited outside the bundle"
-    if summary.overwritten_field_count > 0:
-        yield f"      {format_drift_subline_body(summary.overwritten_field_count, 'field', 'overwritten')}"
-    # reentries are pre-sorted by (noun, label); groupby is correct without re-sorting.
-    for noun, group in groupby(summary.reentries, key=lambda pair: pair[0]):
-        labels = [pair[1] for pair in group]
-        yield f"      {format_drift_subline_body(len(labels), noun, 're-added', ', '.join(labels))}"
+    for body in iter_drift_subline_bodies(summary):
+        yield f"      {body}"
 
 
-def _print_drift_warnings(summaries: list[DriftSummary], *, use_color: bool, width: int | None = None) -> None:
+def _print_drift_warnings(summaries: Sequence[DriftSummary], *, use_color: bool, width: int | None = None) -> None:
     print()
     print(_colorize("  Manual Edits Detected:", YELLOW + _BOLD, use_color=use_color))
     for summary in summaries:
@@ -375,23 +332,13 @@ def render_text(
 
     Version metadata is optional and does not require a parsed plan envelope.
     """
-    if not resources:
-        raise DagshundError("plan is empty")
-
-    resource_filter = None
-    if filter_query:
-        from dagshund.filter import build_query_predicate
-
-        resource_filter = build_query_predicate(filter_query)
+    report = prepare_report(resources, visible_states=visible_states, filter_query=filter_query)
 
     use_color = _supports_color()
     width = _detect_terminal_width()
     _print_header(cli_version=cli_version, plan_version=plan_version, use_color=use_color)
 
-    # Skip-only effects don't count as changes (nothing fires on deploy), but
-    # their run records should still render — fall through to the group view.
-    has_effects = any(entry.effects for entry in resources.values())
-    if not detect_changes(resources) and not has_effects:
+    if report.no_changes:
         print(
             _colorize(
                 f"  No changes ({len(resources)} resources unchanged)",
@@ -402,19 +349,15 @@ def render_text(
         return
 
     _print_resource_groups(
-        group_by_resource_type(resources),
+        report.groups,
         use_color=use_color,
-        visible_states=visible_states,
-        resource_filter=resource_filter,
         width=width,
         suppress_wheel_updates=suppress_wheel_updates,
     )
-    _print_summary(resources, use_color=use_color, visible_states=visible_states, resource_filter=resource_filter)
+    _print_summary(report, use_color=use_color)
 
-    warnings = collect_warnings(resources, visible_states=visible_states, resource_filter=resource_filter)
-    if warnings:
-        _print_warnings(warnings, use_color=use_color, width=width)
+    if report.warnings:
+        _print_warnings(report.warnings, use_color=use_color, width=width)
 
-    drift_summaries = collect_drift_summaries(resources, visible_states=visible_states, resource_filter=resource_filter)
-    if drift_summaries:
-        _print_drift_warnings(drift_summaries, use_color=use_color, width=width)
+    if report.drift_summaries:
+        _print_drift_warnings(report.drift_summaries, use_color=use_color, width=width)

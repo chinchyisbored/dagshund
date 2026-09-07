@@ -12,6 +12,7 @@ from factories import (
     resources_from_dict,
 )
 
+from dagshund.format import prepare_report
 from dagshund.merge import merge_sub_resources, normalize_plan
 from dagshund.model import FieldChange
 from dagshund.plan import detect_changes
@@ -669,9 +670,9 @@ def test_print_header_defaults_when_missing(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_print_resource_groups_renders_type_header_and_entries(capsys: pytest.CaptureFixture[str]) -> None:
-    by_type = {"jobs": resources_from_dict({"resources.jobs.etl": {"action": "create"}})}
+    report = prepare_report(resources_from_dict({"resources.jobs.etl": {"action": "create"}}))
 
-    _print_resource_groups(by_type, use_color=False)
+    _print_resource_groups(report.groups, use_color=False)
 
     out = capsys.readouterr().out
     assert "jobs (1)" in out
@@ -679,12 +680,11 @@ def test_print_resource_groups_renders_type_header_and_entries(capsys: pytest.Ca
 
 
 def test_print_resource_groups_multiple_types(capsys: pytest.CaptureFixture[str]) -> None:
-    by_type = {
-        "alerts": resources_from_dict({"resources.alerts.a": {"action": "delete"}}),
-        "jobs": resources_from_dict({"resources.jobs.etl": {"action": "create"}}),
-    }
+    report = prepare_report(
+        resources_from_dict({"resources.alerts.a": {"action": "delete"}, "resources.jobs.etl": {"action": "create"}})
+    )
 
-    _print_resource_groups(by_type, use_color=False)
+    _print_resource_groups(report.groups, use_color=False)
 
     out = capsys.readouterr().out
     assert "alerts (1)" in out
@@ -693,8 +693,8 @@ def test_print_resource_groups_multiple_types(capsys: pytest.CaptureFixture[str]
     assert "+ jobs/etl" in out
 
 
-def test_print_resource_groups_empty_dict(capsys: pytest.CaptureFixture[str]) -> None:
-    _print_resource_groups({}, use_color=False)
+def test_print_resource_groups_empty_groups_prints_nothing(capsys: pytest.CaptureFixture[str]) -> None:
+    _print_resource_groups((), use_color=False)
 
     assert capsys.readouterr().out == ""
 
@@ -703,9 +703,9 @@ def test_print_resource_groups_empty_dict(capsys: pytest.CaptureFixture[str]) ->
 
 
 def test_print_summary_shows_action_counts(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = resources_from_dict({"a": {"action": "create"}, "b": {"action": "delete"}})
+    report = prepare_report(resources_from_dict({"a": {"action": "create"}, "b": {"action": "delete"}}))
 
-    _print_summary(plan, use_color=False)
+    _print_summary(report, use_color=False)
 
     out = capsys.readouterr().out
     assert "+1 create" in out
@@ -713,26 +713,28 @@ def test_print_summary_shows_action_counts(capsys: pytest.CaptureFixture[str]) -
 
 
 def test_print_summary_unchanged_uses_dim_style(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = resources_from_dict({"a": {"action": "create"}, "b": {"action": "skip"}})
+    report = prepare_report(resources_from_dict({"a": {"action": "create"}, "b": {"action": "skip"}}))
 
-    _print_summary(plan, use_color=False)
+    _print_summary(report, use_color=False)
 
     out = capsys.readouterr().out
     assert "=1 unchanged" in out
     assert "?" not in out
 
 
-def test_print_summary_empty_plan(capsys: pytest.CaptureFixture[str]) -> None:
-    _print_summary({}, use_color=False)
+def test_print_summary_no_visible_resources_prints_nothing(capsys: pytest.CaptureFixture[str]) -> None:
+    report = prepare_report(resources_from_dict({"resources.jobs.etl": {"action": "create"}}), filter_query="missing")
+
+    _print_summary(report, use_color=False)
 
     out = capsys.readouterr().out
     assert out.strip() == ""
 
 
 def test_print_summary_all_same_action(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = resources_from_dict({"a": {"action": "create"}, "b": {"action": "create"}})
+    report = prepare_report(resources_from_dict({"a": {"action": "create"}, "b": {"action": "create"}}))
 
-    _print_summary(plan, use_color=False)
+    _print_summary(report, use_color=False)
 
     out = capsys.readouterr().out
     assert "+2 create" in out
@@ -807,12 +809,18 @@ def test_render_text_no_color_excludes_ansi(
 def test_print_resource_groups_visible_states_hides_unchanged_groups(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    by_type = {
-        "jobs": resources_from_dict({"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "skip"}}),
-        "alerts": resources_from_dict({"resources.alerts.a": {"action": "create"}}),
-    }
+    report = prepare_report(
+        resources_from_dict(
+            {
+                "resources.jobs.a": {"action": "skip"},
+                "resources.jobs.b": {"action": "skip"},
+                "resources.alerts.a": {"action": "create"},
+            }
+        ),
+        visible_states=frozenset({DiffState.ADDED}),
+    )
 
-    _print_resource_groups(by_type, use_color=False, visible_states=frozenset({DiffState.ADDED}))
+    _print_resource_groups(report.groups, use_color=False)
 
     out = capsys.readouterr().out
     assert "alerts" in out
@@ -822,16 +830,17 @@ def test_print_resource_groups_visible_states_hides_unchanged_groups(
 def test_print_resource_groups_visible_states_shows_partial_count(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    by_type = {
-        "experiments": resources_from_dict(
+    report = prepare_report(
+        resources_from_dict(
             {
                 "resources.experiments.a": {"action": "skip"},
                 "resources.experiments.b": {"action": "create"},
             }
         ),
-    }
+        visible_states=frozenset({DiffState.ADDED}),
+    )
 
-    _print_resource_groups(by_type, use_color=False, visible_states=frozenset({DiffState.ADDED}))
+    _print_resource_groups(report.groups, use_color=False)
 
     out = capsys.readouterr().out
     assert "experiments (1/2)" in out
@@ -842,11 +851,11 @@ def test_print_resource_groups_visible_states_shows_partial_count(
 def test_print_resource_groups_no_visible_states_shows_all(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    by_type = {
-        "jobs": resources_from_dict({"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "create"}}),
-    }
+    report = prepare_report(
+        resources_from_dict({"resources.jobs.a": {"action": "skip"}, "resources.jobs.b": {"action": "create"}})
+    )
 
-    _print_resource_groups(by_type, use_color=False)
+    _print_resource_groups(report.groups, use_color=False)
 
     out = capsys.readouterr().out
     assert "jobs (2)" in out

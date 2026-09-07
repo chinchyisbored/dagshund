@@ -1,5 +1,7 @@
 """Direct unit tests for format.py functions."""
 
+from dataclasses import dataclass
+
 import pytest
 from factories import make_change, make_resource, resources_from_dict
 
@@ -28,9 +30,12 @@ from dagshund.format import (
     is_long_string,
     iter_non_topology_field_changes,
 )
-from dagshund.model import ActionType
+from dagshund.markdown import render_markdown
+from dagshund.merge import normalize_plan
+from dagshund.model import ActionType, ResourceChange
 from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES, action_to_diff_state
-from dagshund.types import DiffState, parse_resource_key
+from dagshund.terminal import render_text
+from dagshund.types import DiffState, ResourceKey, parse_resource_key
 
 # --- field_action_config ---
 
@@ -988,3 +993,188 @@ def test_format_display_value_number_shows_inline() -> None:
 
 def test_format_display_value_dict_shows_inline() -> None:
     assert format_display_value({"a": 1}) == "{a: 1}"
+
+
+# --- Shared reporting decisions at the renderer boundaries ---
+
+
+def _make_mixed_report_resources() -> dict[ResourceKey, ResourceChange]:
+    wheel_change = make_change(
+        "update", old="/w/etl_lib-0.1.0-py3-none-any.whl", new="/w/etl_lib-0.2.0-py3-none-any.whl"
+    )
+    resources = {
+        "resources.volumes.archive": make_resource(action="delete"),
+        "resources.schemas.hidden": make_resource(
+            action="update", changes={"comment": make_change("update", old="bundle", new="bundle", remote="manual")}
+        ),
+        "resources.jobs.runner": make_resource(action="skip"),
+        "resources.job_runs.retry": make_resource(
+            action="recreate",
+            depends_on=(("resources.jobs.runner", None),),
+            remote_state={
+                "run_page_url": "https://example.com/runs/7",
+                "result_state": "FAILED",
+                "state": {"state_message": "Retry this task."},
+            },
+            changes={
+                "result_state": make_change("recreate", new="FAILED"),
+                "lifecycle": make_change(
+                    "recreate",
+                    old={"triggers": {"on_bundle_deploy": "before"}, "timeout_seconds": 10},
+                    new={"triggers": {"on_bundle_deploy": "after"}, "timeout_seconds": 20},
+                ),
+                "tasks[task_key='run_task'].libraries[0].whl": wheel_change,
+                "job_parameters['region']": make_change("recreate", old="us", new="eu"),
+            },
+        ),
+        "resources.jobs.etl": make_resource(
+            action="update",
+            new_state={"value": {"tasks": [{"task_key": "restore"}]}},
+            remote_state={"tasks": [{"task_key": "extra"}]},
+            changes={
+                "tasks[task_key='transform'].libraries[0].whl": wheel_change,
+                "tasks[task_key='ingest'].libraries[0].whl": wheel_change,
+                "tasks[task_key='restore']": make_change(
+                    "update", old={"task_key": "restore"}, new={"task_key": "restore"}
+                ),
+                "tasks[task_key='extra']": make_change("update", remote={"task_key": "extra"}),
+                "edit_mode": make_change("update", old="LOCKED", new="LOCKED", remote="EDITABLE"),
+                "description": make_change("update", old="before", new="after"),
+                "no_op": make_change("update", old="same", new="same", remote="same"),
+                "skipped": make_change("skip", old="before", new="after"),
+            },
+        ),
+    }
+    return normalize_plan(resources)
+
+
+@dataclass(frozen=True, slots=True)
+class WheelReportCase:
+    name: str
+    suppress_wheel_updates: bool
+
+
+@pytest.mark.parametrize(
+    "case", [WheelReportCase("expanded", False), WheelReportCase("suppressed", True)], ids=lambda case: case.name
+)
+def test_prepare_report_mixed_details_render_equivalent_information(
+    case: WheelReportCase, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    resources = _make_mixed_report_resources()
+    monkeypatch.setenv("NO_COLOR", "1")
+
+    render_text(resources, suppress_wheel_updates=case.suppress_wheel_updates)
+    terminal = capsys.readouterr().out
+    markdown = render_markdown(resources, suppress_wheel_updates=case.suppress_wheel_updates)
+
+    for output in (terminal, markdown.replace("`", "").replace("**", "")):
+        ordered_details = (
+            "manually edited outside bundle",
+            'description: "before" -> "after"',
+            'edit_mode: "EDITABLE" -> "LOCKED" (drift)',
+            "- tasks[task_key='extra']: {task_key: \"extra\"} (drift)",
+            "wheel etl_lib updated: 0.1.0 -> 0.2.0 (2 tasks)"
+            if case.suppress_wheel_updates
+            else "tasks[task_key='ingest'].libraries[0].whl",
+            "+ tasks[task_key='restore'] (drift) (re-added)",
+        )
+        positions = tuple(output.index(detail) for detail in ordered_details)
+        assert positions == tuple(sorted(positions))
+        assert ("tasks[task_key='transform'].libraries[0].whl" in output) is not case.suppress_wheel_updates
+        assert ("wheel etl_lib updated" in output) is case.suppress_wheel_updates
+        assert "no_op" not in output
+        assert "skipped" not in output
+        assert "run retry" in output or "run [retry]" in output
+        assert "runs on every deploy; previous run FAILED" in output
+        assert "state: Retry this task." in output
+        assert 'job_parameters[\'region\']: "us" -> "eu"' in output
+        assert "lifecycle: {timeout_seconds: 10} -> {timeout_seconds: 20}" in output
+        assert "tasks[task_key='run_task'].libraries[0].whl" in output
+        assert "result_state" not in output
+        assert "on_bundle_deploy" not in output
+        assert "2 fields will be overwritten" in output
+        assert "1 task will be re-added (restore)" in output
+        assert "schemas/hidden was edited outside the bundle" in output
+        assert "volumes/archive will be deleted" in output
+        assert "-1 delete, =1 unchanged, ~2 update" in output
+        assert "runs: ~1 recreate" in output
+    assert "      ~ run retry (runs on every deploy; previous run FAILED)" in terminal
+    assert "          state: Retry this task." in terminal
+    assert "https://example.com/runs/7" not in terminal
+    assert "  - `~` run [`retry`](https://example.com/runs/7)" in markdown
+    assert "    - state: Retry this task." in markdown
+    assert "> [!CAUTION]" in markdown
+    assert "> [!WARNING]" in markdown
+
+
+@dataclass(frozen=True, slots=True)
+class FilteredReportCase:
+    name: str
+    query: str
+    states: frozenset[DiffState] | None
+    visible_resources: tuple[str, ...]
+    group_headers: tuple[str, ...]
+    summary: str | None
+    has_effect: bool = False
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        FilteredReportCase(
+            "jobs", "type:jobs", None, ("jobs/etl", "jobs/runner"), ("jobs (2)",), "=1 unchanged, ~1 update", True
+        ),
+        FilteredReportCase(
+            "modified-job", "type:jobs", frozenset({DiffState.MODIFIED}), ("jobs/etl",), ("jobs (1/2)",), "~1 update"
+        ),
+        FilteredReportCase(
+            "unchanged-parent",
+            "runner",
+            frozenset({DiffState.UNCHANGED}),
+            ("jobs/runner",),
+            ("jobs (1/2)",),
+            "=1 unchanged",
+            True,
+        ),
+        FilteredReportCase(
+            "danger-only",
+            "archive",
+            frozenset({DiffState.REMOVED}),
+            ("volumes/archive",),
+            ("volumes (1)",),
+            "-1 delete",
+        ),
+        FilteredReportCase("no-match", "missing", None, (), (), None),
+    ],
+    ids=lambda case: case.name,
+)
+def test_prepare_report_filters_keep_renderer_details_counts_and_warnings_in_agreement(
+    case: FilteredReportCase, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    resources = _make_mixed_report_resources()
+    monkeypatch.setenv("NO_COLOR", "1")
+
+    render_text(resources, filter_query=case.query, visible_states=case.states, suppress_wheel_updates=True)
+    terminal = capsys.readouterr().out
+    markdown = render_markdown(
+        resources, filter_query=case.query, visible_states=case.states, suppress_wheel_updates=True
+    )
+
+    for output in (terminal, markdown.replace("`", "").replace("**", "")):
+        for resource in ("jobs/etl", "jobs/runner", "schemas/hidden", "volumes/archive"):
+            assert (resource in output) is (resource in case.visible_resources)
+        for header in case.group_headers:
+            assert header in output
+        if case.summary is not None:
+            assert case.summary in output
+        else:
+            assert output.count("\n") <= 2
+        assert ("runs: ~1 recreate" in output) is case.has_effect
+        assert ("Retry this task." in output) is case.has_effect
+        assert ("job_parameters['region']" in output) is case.has_effect
+        assert ("Dangerous Actions" in output) is ("volumes/archive" in case.visible_resources)
+        assert ("Manual Edits Detected" in output) is ("jobs/etl" in case.visible_resources)
+        assert ("wheel etl_lib updated" in output) is ("jobs/etl" in case.visible_resources)
+        assert ("1 task will be re-added (restore)" in output) is ("jobs/etl" in case.visible_resources)
+        assert "No changes" not in output
+        assert "schemas/hidden was edited" not in output

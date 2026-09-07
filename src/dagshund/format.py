@@ -6,22 +6,25 @@ from itertools import groupby
 from typing import cast
 
 from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
-from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
+from dagshund.job_run_effects import filter_job_run_changes
+from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, ResourceChange
 from dagshund.plan import (
     ResourceLossRisk,
     action_to_diff_state,
     classify_resource_drift,
     classify_resource_loss_risk,
+    detect_changes,
     has_drifted_field,
     is_topology_drift_change,
 )
 from dagshund.types import (
+    DagshundError,
     DiffState,
     ResourceKey,
     ResourceType,
     parse_resource_key,
 )
-from dagshund.wheel import WheelUpdateUsage
+from dagshund.wheel import WheelUpdateUsage, collect_wheel_updates, summarize_wheel_updates
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +41,34 @@ class DriftSummary:
     overwritten_field_count: int
     # Sorted (noun, label) pairs. e.g. ("task", "transform"), ("grant", "data_engineers").
     reentries: tuple[tuple[str, str], ...]
+
+
+type ContextualFieldChange = tuple[str, FieldChange, FieldChangeContext]
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceDetails:
+    has_drift: bool = False
+    fields: tuple[ContextualFieldChange, ...] = ()
+    wheel_updates: tuple[WheelUpdateUsage, ...] = ()
+    topology_readds: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceGroup:
+    resource_type: ResourceType
+    total: int
+    entries: tuple[tuple[ResourceKey, ResourceChange], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Report:
+    no_changes: bool
+    groups: tuple[ResourceGroup, ...]
+    action_counts: tuple[tuple[ActionConfig, int], ...]
+    effect_counts: tuple[tuple[ActionConfig, int], ...]
+    warnings: tuple[str, ...]
+    drift_summaries: tuple[DriftSummary, ...]
 
 
 ACTIONS: dict[ActionType, ActionConfig] = {
@@ -256,6 +287,35 @@ def iter_non_topology_field_changes(
         )
 
 
+def select_resource_details(entry: ResourceChange, *, suppress_wheel_updates: bool = False) -> ResourceDetails:
+    """Partition visible details without changing the resource's domain semantics."""
+    if not (entry.changes and action_config(entry.action).show_field_changes):
+        return ResourceDetails()
+    drift = classify_resource_drift(entry)
+    wheel_updates = collect_wheel_updates(entry.changes) if suppress_wheel_updates else {}
+    fields = iter_non_topology_field_changes(
+        entry.changes,
+        new_state=entry.new_state,
+        remote_state=entry.remote_state,
+        shape_drift=drift.has_shape_drift,
+    )
+    return ResourceDetails(
+        has_drift=drift.has_drift,
+        fields=tuple(field for field in fields if field[0] not in wheel_updates),
+        wheel_updates=tuple(summarize_wheel_updates(wheel_updates)),
+        topology_readds=drift.topology_readds,
+    )
+
+
+def iter_effect_field_changes(effect: JobRunEffect) -> Iterator[ContextualFieldChange]:
+    """Run details use the same field partition but never resource wheel suppression."""
+    yield from iter_non_topology_field_changes(
+        filter_job_run_changes(effect.changes),
+        new_state=effect.new_state,
+        remote_state=effect.remote_state,
+    )
+
+
 def _resource_type_of(entry: tuple[ResourceKey, ResourceChange]) -> ResourceType:
     return parse_resource_key(entry[0])[0]
 
@@ -305,6 +365,45 @@ def count_effects_by_action(entries: Mapping[ResourceKey, ResourceChange]) -> di
     """Tally deploy-triggered runs by action, separate from the resource tally —
     a job stays unchanged while its runs create/recreate/delete (dagshund-ocb1)."""
     return dict(Counter(action_config(effect.action) for entry in entries.values() for effect in entry.effects))
+
+
+def _select_resource_groups(
+    resources: Mapping[ResourceKey, ResourceChange],
+    visible: Mapping[ResourceKey, ResourceChange],
+) -> tuple[ResourceGroup, ...]:
+    totals = {resource_type: len(entries) for resource_type, entries in group_by_resource_type(resources).items()}
+    return tuple(
+        ResourceGroup(resource_type, totals[resource_type], tuple(sorted(entries.items())))
+        for resource_type, entries in group_by_resource_type(visible).items()
+    )
+
+
+def prepare_report(
+    resources: Mapping[ResourceKey, ResourceChange],
+    *,
+    visible_states: frozenset[DiffState] | None = None,
+    filter_query: str | None = None,
+) -> Report:
+    """Aggregate normalized resources for both reports; filters only affect visibility."""
+    if not resources:
+        raise DagshundError("plan is empty")
+    resource_filter = None
+    if filter_query:
+        from dagshund.filter import build_query_predicate
+
+        resource_filter = build_query_predicate(filter_query)
+
+    visible = filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
+    # Even skip-only run records need the group view, although nothing fires.
+    no_changes = not detect_changes(resources) and not any(entry.effects for entry in resources.values())
+    return Report(
+        no_changes=no_changes,
+        groups=_select_resource_groups(resources, visible),
+        action_counts=tuple(sorted(count_by_action(visible).items(), key=lambda item: item[0].display)),
+        effect_counts=tuple(sorted(count_effects_by_action(visible).items(), key=lambda item: item[0].display)),
+        warnings=tuple(collect_warnings(visible)),
+        drift_summaries=tuple(collect_drift_summaries(visible)),
+    )
 
 
 def format_group_header(resource_type: ResourceType, total: int, visible: int) -> str:
@@ -378,6 +477,15 @@ def collect_drift_summaries(
 ) -> list[DriftSummary]:
     visible = iter_visible_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
     return [summary for key, entry in visible if (summary := _summarize_resource_drift(key, entry))]
+
+
+def iter_drift_subline_bodies(summary: DriftSummary) -> Iterator[str]:
+    if summary.overwritten_field_count > 0:
+        yield format_drift_subline_body(summary.overwritten_field_count, "field", "overwritten")
+    # Reentries are already sorted by (noun, label).
+    for noun, group in groupby(summary.reentries, key=lambda pair: pair[0]):
+        labels = tuple(pair[1] for pair in group)
+        yield format_drift_subline_body(len(labels), noun, "re-added", ", ".join(labels))
 
 
 def _format_count_noun(count: int, noun: str) -> str:
