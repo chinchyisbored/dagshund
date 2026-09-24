@@ -63,7 +63,7 @@ def _parse_wheel_requirement(path: str) -> tuple[str, str, tuple[str, ...]] | No
     distribution = cast("str", parts[0])
     version = cast("str", parts[1])
     extras = match.group(2)
-    parsed_extras: tuple[str, ...] = tuple(extras.split(",")) if extras else ()
+    parsed_extras: tuple[str, ...] = tuple(extras.split(",")) if isinstance(extras, str) else ()
     return distribution, version, parsed_extras
 
 

@@ -190,9 +190,9 @@ manually from a terminal running dagshund against the relevant fixture.
 ## Step 12: Browser verification
 
 `nix develop --command just dev <path-to-plan.json>` — load a substantive fixture and confirm
-the browser rendering looks sane. `nix develop --command just dev-down` to stop. Per
-`.agents/guidelines/WORKFLOW.md`, a passing `nix develop --command just build` does not guarantee a
-working app.
+the browser rendering looks sane. From another terminal in the repository, run
+`nix develop --command process-compose down` to stop the development processes. A passing
+`nix develop --command just build` does not guarantee a working app.
 
 ## Step 13: File follow-up beads
 
@@ -207,7 +207,7 @@ detail-panel grouping logic needed review.
 `pr_comment.png` is captured from a real GitLab MR so the screenshot matches
 what a user would actually see. Follow this extended flow:
 
-1. Complete the 3-pass review and present the diff summary, review outcome,
+1. Review the changes and present the diff summary, review outcome,
    verification, intended bead closure, commit, push, and MR actions.
 2. Pause for explicit user approval before closing the bead, committing, or
    pushing. Acknowledgement or screenshot discussion is not approval.
@@ -218,8 +218,8 @@ what a user would actually see. Follow this extended flow:
    **Do not** stage a new `pr_comment.png` yet. Verify with
    `nix develop --command git status`, then commit with a message like
    `fixtures(cli X.Y.Z): regenerate goldens`.
-5. Push the feature branch and open the MR using the standard commands in
-   `.agents/guidelines/WORKFLOW.md`.
+5. Push the feature branch and open an MR targeting `main` with squash and
+   source-branch removal.
 6. **Post the dagshund markdown output as its own MR note, not in the
    description.** Run a representative fixture through dagshund in md mode:
 

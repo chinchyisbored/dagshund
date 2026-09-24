@@ -2,17 +2,22 @@
 
 All agents working in this repository MUST follow this file and the referenced guidelines. These are project instructions, not optional background reading.
 
-You MUST read and follow [WORKFLOW.md](.agents/guidelines/WORKFLOW.md) before choosing work, creating or updating beads, running quality gates, committing, opening MRs, merging, or closing a session.
+## Development Tools
 
-## Nix Development Environment
+- `flake.nix` defines the development toolchain.
+- `.envrc` loads the Nix environment through direnv for interactive shells.
+- `justfile` provides development commands.
+- `process-compose.yaml` manages the CSS watcher and development server, started with `just dev [plan_file]`.
+
+### Agent command execution
+
+Agent tool calls may not inherit direnv, even when the user's terminal has loaded it. Always wrap commands explicitly; do not assume the environment is active.
 
 All repository development and maintenance commands MUST run inside the repository's Nix development shell. This includes Git, `br`, `just`, language tooling, Databricks CLI, GitLab CLI, GitHub CLI, shell utilities, and every command in agent guidelines and skills.
 
 - For one-off commands, use `nix develop --command <command> ...`.
 - For pipelines, redirection, command substitution, activation, or multiple commands, use `nix develop --command bash -c '<commands>'`.
-- A human may run `nix develop` once and then work interactively inside that shell.
 - Never rely on tools inherited from the host environment. Verify required tools are declared in `flake.nix`.
-- End-user Dagshund usage and the bootstrap `nix develop` command itself are outside this repository-development rule.
 
 ## Project
 
@@ -31,14 +36,14 @@ Python CLI + interactive web visualizer for `databricks bundle plan -o json` out
 
 Practical functional style. Readable, composable, explicit.
 
-- **Functions over classes.** No inheritance, no OOP patterns. Plain functions, closures, modules.
+- **Functions over classes.** No inheritance, no OOP patterns. Plain functions, closures, modules. Dataclasses are okay.
 - **Immutable by default.** Never mutate data. No singletons, no module-level mutable state.
 - **Small and composable.** Under 20 lines target for pure logic functions. Entry-point and orchestration functions (CLI `main`, top-level renderers) may exceed this when splitting would obscure control flow.
 - **Descriptive names.** Verb-first (`extract_job_tasks` / `extractJobTaskEdges`, not `get_edges`). No abbreviations.
 - No new dependencies without discussion
 - No clever one-liners that sacrifice readability
 - No modifying production code to make it testable — tests adapt to production, not vice versa
-- No skipping error handling: handle it, or track it as a `br` issue according to [WORKFLOW.md](.agents/guidelines/WORKFLOW.md).
+- No skipping error handling: handle it, or track it as a `br` issue.
 
 ## Language Guidelines
 

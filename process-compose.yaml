@@ -1,0 +1,12 @@
+version: "0.5"
+is_strict: true
+
+processes:
+  styles:
+    command: bun run --cwd js build:css:watch
+
+  server:
+    command: bun --hot --cwd js src/index.ts < "${PLAN_FILE}"
+    depends_on:
+      styles:
+        condition: process_started

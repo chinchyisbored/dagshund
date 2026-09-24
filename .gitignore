@@ -16,7 +16,6 @@ js/src/dagshund/
 
 # Caches
 .cache
-.uv-cache/
 *.tsbuildinfo
 
 # Python
@@ -26,20 +25,12 @@ __pycache__/
 build/
 .venv/
 
-# Beads lock file
-.beads/.jsonl.lock
-
-# Environment files
-.env
-.env.*
-!.env.example
-
 # Databricks
 .databricks
-fixtures/bases/bundle.schema.json
-fixtures/golden/bundle_config_schema.json
-fixtures/golden/wheel-bump/*/*/build
-unsanitized_fixtures
-fixtures-old
+*bundle_config_schema.json
+
+#env
+.env
+.direnv
 # br doctor per-run artifacts
 .doctor/

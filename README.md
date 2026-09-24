@@ -218,30 +218,6 @@ npx skills add chinchyisbored/dagshund
 
 Re-running `--install-skill` overwrites any existing `SKILL.md` at the target path without prompting.
 
-## Development
-
-The checked-in `flake.nix` and `flake.lock` define the development toolchain.
-Run every repository development and maintenance command inside that Nix shell
-so it never depends on undeclared host tools. For one-off commands:
-
-```bash
-nix develop --command just install
-nix develop --command just check
-nix develop --command just build
-```
-
-For interactive work, enter the shell once and run commands there:
-
-```bash
-nix develop
-```
-
-The shell provides Python 3.14, uv, Bun 1.4.0, Git and repository workflow
-CLIs, and Databricks CLI 1.14.0. The Databricks CLI is built from its
-checksummed GitHub release artifact rather than the Nixpkgs package. uv remains
-responsible for the Python virtual environment and dependencies, but is
-configured to use the Nix-provided interpreter without downloading Python.
-
 ## Contributing
 
 Dagshund is a solo project and I'm not accepting pull requests at this time. If you run into a bug or have a feature request, please open an issue, I'm happy to hear what you need.

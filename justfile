@@ -6,76 +6,40 @@ py_tooling := root / "fixtures" / "tooling"
 
 [private]
 default:
-  @just --list --unsorted
+    @just --list --unsorted
 
 # Install all deps and git hooks
 install:
-    #!/usr/bin/env bash
     set -euo pipefail
-    if [[ -n "${IN_NIX_SHELL:-}" ]]; then
-        uv sync --no-install-package prek --no-install-package ruff --no-install-package ty
-    else
-        uv sync
-    fi
-    bun install --cwd {{js_dir}}
+    uv sync --locked
+    bun install --cwd {{ js_dir }} --frozen-lockfile
     uv run prek install
 
-# Start JS dev server in background (plan file path relative to repo root)
+# Start process compose with planfile
 dev plan_file="fixtures/golden/mixed-changes/plan.json":
-    #!/usr/bin/env bash
-    bun run --cwd {{js_dir}} build:css
-    bun run --cwd {{js_dir}} build:css:watch &>/dev/null &
-    tw_pid=$!
-    cat "{{plan_file}}" | bun --hot --cwd {{js_dir}} src/index.ts &>/dev/null &
-    bun_pid=$!
-    mkdir -p {{root}}/.cache
-    echo "$bun_pid $tw_pid" > {{root}}/.cache/dev-server.pid
-    disown -a
-    echo "Dev server starting on http://localhost:3000 — stop with: just dev-down"
-
-# Kill the dagshund dev server
-dev-down:
-    #!/usr/bin/env bash
-    pidfile="{{root}}/.cache/dev-server.pid"
-    if [ -f "$pidfile" ]; then
-        for pid in $(<"$pidfile"); do
-            if kill -0 "$pid" 2>/dev/null; then
-                kill "$pid"
-                echo "Stopped pid $pid"
-            fi
-        done
-        rm -f "$pidfile"
-    else
-        # Fallback: kill by port
-        pid=$(fuser 3000/tcp 2>/dev/null)
-        if [ -n "$pid" ]; then
-            kill "$pid" && echo "Stopped process on port 3000 (pid $pid)"
-        else
-            echo "Nothing running on port 3000"
-        fi
-    fi
+    PLAN_FILE="{{ plan_file }}" process-compose up
 
 # Build JS template + Python wheel
 build:
-    bun run --cwd {{js_dir}} build:template
-    cp {{root}}/skills/dagshund/SKILL.md {{py_src}}/dagshund/_assets/SKILL.md
+    bun run --cwd {{ js_dir }} build:template
+    cp {{ root }}/skills/dagshund/SKILL.md {{ py_src }}/dagshund/_assets/SKILL.md
     uv build
 
 # Run JS tests
 test-js:
-    AGENT=1 bun test --cwd {{js_dir}} --coverage --coverage-reporter=lcov --coverage-dir {{root}}/.cache/coverage-js
+    AGENT=1 bun test --cwd {{ js_dir }} --coverage --coverage-reporter=lcov --coverage-dir {{ root }}/.cache/coverage-js
 
 # Lint JS with biome (applies safe fixes)
 lint-js:
-    bun run --cwd {{js_dir}} biome check --fix src/ tests/
+    bun run --cwd {{ js_dir }} biome check --fix src/ tests/
 
 # Format JS with biome
 format-js:
-    bun run --cwd {{js_dir}} biome format --write src/ tests/
+    bun run --cwd {{ js_dir }} biome format --write src/ tests/
 
 # Typecheck JS with tsc
 typecheck-js:
-    bun run --cwd {{js_dir}} tsc --noEmit
+    bun run --cwd {{ js_dir }} tsc --noEmit
 
 # Run Python tests
 test-py:
@@ -83,15 +47,15 @@ test-py:
 
 # Lint Python with ruff
 lint-py:
-    uv run ruff check --fix {{py_src}} {{py_tests}} {{py_tooling}}
+    uv run ruff check --fix {{ py_src }} {{ py_tests }} {{ py_tooling }}
 
 # Format Python with ruff
 format-py:
-    uv run ruff format {{py_src}} {{py_tests}} {{py_tooling}}
+    uv run ruff format {{ py_src }} {{ py_tests }} {{ py_tooling }}
 
 # Typecheck Python with ty
 typecheck-py:
-    uv run ty check {{py_src}} {{py_tests}} {{py_tooling}}
+    uv run ty check {{ py_src }} {{ py_tests }} {{ py_tooling }}
 
 # Run all tests
 test: test-js test-py
@@ -107,18 +71,18 @@ typecheck: typecheck-js typecheck-py
 
 # Check golden files against current output
 test-golden:
-    {{py_tooling}}/generate_expected.sh --check
+    {{ py_tooling }}/generate_expected.sh --check
 
 # Run all quality gates (lint + typecheck + test + golden)
 check: lint typecheck test test-golden
 
 # Regenerate golden fixture(s) from Databricks (local only, requires auth)
 regen name="--all":
-    {{py_tooling}}/regen.sh "{{name}}"
+    {{ py_tooling }}/regen.sh "{{ name }}"
 
 # Generate expected output for golden fixture(s)
 gen-expected name="--all":
-    {{py_tooling}}/generate_expected.sh "{{name}}"
+    {{ py_tooling }}/generate_expected.sh "{{ name }}"
 
 # Run pre-commit hooks on all files
 hooks-run:

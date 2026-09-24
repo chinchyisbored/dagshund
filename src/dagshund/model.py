@@ -116,7 +116,7 @@ def parse_resource_change(key: ResourceKey, raw: object) -> ResourceChange:
     raw_changes = raw_map.get("changes")
     changes: dict[str, FieldChange] = {}
     if isinstance(raw_changes, dict):
-        for k, v in cast("dict[str, Any]", raw_changes).items():
+        for k, v in cast("dict[object, object]", raw_changes).items():
             if isinstance(k, str):
                 changes[k] = parse_field_change(v)
 
@@ -187,7 +187,7 @@ def parse_plan_data(raw: Mapping[str, object]) -> Plan:
     raw_resources = raw.get("plan")
     resources: dict[ResourceKey, ResourceChange] = {}
     if isinstance(raw_resources, dict):
-        for k, v in cast("dict[str, Any]", raw_resources).items():
+        for k, v in cast("dict[object, object]", raw_resources).items():
             if isinstance(k, str):
                 resources[k] = parse_resource_change(k, v)
 

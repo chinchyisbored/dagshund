@@ -3,10 +3,9 @@
 ## Philosophy
 
 - **Isolation** — tests are completely independent. Never rely on execution order.
-- **AAA** — Arrange-Act-Assert with blank lines between phases. Comments optional.
+- **AAA** — Arrange-Act-Assert with blank lines between phases. Comments optional if neccesary.
 - **Happy and sad paths** — every function with failure modes gets both.
 - **Don't test frameworks** — no testing pytest, Bun, Zod, or React Flow themselves.
-- **Don't test the unreachable** — if layer A validates, skip layer B's error path.
 
 ---
 
@@ -22,7 +21,7 @@ nix develop --command just check         # lint + typecheck + all tests
 
 ### Conventions
 
-- **Standalone functions, no classes.** `test_` functions only.
+- **Standalone functions, no classes.** `test_` functions only. Dataclasses are fine.
 - **File layout**: mirror source — `cli.py` → `test_cli.py`, `browser.py` → `test_browser.py`
 - **Naming**: `test_<function>_<scenario>_<expected_outcome>`
 - **Type annotations**: `-> None` on all tests, typed fixture params (`monkeypatch: pytest.MonkeyPatch`, `tmp_path: Path`, `capsys: pytest.CaptureFixture[str]`)

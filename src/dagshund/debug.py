@@ -22,7 +22,7 @@ _TOOL_ID = sys.monitoring.PROFILER_ID
 _TOOL_NAME = "dagshund"
 _DEFAULT_CALL_BUDGET = 100_000
 
-_DAGSHUND_FILES: frozenset[str] = frozenset()
+_DAGSHUND_FILES: frozenset[str] = frozenset[str]()
 _POISONED: bool = False
 _call_budget: int = _DEFAULT_CALL_BUDGET
 _stack: list[float] = []

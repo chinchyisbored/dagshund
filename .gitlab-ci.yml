@@ -34,9 +34,9 @@ variables:
   # avoiding untagged-manifest retention failures. If the tag itself proves
   # mutable, mirror this image into a registry we control and digest-pin there.
   SEMGREP_IMAGE: registry.gitlab.com/security-products/semgrep:6.18.0
-  BUN_VERSION: "1.4.0"
-  BUN_SHA256: "2d03fb5fb83ac8b567aca0a281b2ce1a1a19d488f56c2968d88c3f25e92fe452"
-  BUN_BIN_SHA256: "33d56b070be6a9e3da0ab013038b43d1645d0534ca811ecdba4472599117eb4b"
+  BUN_VERSION: "1.4.2"
+  BUN_SHA256: "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913"
+  BUN_BIN_SHA256: "a83d263767d839e4d2649ca8e35d07159c7afc99afdc96d731ced29e056dda0c"
 
 # --- Top-level workflow rules ---
 # Four-lane pipeline model:
