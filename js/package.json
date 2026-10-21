@@ -34,7 +34,9 @@
     "typescript": "7.0.2"
   },
   "overrides": {
+    "@parcel/watcher": "2.6.0",
     "picomatch": "4.0.4",
+    "source-map-js": "1.2.2",
     "ws": "8.21.0"
   }
 }
