@@ -53,7 +53,7 @@ def make_resource(
     new_state: object | None = None,
     remote_state: object | None = None,
 ) -> ResourceChange:
-    """Build a ResourceChange with lenient defaults."""
+    """Build a ResourceChange; ``key`` is parse-origin metadata, not map identity."""
     return ResourceChange(
         key=key,
         action=action if isinstance(action, ActionType) else parse_action(action),

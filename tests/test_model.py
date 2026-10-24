@@ -8,7 +8,6 @@ import pytest
 from dagshund.model import (
     UNSET,
     ActionType,
-    FieldChange,
     UnsetSentinel,
     parse_action,
     parse_field_change,
@@ -16,6 +15,7 @@ from dagshund.model import (
     parse_plan_data,
     parse_resource_change,
 )
+from dagshund.types import DagshundError
 
 GOLDEN_DIR = Path(__file__).parent.parent / "fixtures" / "golden"
 GOLDEN_PLANS = sorted(p for p in GOLDEN_DIR.iterdir() if p.is_dir() and (p / "plan.json").exists())
@@ -109,21 +109,10 @@ def test_parse_field_change_unset_vs_none_distinction() -> None:
     assert present_null.old is not absent.old
 
 
-def test_parse_field_change_non_dict_returns_default() -> None:
-    result = parse_field_change("not a dict")
-
-    assert result == FieldChange()
-    assert result.action is ActionType.EMPTY
-    assert result.old is UNSET
-
-
-@pytest.mark.parametrize(
-    "value",
-    [42, None, [], True],
-    ids=["int", "none", "list", "bool"],
-)
-def test_parse_field_change_non_dict_types_return_default(value: object) -> None:
-    assert parse_field_change(value) == FieldChange()
+@pytest.mark.parametrize("value", ["not a dict", 42, None, [], True])
+def test_parse_field_change_non_dict_raises(value: object) -> None:
+    with pytest.raises(DagshundError, match="field change must be an object"):
+        parse_field_change(value)
 
 
 def test_parse_field_change_non_string_reason_is_none() -> None:
@@ -162,19 +151,25 @@ def test_parse_resource_change_full_entry() -> None:
     assert result.depends_on == (("resources.jobs.other", None),)
 
 
-def test_parse_resource_change_non_dict_returns_default() -> None:
-    result = parse_resource_change("resources.jobs.x", "garbage")
-
-    assert result.key == "resources.jobs.x"
-    assert result.action is ActionType.EMPTY
-    assert result.changes == {}
-    assert result.depends_on == ()
+@pytest.mark.parametrize("value", ["garbage", None, 42, []])
+def test_parse_resource_change_non_dict_raises(value: object) -> None:
+    with pytest.raises(DagshundError, match=r'resource "resources.jobs.x" must be an object'):
+        parse_resource_change("resources.jobs.x", value)
 
 
-def test_parse_resource_change_non_dict_changes_ignored() -> None:
-    result = parse_resource_change("k", {"changes": "not a dict"})
+@pytest.mark.parametrize("value", ["not a dict", 42, [], True])
+def test_parse_resource_change_non_dict_changes_raises(value: object) -> None:
+    with pytest.raises(DagshundError, match=r'changes for resource "k" must be an object or null'):
+        parse_resource_change("k", {"changes": value})
 
-    assert result.changes == {}
+
+def test_parse_resource_change_null_changes_are_accepted() -> None:
+    assert parse_resource_change("k", {"changes": None}).changes == {}
+
+
+def test_parse_resource_change_non_dict_field_raises_with_context() -> None:
+    with pytest.raises(DagshundError, match=r'change "name" for resource "k" must be an object'):
+        parse_resource_change("k", {"changes": {"name": None}})
 
 
 def test_parse_resource_change_non_string_change_keys_skipped() -> None:
@@ -323,6 +318,12 @@ def test_parse_plan_data_preserves_raw() -> None:
     assert result.raw["extra_key"] == "preserved"
 
 
+def test_parse_plan_data_resource_keys_match_enclosing_mapping_keys() -> None:
+    result = parse_plan_data({"plan": {"resources.jobs.actual": {"action": "create"}}})
+
+    assert result.resources["resources.jobs.actual"].key == "resources.jobs.actual"
+
+
 def test_parse_plan_data_redacts_uc_secret_values_without_mutating_input() -> None:
     raw = {
         "plan": {
@@ -380,6 +381,58 @@ def test_parse_plan_data_redacts_uc_secret_values_without_mutating_input() -> No
 
 
 @pytest.mark.parametrize(
+    ("field", "payload"),
+    [
+        ("value", "UC_SECRET_SENTINEL"),
+        ("value", ["UC_SECRET_SENTINEL"]),
+        ("value", {"nested": ["UC_SECRET_SENTINEL"]}),
+        ("effective_value", {"current_value": "UC_SECRET_SENTINEL"}),
+    ],
+    ids=["value-scalar", "value-array", "value-object", "effective-value-object"],
+)
+def test_parse_plan_data_redacts_unknown_secret_change_payloads_without_mutation(field: str, payload: object) -> None:
+    raw = {"plan": {"resources.secrets.token": {"changes": {field: {"current_value": payload}}}}}
+
+    result = parse_plan_data(raw)
+    redacted = json.loads(json.dumps(result.raw))
+
+    assert redacted["plan"]["resources.secrets.token"]["changes"][field]["current_value"] == "[redacted]"
+    assert raw["plan"]["resources.secrets.token"]["changes"][field]["current_value"] == payload
+    assert "UC_SECRET_SENTINEL" not in json.dumps(result.raw)
+
+
+def test_parse_plan_data_preserves_only_string_or_null_secret_change_metadata() -> None:
+    raw = {
+        "plan": {
+            "resources.secrets.token": {
+                "changes": {
+                    "value": {
+                        "action": {"sentinel": "UC_ACTION_SENTINEL"},
+                        "reason": ["UC_REASON_SENTINEL"],
+                        "current_value": {"sentinel": "UC_SECRET_SENTINEL"},
+                        "custom_metadata": "also-secret",
+                    }
+                }
+            }
+        }
+    }
+
+    result = parse_plan_data(raw)
+    redacted = json.loads(json.dumps(result.raw))
+    redacted_change = redacted["plan"]["resources.secrets.token"]["changes"]["value"]
+
+    assert redacted_change == {
+        "action": "[redacted]",
+        "reason": "[redacted]",
+        "current_value": "[redacted]",
+        "custom_metadata": "[redacted]",
+    }
+    assert raw["plan"]["resources.secrets.token"]["changes"]["value"]["current_value"] == {
+        "sentinel": "UC_SECRET_SENTINEL"
+    }
+
+
+@pytest.mark.parametrize(
     "malformed_state",
     ["UC_SECRET_SENTINEL", 42, True, ["UC_SECRET_SENTINEL"]],
     ids=["string", "number", "boolean", "array"],
@@ -418,34 +471,22 @@ def test_parse_plan_data_preserves_null_and_absent_uc_secret_states() -> None:
     assert "new_state" not in redacted["plan"]["resources.secrets.absent_state"]
 
 
-def test_parse_plan_data_redacts_malformed_uc_secret_entry() -> None:
+def test_parse_plan_data_redacts_malformed_uc_secret_entry_then_rejects() -> None:
     raw = {"plan": {"resources.secrets.api_token": "UC_SECRET_SENTINEL"}}
 
-    result = parse_plan_data(raw)
-    redacted = json.loads(json.dumps(result.raw))
+    with pytest.raises(DagshundError, match=r'resource "resources.secrets.api_token" must be an object') as exc_info:
+        parse_plan_data(raw)
 
-    assert redacted["plan"]["resources.secrets.api_token"] == "[redacted]"
-    assert "UC_SECRET_SENTINEL" not in json.dumps(result.raw)
+    assert "UC_SECRET_SENTINEL" not in str(exc_info.value)
 
 
-def test_parse_plan_data_redacts_malformed_uc_secret_change_payloads() -> None:
-    result = parse_plan_data(
-        {
-            "plan": {
-                "resources.secrets.api_token": {
-                    "changes": {
-                        "value": "plaintext-value-change",
-                        "effective_value": ["plaintext-effective-change"],
-                    }
-                }
-            }
-        }
-    )
+def test_parse_plan_data_redacts_malformed_uc_secret_change_then_rejects() -> None:
+    raw = {"plan": {"resources.secrets.api_token": {"changes": {"value": "plaintext-value-change"}}}}
 
-    serialized = json.dumps(result.raw)
-    assert "plaintext-value-change" not in serialized
-    assert "plaintext-effective-change" not in serialized
-    assert serialized.count("[redacted]") == 2
+    with pytest.raises(DagshundError, match=r'change "value" for resource "resources.secrets.api_token"') as exc_info:
+        parse_plan_data(raw)
+
+    assert "plaintext-value-change" not in str(exc_info.value)
 
 
 # --- UnsetSentinel identity ---
@@ -462,3 +503,57 @@ def test_unset_is_not_none() -> None:
 
 def test_unset_repr() -> None:
     assert "UNSET" in repr(UNSET)
+
+
+def test_parse_plan_attaches_safe_secret_comparison_facts() -> None:
+    raw = json.dumps(
+        {
+            "plan": {
+                "resources.secrets.token": {
+                    "changes": {
+                        "value": {
+                            "action": "update",
+                            "old": {"nested": [True, 2]},
+                            "new": {"nested": [False, 2]},
+                            "remote": {"nested": [True, 2]},
+                        }
+                    }
+                }
+            }
+        }
+    )
+
+    plan = parse_plan(raw)
+    facts = plan.resources["resources.secrets.token"].changes["value"].secret_facts
+
+    assert facts is not None
+    assert (facts.old_new_equal, facts.old_remote_equal) == (False, True)
+    assert "nested" not in repr(facts)
+    assert repr(facts) == "SecretComparisonFacts(old_new_equal=False, old_remote_equal=True)"
+    assert "[redacted]" in repr(plan.raw)
+    assert "nested" not in repr(plan.raw)
+
+
+def test_parse_plan_marker_makes_secret_facts_unknown() -> None:
+    raw = {
+        "plan": {
+            "resources.secrets.token": {
+                "changes": {
+                    "value": {
+                        "action": "update",
+                        "old": {"nested": "[REDACTED]"},
+                        "new": "new-secret",
+                        "remote": "remote-secret",
+                    }
+                }
+            }
+        }
+    }
+
+    plan = parse_plan_data(raw)
+    facts = plan.resources["resources.secrets.token"].changes["value"].secret_facts
+
+    assert facts is not None
+    assert (facts.old_new_equal, facts.old_remote_equal) == (None, None)
+    assert "new-secret" not in repr(facts)
+    assert "remote-secret" not in repr(facts)

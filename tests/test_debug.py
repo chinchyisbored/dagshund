@@ -26,6 +26,7 @@ from dagshund.debug import (
     disable_profile_tracing,
     enable_profile_tracing,
 )
+from dagshund.terminal import _supports_color
 
 # --- _summarize_value ---
 
@@ -96,7 +97,13 @@ def test_summarize_value_broken_repr_falls_back() -> None:
 def populated_files() -> Iterator[None]:
     """Snapshot _DAGSHUND_FILES the way enable_profile_tracing would."""
     root = Path(debug_mod.__file__).parent.resolve()
-    excluded_paths = {str(Path(debug_mod.__file__).resolve()), str(root / "redaction.py")}
+    excluded_paths = {
+        str(Path(debug_mod.__file__).resolve()),
+        str(root / "redaction.py"),
+        str(root / "json_value.py"),
+        str(root / "model.py"),
+        str(root / "cli.py"),
+    }
     original = debug_mod._DAGSHUND_FILES
     debug_mod._DAGSHUND_FILES = frozenset(str(p) for p in root.rglob("*.py") if str(p) not in excluded_paths)
     try:
@@ -105,10 +112,14 @@ def populated_files() -> Iterator[None]:
         debug_mod._DAGSHUND_FILES = original
 
 
-def test_should_trace_dagshund_function(populated_files: None) -> None:
+def test_should_trace_excludes_plaintext_handling_modules(populated_files: None) -> None:
+    from dagshund.cli import _decode_plan
+    from dagshund.json_value import json_values_equal
     from dagshund.model import parse_plan
 
-    assert _should_trace(parse_plan.__code__)
+    assert not _should_trace(parse_plan.__code__)
+    assert not _should_trace(_decode_plan.__code__)
+    assert not _should_trace(json_values_equal.__code__)
 
 
 def test_should_trace_excludes_debug_module(populated_files: None) -> None:
@@ -273,13 +284,11 @@ def callback_ready(
 
 
 def test_on_start_emits_call_and_pushes_stack(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
-    result = _on_start(parse_plan.__code__, 0)
+    result = _on_start(_supports_color.__code__, 0)
     assert result is None
     assert len(debug_mod._stack) == 1
     msgs = _messages(callback_ready)
-    assert any(m.startswith("→ parse_plan(") and "[model.py:" in m for m in msgs)
+    assert any(m.startswith("→ _supports_color(") and "[terminal.py:" in m for m in msgs)
 
 
 def test_on_start_filters_non_dagshund_with_disable(callback_ready: pytest.LogCaptureFixture) -> None:
@@ -291,27 +300,21 @@ def test_on_start_filters_non_dagshund_with_disable(callback_ready: pytest.LogCa
 
 
 def test_on_start_poisoned_returns_none(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
     debug_mod._POISONED = True
-    result = _on_start(parse_plan.__code__, 0)
+    result = _on_start(_supports_color.__code__, 0)
     assert result is None
     assert len(debug_mod._stack) == 0
 
 
 def test_on_start_debug_disabled_returns_disable(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
     callback_ready.set_level(logging.WARNING, logger="dagshund")
-    result = _on_start(parse_plan.__code__, 0)
+    result = _on_start(_supports_color.__code__, 0)
     assert result is sys.monitoring.DISABLE
 
 
 def test_on_start_budget_exhausted_truncates(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
     debug_mod._call_budget = 0
-    result = _on_start(parse_plan.__code__, 0)
+    result = _on_start(_supports_color.__code__, 0)
     assert result is None
     assert debug_mod._POISONED is True
     msgs = _messages(callback_ready)
@@ -322,51 +325,42 @@ def test_on_start_recovers_from_exception_via_poison(
     callback_ready: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from dagshund.model import parse_plan
 
     def boom(*_a: object, **_kw: object) -> str:
         raise OSError("injected")
 
     monkeypatch.setattr(debug_mod, "_summarize_params", boom)
-    result = _on_start(parse_plan.__code__, 0)
+    result = _on_start(_supports_color.__code__, 0)
     assert result is None
     assert debug_mod._POISONED is True
 
 
 def test_on_return_emits_and_pops(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
-    _on_start(parse_plan.__code__, 0)
+    _on_start(_supports_color.__code__, 0)
     callback_ready.clear()
-    result = _on_return(parse_plan.__code__, 0, "result_value")
+    result = _on_return(_supports_color.__code__, 0, "result_value")
     assert result is None
     assert len(debug_mod._stack) == 0
     msgs = _messages(callback_ready)
-    assert any(m.startswith("← parse_plan → ") and "'result_value'" in m for m in msgs)
+    assert any(m.startswith("← _supports_color → ") and "'result_value'" in m for m in msgs)
 
 
 def test_on_return_empty_stack_no_emit(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
     assert len(debug_mod._stack) == 0
-    result = _on_return(parse_plan.__code__, 0, None)
+    result = _on_return(_supports_color.__code__, 0, None)
     assert result is None
     assert _messages(callback_ready) == []
 
 
 def test_on_return_poisoned_returns_none(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
     debug_mod._POISONED = True
-    result = _on_return(parse_plan.__code__, 0, None)
+    result = _on_return(_supports_color.__code__, 0, None)
     assert result is None
 
 
 def test_on_return_debug_disabled_returns_disable(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
     callback_ready.set_level(logging.WARNING, logger="dagshund")
-    result = _on_return(parse_plan.__code__, 0, None)
+    result = _on_return(_supports_color.__code__, 0, None)
     assert result is sys.monitoring.DISABLE
 
 
@@ -377,17 +371,15 @@ def test_on_return_filters_non_dagshund_with_disable(callback_ready: pytest.LogC
 
 
 def test_on_unwind_emits_with_location_and_pops(callback_ready: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
-
-    _on_start(parse_plan.__code__, 0)
+    _on_start(_supports_color.__code__, 0)
     callback_ready.clear()
     exc = ValueError("field missing")
-    _on_unwind(parse_plan.__code__, 0, exc)
+    _on_unwind(_supports_color.__code__, 0, exc)
     assert len(debug_mod._stack) == 0
     msgs = _messages(callback_ready)
-    unwind = next(m for m in msgs if m.startswith("✗ parse_plan raised ValueError:"))
+    unwind = next(m for m in msgs if m.startswith("✗ _supports_color raised ValueError:"))
     assert "field missing" in unwind
-    assert "[model.py:" in unwind
+    assert "[terminal.py:" in unwind
 
 
 def test_on_unwind_empty_stack_no_emit(callback_ready: pytest.LogCaptureFixture) -> None:
@@ -421,12 +413,10 @@ def test_on_unwind_filters_non_dagshund(callback_ready: pytest.LogCaptureFixture
 
 def test_on_unwind_never_returns_disable(callback_ready: pytest.LogCaptureFixture) -> None:
     """PY_UNWIND is a global event — DISABLE would raise ValueError in user code."""
-    from dagshund.model import parse_plan
-
     fake = compile("pass", "/usr/lib/python3.14/json/__init__.py", "exec")
     for result in (
         _on_unwind(fake, 0, ValueError("x")),
-        _on_unwind(parse_plan.__code__, 0, ValueError("x")),  # empty stack
+        _on_unwind(_supports_color.__code__, 0, ValueError("x")),  # empty stack
     ):
         assert result is None
         assert result is not sys.monitoring.DISABLE
@@ -436,16 +426,14 @@ def test_on_unwind_recovers_from_exception_via_poison(
     callback_ready: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from dagshund.model import parse_plan
-
-    _on_start(parse_plan.__code__, 0)
+    _on_start(_supports_color.__code__, 0)
     callback_ready.clear()
 
     def boom(*_a: object, **_kw: object) -> str:
         raise OSError("injected")
 
     monkeypatch.setattr(debug_mod, "_format_location", boom)
-    _on_unwind(parse_plan.__code__, 0, ValueError("x"))
+    _on_unwind(_supports_color.__code__, 0, ValueError("x"))
     assert debug_mod._POISONED is True
 
 
@@ -494,60 +482,97 @@ def test_integration_preamble_on_enable(caplog: pytest.LogCaptureFixture) -> Non
         disable_profile_tracing()
 
 
-def test_integration_nested_calls_indented(profile_tracing: pytest.LogCaptureFixture) -> None:
+def test_integration_plaintext_handlers_are_not_traced(profile_tracing: pytest.LogCaptureFixture) -> None:
     from dagshund.model import parse_plan
 
     parse_plan('{"plan": {}, "plan_version": 1}')
-    msgs = _messages(profile_tracing)
-    # Top-level call has no indent.
-    assert any(m.startswith("→ parse_plan(") for m in msgs)
-    # Nested call is indented two spaces (depth 1).
-    assert any(m.startswith("  → parse_plan_data(") for m in msgs)
+
+    assert not _messages(profile_tracing)
 
 
-def test_integration_uc_secret_value_never_reaches_trace_logs(
+def test_integration_uc_secret_comparison_is_not_traced(
     profile_tracing: pytest.LogCaptureFixture,
 ) -> None:
+    import json
+
+    from dagshund.markdown import render_markdown
+    from dagshund.merge import normalize_plan
     from dagshund.model import parse_plan
 
-    parse_plan(
-        '{"plan":{"resources.secrets.api_token":{"action":"create",'
-        '"new_state":{"value":{"name":"api_token","value":"short-secret"}},'
-        '"changes":{"value":{"action":"update","new":"short-secret"}}}}}'
+    sentinel = "UC_SECRET_SENTINEL"
+    from dagshund.json_value import json_values_equal
+
+    assert json_values_equal.__code__.co_filename not in debug_mod._DAGSHUND_FILES
+    plan = parse_plan(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.secrets.api_token": {
+                        "action": "update",
+                        "changes": {
+                            "value": {
+                                "action": "update",
+                                "old": {"nested": [f"{sentinel}-old"]},
+                                "new": {"nested": [f"{sentinel}-new"]},
+                                "remote": {"nested": [f"{sentinel}-old"]},
+                            }
+                        },
+                    }
+                }
+            }
+        )
     )
+    render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
-    assert "short-secret" not in "\n".join(_messages(profile_tracing))
+    messages = "\n".join(_messages(profile_tracing))
+    assert sentinel not in messages
+    assert "_compare_known" not in messages
+    assert "json_values_equal" not in messages
 
 
-def test_integration_exception_emits_unwind_line(profile_tracing: pytest.LogCaptureFixture) -> None:
+def test_integration_plaintext_parse_failure_is_not_traced(profile_tracing: pytest.LogCaptureFixture) -> None:
     from dagshund.model import parse_plan
     from dagshund.types import DagshundError
 
     with pytest.raises(DagshundError):
-        parse_plan("not json")
-    msgs = _messages(profile_tracing)
-    assert any(m.startswith("✗ parse_plan raised DagshundError:") for m in msgs)
-    # No normal-return line for the failed call.
-    assert not any(m.startswith("← parse_plan →") for m in msgs)
+        parse_plan('invalid input beginning with "secret"')
+
+    assert not _messages(profile_tracing)
 
 
-def test_integration_unwind_includes_location(profile_tracing: pytest.LogCaptureFixture) -> None:
+def test_integration_decode_failure_does_not_leak_input(profile_tracing: pytest.LogCaptureFixture) -> None:
     from dagshund.model import parse_plan
     from dagshund.types import DagshundError
 
     with pytest.raises(DagshundError):
-        parse_plan("not json")
-    msgs = _messages(profile_tracing)
-    unwind = next(m for m in msgs if m.startswith("✗ parse_plan raised"))
-    assert "[model.py:" in unwind
+        parse_plan('invalid input beginning with "secret"')
+
+    assert "secret" not in "\n".join(_messages(profile_tracing))
 
 
-def test_integration_caught_exception_no_false_unwind(profile_tracing: pytest.LogCaptureFixture) -> None:
+def test_integration_real_frame_unwind_logs_exception_and_clears_stack(
+    profile_tracing: pytest.LogCaptureFixture,
+) -> None:
+    from json import loads
+
+    from dagshund.terminal import _escape_terminal
+
+    with pytest.raises(TypeError):
+        _escape_terminal(loads("null"))
+
+    unwind_messages = [message for message in _messages(profile_tracing) if "_escape_terminal raised" in message]
+    assert len(unwind_messages) == 1
+    assert unwind_messages[0].startswith("✗ _escape_terminal raised TypeError:")
+    assert "terminal.py:" in unwind_messages[0]
+    assert not debug_mod._stack
+
+
+def test_integration_no_false_unwind_from_excluded_parse(profile_tracing: pytest.LogCaptureFixture) -> None:
     from dagshund.model import parse_plan
 
     parse_plan('{"plan": {}}')
-    msgs = _messages(profile_tracing)
-    assert not any(m.startswith("✗") or (" ✗ " in m) for m in msgs)
+
+    assert not any(m.startswith("✗") or (" ✗ " in m) for m in _messages(profile_tracing))
 
 
 def test_integration_generator_path_balanced(
@@ -574,16 +599,16 @@ def test_integration_generator_path_balanced(
 
 
 def test_integration_enable_disable_cycle_idempotent(caplog: pytest.LogCaptureFixture) -> None:
-    from dagshund.model import parse_plan
+    from dagshund.terminal import _supports_color
 
     caplog.set_level(logging.DEBUG, logger="dagshund")
     for _ in range(3):
         enable_profile_tracing()
         try:
             caplog.clear()
-            parse_plan('{"plan": {}}')
+            _supports_color()
             msgs = [r.getMessage() for r in caplog.records if r.name == "dagshund"]
-            assert any(m.startswith("→ parse_plan(") for m in msgs)
+            assert any(m.startswith("→ _supports_color(") for m in msgs)
         finally:
             disable_profile_tracing()
 
@@ -622,7 +647,7 @@ def test_integration_poison_flag_stops_further_emits(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from dagshund.model import parse_plan
+    from dagshund.terminal import _supports_color
 
     caplog.set_level(logging.DEBUG, logger="dagshund")
     enable_profile_tracing()
@@ -633,12 +658,12 @@ def test_integration_poison_flag_stops_further_emits(
 
         monkeypatch.setattr(debug_mod, "_summarize_params", boom)
         # This call triggers the first on_start, which calls _summarize_params → OSError → poison.
-        parse_plan('{"plan": {}}')
+        _supports_color()
         assert debug_mod._POISONED is True
 
         caplog.clear()
         # Subsequent call should emit nothing (poisoned).
-        parse_plan('{"plan": {}}')
+        _supports_color()
         msgs = [r.getMessage() for r in caplog.records if r.name == "dagshund"]
         tracer_lines = [m for m in msgs if m.startswith(("→", "←", "✗", "  "))]
         assert tracer_lines == []
@@ -650,14 +675,14 @@ def test_integration_call_budget_truncates(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from dagshund.model import parse_plan
+    from dagshund.terminal import _supports_color
 
     caplog.set_level(logging.DEBUG, logger="dagshund")
     enable_profile_tracing()
     try:
-        monkeypatch.setattr(debug_mod, "_call_budget", 2)
+        monkeypatch.setattr(debug_mod, "_call_budget", 0)
         caplog.clear()
-        parse_plan('{"plan": {}, "plan_version": 1}')
+        _supports_color()
         msgs = [r.getMessage() for r in caplog.records if r.name == "dagshund"]
         assert any("trace truncated" in m for m in msgs)
         assert debug_mod._POISONED is True

@@ -1,9 +1,10 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Literal
 
 from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
-from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange
+from dagshund.model import UNSET, ActionType, FieldChange, ResourceChange, compare_field_values
+from dagshund.state import extract_new_state, extract_remote_state
 from dagshund.types import DiffState, ResourceKey, parse_resource_key
 
 __all__ = [
@@ -57,14 +58,9 @@ class ResourceDrift:
         return bool(self.overwritten_fields or self.topology_readds)
 
 
-def _as_mapping(value: object | None) -> Mapping[str, object] | None:
-    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else None
-
-
 def classify_pipeline_cascade_risk(entry: ResourceChange) -> PipelineCascadeRisk:
-    new_state = _as_mapping(entry.new_state)
-    new_value = _as_mapping(new_state.get("value")) if new_state is not None else None
-    remote_state = _as_mapping(entry.remote_state)
+    new_value = extract_new_state(entry.new_state)
+    remote_state = extract_remote_state(entry.remote_state)
     value = new_value.get("cascade_on_destroy") if new_value is not None else None
     if not isinstance(value, bool) and remote_state is not None:
         value = remote_state.get("cascade_on_destroy")
@@ -118,9 +114,9 @@ def has_drifted_field(change: FieldChange, ctx: FieldChangeContext | None = None
     if (
         change.old is not UNSET
         and change.new is not UNSET
-        and change.old == change.new
+        and compare_field_values(change, "old", "new") is True
         and change.remote is not UNSET
-        and change.remote != change.old
+        and compare_field_values(change, "old", "remote") is False
     ):
         return True
     return ctx is not None and ctx.resource_has_shape_drift and extract_list_element_semantic(ctx) == "delete"
@@ -153,7 +149,7 @@ def is_topology_drift_change(change: FieldChange) -> bool:
         return False
     if change.remote is not UNSET:
         return False
-    return change.old == change.new
+    return compare_field_values(change, "old", "new") is True
 
 
 def classify_resource_drift(entry: ResourceChange) -> ResourceDrift:

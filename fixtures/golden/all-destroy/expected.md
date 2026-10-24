@@ -10,7 +10,7 @@
 - `-` `jobs/data_quality_pipeline` — delete
 - `-` `jobs/etl_pipeline` — delete
 
-#### registered_models (1)
+#### registered\_models (1)
 - `-` `registered_models/quality_metrics` — delete
 
 #### schemas (2)
@@ -25,9 +25,9 @@
 
 > [!CAUTION]
 > **Dangerous Actions**
-> - experiments/audit_analysis will be deleted — all experiment runs and metrics will be lost
-> - registered_models/quality_metrics will be deleted — all model versions will be lost
+> - experiments/audit\_analysis will be deleted — all experiment runs and metrics will be lost
+> - registered\_models/quality\_metrics will be deleted — all model versions will be lost
 > - schemas/analytics will be deleted — all tables, views, and volumes in this schema will be lost
-> - schemas/analytics_staging will be deleted — all tables, views, and volumes in this schema will be lost
-> - volumes/external_imports will be deleted — all files in this volume will be lost
-> - volumes/raw_data will be deleted — all files in this volume will be lost
+> - schemas/analytics\_staging will be deleted — all tables, views, and volumes in this schema will be lost
+> - volumes/external\_imports will be deleted — all files in this volume will be lost
+> - volumes/raw\_data will be deleted — all files in this volume will be lost

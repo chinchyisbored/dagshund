@@ -4,6 +4,7 @@ from enum import StrEnum
 from typing import cast
 
 from dagshund.model import ResourceChange
+from dagshund.state import extract_new_state, extract_remote_state
 from dagshund.types import ResourceKey, parse_resource_key
 
 
@@ -20,14 +21,12 @@ class SyncedTableOutput:
 
 
 def _as_mapping(value: object) -> Mapping[str, object] | None:
-    return cast("Mapping[str, object]", value) if isinstance(value, dict) else None
+    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else None
 
 
 def _extract_resource_state(entry: ResourceChange) -> Mapping[str, object] | None:
-    new_state = _as_mapping(entry.new_state)
-    if new_state is not None and (value := _as_mapping(new_state.get("value"))) is not None:
-        return value
-    return _as_mapping(entry.remote_state)
+    new_state = extract_new_state(entry.new_state)
+    return new_state if new_state is not None else extract_remote_state(entry.remote_state)
 
 
 def _extract_nested_string(state: Mapping[str, object], *path: str) -> str | None:

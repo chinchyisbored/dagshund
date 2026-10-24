@@ -189,6 +189,41 @@ quality:
     - uv run pytest --cov=dagshund --cov-report=term-missing
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
 
+# --- Lower-minor Python compatibility (Python-only, every quality lane) ---
+
+python:
+  stage: quality
+  parallel:
+    matrix:
+      - PYTHON_IMAGE:
+          # uv 0.12.5 / Python 3.12 / Debian trixie, pinned index digest.
+          - ghcr.io/astral-sh/uv:0.12.5-python3.12-trixie@sha256:64165e61dd5fed90daa14ba2d17cdb5a49964837ff85431a3b8199d7a9aa98c0
+          # uv 0.12.5 / Python 3.13 / Debian trixie, pinned index digest.
+          - ghcr.io/astral-sh/uv:0.12.5-python3.13-trixie@sha256:7527c447eefbe4aa1ab927a0cd25c4f8224f9dd29ef53091679031ab3f069f66
+  image:
+    name: ${PYTHON_IMAGE}
+  variables:
+    UV_PYTHON_DOWNLOADS: "never"
+    UV_CACHE_DIR: .uv-cache
+  cache:
+    key:
+      files:
+        - uv.lock
+      prefix: ${CI_COMMIT_REF_PROTECTED}
+    paths:
+      - ${UV_CACHE_DIR}/
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+  script:
+    - uv --version
+    - python --version
+    - export UV_PYTHON="$(command -v python)"
+    - uv sync --locked
+    - uv run --locked python -c 'import sys; print(sys.version)'
+    - uv run --locked pytest -q
+
 # --- Version check (tag push only) ---
 
 version-check:
@@ -216,6 +251,7 @@ build:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   needs:
     - quality
+    - python
     - version-check  # cheapest possible gate against publishing a mismatched wheel — never make optional
   script:
     - bun run --cwd js build:template
@@ -242,6 +278,7 @@ golden:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   needs:
     - quality
+    - python
   allow_failure: false
   script:
     - ./fixtures/tooling/generate_expected.sh --check
@@ -330,6 +367,7 @@ pages:
   stage: pages
   needs:
     - quality
+    - python
   rules:
     # Only re-deploy when something that affects the rendered site changed.
     # js/**          → bun-built template

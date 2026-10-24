@@ -27,7 +27,12 @@ type JobRunEffectKind = Literal[
 
 @dataclass(frozen=True, slots=True)
 class JobRunEffectSemantics:
-    """Display semantics derived from a run effect's action and remote state."""
+    """Shared run-effect semantics derived from action and remote state.
+
+    ``fires_on_deploy`` and ``badge_visible`` are cross-language contract
+    fields asserted by the shared outcome vectors. Python text renderers
+    currently consume ``wording`` and ``state_message``, not these fields.
+    """
 
     kind: JobRunEffectKind
     wording: str

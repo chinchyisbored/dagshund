@@ -54,6 +54,30 @@ def test_extract_list_element_semantic_shared_fixture(case: _SemanticCase) -> No
     assert extract_list_element_semantic(ctx) == case.expected
 
 
+@pytest.mark.parametrize(
+    ("new_state", "remote_state", "expected"),
+    [
+        ({"depends_on": []}, {"depends_on": [{"task_key": "ingest"}]}, "delete"),
+        ({"value": None, "depends_on": []}, {"depends_on": [{"task_key": "ingest"}]}, "delete"),
+        ({"value": 1, "depends_on": []}, {"depends_on": [{"task_key": "ingest"}]}, "delete"),
+        ({"value": {"depends_on": []}}, {"depends_on": [{"task_key": "ingest"}]}, "delete"),
+    ],
+    ids=["bare-new-allowed", "null-value-bare-fallback", "scalar-value-bare-fallback", "wrapped-new"],
+)
+def test_extract_list_element_semantic_uses_new_and_remote_trees_independently(
+    new_state: object,
+    remote_state: object,
+    expected: str,
+) -> None:
+    ctx = FieldChangeContext(
+        change_key="depends_on[task_key='ingest']",
+        new_state=new_state,
+        remote_state=remote_state,
+    )
+
+    assert extract_list_element_semantic(ctx) == expected
+
+
 def test_extract_list_element_semantic_ignores_resource_has_shape_drift_flag() -> None:
     """The semantic classification is independent of the drift flag (which gates drift, not semantic)."""
     ctx = FieldChangeContext(

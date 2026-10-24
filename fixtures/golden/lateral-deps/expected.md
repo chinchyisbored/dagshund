@@ -9,18 +9,18 @@
 #### jobs (3)
 - `=` `jobs/orchestrator`
 - `~` `jobs/worker_a` — update
-  - `+` `tasks[task_key='run_first_deploy_pipeline']`: {2 fields}
+  - `+` `tasks[task_key='run_first_deploy_pipeline']`: \{2 fields\}
 - `=` `jobs/worker_b`
 
-#### model_serving_endpoints (1)
+#### model\_serving\_endpoints (1)
 - `=` `model_serving_endpoints/phantom_endpoint`
 
 #### pipelines (2)
 - `=` `pipelines/etl_pipeline`
 - `+` `pipelines/first_deploy_pipeline` — create
 
-#### quality_monitors (1)
+#### quality\_monitors (1)
 - `~` `quality_monitors/table_monitor` — update
-  - `=` `schedule.pause_status`: "UNPAUSED" (remote)
+  - `=` `schedule.pause_status`: "UNPAUSED" \(remote\)
 
 **+1** create, **=6** unchanged, **~2** update

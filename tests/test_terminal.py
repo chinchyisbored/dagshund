@@ -14,7 +14,7 @@ from factories import (
 
 from dagshund.format import prepare_report
 from dagshund.merge import merge_sub_resources, normalize_plan
-from dagshund.model import FieldChange
+from dagshund.model import FieldChange, parse_plan
 from dagshund.plan import detect_changes
 from dagshund.terminal import (
     GREEN,
@@ -22,6 +22,7 @@ from dagshund.terminal import (
     RESET,
     _colorize,
     _detect_terminal_width,
+    _escape_terminal,
     _print_header,
     _print_resource_groups,
     _print_summary,
@@ -34,6 +35,25 @@ from dagshund.terminal import (
     render_text,
 )
 from dagshund.types import DagshundError, DiffState
+
+
+def test_escape_terminal_makes_controls_visible() -> None:
+    assert _escape_terminal("line\n\t\x1b\x7f\x85\u2028") == r"line\n\t\u001b\u007f\u0085\u2028"
+
+
+def test_wrapped_unknown_secret_field_shows_unavailable_notice() -> None:
+    plan = parse_plan(
+        '{"plan":{"resources.secrets.token":{"changes":{"value":'
+        '{"action":"update","old":"[redacted]","new":"new-secret"}}}}}'
+    )
+    change = plan.resources["resources.secrets.token"].changes["value"]
+
+    rendered = _render_field_change("x" * 70, change, use_color=False, width=80)
+
+    assert rendered is not None
+    assert "secret values unavailable" in rendered
+    assert "new-secret" not in rendered
+
 
 # --- render_text consumes normalized sub-resources (integration) ---
 
@@ -623,28 +643,27 @@ def test_render_resource_field_change_missing_action_key() -> None:
     assert len(lines) == 1
 
 
-def test_render_resource_non_dict_changes_skips_field_details() -> None:
-    entry = make_resource(action="update")
+def test_render_resource_empty_changes_shows_resource_header() -> None:
+    entry = make_resource(action="update", changes={})
 
     lines = list(_render_resource("resources.jobs.etl", entry, use_color=False))
 
     assert len(lines) == 1
+    assert "~ jobs/etl" in lines[0]
     assert "(update)" in lines[0]
 
 
-def test_render_resource_non_dict_change_entry_skips_that_field() -> None:
+def test_render_resource_valid_field_change_shows_transition() -> None:
     entry = make_resource(
         action="update",
-        changes={
-            "good_field": make_change(action="update", old=1, new=2),
-        },
+        changes={"good_field": make_change(action="update", old=1, new=2)},
     )
 
     lines = list(_render_resource("resources.jobs.etl", entry, use_color=False))
 
     assert len(lines) == 2
     assert "good_field" in lines[1]
-    assert "bad_field" not in lines[1]
+    assert "1 -> 2" in lines[1]
 
 
 # --- _print_header ---
@@ -768,14 +787,9 @@ def test_render_text_all_unchanged_shows_no_changes(fixtures_dir: Path, capsys: 
     assert "(unchanged)" not in out
 
 
-def test_render_text_invalid_plan_does_not_raise(fixtures_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """A malformed plan (bad action, non-dict changes, wrong-typed version) must render without raising."""
-    plan = plan_from_dict(json.loads((fixtures_dir / "invalid-plan.json").read_text()))
-
-    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
-
-    out = capsys.readouterr().out
-    assert "some_resource" in out
+def test_parse_invalid_plan_rejects_non_object_changes(fixtures_dir: Path) -> None:
+    with pytest.raises(DagshundError, match="must be an object or null"):
+        plan_from_dict(json.loads((fixtures_dir / "invalid-plan.json").read_text()))
 
 
 def test_render_text_force_color_includes_ansi(
@@ -801,6 +815,71 @@ def test_render_text_no_color_excludes_ansi(
 
     out = capsys.readouterr().out
     assert RESET not in out
+
+
+def test_render_text_escapes_public_fields_and_wraps_after_sanitizing(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("NO_COLOR", "")
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.setattr("dagshund.terminal._detect_terminal_width", lambda: 60)
+    plan = plan_from_dict(
+        {
+            "cli_version": "1\r\t\x7f\x85\\",
+            "plan": {
+                "resources.jobs.bad\nname": {
+                    "action": "update",
+                    "changes": {
+                        "description": {
+                            "action": "update",
+                            "old": "before\x1b\x7f\x85",
+                            "new": "after\x1b\x7f\x85",
+                        }
+                    },
+                }
+            },
+        }
+    )
+
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version)
+
+    output = capsys.readouterr().out
+    assert "cli 1\\r\\t\\u007f\\u0085\\" in output
+    assert r"jobs/bad\nname" in output
+    expected_field_lines = (
+        '      ~ description: "before\\u001b\\u007f\\u0085"',
+        '          -> "after\\u001b\\u007f\\u0085"',
+    )
+    output_lines = output.splitlines()
+    assert any(output_lines[index : index + 2] == list(expected_field_lines) for index in range(len(output_lines) - 1))
+    assert "\x1b" not in output
+    assert "\x85" not in output
+
+
+def test_render_text_sanitizes_controls_before_adding_color(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    plan = plan_from_dict(
+        {
+            "cli_version": "1\x1b[31m",
+            "plan": {
+                "resources.jobs.demo": {
+                    "action": "update",
+                    "changes": {"description": {"action": "update", "old": "safe", "new": "bad\x1b[2J"}},
+                }
+            },
+        }
+    )
+
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version)
+
+    output = capsys.readouterr().out
+    assert r"1\u001b[31m" in output
+    assert r"bad\u001b[2J" in output
+    assert "\x1b[31m" not in output
+    assert RESET in output
 
 
 # --- _print_resource_groups with visible_states ---
@@ -1303,6 +1382,14 @@ def test_wrap_transition_truncates_long_strings() -> None:
     lines = result.split("\n")
     assert lines[0] == "      ~ field: ..."
     assert lines[1] == "          -> ..."
+
+
+def test_wrap_transition_escapes_controls_before_generated_line_break() -> None:
+    change = make_change(action="update", old="before\n\x1b", new="after\t\x85")
+
+    result = _wrap_transition("      ~ field", change)
+
+    assert result == '      ~ field: "before\\n\\u001b"\n          -> "after\\t\\u0085"'
 
 
 # --- _wrap_warning_line ---
@@ -1878,6 +1965,92 @@ def test_render_text_effect_only_plan_is_not_no_changes(capsys: pytest.CaptureFi
 
     out = capsys.readouterr().out
     assert "No changes" not in out
+
+
+def test_render_text_unresolved_in_progress_run_uses_semantic_details(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.job_runs.running": {
+                    "action": "skip",
+                    "remote_state": {
+                        "state": {
+                            "life_cycle_state": "RUNNING",
+                            "state_message": "The existing run remains active.",
+                        }
+                    },
+                    "changes": {"result_state": {"action": "skip", "reason": "run in progress"}},
+                }
+            }
+        }
+    )
+
+    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
+
+    out = capsys.readouterr().out
+    assert "  = job_runs/running (run still in progress)" in out
+    assert "      state: The existing run remains active." in out
+    assert "result_state" not in out
+
+
+def test_render_text_standalone_state_continuations_use_resource_detail_indentation(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("dagshund.terminal._detect_terminal_width", lambda: 60)
+    message = "The existing run remains active while its notebook task continues processing."
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.job_runs.running": {
+                    "action": "skip",
+                    "remote_state": {"state": {"life_cycle_state": "RUNNING", "state_message": message}},
+                    "changes": {"result_state": {"action": "skip", "reason": "run in progress"}},
+                }
+            }
+        }
+    )
+
+    render_text(normalize_plan(plan.resources))
+    lines = capsys.readouterr().out.splitlines()
+    state_start = next(index for index, line in enumerate(lines) if "state: The existing run" in line)
+
+    assert lines[state_start].startswith("      state:")
+    assert lines[state_start + 1].startswith("      ")
+
+
+def test_render_text_shared_job_run_vectors_attached_and_standalone(capsys: pytest.CaptureFixture[str]) -> None:
+    fixture_path = Path(__file__).resolve().parent.parent / "fixtures" / "job-run-outcome-cases.json"
+    cases = json.loads(fixture_path.read_text())["cases"]
+
+    for case in cases:
+        expected = case["expected"]
+        resources = case["plan"].copy()
+        effect_key = case["effectKey"]
+        target_key = resources[effect_key]["depends_on"][0]["node"]
+        for standalone in (False, True):
+            plan_resources = {key: value for key, value in resources.items() if not standalone or key != target_key}
+            render_text(normalize_plan(plan_from_dict({"plan": plan_resources}).resources))
+            out = capsys.readouterr().out
+            assert expected["wording"] in out
+            assert "fingerprint-before" not in out
+            assert "result_state" not in out
+            if expected["stateMessage"] is not None:
+                assert f"state: {expected['stateMessage']}" in out
+            if "job_parameters['region']" in expected["visibleChangeKeys"]:
+                assert "job_parameters['region']" in out
+
+
+def test_render_text_basic_run_kinds_attached_and_standalone(capsys: pytest.CaptureFixture[str]) -> None:
+    cases = (("create", "runs on deploy"), ("skip", "already ran"), ("delete", "run record will be deleted"))
+    for action, wording in cases:
+        for standalone in (False, True):
+            resources: dict[str, dict[str, object]] = {"resources.job_runs.basic": {"action": action}}
+            if not standalone:
+                resources["resources.jobs.owner"] = {"action": "skip"}
+                resources["resources.job_runs.basic"]["depends_on"] = [{"node": "resources.jobs.owner"}]
+            plan = plan_from_dict({"plan": resources})
+            render_text(normalize_plan(plan.resources))
+            assert wording in capsys.readouterr().out
 
 
 def test_render_text_skip_only_effects_render_run_records(capsys: pytest.CaptureFixture[str]) -> None:

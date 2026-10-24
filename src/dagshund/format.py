@@ -7,7 +7,8 @@ from typing import cast
 
 from dagshund.change_path import FieldChangeContext, extract_list_element_semantic
 from dagshund.job_run_effects import filter_job_run_changes
-from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, ResourceChange
+from dagshund.merge import build_job_run_effect
+from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, ResourceChange, compare_field_values
 from dagshund.plan import (
     ResourceLossRisk,
     action_to_diff_state,
@@ -183,6 +184,8 @@ def format_field_suffix(change: FieldChange, ctx: FieldChangeContext | None = No
     has_old, has_new = change.old is not UNSET, change.new is not UNSET
     has_remote = change.remote is not UNSET
 
+    unavailable = change.secret_facts is not None and compare_field_values(change, "old", "new") is None
+
     # List-element reclassification: for bundle-managed lists the CLI emits
     # shapes that are ambiguous with unrelated semantics. When ctx lets us
     # disambiguate, take over ONLY when the shape would otherwise misclassify —
@@ -210,7 +213,7 @@ def format_field_suffix(change: FieldChange, ctx: FieldChangeContext | None = No
         return f": {format_value(change.remote)} -> {format_value(change.new)} (drift)"
 
     # No-op: old == new with no meaningful remote difference — suppress
-    if has_old and has_new and change.old == change.new:
+    if has_old and has_new and compare_field_values(change, "old", "new") is True:
         return None
 
     # Remote-only: server has a value the bundle doesn't manage
@@ -218,11 +221,14 @@ def format_field_suffix(change: FieldChange, ctx: FieldChangeContext | None = No
         return f": {format_value(change.remote)} (remote)"
 
     if has_old and has_new:
-        return format_transition(change.old, change.new)
+        suffix = format_transition(change.old, change.new)
+        return f"{suffix} (secret values unavailable)" if unavailable else suffix
     if has_new:
-        return f": {format_display_value(change.new)}"
+        suffix = f": {format_display_value(change.new)}"
+        return f"{suffix} (secret values unavailable)" if unavailable else suffix
     if has_old:
-        return f": {format_display_value(change.old)}"
+        suffix = f": {format_display_value(change.old)}"
+        return f"{suffix} (secret values unavailable)" if unavailable else suffix
     return ""
 
 
@@ -305,6 +311,13 @@ def select_resource_details(entry: ResourceChange, *, suppress_wheel_updates: bo
         wheel_updates=tuple(summarize_wheel_updates(wheel_updates)),
         topology_readds=drift.topology_readds,
     )
+
+
+def select_standalone_job_run_effect(key: ResourceKey, entry: ResourceChange) -> JobRunEffect | None:
+    """Return shared run semantics for a standalone job_runs resource."""
+    if parse_resource_key(key)[0] != "job_runs":
+        return None
+    return build_job_run_effect(parse_resource_key(key)[1], entry)
 
 
 def iter_effect_field_changes(effect: JobRunEffect) -> Iterator[ContextualFieldChange]:
@@ -395,7 +408,12 @@ def prepare_report(
 
     visible = filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
     # Even skip-only run records need the group view, although nothing fires.
-    no_changes = not detect_changes(resources) and not any(entry.effects for entry in resources.values())
+    has_standalone_runs = any(select_standalone_job_run_effect(key, entry) for key, entry in resources.items())
+    no_changes = (
+        not detect_changes(resources)
+        and not any(entry.effects for entry in resources.values())
+        and not has_standalone_runs
+    )
     return Report(
         no_changes=no_changes,
         groups=_select_resource_groups(resources, visible),

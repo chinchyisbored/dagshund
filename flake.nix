@@ -46,6 +46,9 @@
             pkgs.python314
           ];
 
+          DAGSHUND_PYTHON312 = "${pkgs.python312}/bin/python3.12";
+          DAGSHUND_PYTHON313 = "${pkgs.python313}/bin/python3.13";
+          DAGSHUND_PYTHON314 = "${pkgs.python314}/bin/python3.14";
           UV_PYTHON = "${pkgs.python314}/bin/python3.14";
           UV_PYTHON_DOWNLOADS = "never";
           UV_PYTHON_PREFERENCE = "only-system";

@@ -1,30 +1,30 @@
 ### dagshund plan (v2, cli 1.14.0)
 
-#### postgres_branches (3)
+#### postgres\_branches (3)
 - `+` `postgres_branches/dev_branch` — create
 - `+` `postgres_branches/external_lineage_branch` — create
 - `~` `postgres_branches/prd_branch` — update
-  - `~` `is_protected`: true -> false
+  - `~` `is_protected`: true -&gt; false
 
-#### postgres_catalogs (1)
+#### postgres\_catalogs (1)
 - `+` `postgres_catalogs/dev_catalog` — create
 
-#### postgres_databases (1)
+#### postgres\_databases (1)
 - `=` `postgres_databases/app_database`
 
-#### postgres_endpoints (2)
+#### postgres\_endpoints (2)
 - `+` `postgres_endpoints/dev_endpoint` — create
 - `=` `postgres_endpoints/prd_endpoint`
 
-#### postgres_projects (1)
+#### postgres\_projects (1)
 - `~` `postgres_projects/dagshund_project` — update
-  - `+` `custom_tags`: [{key: "env", value: "prd"}]
-  - `+` `permissions.[group_name='data_analysts']`: {level: "CAN_USE", group_name: "data_analysts"}
+  - `+` `custom_tags`: \[\{key: "env", value: "prd"\}\]
+  - `+` `permissions.[group_name='data_analysts']`: \{level: "CAN\_USE", group\_name: "data\_analysts"\}
 
-#### postgres_roles (1)
+#### postgres\_roles (1)
 - `=` `postgres_roles/data_engineers`
 
-#### postgres_synced_tables (1)
+#### postgres\_synced\_tables (1)
 - `+` `postgres_synced_tables/phantom_table` — create
   - `+` managed pipeline: `phantom_table pipeline`
   - `+` managed Unity Catalog registration: `dagshund_lakebase.public.phantom_table`

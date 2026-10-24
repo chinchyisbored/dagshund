@@ -1,7 +1,7 @@
 dagshund plan (v2, cli 1.14.0)
 
   job_runs (1)
-  + job_runs/ping_healthcheck  (create)
+  + job_runs/ping_healthcheck (runs on deploy)
 
   jobs (5)
   = jobs/cache_warmup

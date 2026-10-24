@@ -1,3 +1,4 @@
+import re
 from collections.abc import Iterator, Mapping, Sequence
 
 from dagshund.change_path import FieldChangeContext
@@ -8,12 +9,12 @@ from dagshund.format import (
     action_config,
     field_action_config,
     format_field_suffix,
-    format_group_header,
     format_wheel_update_body,
     iter_drift_subline_bodies,
     iter_effect_field_changes,
     prepare_report,
     select_resource_details,
+    select_standalone_job_run_effect,
 )
 from dagshund.job_run_effects import classify_job_run_effect
 from dagshund.model import ActionType, FieldChange, JobRunEffect, ResourceChange
@@ -31,6 +32,45 @@ from dagshund.types import (
     parse_resource_key,
 )
 
+_MARKDOWN_PUNCTUATION = re.compile(r"([`*_{}\[\]()#+!|~])")
+
+
+def _escape_plain_text(value: str) -> str:
+    escaped = []
+    for character in value:
+        codepoint = ord(character)
+        if character == "\\":
+            escaped.append("\\\\")
+        elif character == "\n":
+            escaped.append("\\n")
+        elif character == "\r":
+            escaped.append("\\r")
+        elif character == "\t":
+            escaped.append("\\t")
+        elif codepoint < 32 or 0x7F <= codepoint <= 0x9F or codepoint in (0x2028, 0x2029):
+            escaped.append(f"\\u{codepoint:04x}")
+        else:
+            escaped.append(character)
+    text = _MARKDOWN_PUNCTUATION.sub(r"\\\1", "".join(escaped))
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _code_span(value: str) -> str:
+    value = _escape_controls(value)
+    runs = [len(run) for run in re.findall(r"`+", value)]
+    delimiter = "`" * (max(runs, default=0) + 1)
+    padding = " " if value.startswith(("`", " ")) or value.endswith(("`", " ")) else ""
+    return f"{delimiter}{padding}{value}{padding}{delimiter}"
+
+
+def _escape_controls(value: str) -> str:
+    return "".join(
+        character
+        if ord(character) >= 32 and not 0x7F <= ord(character) <= 0x9F and ord(character) not in (0x2028, 0x2029)
+        else {"\\n": "\\n", "\\r": "\\r", "\\t": "\\t"}.get(character, f"\\u{ord(character):04x}")
+        for character in value
+    )
+
 
 def _render_field_change(
     field_name: str,
@@ -46,28 +86,36 @@ def _render_field_change(
         return None
 
     cfg = field_action_config(change, ctx)
-    return f"  - `{cfg.symbol}` `{field_name}`{suffix}"
+    return f"  - `{cfg.symbol}` {_code_span(field_name)}{_escape_plain_text(suffix)}"
 
 
 def _render_synced_table_output(output: SyncedTableOutput, owner_action: ActionType) -> str:
     action = owner_action if output.relationship == OutputRelationship.MANAGED else ActionType.EMPTY
     cfg = action_config(action)
-    return f"  - `{cfg.symbol}` {output.relationship} {output.resource_type}: `{output.name}`"
+    relationship = _escape_plain_text(str(output.relationship))
+    return f"  - `{cfg.symbol}` {relationship} {output.resource_type}: {_code_span(output.name)}"
 
 
-def _render_effect_lines(effect: JobRunEffect) -> Iterator[str]:
-    """Nested bullets for a deploy-triggered run; the run name links to the
-    existing run page when the record carries one."""
+def _render_effect_lines(effect: JobRunEffect, *, standalone: bool = False) -> Iterator[str]:
+    """Render shared semantic details for attached or standalone runs."""
     semantics = classify_job_run_effect(effect)
     cfg = action_config(effect.action)
-    name = f"[`{effect.name}`]({effect.run_page_url})" if effect.run_page_url else f"`{effect.name}`"
-    yield f"  - `{cfg.symbol}` run {name} ({semantics.wording})"
+    label = _code_span(effect.name)
+    name = f"[{label}]({effect.run_page_url})" if effect.run_page_url else label
+    if standalone:
+        resource_name = _code_span(f"job_runs/{effect.name}")
+        resource_link = f"[{resource_name}]({effect.run_page_url})" if effect.run_page_url else resource_name
+        yield f"- `{cfg.symbol}` {resource_link} — {_escape_plain_text(semantics.wording)}"
+        detail_indent = "  "
+    else:
+        yield f"  - `{cfg.symbol}` run {name} ({_escape_plain_text(semantics.wording)})"
+        detail_indent = "    "
     if semantics.state_message is not None:
-        yield f"    - state: {semantics.state_message}"
+        yield f"{detail_indent}- state: {_escape_plain_text(semantics.state_message)}"
     for field_name, change, ctx in iter_effect_field_changes(effect):
         rendered = _render_field_change(field_name, change, ctx=ctx)
         if rendered is not None:
-            yield f"  {rendered}"
+            yield f"{'  ' if not standalone else ''}{rendered}"
 
 
 def _render_resource(
@@ -76,11 +124,16 @@ def _render_resource(
     *,
     suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
+    standalone_run = select_standalone_job_run_effect(key, entry)
+    if standalone_run is not None:
+        yield from _render_effect_lines(standalone_run, standalone=True)
+        return
+
     cfg = action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
 
     label = f" \u2014 {cfg.display}" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
-    yield f"- `{cfg.symbol}` `{resource_type}/{resource_name}`{label}"
+    yield f"- `{cfg.symbol}` {_code_span(f'{resource_type}/{resource_name}')}{label}"
 
     for output in extract_synced_table_outputs(key, entry):
         yield _render_synced_table_output(output, entry.action)
@@ -99,18 +152,18 @@ def _render_resource(
             yield rendered
 
     for usage in details.wheel_updates:
-        yield f"  - `~` {format_wheel_update_body(usage)}"
+        yield f"  - `~` {_escape_plain_text(format_wheel_update_body(usage))}"
 
     if details.topology_readds:
         create_cfg = action_config(ActionType.CREATE)
         for key_name in details.topology_readds:
-            yield f"  - `{create_cfg.symbol}` `{key_name}` (drift) (re-added)"
+            yield f"  - `{create_cfg.symbol}` {_code_span(key_name)} (drift) (re-added)"
 
 
 def _render_header(*, cli_version: str | None, plan_version: int | None) -> Iterator[str]:
     displayed_cli_version = cli_version or "unknown"
     displayed_plan_version = plan_version if plan_version is not None else "?"
-    yield f"### dagshund plan (v{displayed_plan_version}, cli {displayed_cli_version})"
+    yield f"### dagshund plan (v{displayed_plan_version}, cli {_escape_plain_text(displayed_cli_version)})"
     yield ""
 
 
@@ -120,7 +173,8 @@ def _render_resource_groups(
     suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
     for group in resource_groups:
-        yield f"#### {format_group_header(group.resource_type, group.total, len(group.entries))}"
+        count = f"({len(group.entries)}/{group.total})" if len(group.entries) != group.total else f"({group.total})"
+        yield f"#### {_escape_plain_text(group.resource_type)} {count}"
         for key, entry in group.entries:
             yield from _render_resource(key, entry, suppress_wheel_updates=suppress_wheel_updates)
         yield ""
@@ -142,7 +196,7 @@ def _render_warnings(warnings: Sequence[str]) -> Iterator[str]:
     yield "> [!CAUTION]"
     yield "> **Dangerous Actions**"
     for warning in warnings:
-        yield f"> - {warning}"
+        yield f"> - {_escape_plain_text(warning)}"
 
 
 def _iter_drift_warning_md_lines(summary: DriftSummary) -> Iterator[str]:
@@ -152,9 +206,11 @@ def _iter_drift_warning_md_lines(summary: DriftSummary) -> Iterator[str]:
     GitHub/GitLab nested bullet rendering inside alert blocks; top-level bullets
     use ``> -`` (one space).
     """
-    yield f"> - {summary.resource_type}/{summary.resource_name} was edited outside the bundle"
+    resource_type = _escape_plain_text(summary.resource_type)
+    resource_name = _escape_plain_text(summary.resource_name)
+    yield f"> - {resource_type}/{resource_name} was edited outside the bundle"
     for body in iter_drift_subline_bodies(summary):
-        yield f">   - {body}"
+        yield f">   - {_escape_plain_text(body)}"
 
 
 def _render_drift_warnings(summaries: Sequence[DriftSummary]) -> Iterator[str]:
@@ -177,6 +233,7 @@ def render_markdown(
     """Format normalized resources; callers must apply ``normalize_plan`` first.
 
     Version metadata is optional and does not require a parsed plan envelope.
+    The renderer only reads borrowed resources; callers must not mutate them while rendering.
     """
     report = prepare_report(resources, visible_states=visible_states, filter_query=filter_query)
 

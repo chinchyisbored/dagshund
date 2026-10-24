@@ -10,6 +10,7 @@ from dagshund.model import (
     JobRunEffect,
     ResourceChange,
 )
+from dagshund.state import extract_new_state, extract_remote_state
 from dagshund.types import ResourceKey, parse_resource_key
 
 
@@ -37,33 +38,19 @@ def _prefix_changes(
     return {f"{suffix}.{key}": value for key, value in changes.items()}
 
 
-def _extract_state_value(state: object) -> dict[str, object] | None:
-    """Extract the inner value from a state wrapper (`{ "value": ... }` or bare dict)."""
-    if not isinstance(state, dict):
-        return None
-    inner = cast("dict[str, Any]", state).get("value")
-    if isinstance(inner, dict):
-        return cast("dict[str, object]", inner)
-    return None
-
-
-def _resolve_sub_state(sub_entry: ResourceChange) -> dict[str, object] | None:
-    new_value = _extract_state_value(sub_entry.new_state)
+def _resolve_sub_state(sub_entry: ResourceChange) -> Mapping[str, object] | None:
+    new_value = extract_new_state(sub_entry.new_state)
     if new_value is not None:
         return new_value
-    if isinstance(sub_entry.remote_state, dict):
-        return cast("dict[str, object]", sub_entry.remote_state)
-    return None
+    return extract_remote_state(sub_entry.remote_state)
 
 
-def _resolve_sub_new_state(sub_entry: ResourceChange) -> dict[str, object] | None:
-    return _extract_state_value(sub_entry.new_state)
+def _resolve_sub_new_state(sub_entry: ResourceChange) -> Mapping[str, object] | None:
+    return extract_new_state(sub_entry.new_state)
 
 
-def _resolve_sub_remote_state(sub_entry: ResourceChange) -> dict[str, object] | None:
-    if isinstance(sub_entry.remote_state, dict):
-        return cast("dict[str, object]", sub_entry.remote_state)
-    return None
+def _resolve_sub_remote_state(sub_entry: ResourceChange) -> Mapping[str, object] | None:
+    return extract_remote_state(sub_entry.remote_state)
 
 
 def _inject_state(
@@ -82,7 +69,7 @@ def _inject_state(
     sub_remote_state = _resolve_sub_remote_state(sub_entry)
 
     new_state: object = parent_entry.new_state
-    parent_new_value = _extract_state_value(parent_entry.new_state)
+    parent_new_value = extract_new_state(parent_entry.new_state)
     if parent_new_value is not None and sub_new_state is not None and isinstance(parent_entry.new_state, dict):
         new_state = {
             **parent_entry.new_state,
@@ -179,10 +166,11 @@ _EFFECT_RESOURCE_TYPES: frozenset[str] = frozenset({"job_runs"})
 
 def _extract_job_run_target_id(entry: ResourceChange) -> int | None:
     """Numeric target job_id from new_state.value, falling back to remote_state."""
-    new_value = _extract_state_value(entry.new_state)
+    new_value = extract_new_state(entry.new_state)
     candidate: object = new_value.get("job_id") if new_value is not None else None
-    if not isinstance(candidate, int) and isinstance(entry.remote_state, dict):
-        candidate = cast("dict[str, Any]", entry.remote_state).get("job_id")
+    remote_state = extract_remote_state(entry.remote_state)
+    if not isinstance(candidate, int) and remote_state is not None:
+        candidate = remote_state.get("job_id")
     if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate != 0:
         return candidate
     return None
@@ -229,12 +217,16 @@ def _extract_run_page_url(remote_state: object) -> str | None:
     if not isinstance(remote_state, dict):
         return None
     run_page_url = cast("dict[str, Any]", remote_state).get("run_page_url")
-    if isinstance(run_page_url, str) and _RUN_PAGE_URL_PATTERN.fullmatch(run_page_url):
+    if (
+        isinstance(run_page_url, str)
+        and not any(ord(character) < 32 or 0x7F <= ord(character) <= 0x9F for character in run_page_url)
+        and _RUN_PAGE_URL_PATTERN.fullmatch(run_page_url)
+    ):
         return run_page_url
     return None
 
 
-def _build_job_run_effect(name: str, entry: ResourceChange) -> JobRunEffect:
+def build_job_run_effect(name: str, entry: ResourceChange) -> JobRunEffect:
     return JobRunEffect(
         name=name,
         action=entry.action,
@@ -248,11 +240,15 @@ def _build_job_run_effect(name: str, entry: ResourceChange) -> JobRunEffect:
 def normalize_plan(
     resources: Mapping[ResourceKey, ResourceChange],
 ) -> dict[ResourceKey, ResourceChange]:
-    """Normalize parsed resources without mutating them or their original payload.
+    """Normalize borrowed parsed resources without mutating them or their payloads.
 
-    Call once at the orchestration boundary and share the returned mapping with
-    Python renderers and plan detection functions. Input must be parsed resources,
-    not already normalized output. No plan envelope or raw JSON is replaced.
+    The returned top-level mapping is new; unchanged entries and nested payloads
+    may be shared, while merged/replaced entries are new. Callers must not mutate
+    shared input or output values while they are in use. Mapping keys, not
+    ``ResourceChange.key``, define resource identity. Call once at the orchestration
+    boundary and share the result with Python renderers and plan detection functions.
+    Input must be parsed resources, not already normalized output. No plan envelope
+    or raw JSON is replaced.
     Merge sub-resources, then fold job_runs entries onto their target jobs as effects.
 
     The target's own action/changes/state stay untouched — effects never promote
@@ -284,7 +280,7 @@ def normalize_plan(
             targets[key] = entry
         else:
             name = parse_resource_key(key)[1]
-            effects_by_target.setdefault(target_key, []).append(_build_job_run_effect(name, entry))
+            effects_by_target.setdefault(target_key, []).append(build_job_run_effect(name, entry))
 
     for target_key, effects in effects_by_target.items():
         ordered = tuple(sorted(effects, key=lambda effect: effect.name))
@@ -295,7 +291,12 @@ def normalize_plan(
 def merge_sub_resources(
     resources: Mapping[ResourceKey, ResourceChange],
 ) -> dict[ResourceKey, ResourceChange]:
-    """Merge parsed sub-resources into their parent entries, before effect folding.
+    """Merge borrowed parsed sub-resources into parent entries, before effect folding.
+
+    Returns a new top-level mapping, sharing unchanged entries and nested values
+    where possible. Neither the mapping nor its borrowed payloads may be mutated
+    by consumers while in use. The enclosing mapping key defines identity;
+    ``ResourceChange.key`` remains parse-origin metadata.
 
     Sub-resource keys (>3 dot-segments) are absorbed into the parent;
     orphans (parent not in plan) are kept as standalone entries.

@@ -1,15 +1,23 @@
 """Parse boundary: `Any` tax is paid once here, nowhere else.
 
+Decoded inputs and nested JSON values are borrowed. Do not mutate them while a
+plan, parsed resource, normalized mapping, or report is in use. Frozen dataclasses
+prevent field reassignment, not mutation of nested values. The enclosing resource
+mapping key is authoritative; ``ResourceChange.key`` retains parse-origin metadata.
 Mirrors the TS schema at ``js/src/types/plan-schema.ts``.
 """
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum, StrEnum
 from typing import Any, cast
 
-from dagshund.redaction import redact_uc_secret_values
+from dagshund.json_value import json_values_equal
+
+# TODO: Once Python 3.15 is the minimum, load redaction only for plans with UC secrets,
+# avoiding SecretComparisonFacts initialization for other plans.
+from dagshund.redaction import SecretComparisonFacts, redact_uc_secret_values_with_facts
 from dagshund.types import DagshundError, ResourceKey
 
 
@@ -49,10 +57,11 @@ UNSET = UnsetSentinel.UNSET
 class FieldChange:
     """A single field-level change within a resource.
 
-    `old` / `new` / `remote` are opaque payloads: object for any JSON value,
-    `None` when the key was present with JSON null, `UNSET` when the key was
-    absent. The presence-vs-null distinction drives drift detection
-    (`has_drifted_field`, `is_topology_drift_change`) and display logic.
+    `old` / `new` / `remote` are borrowed opaque payloads: object for any JSON
+    value, `None` when the key was present with JSON null, `UNSET` when absent.
+    Frozen fields do not make nested payloads immutable; callers must not mutate
+    shared values while a plan or report is in use. Presence versus null drives
+    drift detection (`has_drifted_field`, `is_topology_drift_change`) and display.
     """
 
     action: ActionType = ActionType.EMPTY
@@ -60,12 +69,34 @@ class FieldChange:
     old: object | UnsetSentinel = UNSET
     new: object | UnsetSentinel = UNSET
     remote: object | UnsetSentinel = UNSET
+    secret_facts: SecretComparisonFacts | None = None
 
 
-def parse_field_change(raw: object) -> FieldChange:
+def compare_field_values(change: FieldChange, left: str, right: str) -> bool | None:
+    """Compare field payloads using safe secret facts when available."""
+    facts = change.secret_facts
+    if facts is not None:
+        if (left, right) in (("old", "new"), ("new", "old")):
+            return facts.old_new_equal
+        if (left, right) in (("old", "remote"), ("remote", "old")):
+            return facts.old_remote_equal
+    left_value = getattr(change, left)
+    right_value = getattr(change, right)
+    if left_value is UNSET or right_value is UNSET:
+        return None
+    return json_values_equal(left_value, right_value)
+
+
+def parse_field_change(
+    raw: object, *, resource_key: ResourceKey | None = None, field_key: str | None = None
+) -> FieldChange:
     """Signature is ``object`` so callers can pass unchecked JSON payloads."""
     if not isinstance(raw, dict):
-        return FieldChange()
+        if resource_key is None or field_key is None:
+            raise DagshundError("field change must be an object")
+        raise DagshundError(
+            f"change {_escape_identifier(field_key)} for resource {_escape_identifier(resource_key)} must be an object"
+        )
     raw_map = cast("dict[str, Any]", raw)
     return FieldChange(
         action=parse_action(raw_map.get("action", "")),
@@ -74,6 +105,10 @@ def parse_field_change(raw: object) -> FieldChange:
         new=raw_map.get("new", UNSET),
         remote=raw_map.get("remote", UNSET),
     )
+
+
+def _escape_identifier(value: str) -> str:
+    return json.dumps(value, ensure_ascii=True)
 
 
 def _parse_optional_str(value: object) -> str | None:
@@ -86,8 +121,8 @@ class JobRunEffect:
 
     Effects annotate the job without touching its action or diff state; only
     change detection (exit code, "No changes" gate) considers their actions.
-    The raw states are retained for semantic outcome classification. Mirrors
-    ``JobRunEffect`` in ``js/src/utils/normalize-plan.ts``.
+    The raw borrowed states are retained for semantic outcome classification.
+    Mirrors ``JobRunEffect`` in ``js/src/utils/normalize-plan.ts``.
     """
 
     name: str
@@ -100,6 +135,13 @@ class JobRunEffect:
 
 @dataclass(frozen=True, slots=True)
 class ResourceChange:
+    """Resource data with borrowed state/change payloads.
+
+    ``key`` records the key used during parsing. Consumers use the enclosing
+    resource mapping key as authoritative identity, even if callers rekey a
+    mapping or construct an entry with a different ``key``.
+    """
+
     key: ResourceKey
     action: ActionType = ActionType.EMPTY
     depends_on: tuple[tuple[str, str | None], ...] = ()
@@ -111,14 +153,16 @@ class ResourceChange:
 
 def parse_resource_change(key: ResourceKey, raw: object) -> ResourceChange:
     if not isinstance(raw, dict):
-        return ResourceChange(key=key)
+        raise DagshundError(f"resource {_escape_identifier(key)} must be an object")
     raw_map = cast("dict[str, Any]", raw)
     raw_changes = raw_map.get("changes")
     changes: dict[str, FieldChange] = {}
+    if raw_changes is not None and not isinstance(raw_changes, dict):
+        raise DagshundError(f"changes for resource {_escape_identifier(key)} must be an object or null")
     if isinstance(raw_changes, dict):
         for k, v in cast("dict[object, object]", raw_changes).items():
             if isinstance(k, str):
-                changes[k] = parse_field_change(v)
+                changes[k] = parse_field_change(v, resource_key=key, field_key=k)
 
     return ResourceChange(
         key=key,
@@ -182,14 +226,27 @@ def parse_plan(raw: str) -> Plan:
 
 
 def parse_plan_data(raw: Mapping[str, object]) -> Plan:
-    """Parse and redact a decoded payload, retaining all original plan entries."""
-    raw = redact_uc_secret_values(raw)
+    """Parse a borrowed decoded payload, redacting secrets without mutating input.
+
+    With no redaction needed, ``raw`` may be the original mapping by identity.
+    Redaction copies affected branches only. Parsed state/change values remain
+    borrowed; callers must not mutate shared input or nested payloads while in use.
+    Parsed resource keys match their enclosing mapping keys.
+    """
+    raw, secret_facts = redact_uc_secret_values_with_facts(raw)
     raw_resources = raw.get("plan")
     resources: dict[ResourceKey, ResourceChange] = {}
     if isinstance(raw_resources, dict):
         for k, v in cast("dict[object, object]", raw_resources).items():
             if isinstance(k, str):
-                resources[k] = parse_resource_change(k, v)
+                resource = parse_resource_change(k, v)
+                changes = {
+                    field_key: replace(change, secret_facts=facts)
+                    if (facts := secret_facts.get((k, field_key))) is not None
+                    else change
+                    for field_key, change in resource.changes.items()
+                }
+                resources[k] = replace(resource, changes=changes)
 
     return Plan(
         resources=resources,

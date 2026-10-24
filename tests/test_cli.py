@@ -45,11 +45,127 @@ def test_main_version_flag_prints_version() -> None:
     assert f"dagshund {__version__}" in result.stdout
 
 
+def test_main_terminal_mode_sanitizes_controls_before_wrapping(tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.json"
+    field_name = "field_" + "x" * 80
+    plan_file.write_text(
+        json.dumps(
+            {
+                "cli_version": "1\r\t\x1b\x7f\x85\\",
+                "plan": {
+                    "resources.jobs.demo": {
+                        "action": "update",
+                        "changes": {
+                            field_name: {
+                                "action": "update",
+                                "old": "before\n\x1b\x7f\x85\\",
+                                "new": "after\r\t",
+                            }
+                        },
+                    }
+                },
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_file))
+
+    assert result.returncode == 0
+    assert "cli 1\\r\\t\\u001b\\u007f\\u0085\\" in result.stdout
+    assert '"before\\n\\u001b\\u007f\\u0085' in result.stdout
+    assert r'-> "after\r\t"' in result.stdout
+    assert "\x1b" not in result.stdout
+    assert "\x7f" not in result.stdout
+    assert "\x85" not in result.stdout
+
+
+def test_main_markdown_mode_escapes_plan_metadata_and_prose(tmp_path: Path) -> None:
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan_version": 1,
+                "cli_version": "<img src=x> [meta](url)_v1",
+                "plan": {
+                    "resources.catalogs.__danger__": {"action": "delete"},
+                    "resources.jobs.demo": {
+                        "action": "update",
+                        "changes": {
+                            "description": {
+                                "action": "update",
+                                "old": "safe",
+                                "new": "<b>hi</b> __bad__",
+                            }
+                        },
+                    },
+                },
+            }
+        )
+    )
+
+    result = _run_dagshund("--format", "md", str(plan_file))
+
+    assert result.returncode == 0
+    assert r"&lt;img src=x&gt; \[meta\]\(url\)\_v1" in result.stdout
+    assert r"&lt;b&gt;hi&lt;/b&gt; \_\_bad\_\_" in result.stdout
+    assert r"catalogs/\_\_danger\_\_ will be deleted" in result.stdout
+    assert "<img" not in result.stdout
+    assert "[meta](url)" not in result.stdout
+
+
 def test_main_text_mode_with_file_prints_output(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
     assert result.returncode == 0
     assert "etl_pipeline" in result.stdout
     assert "create" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        (),
+        ("-e",),
+        ("--format", "md"),
+        ("--format", "md", "-e"),
+        ("-q",),
+        ("-q", "-e"),
+        ("--changes-only",),
+    ],
+    ids=["term", "term-exit", "markdown", "markdown-exit", "quiet", "quiet-exit", "filtered"],
+)
+def test_cli_rejects_malformed_resource_even_with_valid_sibling(tmp_path: Path, arguments: tuple[str, ...]) -> None:
+    plan_file = tmp_path / "malformed.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.jobs.valid": {"action": "create"},
+                    "resources.jobs.bad": "PAYLOAD_SENTINEL",
+                }
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_file), *arguments)
+
+    assert result.returncode == 1
+    assert 'resource "resources.jobs.bad" must be an object' in result.stderr
+    assert "PAYLOAD_SENTINEL" not in result.stderr
+    assert "Traceback" not in result.stderr
+    assert "No changes" not in result.stdout
+
+
+def test_cli_rejects_malformed_plan_before_html_write(tmp_path: Path) -> None:
+    plan_file = tmp_path / "malformed.json"
+    output_file = tmp_path / "out.html"
+    plan_file.write_text('{"plan":{"resources.jobs.bad":{"changes":{"name":null}}}}')
+
+    result = _run_dagshund(str(plan_file), "-o", str(output_file))
+
+    assert result.returncode == 1
+    assert 'change "name" for resource "resources.jobs.bad" must be an object' in result.stderr
+    assert not output_file.exists()
+    assert "Traceback" not in result.stderr
 
 
 # --- _read_plan ---
@@ -340,6 +456,16 @@ class PlanSemanticsCase:
 _PLAN_SEMANTICS_CASES = (
     PlanSemanticsCase("unchanged", {"resources.jobs.test": {"action": "skip"}}, 0),
     PlanSemanticsCase(
+        "json-bool-number-transition",
+        {
+            "resources.jobs.test": {
+                "action": "update",
+                "changes": {"enabled": {"action": "update", "old": 1, "new": True, "remote": 1}},
+            }
+        },
+        2,
+    ),
+    PlanSemanticsCase(
         "ordinary-change",
         {
             "resources.jobs.test": {
@@ -503,13 +629,18 @@ def test_detailed_exitcode_semantics_agree_with_both_renderers(case: PlanSemanti
 
     results = tuple(_run_dagshund("-e", "--format", output_format, stdin=raw) for output_format in ("term", "md"))
 
-    for result in results:
+    for output_format, result in zip(("term", "md"), results, strict=True):
         assert result.stderr == ""
         assert ("Manual Edits Detected" in result.stdout) is case.drift
         assert ("manually edited outside bundle" in result.stdout) is case.drift
         assert ("Dangerous Actions" in result.stdout) is case.danger
         for line in case.expected_lines:
-            assert line in result.stdout
+            expected = line
+            if output_format == "md" and line != "(drift) (re-added)":
+                expected = expected.replace("_", r"\_").replace(">", "&gt;")
+                expected = expected.replace("{", r"\{").replace("}", r"\}")
+                expected = expected.replace("(", r"\(").replace(")", r"\)")
+            assert expected in result.stdout
         assert result.returncode == case.exit_code
 
 
@@ -528,6 +659,40 @@ def test_detailed_exitcode_hidden_risks_still_exit_three(case: PlanSemanticsCase
     for result in (results[0], results[1], results[3]):
         assert "Manual Edits Detected" not in result.stdout
         assert "Dangerous Actions" not in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "remote", "expected_text"),
+    [
+        pytest.param(1, True, 1, ": 1 -> true", id="scalar-remote-present"),
+        pytest.param(1, True, None, ": 1 -> true", id="scalar-remote-absent"),
+        pytest.param(
+            {"flag": 1}, {"flag": True}, {"flag": 1}, ": {flag: 1} -> {flag: true}", id="object-remote-present"
+        ),
+        pytest.param({"flag": 1}, {"flag": True}, None, ": {flag: 1} -> {flag: true}", id="object-remote-absent"),
+        pytest.param([1], [True], [1], ": [1] -> [true]", id="array-remote-present"),
+        pytest.param([1], [True], None, ": [1] -> [true]", id="array-remote-absent"),
+    ],
+)
+def test_cli_bool_number_transition_is_visible_in_both_renderers(
+    old: object, new: object, remote: object | None, expected_text: str
+) -> None:
+    change: dict[str, object] = {"action": "update", "old": old, "new": new}
+    if remote is not None:
+        change["remote"] = remote
+    raw = json.dumps({"plan": {"resources.jobs.test": {"action": "update", "changes": {"enabled": change}}}})
+
+    results = tuple(_run_dagshund("-e", "-m", "--format", output_format, stdin=raw) for output_format in ("term", "md"))
+    quiet_result = _run_dagshund("-q", "-e", stdin=raw)
+    expected_markdown = expected_text.replace("->", "-&gt;")
+    expected_markdown = expected_markdown.replace("{", r"\{").replace("}", r"\}")
+    expected_markdown = expected_markdown.replace("[", r"\[").replace("]", r"\]")
+
+    for result, expected in zip(results, (expected_text, expected_markdown), strict=True):
+        assert result.returncode == 2
+        assert expected in result.stdout
+    assert quiet_result.returncode == 2
+    assert quiet_result.stdout == ""
 
 
 def test_detailed_exitcode_no_changes_exits_zero(fixtures_dir: Path) -> None:
@@ -558,6 +723,61 @@ def test_detailed_exitcode_with_manual_edits_exits_three(fixtures_dir: Path) -> 
     result = _run_dagshund(str(fixtures_dir / "manual-drift" / "plan.json"), "--detailed-exitcode")
 
     assert result.returncode == 3
+
+
+def test_detailed_exitcode_shared_job_run_vectors_attached_and_standalone(tmp_path: Path) -> None:
+    fixture_path = Path(__file__).resolve().parent.parent / "fixtures" / "job-run-outcome-cases.json"
+    cases = json.loads(fixture_path.read_text())["cases"]
+
+    for case in cases:
+        resources = case["plan"].copy()
+        effect_key = case["effectKey"]
+        target_key = resources[effect_key]["depends_on"][0]["node"]
+        run_action = resources[effect_key]["action"]
+        expected_exit = 0 if run_action == "skip" else 2
+        for standalone in (False, True):
+            plan_resources = {key: value for key, value in resources.items() if not standalone or key != target_key}
+            plan_path = tmp_path / f"{case['name']}-{standalone}.json"
+            plan_path.write_text(json.dumps({"plan": plan_resources}))
+            result = _run_dagshund(str(plan_path), "-e")
+            quiet = _run_dagshund(str(plan_path), "-e", "-q")
+
+            assert result.returncode == expected_exit
+            assert quiet.returncode == expected_exit
+            assert case["expected"]["wording"] in result.stdout
+            assert "fingerprint-before" not in result.stdout
+            assert "result_state" not in result.stdout
+            state_message = case["expected"].get("stateMessage")
+            if state_message is not None:
+                assert f"state: {state_message}" in result.stdout
+            if "job_parameters['region']" in case["expected"]["visibleChangeKeys"]:
+                assert "job_parameters['region']" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("action", "expected_exit", "expected_wording"),
+    [
+        ("create", 2, "runs on deploy"),
+        ("skip", 0, "already ran"),
+        ("delete", 2, "run record will be deleted"),
+    ],
+    ids=["create", "legacy-skip", "delete"],
+)
+def test_detailed_exitcode_standalone_basic_run_kinds(
+    action: str,
+    expected_exit: int,
+    expected_wording: str,
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / f"{action}.json"
+    plan_path.write_text(json.dumps({"plan": {"resources.job_runs.basic": {"action": action}}}))
+
+    result = _run_dagshund(str(plan_path), "-e")
+    quiet = _run_dagshund(str(plan_path), "-e", "-q")
+
+    assert result.returncode == expected_exit
+    assert quiet.returncode == expected_exit
+    assert expected_wording in result.stdout
 
 
 def test_detailed_exitcode_with_effect_only_changes_exits_two(fixtures_dir: Path) -> None:
@@ -594,10 +814,149 @@ def test_detailed_exitcode_job_run_outcomes(
     assert result.returncode == expected_exit
 
 
+@pytest.mark.parametrize(
+    ("action", "expected_exit"),
+    [("skip", 0), ("create", 2), ("recreate", 2), ("delete", 2)],
+)
+def test_detailed_exitcode_unresolved_standalone_run(
+    action: str,
+    expected_exit: int,
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "standalone-run.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.job_runs.orphan": {
+                        "action": action,
+                        "remote_state": {
+                            "state": {
+                                "life_cycle_state": "RUNNING",
+                                "state_message": "The existing run remains active.",
+                            }
+                        },
+                        "changes": {"result_state": {"action": "skip", "reason": "run in progress"}},
+                    }
+                }
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_path), "-e")
+    quiet = _run_dagshund(str(plan_path), "-e", "-q")
+
+    assert result.returncode == expected_exit
+    assert quiet.returncode == expected_exit
+    assert "job_runs/orphan" in result.stdout
+    if action == "skip":
+        assert "run still in progress" in result.stdout
+        assert "result_state" not in result.stdout
+
+
 def test_without_detailed_exitcode_changes_exits_zero(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"))
 
     assert result.returncode == 0
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "remote", "expected_exit", "expected_text"),
+    [
+        ("before", "after", "before", 2, '"[redacted]" -> "[redacted]"'),
+        ("same", "same", "same", 2, ""),
+        ("same", "same", "remote", 3, "manually edited outside bundle"),
+        ("prefix [REDACTED] suffix", "prefix [redacted] suffix", "remote", 2, "secret values unavailable"),
+        (True, True, 1, 3, "manually edited outside bundle"),
+        ({"nested": [1, True]}, {"nested": [1, True]}, {"nested": [1, 1]}, 3, "manually edited outside bundle"),
+    ],
+    ids=["rotation", "equal", "drift", "unknown-marker", "bool-number", "nested-drift"],
+)
+def test_secret_comparison_public_exit_and_detail(
+    old: object,
+    new: object,
+    remote: object,
+    expected_exit: int,
+    expected_text: str,
+    tmp_path: Path,
+) -> None:
+    plan_file = tmp_path / "secret-plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.secrets.token": {
+                        "action": "update",
+                        "changes": {"value": {"action": "update", "old": old, "new": new, "remote": remote}},
+                    }
+                }
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_file), "-e")
+
+    assert result.returncode == expected_exit
+    if expected_text:
+        assert expected_text in result.stdout
+    else:
+        assert '"[redacted]" -> "[redacted]"' not in result.stdout
+        assert "secret values unavailable" not in result.stdout
+    quiet = _run_dagshund(str(plan_file), "-e", "-q")
+    assert quiet.returncode == expected_exit
+
+
+@pytest.mark.parametrize(
+    ("field_values", "output_format", "arguments", "expected_exit", "expected_detail"),
+    [
+        ({"old": None, "new": None}, "md", (), 3, "re-added"),
+        ({"new": None}, "term", (), 2, "secret values unavailable"),
+        (
+            {"old": {"nested": ["before [REDACTED] suffix"]}, "new": {"nested": ["before [redacted] suffix"]}},
+            "md",
+            (),
+            2,
+            "secret values unavailable",
+        ),
+        (
+            {"old": "same", "new": "same", "remote": "different"},
+            "md",
+            ("--added",),
+            3,
+            "secrets/token",
+        ),
+    ],
+    ids=["null-equality-unknown", "missing-vs-null", "nested-marker-remote-absent", "filtered-drift-exit"],
+)
+def test_secret_comparison_public_edge_cases(
+    field_values: dict[str, object],
+    output_format: str,
+    arguments: tuple[str, ...],
+    expected_exit: int,
+    expected_detail: str,
+    tmp_path: Path,
+) -> None:
+    plan_file = tmp_path / "secret-edge-plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.secrets.token": {
+                        "action": "update",
+                        "changes": {"effective_value": {"action": "update", **field_values}},
+                    }
+                }
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_file), "--format", output_format, "-e", *arguments)
+
+    assert result.returncode == expected_exit
+    if arguments == ("--added",):
+        assert expected_detail not in result.stdout
+    else:
+        assert expected_detail in result.stdout
 
 
 # --- --debug ---
@@ -607,8 +966,9 @@ def test_debug_flag_traces_all_functions(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "mixed-changes" / "plan.json"), "-d")
 
     assert result.returncode == 0
-    assert "→ _read_plan" in result.stderr
-    assert "← _read_plan" in result.stderr
+    assert "→ _read_plan" not in result.stderr
+    assert "→ _decode_plan" not in result.stderr
+    assert "→ parse_plan" not in result.stderr
     assert "→ render_text" in result.stderr
     assert "→ _supports_color" in result.stderr
     assert "→ _colorize" in result.stderr
@@ -624,7 +984,7 @@ def test_debug_env_var_traces_all_functions(fixtures_dir: Path) -> None:
     )
 
     assert result.returncode == 0
-    assert "→ _read_plan" in result.stderr
+    assert "→ _read_plan" not in result.stderr
     assert "→ _supports_color" in result.stderr
 
 
@@ -663,8 +1023,59 @@ def test_debug_does_not_leak_uc_secret_input(
 
     assert result.returncode == 0
     assert sentinel not in result.stderr
-    for function_name in ("_read_plan", "_decode_plan", "parse_plan", "render_text"):
-        assert f"→ {function_name}" in result.stderr
+    assert "→ _read_plan" not in result.stderr
+    assert "→ _decode_plan" not in result.stderr
+    assert "→ parse_plan" not in result.stderr
+    assert "→ render_text" in result.stderr
+
+
+def test_debug_does_not_leak_unknown_uc_secret_change_payload(tmp_path: Path) -> None:
+    sentinel = "UC_SECRET_CHANGE_SENTINEL"
+    plan_file = tmp_path / "secret-change-plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.secrets.token": {
+                        "changes": {
+                            "value": {"current_value": {"nested": [sentinel]}},
+                        }
+                    }
+                }
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_file), "-d")
+
+    assert result.returncode == 0
+    assert sentinel not in result.stderr
+    assert sentinel not in result.stdout
+
+
+def test_debug_does_not_leak_raw_input_prefix_on_parse_failure(tmp_path: Path) -> None:
+    sentinel = "UC_SECRET_PREFIX_SENTINEL"
+    plan_file = tmp_path / "invalid-plan.json"
+    plan_file.write_text(f"{sentinel} is not JSON")
+
+    result = _run_dagshund(str(plan_file), "-d")
+
+    assert result.returncode == 1
+    assert sentinel not in result.stderr
+    assert sentinel not in result.stdout
+
+
+def test_debug_does_not_leak_malformed_uc_secret_entry(tmp_path: Path) -> None:
+    sentinel = "UC_SECRET_SENTINEL"
+    plan_file = tmp_path / "malformed-secret-plan.json"
+    plan_file.write_text(json.dumps({"plan": {"resources.secrets.token": sentinel}}))
+
+    result = _run_dagshund(str(plan_file), "-d")
+
+    assert result.returncode == 1
+    assert sentinel not in result.stderr
+    assert sentinel not in result.stdout
+    assert 'resource "resources.secrets.token" must be an object' in result.stderr
 
 
 def test_no_debug_flag_no_trace_on_stderr(fixtures_dir: Path) -> None:

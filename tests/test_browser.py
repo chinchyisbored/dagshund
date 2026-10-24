@@ -126,6 +126,33 @@ def test_inject_plan_excludes_uc_secret_values() -> None:
     assert "[redacted]" in result
 
 
+def test_inject_plan_excludes_unknown_uc_secret_change_payloads() -> None:
+    template = f"<script>{PLACEHOLDER}</script>"
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.secrets.api_token": {
+                    "changes": {
+                        "value": {
+                            "action": "update",
+                            "reason": None,
+                            "current_value": {"nested": ["UC_SECRET_SENTINEL"]},
+                        },
+                        "effective_value": {"current_value": "UC_EFFECTIVE_SENTINEL"},
+                    }
+                }
+            }
+        }
+    )
+
+    result = _inject_plan(template, plan)
+
+    assert "UC_SECRET_SENTINEL" not in result
+    assert "UC_EFFECTIVE_SENTINEL" not in result
+    assert '"action":"update"' in result
+    assert '"reason":null' in result
+
+
 @pytest.mark.parametrize(
     "malformed_state",
     ["UC_SECRET_SENTINEL", 42, True, ["UC_SECRET_SENTINEL"]],

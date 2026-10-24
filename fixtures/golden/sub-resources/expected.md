@@ -3,16 +3,16 @@
 #### jobs (2)
 - `=` `jobs/job_noop`
 - `~` `jobs/job_perm_change` — update
-  - `+` `permissions.[group_name='data_engineers']`: {level: "CAN_VIEW", group_name: "data_engineers"}
-  - `-` `permissions.[group_name='data_readers']`: {level: "CAN_VIEW", group_name: "data_readers"}
-  - `~` `permissions.[group_name='viewers'].level`: "CAN_VIEW" -> "CAN_MANAGE_RUN"
-  - `+` `run_as`: {user_name: "user2@example.com"}
+  - `+` `permissions.[group_name='data_engineers']`: \{level: "CAN\_VIEW", group\_name: "data\_engineers"\}
+  - `-` `permissions.[group_name='data_readers']`: \{level: "CAN\_VIEW", group\_name: "data\_readers"\}
+  - `~` `permissions.[group_name='viewers'].level`: "CAN\_VIEW" -&gt; "CAN\_MANAGE\_RUN"
+  - `+` `run_as`: \{user\_name: "user2@example.com"\}
 
 #### schemas (2)
 - `=` `schemas/schema_noop`
 - `~` `schemas/schema_perm_change` — update
-  - `-` `grants.[principal='data_analysts']`: {principal: "data_analysts", privileges: ["USE_SCHEMA"]}
-  - `~` `grants.[principal='data_engineers'].privileges`: ["CREATE_TABLE", "USE_SCHEMA"] -> ["CREATE_TABLE", "MODIFY", "USE_SCHEMA"]
-  - `+` `grants.[principal='viewers']`: {principal: "viewers", privileges: ["SELECT", "USE_SCHEMA"]}
+  - `-` `grants.[principal='data_analysts']`: \{principal: "data\_analysts", privileges: \["USE\_SCHEMA"\]\}
+  - `~` `grants.[principal='data_engineers'].privileges`: \["CREATE\_TABLE", "USE\_SCHEMA"\] -&gt; \["CREATE\_TABLE", "MODIFY", "USE\_SCHEMA"\]
+  - `+` `grants.[principal='viewers']`: \{principal: "viewers", privileges: \["SELECT", "USE\_SCHEMA"\]\}
 
 **=2** unchanged, **~2** update

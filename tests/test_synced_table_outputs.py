@@ -23,6 +23,36 @@ def test_extract_synced_table_outputs_postgres_create_returns_pipeline_and_regis
     )
 
 
+def test_extract_synced_table_outputs_empty_wrapped_new_state_wins_over_remote() -> None:
+    key = "resources.postgres_synced_tables.orders"
+    entry = make_resource(
+        key,
+        new_state={"value": {}},
+        remote_state={"synced_table_id": "lakebase.public.orders"},
+    )
+
+    result = extract_synced_table_outputs(key, entry)
+
+    assert result == (SyncedTableOutput(OutputRelationship.MANAGED, "pipeline", "orders pipeline"),)
+
+
+def test_extract_synced_table_outputs_bare_new_state_falls_back_to_remote() -> None:
+    key = "resources.postgres_synced_tables.orders"
+    entry = make_resource(
+        key,
+        new_state={"synced_table_id": "ignored.public.orders"},
+        remote_state={"synced_table_id": "lakebase.public.orders"},
+    )
+
+    result = extract_synced_table_outputs(key, entry)
+
+    assert result[-1] == SyncedTableOutput(
+        OutputRelationship.MANAGED,
+        "Unity Catalog registration",
+        "lakebase.public.orders",
+    )
+
+
 def test_extract_synced_table_outputs_postgres_delete_uses_remote_state() -> None:
     key = "resources.postgres_synced_tables.orders"
     entry = make_resource(

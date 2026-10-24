@@ -20,7 +20,7 @@ dagshund plan (v2, cli 1.14.0)
       ~ name: "recreated_secret_before" -> "recreated_secret_after"
   ~ secrets/updated_secret  (update)
       ~ comment: "Before update" -> "After update"
-      ~ value: "" -> "[redacted]"
+      ~ value: "" -> "[redacted]" (secret values unavailable)
 
   +1 create, -4 delete, ~1 recreate, =1 unchanged, ~3 update
 

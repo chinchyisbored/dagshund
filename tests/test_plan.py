@@ -5,11 +5,13 @@ from dataclasses import dataclass
 import pytest
 from factories import make_change, make_resource, resources_from_dict
 
+from dagshund.merge import normalize_plan
 from dagshund.model import FieldChange, parse_plan
 from dagshund.plan import (
     DANGEROUS_ACTIONS,
     STATEFUL_RESOURCE_TYPES,
     ResourceDrift,
+    classify_pipeline_cascade_risk,
     classify_resource_drift,
     detect_changes,
     detect_dangerous_actions,
@@ -18,6 +20,16 @@ from dagshund.plan import (
     is_topology_drift_change,
 )
 from dagshund.types import DagshundError
+
+
+def test_unknown_secret_comparison_does_not_claim_drift() -> None:
+    plan = parse_plan(
+        '{"plan":{"resources.secrets.token":{"action":"update","changes":{"value":'
+        '{"action":"update","old":"[REDACTED]","new":"new-secret","remote":"remote-secret"}}}}}'
+    )
+
+    assert not detect_manual_edits(normalize_plan(plan.resources))
+
 
 # --- parse_plan ---
 
@@ -328,19 +340,16 @@ def test_detect_manual_edits_empty_changes_returns_false() -> None:
     assert detect_manual_edits(resources) is False
 
 
-def test_detect_manual_edits_no_changes_dict_returns_false() -> None:
-    """Non-dict changes at the raw parse boundary are discarded, leaving empty changes."""
-    resources = resources_from_dict({"resources.jobs.my_job": {"action": "update", "changes": "not a dict"}})
-    assert detect_manual_edits(resources) is False
+def test_detect_manual_edits_no_changes_dict_rejected_at_parse_boundary() -> None:
+    with pytest.raises(DagshundError, match="must be an object or null"):
+        resources_from_dict({"resources.jobs.my_job": {"action": "update", "changes": "not a dict"}})
 
 
-def test_detect_manual_edits_non_dict_field_change_discarded() -> None:
-    """Non-dict field change values are dropped by the parser."""
-    resources = resources_from_dict(
-        {"resources.jobs.my_job": {"action": "update", "changes": {"weird_field": "just a string"}}}
-    )
-    # The "weird_field" value parses to a default (empty) FieldChange with no drift markers.
-    assert detect_manual_edits(resources) is False
+def test_detect_manual_edits_non_dict_field_change_rejected_at_parse_boundary() -> None:
+    with pytest.raises(DagshundError, match="must be an object"):
+        resources_from_dict(
+            {"resources.jobs.my_job": {"action": "update", "changes": {"weird_field": "just a string"}}}
+        )
 
 
 def test_detect_manual_edits_empty_resources_returns_false() -> None:
@@ -389,6 +398,37 @@ def test_detect_dangerous_actions_pipeline_cascade_risk(
 def test_detect_dangerous_actions_safe_action_on_stateful_returns_false(action: str) -> None:
     resources = {"resources.schemas.analytics": make_resource(action=action)}
     assert detect_dangerous_actions(resources) is False
+
+
+@pytest.mark.parametrize(
+    ("new_state", "remote_state", "expected"),
+    [
+        ({"cascade_on_destroy": False}, None, "unavailable"),
+        ({"value": {"cascade_on_destroy": False}}, {"cascade_on_destroy": True}, "safe"),
+        ({"value": {"cascade_on_destroy": "unknown"}}, {"cascade_on_destroy": True}, "enabled"),
+        ({"value": {}}, {"cascade_on_destroy": False}, "safe"),
+        ({"value": {"cascade_on_destroy": True}}, {"cascade_on_destroy": False}, "enabled"),
+    ],
+    ids=[
+        "bare-new-rejected",
+        "wrapped-new-preferred",
+        "nonboolean-new-falls-back",
+        "remote-fallback",
+        "boolean-new-preferred",
+    ],
+)
+def test_classify_pipeline_cascade_risk_uses_wrapped_new_then_remote(
+    new_state: object,
+    remote_state: object | None,
+    expected: str,
+) -> None:
+    entry = make_resource(
+        action="delete",
+        new_state=new_state,
+        remote_state=remote_state,
+    )
+
+    assert classify_pipeline_cascade_risk(entry) == expected
 
 
 def test_detect_dangerous_actions_empty_resources_returns_false() -> None:

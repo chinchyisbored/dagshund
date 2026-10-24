@@ -1,7 +1,7 @@
 ### dagshund plan (v2, cli 1.14.0)
 
-#### job_runs (1)
-- `+` `job_runs/ping_healthcheck` — create
+#### job\_runs (1)
+- `+` `job_runs/ping_healthcheck` — runs on deploy
 
 #### jobs (5)
 - `=` `jobs/cache_warmup`
@@ -11,7 +11,7 @@
   - `=` run [`seed_report`](https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/895867617366646/runs/680077031090160?o=7474654640708173) (already ran successfully)
 - `=` `jobs/schema_migration`
   - `~` run [`apply_migrations`](https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/800870044780677/runs/37190725007976?o=7474654640708173) (re-runs on deploy)
-    - `~` `job_parameters['migration_version']`: "v1" -> "v2"
+    - `~` `job_parameters['migration_version']`: "v1" -&gt; "v2"
 - `=` `jobs/seed_lookup_tables`
   - `+` run `initial_seed` (runs on deploy)
 - `=` `jobs/smoke_check`

@@ -11,6 +11,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from dagshund.json_value import json_values_equal
+from dagshund.state import extract_new_state, extract_remote_state
+
 
 @dataclass(frozen=True, slots=True)
 class FieldChangeContext:
@@ -73,8 +76,8 @@ def extract_list_element_semantic(ctx: FieldChangeContext) -> ListElementSemanti
         return None
     parent_path = ctx.change_key[: trailing_match.start()].rstrip(".")
 
-    new_elem = _resolve_list_element(_unwrap_new_state(ctx.new_state), parent_path, filters)
-    remote_elem = _resolve_list_element(_unwrap_remote_state(ctx.remote_state), parent_path, filters)
+    new_elem = _resolve_list_element(extract_new_state(ctx.new_state, allow_bare=True), parent_path, filters)
+    remote_elem = _resolve_list_element(extract_remote_state(ctx.remote_state), parent_path, filters)
 
     in_new = new_elem is not _MISSING
     in_remote = remote_elem is not _MISSING
@@ -84,29 +87,12 @@ def extract_list_element_semantic(ctx: FieldChangeContext) -> ListElementSemanti
     if in_new and not in_remote:
         return "create"
     if in_new and in_remote:
-        return None if new_elem == remote_elem else "update"
+        return None if json_values_equal(new_elem, remote_elem) else "update"
     return None
 
 
-def _unwrap_new_state(state: object | None) -> dict[str, object] | None:
-    """``new_state`` is wrapped as ``{value: {...}, vars: {...}}`` by the CLI."""
-    if not isinstance(state, dict):
-        return None
-    inner = cast("dict[str, object]", state).get("value")
-    if isinstance(inner, dict):
-        return cast("dict[str, object]", inner)
-    return cast("dict[str, object]", state)
-
-
-def _unwrap_remote_state(state: object | None) -> dict[str, object] | None:
-    """``remote_state`` is the bare state dict (no wrapper)."""
-    if not isinstance(state, dict):
-        return None
-    return cast("dict[str, object]", state)
-
-
 def _resolve_list_element(
-    root: dict[str, object] | None,
+    root: Mapping[str, object] | None,
     parent_path: str,
     filters: Mapping[str, str],
 ) -> object:

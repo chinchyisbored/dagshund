@@ -10,7 +10,7 @@ import pytest
 from factories import make_change, resources_from_dict
 
 from dagshund.job_run_effects import classify_job_run_effect, filter_job_run_changes
-from dagshund.merge import normalize_plan
+from dagshund.merge import build_job_run_effect, normalize_plan
 from dagshund.model import UNSET, ActionType, JobRunEffect
 
 type RawPlan = Mapping[str, Mapping[str, Any]]
@@ -38,20 +38,24 @@ _CASES = tuple(
 )
 
 
-def _effect_for_case(case: JobRunOutcomeCase) -> JobRunEffect:
+def _effect_for_case(case: JobRunOutcomeCase, *, target_attached: bool) -> JobRunEffect:
     resources = resources_from_dict(case.plan)
-    normalized = normalize_plan(resources)
-    effect_name = case.effect_key.split(".")[-1]
-    for entry in normalized.values():
-        for effect in entry.effects:
-            if effect.name == effect_name:
-                return effect
-    raise AssertionError(f"effect {effect_name!r} was not folded onto a target")
+    if target_attached:
+        normalized = normalize_plan(resources)
+        effect_name = case.effect_key.split(".")[-1]
+        for entry in normalized.values():
+            for effect in entry.effects:
+                if effect.name == effect_name:
+                    return effect
+        raise AssertionError(f"effect {effect_name!r} was not folded onto a target")
+    entry = resources[case.effect_key]
+    return build_job_run_effect(case.effect_key.split(".")[-1], entry)
 
 
 @pytest.mark.parametrize("case", _CASES, ids=lambda case: case.name)
-def test_classify_job_run_effect_shared_vectors(case: JobRunOutcomeCase) -> None:
-    effect = _effect_for_case(case)
+@pytest.mark.parametrize("target_attached", [False, True], ids=["standalone", "attached"])
+def test_classify_job_run_effect_shared_vectors(case: JobRunOutcomeCase, target_attached: bool) -> None:
+    effect = _effect_for_case(case, target_attached=target_attached)
 
     semantics = classify_job_run_effect(effect)
     expected = case.expected

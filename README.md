@@ -28,6 +28,10 @@ uv tool install dagshund
 uvx dagshund plan.json
 ```
 
+## Development
+
+Enter the Nix development shell, then run `just test-py-supported` to test with Python 3.12, 3.13, and 3.14. Each interpreter uses a separate environment under `.cache/venv-py*`; dependencies are installed from the locked `uv.lock`. The regular `just test-py` and `just check` commands continue to use the primary Python 3.14 interpreter.
+
 ## Local usage
 
 By default, dagshund reads a plan file (or stdin) and prints a colored diff to the terminal:

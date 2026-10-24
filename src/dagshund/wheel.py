@@ -70,6 +70,10 @@ def _parse_wheel_requirement(path: str) -> tuple[str, str, tuple[str, ...]] | No
 def parse_wheel_filename(path: str) -> tuple[str, str] | None:
     """Extract ``(distribution, version)`` from a wheel path's basename.
 
+    This retained compatibility helper extracts ``(distribution, version)``;
+    production wheel-update classification is handled by
+    :func:`classify_wheel_update`, which also checks extras equality.
+
     PEP 427 filenames are ``{dist}-{version}(-{build})?-{python}-{abi}-{platform}.whl``
     with hyphens in the distribution name escaped to underscores, so the first
     two dash-separated segments are unambiguous. A validated pip extras suffix

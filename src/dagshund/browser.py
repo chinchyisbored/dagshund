@@ -86,7 +86,11 @@ def _validate_output_path(raw: str) -> Path:
 
 
 def render_browser(plan: Plan, *, output_path: str, provenance: HtmlProvenance | None = None) -> None:
-    """Embed the parsed plan's original redacted payload, not normalized resources."""
+    """Embed the parsed plan's original redacted payload, not normalized resources.
+
+    Rendering only reads the borrowed payload; callers must not mutate shared
+    input values while the plan is in use.
+    """
     resolved = _validate_output_path(output_path)
     template = _load_template()
     html = _inject_plan(template, plan, provenance)

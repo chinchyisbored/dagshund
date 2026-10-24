@@ -6,6 +6,8 @@ from factories import make_change, make_plan, make_resource, plan_from_dict
 
 from dagshund.format import DriftSummary, prepare_report
 from dagshund.markdown import (
+    _code_span,
+    _escape_plain_text,
     _render_drift_warnings,
     _render_field_change,
     _render_header,
@@ -18,6 +20,15 @@ from dagshund.markdown import (
 from dagshund.merge import normalize_plan
 from dagshund.types import DagshundError, DiffState
 
+# --- literal text boundaries ---
+
+
+def test_markdown_escapes_plain_text_and_uses_safe_code_span_delimiters() -> None:
+    assert _escape_plain_text("<script>& [link](x)\\") == "&lt;script&gt;&amp; \\[link\\]\\(x\\)\\\\"
+    assert _code_span("name ``` value") == "````name ``` value````"
+    assert _code_span("`name`") == "`` `name` ``"
+
+
 # --- _render_field_change ---
 
 
@@ -26,7 +37,7 @@ def test_render_field_change_update_shows_transition() -> None:
 
     assert result is not None
     assert "`~` `field`" in result
-    assert '"a" -> "b"' in result
+    assert '"a" -&gt; "b"' in result
 
 
 def test_render_field_change_unchanged_returns_none() -> None:
@@ -44,8 +55,8 @@ def test_render_field_change_drift_shows_remote_to_new() -> None:
     )
 
     assert result is not None
-    assert '"EDITABLE" -> "UI_LOCKED"' in result
-    assert "(drift)" in result
+    assert '"EDITABLE" -&gt; "UI\\_LOCKED"' in result
+    assert r"\(drift\)" in result
 
 
 def test_render_field_change_remote_only_shows_remote_value() -> None:
@@ -55,8 +66,8 @@ def test_render_field_change_remote_only_shows_remote_value() -> None:
     )
 
     assert result is not None
-    assert "{no_alert: false}" in result
-    assert "(remote)" in result
+    assert r"\{no\_alert: false\}" in result
+    assert r"\(remote\)" in result
 
 
 def test_render_field_change_remote_only_shows_remote_symbol() -> None:
@@ -90,7 +101,7 @@ def test_render_field_change_large_dict_shows_summary() -> None:
     result = _render_field_change("run_job_task", make_change(action="create", new=large_dict))
 
     assert result is not None
-    assert "{2 fields}" in result
+    assert r"\{2 fields\}" in result
     assert "\n" not in result
 
 
@@ -126,7 +137,7 @@ def test_render_field_change_long_strings_truncated() -> None:
     result = _render_field_change("field", make_change(action="update", old="a" * 50, new="b" * 50))
 
     assert result is not None
-    assert "... -> ..." in result
+    assert "... -&gt; ..." in result
 
 
 # --- _render_resource ---
@@ -244,7 +255,7 @@ def test_render_resource_update_shows_field_changes() -> None:
     assert "update" in lines[0]
     assert len(lines) == 2  # header + one field change
     assert "max_concurrent_runs" in lines[1]
-    assert "1 -> 5" in lines[1]
+    assert "1 -&gt; 5" in lines[1]
 
 
 def test_render_resource_skip_action_omits_label() -> None:
@@ -400,10 +411,103 @@ def test_render_drift_warnings_nested_bullets_for_reentries() -> None:
 
     assert "> - jobs/pipeline was edited outside the bundle" in text
     assert ">   - 2 fields will be overwritten" in text
-    assert ">   - 1 task will be re-added (transform)" in text
+    assert r">   - 1 task will be re-added \(transform\)" in text
 
 
 # --- render_markdown (integration) ---
+
+
+def test_render_markdown_escapes_untrusted_prose_and_preserves_safe_code_spans() -> None:
+    plan = plan_from_dict(
+        {
+            "plan_version": 1,
+            "cli_version": "<img src=x> [meta](url)_v1",
+            "plan": {
+                "resources.catalogs.__danger__": {"action": "delete"},
+                "resources.jobs.drift<b>raw</b>\nname": {
+                    "action": "update",
+                    "changes": {
+                        "description[<field>]": {
+                            "action": "update",
+                            "old": "safe\r\t\x7f\x85\\",
+                            "new": "<b>hi</b> __bad__\nnext",
+                        }
+                    },
+                },
+            },
+        }
+    )
+
+    result = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version)
+
+    assert r"cli &lt;img src=x&gt; \[meta\]\(url\)\_v1" in result
+    assert r"`catalogs/__danger__`" in result
+    assert r"`jobs/drift<b>raw</b>\u000aname`" in result
+    assert r"`description[<field>]`" in result
+    assert r'"safe\r\t\u007f\u0085\\"' in result
+    assert r"&lt;b&gt;hi&lt;/b&gt; \_\_bad\_\_\nnext" in result
+    assert r"&lt;b&gt;hi" in result
+    assert r"> - catalogs/\_\_danger\_\_ will be deleted" in result
+    assert "<img" not in result
+    assert "[meta](url)" not in result
+
+
+def test_render_markdown_escapes_drift_labels_and_bodies() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.drift<b>\njob": {
+                    "action": "update",
+                    "changes": {"description": {"action": "update", "old": "same", "new": "same", "remote": "remote"}},
+                }
+            }
+        }
+    )
+
+    result = render_markdown(normalize_plan(plan.resources))
+
+    assert r"jobs/drift&lt;b&gt;\njob was edited outside the bundle" in result
+    assert "1 field will be overwritten" in result
+
+
+def test_render_markdown_escapes_synced_output_names() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.postgres_synced_tables.orders": {
+                    "action": "create",
+                    "new_state": {"value": {"synced_table_id": "lakebase.public.bad\nname"}},
+                }
+            }
+        }
+    )
+
+    result = render_markdown(normalize_plan(plan.resources))
+
+    assert r"`lakebase.public.bad\u000aname`" in result
+
+
+def test_render_markdown_escaping_preserves_collection_detail_threshold_decision() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.schemas.grants": {
+                    "action": "update",
+                    "changes": {
+                        "grants.[principal='viewers']": {
+                            "action": "create",
+                            "new": {"principal": "viewers", "privileges": ["SELECT", "USE_SCHEMA"]},
+                        }
+                    },
+                }
+            }
+        }
+    )
+
+    result = render_markdown(normalize_plan(plan.resources))
+
+    assert r'\{principal: "viewers", privileges: \["SELECT", "USE\_SCHEMA"\]\}' in result
+    assert "{2 fields}" not in result
 
 
 def test_render_markdown_empty_plan_raises_error() -> None:
@@ -456,13 +560,14 @@ def test_render_markdown_drift_plan(fixtures_dir: Path) -> None:
     # (publish.depends_on[ingest]) — both count toward "fields will be overwritten"
     # once the parent resource has independent shape drift (dagshund-1naj Step 5).
     assert result.count(">   - 2 fields will be overwritten") == 2
-    assert "> - jobs/drift_pipeline was edited outside the bundle\n>   - 2 fields will be overwritten" in result
-    assert ">   - 1 depends_on will be re-added (transform)" in result
-    assert ">   - 1 task will be re-added (transform)" in result
+    assert "> - jobs/drift\\_pipeline was edited outside the bundle\n>   - 2 fields will be overwritten" in result
+    assert r">   - 1 depends\_on will be re-added \(transform\)" in result
+    assert r">   - 1 task will be re-added \(transform\)" in result
     # schemas/drift_grants has two overwritten fields: remote-only account users
     # is removed, and data_readers.SELECT is restored.
-    assert "> - schemas/drift_grants was edited outside the bundle\n>   - 2 fields will be overwritten" in result
-    assert ">   - 1 grant will be re-added (data_engineers)" in result
+    assert r"> - schemas/drift\_grants was edited outside the bundle" in result
+    assert ">   - 2 fields will be overwritten" in result
+    assert r">   - 1 grant will be re-added \(data\_engineers\)" in result
 
     # Body: re-added sub-entities rendered as create-style list items
     assert "`-` `grants.[principal='account users']`" in result
@@ -498,7 +603,7 @@ def test_render_markdown_drift_topology_only() -> None:
 
     assert ":warning: manually edited outside bundle" in result
     assert "`+` `tasks[task_key='transform']` (drift) (re-added)" in result
-    assert ">   - 1 task will be re-added (transform)" in result
+    assert r">   - 1 task will be re-added \(transform\)" in result
 
 
 def test_render_markdown_with_visible_states(fixtures_dir: Path) -> None:
@@ -580,7 +685,7 @@ def test_render_markdown_suppress_wheel_updates_collapses_to_summary() -> None:
         suppress_wheel_updates=True,
     )
 
-    assert "  - `~` wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in result
+    assert r"  - `~` wheel etl\_lib updated: 0.1.0 -&gt; 0.2.0 \(1 task\)" in result
     assert "libraries[0].whl" not in result
     assert "notebook_task.notebook_path" in result
 
@@ -650,6 +755,32 @@ def test_render_markdown_effect_name_links_to_run_page() -> None:
     out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     assert "  - `-` run [`audit`](https://example.test/run/7) (run record will be deleted)" in out
+
+
+def test_render_markdown_escapes_run_labels_and_state_messages_but_keeps_validated_link() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.audit`\nalert": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "remote_state": {
+                        "job_id": 100,
+                        "result_state": "FAILED",
+                        "run_page_url": "https://example.test/run/7",
+                        "state": {"life_cycle_state": "FAILED", "state_message": "bad <b>state</b>\nnext"},
+                    },
+                },
+            }
+        }
+    )
+
+    result = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version)
+
+    assert "[``audit`\\u000aalert``](https://example.test/run/7)" in result
+    assert r"bad &lt;b&gt;state&lt;/b&gt;\nnext" in result
+    assert "[audit" not in result
 
 
 def test_render_markdown_effect_field_changes_render_nested() -> None:
@@ -731,6 +862,70 @@ def test_render_markdown_job_run_outcomes_keep_links_and_hide_generated_fields()
     assert "fingerprint-before" not in out
     assert "result_state" not in out
     assert "Manual Edits Detected" not in out
+
+
+def test_render_markdown_unresolved_in_progress_run_uses_semantic_details() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.job_runs.running": {
+                    "action": "skip",
+                    "remote_state": {
+                        "run_page_url": "https://example.test/runs/7",
+                        "state": {
+                            "life_cycle_state": "RUNNING",
+                            "state_message": "The existing run remains active.",
+                        },
+                    },
+                    "changes": {"result_state": {"action": "skip", "reason": "run in progress"}},
+                }
+            }
+        }
+    )
+
+    out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
+
+    assert "[`job_runs/running`](https://example.test/runs/7)" in out
+    assert "run still in progress" in out
+    assert "state: The existing run remains active." in out
+    assert "result_state" not in out
+
+
+def test_render_markdown_shared_job_run_vectors_attached_and_standalone() -> None:
+    fixture_path = Path(__file__).resolve().parent.parent / "fixtures" / "job-run-outcome-cases.json"
+    cases = json.loads(fixture_path.read_text())["cases"]
+
+    for case in cases:
+        expected = case["expected"]
+        resources = case["plan"].copy()
+        effect_key = case["effectKey"]
+        target_key = resources[effect_key]["depends_on"][0]["node"]
+        for standalone in (False, True):
+            plan_resources = {key: value for key, value in resources.items() if not standalone or key != target_key}
+            plan = plan_from_dict({"plan": plan_resources})
+            out = render_markdown(normalize_plan(plan.resources))
+            assert expected["wording"] in out
+            assert "fingerprint-before" not in out
+            assert "result_state" not in out
+            if expected["stateMessage"] is not None:
+                assert f"state: {expected['stateMessage']}" in out
+            if "job_parameters['region']" in expected["visibleChangeKeys"]:
+                assert "job_parameters['region']" in out
+            if "runPageUrl" in expected:
+                assert f"]({expected['runPageUrl']})" in out
+
+
+def test_render_markdown_basic_run_kinds_attached_and_standalone() -> None:
+    cases = (("create", "runs on deploy"), ("skip", "already ran"), ("delete", "run record will be deleted"))
+    for action, wording in cases:
+        for standalone in (False, True):
+            resources: dict[str, dict[str, object]] = {"resources.job_runs.basic": {"action": action}}
+            if not standalone:
+                resources["resources.jobs.owner"] = {"action": "skip"}
+                resources["resources.job_runs.basic"]["depends_on"] = [{"node": "resources.jobs.owner"}]
+            plan = plan_from_dict({"plan": resources})
+            out = render_markdown(normalize_plan(plan.resources))
+            assert wording in out
 
 
 def test_render_markdown_skip_only_effects_render_run_records() -> None:

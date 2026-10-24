@@ -208,9 +208,15 @@ def enable_profile_tracing() -> None:
         _registered = True
 
         root = Path(__file__).parent.resolve()
-        excluded_paths = {str(Path(__file__).resolve()), str(root / "redaction.py")}
-        # Redaction helpers receive plaintext values before replacing them, so
-        # tracing their arguments would defeat the security boundary.
+        excluded_paths = {
+            str(Path(__file__).resolve()),
+            str(root / "redaction.py"),
+            str(root / "json_value.py"),
+            str(root / "model.py"),
+            str(root / "cli.py"),
+        }
+        # These modules handle plaintext before it is redacted or can return it
+        # in summaries; tracing their arguments/returns would defeat the boundary.
         _DAGSHUND_FILES = frozenset(str(p) for p in root.rglob("*.py") if str(p) not in excluded_paths)
         _POISONED = False
         _call_budget = _DEFAULT_CALL_BUDGET

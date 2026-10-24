@@ -3,10 +3,10 @@
 #### jobs (1)
 - `~` `jobs/drift_pipeline` — update
   - :warning: manually edited outside bundle
-  - `~` `edit_mode`: "EDITABLE" -> "UI_LOCKED" (drift)
-  - `=` `email_notifications`: {no_alert_for_skipped_runs: false} (remote)
-  - `=` `performance_target`: "PERFORMANCE_OPTIMIZED" (remote)
-  - `-` `tasks[task_key='publish'].depends_on[task_key='ingest']`: {task_key: "ingest"} (drift)
+  - `~` `edit_mode`: "EDITABLE" -&gt; "UI\_LOCKED" \(drift\)
+  - `=` `email_notifications`: \{no\_alert\_for\_skipped\_runs: false\} \(remote\)
+  - `=` `performance_target`: "PERFORMANCE\_OPTIMIZED" \(remote\)
+  - `-` `tasks[task_key='publish'].depends_on[task_key='ingest']`: \{task\_key: "ingest"\} \(drift\)
   - `+` `tasks[task_key='publish'].depends_on[task_key='transform']` (drift) (re-added)
   - `+` `tasks[task_key='transform']` (drift) (re-added)
 
@@ -14,18 +14,18 @@
 - `+` `schemas/drift_doomed` — create
 - `~` `schemas/drift_grants` — update
   - :warning: manually edited outside bundle
-  - `-` `grants.[principal='account users']`: {principal: "account users", privileges: ["SELECT", "USE_SCHEMA"]} (drift)
-  - `~` `grants.[principal='data_readers'].privileges`: ["USE_SCHEMA"] -> ["SELECT", "USE_SCHEMA"] (drift)
+  - `-` `grants.[principal='account users']`: \{principal: "account users", privileges: \["SELECT", "USE\_SCHEMA"\]\} \(drift\)
+  - `~` `grants.[principal='data_readers'].privileges`: \["USE\_SCHEMA"\] -&gt; \["SELECT", "USE\_SCHEMA"\] \(drift\)
   - `+` `grants.[principal='data_engineers']` (drift) (re-added)
 
 **+1** create, **~2** update
 
 > [!WARNING]
 > **Manual Edits Detected**
-> - jobs/drift_pipeline was edited outside the bundle
+> - jobs/drift\_pipeline was edited outside the bundle
 >   - 2 fields will be overwritten
->   - 1 depends_on will be re-added (transform)
->   - 1 task will be re-added (transform)
-> - schemas/drift_grants was edited outside the bundle
+>   - 1 depends\_on will be re-added \(transform\)
+>   - 1 task will be re-added \(transform\)
+> - schemas/drift\_grants was edited outside the bundle
 >   - 2 fields will be overwritten
->   - 1 grant will be re-added (data_engineers)
+>   - 1 grant will be re-added \(data\_engineers\)

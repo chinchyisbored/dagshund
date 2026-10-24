@@ -45,6 +45,16 @@ typecheck-js:
 test-py:
     uv run pytest -q --cov=dagshund --cov-report=
 
+# Run Python tests with an explicit interpreter and isolated environment
+_test-py-with-python python env:
+    UV_PROJECT_ENVIRONMENT="{{ env }}" uv run --locked --python "{{ python }}" pytest -q
+
+# Run Python tests on every supported minor
+test-py-supported:
+    just _test-py-with-python "{{ env_var('DAGSHUND_PYTHON312') }}" .cache/venv-py312
+    just _test-py-with-python "{{ env_var('DAGSHUND_PYTHON313') }}" .cache/venv-py313
+    just _test-py-with-python "{{ env_var('DAGSHUND_PYTHON314') }}" .cache/venv-py314
+
 # Lint Python with ruff
 lint-py:
     uv run ruff check --fix {{ py_src }} {{ py_tests }} {{ py_tooling }}

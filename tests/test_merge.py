@@ -15,6 +15,7 @@ from typing import Any, cast
 import pytest
 from factories import resources_from_dict
 
+from dagshund.format import prepare_report
 from dagshund.merge import (
     extract_parent_resource_key,
     extract_sub_resource_suffix,
@@ -22,7 +23,7 @@ from dagshund.merge import (
     merge_sub_resources,
     normalize_plan,
 )
-from dagshund.model import UNSET, ActionType, parse_plan_data
+from dagshund.model import UNSET, ActionType, ResourceChange, parse_plan_data
 
 # --- extract_parent_resource_key ---
 
@@ -122,7 +123,10 @@ def test_merge_sub_resources_state_injected_under_suffix_in_new_state() -> None:
         {
             "resources.jobs.my_job": {
                 "action": "create",
-                "new_state": {"value": {"name": "my_job", "format": "MULTI_TASK"}},
+                "new_state": {
+                    "value": {"name": "my_job", "format": "MULTI_TASK"},
+                    "vars": {"workspace": "dev"},
+                },
             },
             "resources.jobs.my_job.permissions": {
                 "action": "skip",
@@ -138,6 +142,60 @@ def test_merge_sub_resources_state_injected_under_suffix_in_new_state() -> None:
     new_state = cast("dict[str, Any]", result["resources.jobs.my_job"].new_state)
     assert new_state["value"]["permissions"] == {"access_control_list": [{"group_name": "admins"}]}
     assert new_state["value"]["name"] == "my_job"
+    assert new_state["vars"] == {"workspace": "dev"}
+
+
+def test_merge_sub_resources_new_injection_requires_wrapped_parent_and_sub_states() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.my_job": {
+                "action": "create",
+                "new_state": {"name": "my_job"},
+            },
+            "resources.jobs.my_job.permissions": {
+                "action": "create",
+                "new_state": {"value": {"access_control_list": []}},
+            },
+        }
+    )
+
+    parent = merge_sub_resources(resources)["resources.jobs.my_job"]
+
+    assert parent.new_state == {"name": "my_job"}
+
+    resources = resources_from_dict(
+        {
+            "resources.jobs.my_job": {
+                "action": "create",
+                "new_state": {"value": {"name": "my_job"}},
+            },
+            "resources.jobs.my_job.permissions": {
+                "action": "create",
+                "new_state": {"access_control_list": []},
+            },
+        }
+    )
+
+    parent = merge_sub_resources(resources)["resources.jobs.my_job"]
+
+    assert parent.new_state == {"value": {"name": "my_job"}}
+
+
+def test_merge_sub_resources_empty_wrapped_new_state_wins_over_remote_for_synthesis() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.my_job": {"action": "skip"},
+            "resources.jobs.my_job.permissions": {
+                "action": "create",
+                "new_state": {"value": {}},
+                "remote_state": {"access_control_list": [{"group_name": "admins"}]},
+            },
+        }
+    )
+
+    parent = merge_sub_resources(resources)["resources.jobs.my_job"]
+
+    assert parent.changes["permissions"].new == {}
 
 
 def test_merge_sub_resources_state_injected_under_suffix_in_remote_state() -> None:
@@ -474,6 +532,17 @@ def test_normalize_plan_target_resolution_shared_fixture(case: _EffectCase) -> N
         assert case.effect_key in normalized
 
 
+def test_normalize_plan_uses_mapping_key_over_resource_origin_metadata() -> None:
+    mapping_key = "resources.jobs.reported"
+    entry = ResourceChange(key="resources.jobs.origin", action=ActionType.CREATE)
+
+    normalized = normalize_plan({mapping_key: entry})
+    report = prepare_report(normalized)
+
+    assert tuple(key for group in report.groups for key, _resource in group.entries) == (mapping_key,)
+    assert normalized[mapping_key].key == "resources.jobs.origin"
+
+
 def test_normalize_plan_leaves_parsed_resources_and_redacted_payload_unchanged() -> None:
     parsed = parse_plan_data(
         {
@@ -551,6 +620,62 @@ def test_normalize_plan_sorts_effects_by_name() -> None:
     assert [effect.name for effect in normalized["resources.jobs.etl"].effects] == ["alpha", "zulu"]
 
 
+@pytest.mark.parametrize(
+    "candidate",
+    [True, False, 0],
+    ids=["true", "false", "zero"],
+)
+def test_normalize_plan_rejects_boolean_and_zero_new_target_without_remote_fallback(candidate: object) -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.backing": {"action": "skip", "remote_state": {"job_id": 42}},
+            "resources.job_runs.nightly": {
+                "new_state": {"value": {"job_id": candidate}},
+                "remote_state": {"job_id": 42},
+            },
+        }
+    )
+
+    normalized = normalize_plan(resources)
+
+    assert set(normalized) == {"resources.jobs.backing", "resources.job_runs.nightly"}
+    assert normalized["resources.jobs.backing"].effects == ()
+
+
+@pytest.mark.parametrize("candidate", ["42", None], ids=["string", "missing"])
+def test_normalize_plan_uses_remote_target_for_non_integer_or_missing_new_candidate(candidate: object) -> None:
+    run_state = {"job_id": candidate} if candidate is not None else {}
+    resources = resources_from_dict(
+        {
+            "resources.jobs.backing": {"action": "skip", "remote_state": {"job_id": 42}},
+            "resources.job_runs.nightly": {
+                "new_state": {"value": run_state},
+                "remote_state": {"job_id": 42},
+            },
+        }
+    )
+
+    normalized = normalize_plan(resources)
+
+    assert set(normalized) == {"resources.jobs.backing"}
+    assert [effect.name for effect in normalized["resources.jobs.backing"].effects] == ["nightly"]
+
+
+@pytest.mark.parametrize("remote_job_id", [True, False, 0], ids=["true", "false", "zero"])
+def test_normalize_plan_rejects_boolean_and_zero_remote_target_ids(remote_job_id: object) -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.backing": {"action": "skip", "remote_state": {"job_id": 42}},
+            "resources.job_runs.nightly": {"remote_state": {"job_id": remote_job_id}},
+        }
+    )
+
+    normalized = normalize_plan(resources)
+
+    assert set(normalized) == {"resources.jobs.backing", "resources.job_runs.nightly"}
+    assert normalized["resources.jobs.backing"].effects == ()
+
+
 def test_normalize_plan_effect_carries_action_changes_and_run_page_url() -> None:
     resources = resources_from_dict(
         _job_with_run(
@@ -589,8 +714,18 @@ def test_normalize_plan_effect_carries_action_changes_and_run_page_url() -> None
         "https://example.test/a b",
         "ftp://x/y",
         "https://example.test/run\n",
+        "https://example.test/run\x1b",
+        "https://example.test/run\x85",
     ],
-    ids=["javascript-scheme", "parenthesis", "whitespace", "non-http-scheme", "trailing-newline"],
+    ids=[
+        "javascript-scheme",
+        "parenthesis",
+        "whitespace",
+        "non-http-scheme",
+        "trailing-newline",
+        "escape",
+        "c1-control",
+    ],
 )
 def test_normalize_plan_rejects_unsafe_run_page_url(url: str) -> None:
     resources = resources_from_dict(

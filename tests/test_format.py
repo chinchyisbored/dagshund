@@ -17,6 +17,7 @@ from dagshund.format import (
     collect_drift_summaries,
     collect_warnings,
     count_by_action,
+    count_effects_by_action,
     field_action_config,
     filter_resources,
     format_display_value,
@@ -29,10 +30,11 @@ from dagshund.format import (
     group_by_resource_type,
     is_long_string,
     iter_non_topology_field_changes,
+    prepare_report,
 )
 from dagshund.markdown import render_markdown
 from dagshund.merge import normalize_plan
-from dagshund.model import ActionType, ResourceChange
+from dagshund.model import ActionType, ResourceChange, parse_plan
 from dagshund.plan import DANGEROUS_ACTIONS, STATEFUL_RESOURCE_TYPES, action_to_diff_state
 from dagshund.terminal import render_text
 from dagshund.types import DiffState, ResourceKey, parse_resource_key
@@ -131,6 +133,16 @@ def test_format_field_suffix_drift_shows_remote_to_new() -> None:
     result = format_field_suffix(make_change(action="update", old="val", new="val", remote="drifted"))
 
     assert result == ': "drifted" -> "val" (drift)'
+
+
+def test_format_field_suffix_secret_unknown_is_visible() -> None:
+    plan = parse_plan(
+        '{"plan":{"resources.secrets.token":{"changes":{"value":'
+        '{"action":"update","old":"[redacted]","new":"new-secret"}}}}}'
+    )
+    change = plan.resources["resources.secrets.token"].changes["value"]
+
+    assert format_field_suffix(change) == ': "[redacted]" -> "[redacted]" (secret values unavailable)'
 
 
 def test_format_field_suffix_noop_returns_none() -> None:
@@ -447,6 +459,26 @@ def test_count_by_action_empty_becomes_unchanged() -> None:
 
 def test_count_by_action_empty_input() -> None:
     assert count_by_action({}) == {}
+
+
+def test_prepare_report_counts_standalone_runs_as_resources_only() -> None:
+    resources = normalize_plan(
+        resources_from_dict(
+            {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 1}},
+                "resources.job_runs.orphan": {"action": "skip", "remote_state": {"job_id": 2}},
+            }
+        )
+    )
+
+    report = prepare_report(resources)
+
+    assert report.no_changes is False
+    assert count_by_action(resources) == {action_config(ActionType.SKIP): 2}
+    assert count_effects_by_action(resources) == {}
+    assert [group.resource_type for group in report.groups] == ["job_runs", "jobs"]
+    filtered = prepare_report(resources, filter_query="type:job_runs")
+    assert filtered.action_counts == ((action_config(ActionType.SKIP), 1),)
 
 
 # --- group_by_resource_type ---
@@ -1067,7 +1099,8 @@ def test_prepare_report_mixed_details_render_equivalent_information(
     terminal = capsys.readouterr().out
     markdown = render_markdown(resources, suppress_wheel_updates=case.suppress_wheel_updates)
 
-    for output in (terminal, markdown.replace("`", "").replace("**", "")):
+    markdown_text = markdown.replace("`", "").replace("**", "").replace("\\", "").replace("&gt;", ">")
+    for output in (terminal, markdown_text):
         ordered_details = (
             "manually edited outside bundle",
             'description: "before" -> "after"',
@@ -1160,7 +1193,8 @@ def test_prepare_report_filters_keep_renderer_details_counts_and_warnings_in_agr
         resources, filter_query=case.query, visible_states=case.states, suppress_wheel_updates=True
     )
 
-    for output in (terminal, markdown.replace("`", "").replace("**", "")):
+    markdown_text = markdown.replace("`", "").replace("**", "").replace("\\", "").replace("&gt;", ">")
+    for output in (terminal, markdown_text):
         for resource in ("jobs/etl", "jobs/runner", "schemas/hidden", "volumes/archive"):
             assert (resource in output) is (resource in case.visible_resources)
         for header in case.group_headers:
