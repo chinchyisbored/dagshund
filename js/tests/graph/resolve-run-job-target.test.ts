@@ -1,45 +1,50 @@
 import { describe, expect, test } from "bun:test";
-import { buildJobIdMap, resolveRunJobTarget } from "../../src/graph/resolve-run-job-target.ts";
+import {
+  buildJobIdMap,
+  resolvePreparedRunJobTarget,
+} from "../../src/graph/resolve-run-job-target.ts";
+import type { PreparedTask } from "../../src/preparation/prepare-job.ts";
 import type { PlanEntry } from "../../src/types/plan-schema.ts";
 
-describe("resolveRunJobTarget", () => {
-  test("string interpolation resolves to resource key via parseResourceReference", () => {
-    const jobIdMap = new Map<number, string>();
-    const target = resolveRunJobTarget(
-      // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks vars interpolation syntax
-      "${resources.jobs.downstream.id}",
-      jobIdMap,
-      undefined,
-      "trigger",
-    );
+const downstreamJobRef = `\${resources.jobs.downstream.id}`;
+
+const makeTask = (
+  jobId: string | number,
+  target: PreparedTask["runJobTarget"] = { status: "absent" },
+): PreparedTask => ({
+  taskKey: "trigger",
+  dependencies: [],
+  rawState: { task_key: "trigger" },
+  runJob: { status: "supported", value: jobId },
+  runJobTarget: target,
+  references: {},
+  cluster: { status: "absent" },
+});
+
+describe("resolvePreparedRunJobTarget", () => {
+  test("string interpolation resolves to resource key", () => {
+    const target = resolvePreparedRunJobTarget(makeTask(downstreamJobRef), new Map());
     expect(target).toBe("resources.jobs.downstream");
   });
 
   test("numeric id found in jobIdMap resolves to its resource key", () => {
-    const jobIdMap = new Map<number, string>([[12345, "resources.jobs.downstream"]]);
-    const target = resolveRunJobTarget(12345, jobIdMap, undefined, "trigger");
+    const target = resolvePreparedRunJobTarget(
+      makeTask(12345),
+      new Map([[12345, "resources.jobs.downstream"]]),
+    );
     expect(target).toBe("resources.jobs.downstream");
   });
 
-  test("numeric placeholder 0 falls back to new_state.vars interpolation", () => {
-    const jobIdMap = new Map<number, string>();
-    const newState = {
-      vars: {
-        // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks vars interpolation syntax
-        "tasks[0].run_job_task.job_id": "${resources.jobs.downstream.id}",
-      },
-      value: {
-        tasks: [{ task_key: "trigger" }],
-      },
-    };
-    const target = resolveRunJobTarget(0, jobIdMap, newState, "trigger");
+  test("numeric placeholder uses prepared vars interpolation", () => {
+    const target = resolvePreparedRunJobTarget(
+      makeTask(0, { status: "supported", value: downstreamJobRef }),
+      new Map(),
+    );
     expect(target).toBe("resources.jobs.downstream");
   });
 
-  test("unresolvable numeric id with empty vars returns undefined", () => {
-    const jobIdMap = new Map<number, string>();
-    const target = resolveRunJobTarget(99999, jobIdMap, undefined, "trigger");
-    expect(target).toBeUndefined();
+  test("unresolvable numeric id returns undefined", () => {
+    expect(resolvePreparedRunJobTarget(makeTask(99999), new Map())).toBeUndefined();
   });
 });
 
@@ -67,14 +72,13 @@ describe("buildJobIdMap", () => {
     expect(map.get(111)).toBe("resources.jobs.alpha");
     expect(map.get(222)).toBe("resources.jobs.gamma");
     expect(map.get(0)).toBeUndefined();
-    expect(map.size).toBe(3);
+    expect(map.size).toBe(2);
   });
 
   test("entries without remote_state.job_id are ignored", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.jobs.fresh", { action: "create", new_state: {} } as PlanEntry],
     ];
-    const map = buildJobIdMap(entries);
-    expect(map.size).toBe(0);
+    expect(buildJobIdMap(entries).size).toBe(0);
   });
 });

@@ -1,0 +1,38 @@
+{
+  "cases": [
+    {
+      "name": "remote deletion is drift when resource shape drift is explicitly open",
+      "change": { "action": "update", "remote": { "task_key": "ingest" } },
+      "context": {
+        "changeKey": "tasks[task_key='publish'].depends_on[task_key='ingest']",
+        "newState": {
+          "value": {
+            "tasks": [{ "task_key": "publish", "depends_on": [{ "task_key": "transform" }] }]
+          }
+        },
+        "remoteState": {
+          "tasks": [{ "task_key": "publish", "depends_on": [{ "task_key": "ingest" }] }]
+        },
+        "resourceHasShapeDrift": true
+      },
+      "expected": true
+    },
+    {
+      "name": "same remote deletion is not drift when resource shape drift gate is closed",
+      "change": { "action": "update", "remote": { "task_key": "ingest" } },
+      "context": {
+        "changeKey": "tasks[task_key='publish'].depends_on[task_key='ingest']",
+        "newState": {
+          "value": {
+            "tasks": [{ "task_key": "publish", "depends_on": [{ "task_key": "transform" }] }]
+          }
+        },
+        "remoteState": {
+          "tasks": [{ "task_key": "publish", "depends_on": [{ "task_key": "ingest" }] }]
+        },
+        "resourceHasShapeDrift": false
+      },
+      "expected": false
+    }
+  ]
+}

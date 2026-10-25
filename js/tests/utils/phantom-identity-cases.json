@@ -1,0 +1,29 @@
+{
+  "cases": [
+    { "name": "workspace job phantom", "id": "job::123", "resourceType": "jobs", "leaf": true },
+    {
+      "name": "workspace warehouse phantom",
+      "id": "sql-warehouse::abc",
+      "resourceType": "sql_warehouses",
+      "leaf": true
+    },
+    {
+      "name": "hierarchy source-table phantom",
+      "id": "source-table::prod.raw.events",
+      "resourceType": null,
+      "leaf": true
+    },
+    {
+      "name": "hierarchy catalog identity",
+      "id": "catalog::prod",
+      "resourceType": null,
+      "leaf": false
+    },
+    {
+      "name": "real resource identity",
+      "id": "resources.jobs.etl",
+      "resourceType": null,
+      "leaf": false
+    }
+  ]
+}

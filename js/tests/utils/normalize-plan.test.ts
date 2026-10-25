@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import fixture from "../../../fixtures/job-run-effect-cases.json";
+import { buildOrphanEffectPhantoms } from "../../src/graph/collect-phantom-nodes.ts";
 import { parsePlanJson } from "../../src/parser/parse-plan.ts";
 import type { PlanEntry } from "../../src/types/plan-schema.ts";
 import { normalizePlan } from "../../src/utils/normalize-plan.ts";
 import { extractResourceName } from "../../src/utils/resource-key.ts";
+import mergedEffectCases from "./merged-effect-cases.json";
 
 const parseEntries = (rawPlan: unknown): Record<string, PlanEntry> => {
   const result = parsePlanJson({ plan: rawPlan });
@@ -23,12 +25,20 @@ describe("normalizePlan target resolution (shared fixture — keeps TS + Python 
         expect(target?.effects?.map((effect) => effect.name)).toContain(effectName);
         expect(entries[rawCase.effectKey]).toBeUndefined();
       } else if (rawCase.expected.phantomId !== null) {
-        const orphaned = orphanEffects.get(rawCase.expected.phantomId);
-        expect(orphaned?.map((effect) => effect.name)).toContain(effectName);
+        const targetId = Number(rawCase.expected.phantomId.split("::")[1]);
+        const orphaned = orphanEffects.find(
+          (group) => group.targetResourceType === "jobs" && group.targetId === targetId,
+        );
+        expect(orphaned?.effects.map((effect) => effect.name)).toContain(effectName);
         expect(entries[rawCase.effectKey]).toBeUndefined();
+
+        const phantoms = buildOrphanEffectPhantoms(orphanEffects);
+        const phantom = phantoms.find((node) => node.id === rawCase.expected.phantomId);
+        expect(phantom?.id).toBe(rawCase.expected.phantomId);
+        expect(phantom?.effects?.map((effect) => effect.name)).toContain(effectName);
       } else {
         expect(entries[rawCase.effectKey]).toBeDefined();
-        expect(orphanEffects.size).toBe(0);
+        expect(orphanEffects).toEqual([]);
       }
     });
   }
@@ -115,6 +125,38 @@ describe("normalizePlan effect folding", () => {
     const { entries, orphanEffects } = normalizePlan({ "resources.jobs.etl": skipJob });
 
     expect(entries["resources.jobs.etl"]?.effects).toBeUndefined();
-    expect(orphanEffects.size).toBe(0);
+    expect(orphanEffects).toEqual([]);
   });
+
+  for (const effectCase of mergedEffectCases.cases) {
+    test(effectCase.name, () => {
+      const parsed = parsePlanJson({ plan: effectCase.entries });
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) throw new Error("merged-effect fixture must parse");
+      const rawEntries = parsed.data.plan ?? {};
+      const before = structuredClone(rawEntries);
+
+      const { entries, orphanEffects } = normalizePlan(rawEntries);
+
+      expect(Object.keys(entries)).toEqual(effectCase.expected.entries);
+      if (effectCase.expected.permissions) {
+        expect(entries["resources.jobs.etl"]?.new_state).toMatchObject({
+          value: { permissions: effectCase.expected.permissions },
+        });
+      }
+      for (const [resourceKey, names] of Object.entries(effectCase.expected.effects)) {
+        expect(entries[resourceKey]?.effects?.map(({ name }) => name)).toEqual(names);
+      }
+      expect(
+        JSON.stringify(
+          orphanEffects.map(({ targetResourceType, targetId, effects }) => ({
+            resourceType: targetResourceType,
+            targetId,
+            effects: effects.map(({ name }) => name),
+          })),
+        ),
+      ).toBe(JSON.stringify(effectCase.expected.orphans));
+      expect(rawEntries).toEqual(before);
+    });
+  }
 });

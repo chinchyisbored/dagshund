@@ -1,13 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildResourceGraph,
-  isJobEntry,
-  isPostgresType,
-  isUnityCatalogType,
-} from "../../src/graph/build-resource-graph.ts";
+import { buildChainGraph } from "../../src/graph/build-hierarchy-graph.ts";
+import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
+import { isJobEntry } from "../../src/graph/build-resource-nodes.ts";
 import { extractStateField, parseThreePartName } from "../../src/graph/extract-resource-state.ts";
+import { isPostgresType, isUnityCatalogType, UC_CHAIN } from "../../src/graph/hierarchy-specs.ts";
+import { parsePlanJson } from "../../src/parser/parse-plan.ts";
+import { preparePlan } from "../../src/preparation/prepare-plan.ts";
 import type { ResourceGraphNode } from "../../src/types/graph-types.ts";
+import { normalizePlan } from "../../src/utils/normalize-plan.ts";
 import { extractResourceType } from "../../src/utils/resource-key.ts";
+import {
+  buildPlanGraphFromPlan,
+  buildResourceGraphFromPlan,
+} from "../helpers/build-graphs-from-plan.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 describe("extractResourceType", () => {
@@ -57,6 +62,38 @@ describe("isUnityCatalogType", () => {
   });
 });
 
+describe("prepared hierarchy inputs", () => {
+  test("uses prepared current state for hierarchy identity and node state", () => {
+    const key = "resources.catalogs.source";
+    const plan = preparePlan(
+      normalizePlan({
+        [key]: { action: "create", new_state: { value: { name: "raw-catalog" } } },
+      }),
+    );
+    const resource = plan.byResourceKey.get(key);
+    if (resource === undefined) throw new Error("expected prepared catalog");
+    const preparedPlan = {
+      ...plan,
+      byResourceKey: new Map([
+        ...plan.byResourceKey,
+        [
+          key,
+          {
+            ...resource,
+            currentState: { status: "supported" as const, value: { name: "prepared-catalog" } },
+          },
+        ],
+      ]),
+    };
+    const graph = buildChainGraph(Object.entries(plan.normalized.entries), UC_CHAIN, preparedPlan);
+    const catalog = graph.nodes.find((node) => node.resourceKey === key);
+
+    expect(catalog?.id).toBe("catalog::prepared-catalog");
+    expect(catalog?.resourceState).toEqual({ name: "prepared-catalog" });
+    expect(catalog?.newState).toEqual({ value: { name: "raw-catalog" } });
+  });
+});
+
 describe("extractStateField", () => {
   test("extracts field from new_state.value", () => {
     const entry = {
@@ -84,15 +121,383 @@ describe("extractStateField", () => {
   });
 });
 
+describe("shared conventional reference resolution regressions", () => {
+  test("symbolic existing-pipeline references retain the pipelines-only family policy", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.consumer": {
+          action: "create",
+          new_state: {
+            value: {
+              existing_pipeline_id: "$" + "{resources.sql_warehouses.compute.id}",
+            },
+          },
+        },
+        "resources.sql_warehouses.compute": {
+          action: "create",
+          new_state: { value: { id: "warehouse-1" } },
+        },
+      },
+    });
+
+    expect(
+      graph.edges.some(
+        (edge) =>
+          edge.source === "resources.synced_database_tables.consumer" &&
+          edge.target === "resources.sql_warehouses.compute",
+      ),
+    ).toBe(false);
+    expect(graph.nodes.some((node) => node.id.startsWith("pipeline::"))).toBe(true);
+  });
+
+  test("existing pipeline reference resolves to managed derived pipeline", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_synced_tables.owner": {
+          action: "create",
+          new_state: { value: { pipeline_id: "generated-1" } },
+        },
+        "resources.synced_database_tables.consumer": {
+          action: "create",
+          new_state: { value: { existing_pipeline_id: "generated-1" } },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toContain("postgres-synced-pipeline::generated-1");
+    expect(graph.nodes.map((node) => node.id)).not.toContain("pipeline::generated-1");
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.synced_database_tables.consumer",
+        target: "postgres-synced-pipeline::generated-1",
+      }),
+    );
+  });
+
+  test("vector endpoint accepts only endpoint name references", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.vector_search_indexes.wrong_type": {
+          action: "create",
+          new_state: { value: { endpoint_name: "${" + "resources.sql_warehouses.compute.name}" } },
+        },
+        "resources.vector_search_indexes.wrong_attribute": {
+          action: "create",
+          new_state: {
+            value: { endpoint_name: "${" + "resources.vector_search_endpoints.compute.id}" },
+          },
+        },
+        "resources.sql_warehouses.compute": {
+          action: "create",
+          new_state: { value: { id: "warehouse-1" } },
+        },
+        "resources.vector_search_endpoints.compute": {
+          action: "create",
+          new_state: { value: { name: "compute" } },
+        },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.some((edge) => edge.target === "resources.sql_warehouses.compute"),
+    ).toBe(false);
+    expect(
+      graph.lateralEdges.some(
+        (edge) => edge.source === "resources.vector_search_indexes.wrong_attribute",
+      ),
+    ).toBe(false);
+  });
+
+  test("vars-based run-job target is shared by resource and Jobs graphs", () => {
+    const plan = {
+      "resources.jobs.source": {
+        action: "create" as const,
+        new_state: {
+          vars: {
+            "tasks[0].run_job_task.job_id": "$" + "{resources.jobs.target.id}",
+          },
+          value: { tasks: [{ task_key: "trigger", run_job_task: { job_id: 0 } }] },
+        },
+      },
+      "resources.jobs.target": {
+        action: "create" as const,
+        new_state: { value: { name: "target" } },
+      },
+    };
+    const resourceGraph = buildResourceGraphFromPlan({ plan });
+    const planGraph = buildPlanGraphFromPlan({ plan });
+
+    expect(resourceGraph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.source",
+        target: "resources.jobs.target",
+      }),
+    );
+    expect(planGraph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.source::trigger",
+        target: "resources.jobs.target",
+      }),
+    );
+    expect(
+      planGraph.nodes.find((node) => node.id === "resources.jobs.source::trigger")?.resourceState,
+    ).toMatchObject({ run_job_task: { job_id: "0 (target)" } });
+  });
+
+  test("missing symbolic run-job targets are omitted from resource and Jobs graphs", () => {
+    const plan = {
+      plan: {
+        "resources.jobs.source": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [
+                {
+                  task_key: "trigger",
+                  run_job_task: { job_id: "${" + "resources.jobs.missing.id}" },
+                },
+              ],
+            },
+          },
+        },
+      },
+    } as const;
+
+    const resourceGraph = buildResourceGraphFromPlan(plan);
+    const jobsGraph = buildPlanGraphFromPlan(plan);
+
+    expect(resourceGraph.edges.some((edge) => edge.target === "resources.jobs.missing")).toBe(
+      false,
+    );
+    expect(resourceGraph.nodes.map((node) => node.id)).not.toContain("resources.jobs.missing");
+    expect(jobsGraph.edges.some((edge) => edge.target === "resources.jobs.missing")).toBe(false);
+    expect(jobsGraph.nodes.find((node) => node.nodeKind === "task")?.resourceState).toMatchObject({
+      run_job_task: { job_id: "${" + "resources.jobs.missing.id}" },
+    });
+  });
+});
+
 describe("buildResourceGraph", () => {
+  test("keeps promoted source-table identity precedence independent of owner order", () => {
+    const entries = [
+      ["resources.postgres_synced_tables.output", { synced_table_id: "cat.sch.output" }],
+      [
+        "resources.pipelines.events",
+        { event_log: { catalog: "cat", schema: "sch", name: "output" } },
+      ],
+      ["resources.quality_monitors.monitor", { table_name: "cat.sch.output" }],
+      [
+        "resources.apps.app",
+        { resources: [{ uc_securable: { securable_full_name: "cat.sch.output" } }] },
+      ],
+    ] as const;
+
+    for (const orderedEntries of [entries, entries.toReversed()]) {
+      const graph = buildResourceGraphFromPlan({
+        plan: Object.fromEntries(
+          orderedEntries.map(([key, value]) => [key, { action: "create", new_state: { value } }]),
+        ),
+      });
+      const lateralPairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+
+      expect(lateralPairs).toContain(
+        "resources.quality_monitors.monitor→pipeline-event-log::cat.sch.output",
+      );
+      expect(lateralPairs).toContain("resources.apps.app→pipeline-event-log::cat.sch.output");
+      expect(lateralPairs).not.toContain(
+        "resources.quality_monitors.monitor→uc-synced-table::cat.sch.output",
+      );
+    }
+  });
+
+  test("keeps an owned event-log edge when pipeline ingestion references are also present", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.pipelines.events": {
+          action: "create",
+          new_state: {
+            value: {
+              event_log: { catalog: "cat", schema: "sch", name: "output" },
+              ingestion_definition: {
+                objects: [{ schema: { source_catalog: "missing", source_schema: "raw" } }],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      "pipeline-event-log::cat.sch.output→resources.pipelines.events",
+    );
+  });
+
+  test("suppresses a real source-table self-reference", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.real": {
+          action: "create",
+          new_state: {
+            value: { name: "cat.sch.output", spec: { source_table_full_name: "cat.sch.output" } },
+          },
+        },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.some(
+        (edge) =>
+          edge.source === "resources.synced_database_tables.real" &&
+          edge.target === "resources.synced_database_tables.real",
+      ),
+    ).toBe(false);
+  });
+
+  test("does not infer an external schema from ingestion alone", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.pipelines.events": {
+          action: "create",
+          new_state: {
+            value: {
+              ingestion_definition: {
+                objects: [{ schema: { source_catalog: "missing", source_schema: "raw" } }],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).not.toContain("schema::missing.raw");
+    expect(graph.lateralEdges).toHaveLength(0);
+  });
+
+  test("resolves ingestion to a schema required by an existing source table", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.source": {
+          action: "create",
+          new_state: { value: { name: "source", catalog_name: "missing", schema_name: "raw" } },
+        },
+        "resources.pipelines.events": {
+          action: "create",
+          new_state: {
+            value: {
+              ingestion_definition: {
+                objects: [{ schema: { source_catalog: "missing", source_schema: "raw" } }],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      "resources.pipelines.events→schema::missing.raw",
+    );
+  });
+
+  test("links ingestion to schemas required by UC leaves and serving models", () => {
+    const ingestion = {
+      action: "create",
+      new_state: {
+        value: {
+          ingestion_definition: {
+            objects: [{ schema: { source_catalog: "existing", source_schema: "raw" } }],
+          },
+        },
+      },
+    } as const;
+    const existingResources = [
+      ["resources.volumes.files", { catalog_name: "existing", schema_name: "raw", name: "files" }],
+      [
+        "resources.registered_models.model",
+        { catalog_name: "existing", schema_name: "raw", name: "model" },
+      ],
+      ["resources.volumes.qualified", { name: "existing.raw.files" }],
+      ["resources.registered_models.qualified", { name: "existing.raw.model" }],
+      [
+        "resources.model_serving_endpoints.endpoint",
+        { config: { served_entities: [{ entity_name: "existing.raw.model" }] } },
+      ],
+    ] as const;
+
+    for (const [resourceKey, value] of existingResources) {
+      const graph = buildResourceGraphFromPlan({
+        plan: {
+          [resourceKey]: { action: "create", new_state: { value } },
+          "resources.pipelines.ingest": ingestion,
+        },
+      });
+
+      expect(graph.nodes.map((node) => node.id)).toContain("schema::existing.raw");
+      expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+        "resources.pipelines.ingest→schema::existing.raw",
+      );
+    }
+  });
+
+  test("links ingestion to a schema already required by an app table reference", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.app": {
+          action: "create",
+          new_state: {
+            value: { resources: [{ uc_securable: { securable_full_name: "missing.raw.table" } }] },
+          },
+        },
+        "resources.pipelines.events": {
+          action: "create",
+          new_state: {
+            value: {
+              ingestion_definition: {
+                objects: [{ schema: { source_catalog: "missing", source_schema: "raw" } }],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      "resources.pipelines.events→schema::missing.raw",
+    );
+  });
+
+  test("preserves qualified table names when component fields are also present", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.real": {
+          action: "create",
+          new_state: {
+            value: { name: "cat.sch.output", catalog_name: "cat", schema_name: "sch" },
+          },
+        },
+        "resources.quality_monitors.monitor": {
+          action: "create",
+          new_state: { value: { table_name: "cat.sch.output" } },
+        },
+      },
+    });
+
+    const lateralPairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(lateralPairs).toContain(
+      "resources.quality_monitors.monitor→resources.synced_database_tables.real",
+    );
+    expect(lateralPairs).not.toContain(
+      "resources.quality_monitors.monitor→source-table::cat.sch.output",
+    );
+  });
+
   test("returns empty graph for empty plan", () => {
-    const graph = buildResourceGraph({});
+    const graph = buildResourceGraphFromPlan({});
     expect(graph.nodes).toHaveLength(0);
     expect(graph.edges).toHaveLength(0);
   });
 
   test("includes jobs as workspace resource nodes", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: { "resources.jobs.my_job": { action: "create" } },
     });
 
@@ -110,7 +515,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("creates UC hierarchy for schema entries", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -131,7 +536,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("links volumes to their schema", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -151,7 +556,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("links registered_models to their schema", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -175,7 +580,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("links secrets to a real schema without a duplicate phantom", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.cli_resources": {
           action: "update",
@@ -203,7 +608,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("creates the standard phantom catalog and schema path for a secret", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.secrets.api_token": {
           action: "create",
@@ -236,7 +641,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("creates phantom schema node when schema not in plan", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.volumes.orphan_vol": {
           action: "create",
@@ -260,7 +665,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("falls back to catalog when both schema and catalog are missing", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.volumes.no_schema": {
           action: "create",
@@ -279,7 +684,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("deduplicates phantom schema nodes for multiple resources", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.volumes.vol_a": {
           action: "create",
@@ -307,7 +712,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("real catalog entry creates resource node with hierarchy ID", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.catalogs.dagshund": {
           action: "update",
@@ -327,7 +732,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("catalog group node is phantom when catalog is not a plan entry", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -341,7 +746,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("resource nodes have nodeKind 'resource' (no external field)", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -356,7 +761,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("honors explicit depends_on edges", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -381,7 +786,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("assigns correct diff states to resource nodes", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -406,7 +811,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("does not create workspace root when all resources are UC", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -422,7 +827,7 @@ describe("buildResourceGraph", () => {
   describe("mixed-changes fixture", () => {
     test("creates nodes for all 9 resources including jobs", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildResourceGraph(plan);
+      const graph = buildResourceGraphFromPlan(plan);
 
       const resourceNodes = graph.nodes.filter((n) => n.nodeKind === "resource");
       expect(resourceNodes).toHaveLength(9);
@@ -441,7 +846,7 @@ describe("buildResourceGraph", () => {
 
     test("creates UC root, catalog phantom, and workspace root nodes", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildResourceGraph(plan);
+      const graph = buildResourceGraphFromPlan(plan);
 
       const rootNodes = graph.nodes.filter((n) => n.nodeKind === "root");
       const rootIds = rootNodes.map((n) => n.id);
@@ -454,7 +859,7 @@ describe("buildResourceGraph", () => {
 
     test("deleted volume has removed diff state", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildResourceGraph(plan);
+      const graph = buildResourceGraphFromPlan(plan);
 
       const volumeNode = graph.nodes.find((n) => n.id === "resources.volumes.old_exports");
       expect(volumeNode?.diffState).toBe("removed");
@@ -462,7 +867,7 @@ describe("buildResourceGraph", () => {
 
     test("volume is linked to analytics schema", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildResourceGraph(plan);
+      const graph = buildResourceGraphFromPlan(plan);
 
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
       expect(edgePairs).toContain("resources.schemas.analytics→resources.volumes.raw_data");
@@ -470,7 +875,7 @@ describe("buildResourceGraph", () => {
 
     test("groups repeated types and collects remaining resources under Other Resources", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildResourceGraph(plan);
+      const graph = buildResourceGraphFromPlan(plan);
 
       const edgePairs = graph.edges.map((e) => `${e.source}→${e.target}`);
       expect(edgePairs).toContain("workspace-root→other-resources-root");
@@ -487,7 +892,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("database_catalogs entry with child schema creates resource node with hierarchy ID", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.database_catalogs.lakebase_cat": {
           action: "create",
@@ -511,7 +916,7 @@ describe("buildResourceGraph", () => {
   });
 
   test("standalone database_catalogs entry appears under uc-root", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.database_catalogs.standalone": {
           action: "create",
@@ -533,7 +938,7 @@ describe("buildResourceGraph", () => {
 
   describe("job resource node filtering", () => {
     test("job resource node has taskChangeSummary when tasks have changes", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.jobs.my_job": {
             action: "update",
@@ -569,7 +974,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("job resource node has task-level keys filtered from changes", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.jobs.my_job": {
             action: "update",
@@ -599,7 +1004,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("job resource node has tasks filtered from resourceState", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.jobs.my_job": {
             action: "update",
@@ -624,7 +1029,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("non-job resource node has taskChangeSummary undefined", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.schemas.analytics": {
             action: "update",
@@ -640,7 +1045,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("created job has taskChangeSummary undefined (all tasks inherit job state)", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.jobs.new_job": {
             action: "create",
@@ -664,7 +1069,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("deleted job has taskChangeSummary undefined (all tasks inherit job state)", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.jobs.old_job": {
             action: "delete",
@@ -680,7 +1085,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("updated job with only job-level changes has taskChangeSummary undefined", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.jobs.my_job": {
             action: "update",
@@ -704,7 +1109,7 @@ describe("buildResourceGraph", () => {
     });
 
     test("job with no tasks has taskChangeSummary undefined", () => {
-      const graph = buildResourceGraph({
+      const graph = buildResourceGraphFromPlan({
         plan: {
           "resources.jobs.empty_job": {
             action: "update",
@@ -742,8 +1147,140 @@ describe("isPostgresType", () => {
 });
 
 describe("postgres hierarchy", () => {
+  test("status postgres_database identity resolves real hierarchy and catalog target", () => {
+    const branchRef = "projects/demo/branches/main";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.main": {
+          action: "create",
+          new_state: { value: { branch_id: "main", parent: "projects/demo" } },
+        },
+        "resources.postgres_databases.db": {
+          action: "create",
+          new_state: { value: { parent: branchRef, status: { postgres_database: "app_db" } } },
+        },
+        "resources.postgres_catalogs.catalog": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: branchRef,
+              postgres_database: "app_db",
+              catalog_id: "app_catalog",
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toContain("resources.postgres_databases.db");
+    expect(graph.nodes.map((node) => node.id)).not.toContain("postgres-database::demo/main/app_db");
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_branches.main",
+        target: "resources.postgres_databases.db",
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "catalog::app_catalog",
+        target: "resources.postgres_databases.db",
+      }),
+    );
+  });
+
+  test("symbolic Postgres relationships resolve without concrete branch identities", () => {
+    const projectRef = "$" + "{resources.postgres_projects.demo.id}";
+    const mainRef = "$" + "{resources.postgres_branches.main.id}";
+    const baseRef = "$" + "{resources.postgres_branches.base.id}";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_projects.demo": {
+          action: "create",
+          new_state: { value: { project_id: "demo" } },
+        },
+        "resources.postgres_branches.main": {
+          action: "create",
+          new_state: { value: { branch_id: "main", parent: projectRef, source_branch: baseRef } },
+        },
+        "resources.postgres_branches.base": {
+          action: "create",
+          new_state: { value: { branch_id: "base", parent: projectRef } },
+        },
+        "resources.postgres_databases.db": {
+          action: "create",
+          new_state: { value: { parent: mainRef, postgres_database: "app_db" } },
+        },
+        "resources.postgres_catalogs.catalog": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: mainRef,
+              postgres_database: "app_db",
+              catalog_id: "app_catalog",
+            },
+          },
+        },
+        "resources.postgres_synced_tables.table": {
+          action: "create",
+          new_state: {
+            value: { branch: mainRef, postgres_database: "app_db", synced_table_id: "table" },
+          },
+        },
+      },
+    });
+
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_branches.main",
+        target: "resources.postgres_databases.db",
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_branches.main",
+        target: "resources.postgres_branches.base",
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "catalog::app_catalog",
+        target: "resources.postgres_databases.db",
+      }),
+    );
+  });
+
+  test("opaque fields from another Postgres family do not invalidate branch relationships", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.main": {
+          action: "create",
+          new_state: {
+            value: { branch_id: "main", parent: "projects/demo", role: { opaque: true } },
+          },
+        },
+        "resources.postgres_endpoints.endpoint": {
+          action: "create",
+          new_state: {
+            value: {
+              endpoint_id: "endpoint",
+              parent: "projects/demo/branches/main",
+              endpoint_type: "ENDPOINT_TYPE_READ_WRITE",
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_branches.main",
+        target: "resources.postgres_endpoints.endpoint",
+      }),
+    );
+    expect(graph.nodes.map((node) => node.id)).not.toContain("postgres-branch::demo/main");
+  });
   test("full chain: workspace-root → postgres-root → project group → branch → endpoint", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_projects.my_project": {
           action: "create",
@@ -788,7 +1325,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("phantom branch when branch not in plan hangs off phantom project", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_endpoints.my_endpoint": {
           action: "create",
@@ -822,7 +1359,7 @@ describe("postgres hierarchy", () => {
 
   test("endpoint bundle parent ref resolves to branch resource", () => {
     const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_branches.dev_branch": {
           action: "create",
@@ -850,7 +1387,7 @@ describe("postgres hierarchy", () => {
 
   test("branch children resolve to branch resource from parent or branch fields", () => {
     const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_branches.dev_branch": {
           action: "create",
@@ -903,7 +1440,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("derived branch has lateral lineage edge to source branch", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_branches.dev_branch": {
           action: "create",
@@ -940,7 +1477,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("derived branch creates phantom source branch when source is external", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_branches.dev_branch": {
           action: "create",
@@ -972,7 +1509,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("lakebase-autoscaling fixture creates external lineage phantom only", async () => {
-    const graph = buildResourceGraph(await loadFixture("lakebase-autoscaling"));
+    const graph = buildResourceGraphFromPlan(await loadFixture("lakebase-autoscaling"));
 
     const nodeIds = graph.nodes.map((n) => n.id);
     expect(nodeIds).not.toContain("postgres-project::phantom-lakebase");
@@ -996,7 +1533,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("project group is external when no project entry exists", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_branches.my_branch": {
           action: "create",
@@ -1011,7 +1548,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("endpoint with no parent field falls back to postgres-root", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_endpoints.orphan": {
           action: "create",
@@ -1025,7 +1562,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("standalone project appears under postgres-root", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_projects.solo": {
           action: "create",
@@ -1046,7 +1583,7 @@ describe("postgres hierarchy", () => {
   });
 
   test("no postgres-root when no postgres resources", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.my_job": { action: "create" },
       },
@@ -1059,7 +1596,7 @@ describe("postgres hierarchy", () => {
 
 describe("synced_database_tables in UC", () => {
   test("three-part name places synced table under catalog → schema in UC", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -1086,7 +1623,7 @@ describe("synced_database_tables in UC", () => {
   });
 
   test("phantom schema created when schema not in plan", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.catalogs.prod": {
           action: "create",
@@ -1113,7 +1650,7 @@ describe("synced_database_tables in UC", () => {
   });
 
   test("simple name (no three-part) falls to uc-root", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.orphan": {
           action: "create",
@@ -1127,7 +1664,7 @@ describe("synced_database_tables in UC", () => {
   });
 
   test("bootstraps UC root when only synced table exists", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.my_table": {
           action: "create",
@@ -1153,7 +1690,7 @@ describe("synced_database_tables in UC", () => {
   });
 
   test("multiple synced tables under same schema each get their own node", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -1188,10 +1725,68 @@ describe("synced_database_tables in UC", () => {
   });
 });
 
+describe("effective-state relationship regressions", () => {
+  test("does not restore an omitted top-level warehouse relationship from remote state", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.quality_monitors.monitor": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: { warehouse_id: "stale-warehouse" },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id === "sql-warehouse::stale-warehouse")).toBe(false);
+    expect(
+      graph.lateralEdges.some((edge) => edge.target === "sql-warehouse::stale-warehouse"),
+    ).toBe(false);
+  });
+
+  test("does not restore a remote synced-table output omitted from current state", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: { synced_table_id: "catalog.schema.stale_orders" },
+        },
+      },
+    });
+
+    expect(
+      graph.nodes.some((node) => node.id === "uc-synced-table::catalog.schema.stale_orders"),
+    ).toBe(false);
+    expect(
+      graph.lateralEdges.some(
+        (edge) => edge.target === "uc-synced-table::catalog.schema.stale_orders",
+      ),
+    ).toBe(false);
+  });
+});
+
 describe("pipeline event-log derived UC tables", () => {
+  test("does not restore a remote event-log output omitted from current state", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.pipelines.ingest": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: {
+            event_log: { catalog: "dagshund", schema: "operations", name: "old_events" },
+          },
+        },
+      },
+    });
+
+    expect(
+      graph.nodes.some((node) => node.id === "pipeline-event-log::dagshund.operations.old_events"),
+    ).toBe(false);
+  });
+
   test("places the event log under its schema and promotes a table phantom", () => {
     const identity = "dagshund.operations.pipeline_events";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.pipelines.ingest": {
           action: "update",
@@ -1239,7 +1834,7 @@ describe("pipeline event-log derived UC tables", () => {
 
 describe("postgres_synced_tables derived UC tables", () => {
   test("create produces an added derived output and unchanged source phantom", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.phantom_table": {
           action: "create",
@@ -1294,7 +1889,7 @@ describe("postgres_synced_tables derived UC tables", () => {
   });
 
   test("delete reads the derived output from remote state", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.old_table": {
           action: "delete",
@@ -1317,7 +1912,7 @@ describe("postgres_synced_tables derived UC tables", () => {
   });
 
   test("missing and malformed output identities produce no derived nodes or edges", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.missing": {
           action: "create",
@@ -1349,9 +1944,32 @@ describe("postgres_synced_tables derived UC tables", () => {
     ).toBe(false);
   });
 
+  test("serving endpoint resolves a model by its registered-model resource key", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.registered_models.model": {
+          action: "create",
+          new_state: { value: { name: "main.models.model" } },
+        },
+        "resources.model_serving_endpoints.endpoint": {
+          action: "create",
+          new_state: { value: { config: { served_entities: [{ entity_name: "model" }] } } },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.model_serving_endpoints.endpoint",
+        target: "resources.registered_models.model",
+      }),
+    );
+    expect(graph.nodes.some((node) => node.id === "registered-model::model")).toBe(false);
+  });
+
   test("table references retarget to a promoted derived output", () => {
     const tableName = "shared.data.table";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.producer": {
           action: "create",
@@ -1403,7 +2021,7 @@ describe("postgres_synced_tables derived UC tables", () => {
   });
 
   test("derived output wins when source and output identities match", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.shared": {
           action: "create",
@@ -1442,11 +2060,54 @@ describe("postgres_synced_tables derived UC tables", () => {
 });
 
 describe("postgres_synced_tables derived pipelines", () => {
+  test("falls back to a concrete status pipeline output when the direct value is unusable", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_synced_tables.sync": {
+          action: "create",
+          new_state: { value: { pipeline_id: "", status: { pipeline_id: "concrete-output" } } },
+        },
+        "resources.jobs.consumer": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [{ task_key: "refresh", pipeline_task: { pipeline_id: "concrete-output" } }],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.consumer",
+        target: "postgres-synced-pipeline::concrete-output",
+      }),
+    );
+    expect(graph.nodes.some((node) => node.id === "pipeline::concrete-output")).toBe(false);
+  });
+
+  test("keeps historical generated pipeline output identity when current output is omitted", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: { pipeline_id: "historical-output-id" },
+        },
+      },
+    });
+
+    expect(
+      graph.nodes.some((node) => node.id === "postgres-synced-pipeline::historical-output-id"),
+    ).toBe(true);
+  });
+
   test("first-deploy job reference resolves to the generated pipeline", () => {
     const pipelineReference =
       // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
       "${resources.postgres_synced_tables.orders.status.pipeline_id}";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.orders": {
           action: "create",
@@ -1506,8 +2167,70 @@ describe("postgres_synced_tables derived pipelines", () => {
     );
   });
 
+  test("symbolic and concrete pipeline aliases deduplicate to one generated pipeline edge", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "create",
+          new_state: {
+            value: {
+              pipeline_id: "pipeline-orders",
+              status: { pipeline_id: "pipeline-orders" },
+            },
+          },
+        },
+        "resources.jobs.refresh_orders": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [
+                {
+                  task_key: "refresh_pipeline_id",
+                  pipeline_task: {
+                    // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+                    pipeline_id: "${resources.postgres_synced_tables.orders.pipeline_id}",
+                  },
+                },
+                {
+                  task_key: "refresh_status_pipeline_id",
+                  pipeline_task: {
+                    // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+                    pipeline_id: "${resources.postgres_synced_tables.orders.status.pipeline_id}",
+                  },
+                },
+                {
+                  task_key: "refresh_concrete_pipeline_id",
+                  pipeline_task: { pipeline_id: "pipeline-orders" },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const generatedPipeline = graph.nodes.find(
+      (node) => node.id === "postgres-synced-pipeline::pipeline-orders",
+    );
+    expect(generatedPipeline).toMatchObject({
+      nodeKind: "derived",
+      derivedKind: "postgresSyncedTablePipeline",
+      ownerResourceKey: "resources.postgres_synced_tables.orders",
+    });
+    expect(
+      graph.lateralEdges
+        .filter((edge) => edge.source === "resources.jobs.refresh_orders")
+        .map(({ source, target }) => ({ source, target })),
+    ).toEqual([
+      {
+        source: "resources.jobs.refresh_orders",
+        target: "postgres-synced-pipeline::pipeline-orders",
+      },
+    ]);
+  });
+
   test("repeated generated pipelines use the Pipelines workspace category", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.orders": {
           action: "create",
@@ -1538,7 +2261,7 @@ describe("postgres_synced_tables derived pipelines", () => {
   });
 
   test("delete uses the concrete pipeline ID from remote state", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.orders": {
           action: "delete",
@@ -1569,7 +2292,7 @@ describe("postgres_synced_tables derived pipelines", () => {
 
 describe("existing pipelines referenced by synced tables", () => {
   test("renders an external existing pipeline as a dashed phantom", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.orders": {
           action: "update",
@@ -1606,7 +2329,7 @@ describe("existing pipelines referenced by synced tables", () => {
   test("resolves symbolic and concrete existing pipeline references to a real node", () => {
     // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
     const symbolicId = "${resources.pipelines.shared.id}";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_synced_tables.orders": {
           action: "update",
@@ -1640,8 +2363,127 @@ describe("existing pipelines referenced by synced tables", () => {
     );
   });
 
-  test("uses a remote nested existing pipeline reference for a deleted synced table", () => {
+  test("does not restore an existing pipeline reference omitted from new state", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.orders": {
+          action: "update",
+          new_state: { value: { name: "catalog.schema.orders" } },
+          remote_state: { spec: { existing_pipeline_id: "pipeline-shared" } },
+        },
+        "resources.pipelines.shared": {
+          action: "skip",
+          remote_state: { pipeline_id: "pipeline-shared", name: "shared" },
+        },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.some((edge) => edge.source === "resources.synced_database_tables.orders"),
+    ).toBe(false);
+    expect(graph.nodes.some((node) => node.id === "pipeline::pipeline-shared")).toBe(false);
+  });
+
+  test("uses one prepared existing-pipeline projection for ownership and references", () => {
+    const parsed = parsePlanJson({
+      plan: {
+        "resources.postgres_synced_tables.orders": {
+          action: "create",
+          new_state: { value: { existing_pipeline_id: "raw-pipeline" } },
+        },
+      },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("test plan must parse");
+    const prepared = preparePlan(normalizePlan(parsed.data.plan ?? {}));
+    const key = "resources.postgres_synced_tables.orders";
+    const original = prepared.byResourceKey.get(key);
+    expect(original).toBeDefined();
+    if (original === undefined) throw new Error("prepared resource must exist");
     const graph = buildResourceGraph({
+      ...prepared,
+      byResourceKey: new Map([
+        ...prepared.byResourceKey,
+        [
+          key,
+          { ...original, existingPipelineId: { status: "supported", value: "prepared-pipeline" } },
+        ],
+      ]),
+    });
+
+    expect(graph.nodes.some((node) => node.id === "pipeline::raw-pipeline")).toBe(false);
+    expect(graph.nodes.some((node) => node.id === "pipeline::prepared-pipeline")).toBe(true);
+    expect(graph.nodes.some((node) => node.id.startsWith("postgres-synced-pipeline::"))).toBe(
+      false,
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({ source: key, target: "pipeline::prepared-pipeline" }),
+    );
+  });
+
+  test("diagnoses malformed references for both synced-table families without exposing values", () => {
+    const entries = {
+      "resources.postgres_synced_tables.malformed": {
+        action: "create" as const,
+        new_state: {
+          value: { existing_pipeline_id: 42, pipeline_id: "generated", private: "SECRET" },
+        },
+      },
+      "resources.synced_database_tables.malformed": {
+        action: "create" as const,
+        new_state: { value: { spec: { existing_pipeline_id: false }, private: "SECRET" } },
+      },
+    };
+    const original = structuredClone(entries);
+    const parsed = parsePlanJson({ plan: entries });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("test plan must parse");
+    const prepared = preparePlan(normalizePlan(parsed.data.plan ?? {}));
+    const graph = buildResourceGraph(prepared);
+
+    expect(entries).toEqual(original);
+    expect(graph.nodes.some((node) => node.id.startsWith("postgres-synced-pipeline::"))).toBe(
+      false,
+    );
+    expect(graph.nodes.some((node) => node.id === "pipeline::generated")).toBe(false);
+    expect(graph.lateralEdges).toEqual([]);
+    expect(prepared.diagnostics).toEqual([
+      {
+        resourceKey: "resources.postgres_synced_tables.malformed",
+        capability: "existing-pipeline-reference",
+        reason: "invalid-shape",
+      },
+      {
+        resourceKey: "resources.synced_database_tables.malformed",
+        capability: "existing-pipeline-reference",
+        reason: "invalid-shape",
+      },
+    ]);
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("SECRET");
+  });
+
+  test("treats empty existing pipeline IDs as absent", () => {
+    const entries = {
+      "resources.postgres_synced_tables.empty": {
+        action: "create" as const,
+        new_state: { value: { existing_pipeline_id: "  ", pipeline_id: "generated" } },
+      },
+    };
+    const parsed = parsePlanJson({ plan: entries });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("test plan must parse");
+    const prepared = preparePlan(normalizePlan(parsed.data.plan ?? {}));
+    const graph = buildResourceGraph(prepared);
+
+    expect(graph.nodes.some((node) => node.id === "pipeline::generated")).toBe(false);
+    expect(graph.nodes.some((node) => node.id === "postgres-synced-pipeline::generated")).toBe(
+      true,
+    );
+    expect(prepared.diagnostics).toEqual([]);
+  });
+
+  test("uses a remote nested existing pipeline reference for a deleted synced table", () => {
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.deleted": {
           action: "delete",
@@ -1664,7 +2506,7 @@ describe("existing pipelines referenced by synced tables", () => {
 
 describe("database_instances as flat workspace resources", () => {
   test("database_instance appears under workspace-root", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.database_instances.my_instance": {
           action: "create",
@@ -1685,7 +2527,7 @@ describe("database_instances as flat workspace resources", () => {
 
 describe("database_catalogs in UC", () => {
   test("database_catalog stays in UC regardless of database_instance_name", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.database_catalogs.lb_cat": {
           action: "create",
@@ -1709,7 +2551,7 @@ describe("database_catalogs in UC", () => {
   });
 
   test("database_catalog without database_instance_name stays in UC", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.database_catalogs.plain_cat": {
           action: "create",
@@ -1726,7 +2568,7 @@ describe("database_catalogs in UC", () => {
   });
 
   test("UC-only database catalog materializes the workspace root for an absent instance", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.database_catalogs.lb_cat": {
           action: "create",
@@ -1744,7 +2586,7 @@ describe("database_catalogs in UC", () => {
   });
 
   test("database_catalog with schema nests schema under catalog", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.database_catalogs.lb_cat": {
           action: "create",
@@ -1764,9 +2606,37 @@ describe("database_catalogs in UC", () => {
 });
 
 describe("postgres_catalogs in UC", () => {
+  test("does not materialize a phantom when the referenced database is real", () => {
+    const branchRef = "$" + "{resources.postgres_branches.dev_branch.id}";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.dev_branch": {
+          action: "create",
+          new_state: { value: { branch_id: "dev", parent: "projects/dagshund" } },
+        },
+        "resources.postgres_databases.dev_database": {
+          action: "create",
+          new_state: {
+            value: { postgres_database: "app_db", parent: branchRef },
+          },
+        },
+        "resources.postgres_catalogs.dev_catalog": {
+          action: "create",
+          new_state: {
+            value: { branch: branchRef, catalog_id: "app_db", postgres_database: "app_db" },
+          },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((node) => node.id);
+    expect(nodeIds).toContain("resources.postgres_databases.dev_database");
+    expect(nodeIds).not.toContain("postgres-database::dagshund/dev/app_db");
+  });
+
   test("postgres catalog renders as UC catalog with lateral edge to database phantom", () => {
     const branchIdRef = "$" + "{resources.postgres_branches.dev_branch.id}";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_branches.dev_branch": {
           action: "create",
@@ -1809,7 +2679,7 @@ describe("postgres_catalogs in UC", () => {
 
 describe("mixed plan with UC + workspace + postgres", () => {
   test("creates correct structure with synced tables in UC and instances in workspace", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         // UC (including synced table)
         "resources.schemas.analytics": {
@@ -1876,7 +2746,7 @@ describe("mixed plan with UC + workspace + postgres", () => {
 
 describe("workspace resource type grouping", () => {
   test("keeps singleton types directly under workspace", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.job_a": { action: "create" },
         "resources.alerts.alert_a": { action: "create" },
@@ -1891,7 +2761,7 @@ describe("workspace resource type grouping", () => {
   });
 
   test("creates a stable human-readable category for a repeated type", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.custom_widgets.widget_a": { action: "create" },
         "resources.custom_widgets.widget_b": { action: "update" },
@@ -1914,7 +2784,7 @@ describe("workspace resource type grouping", () => {
   });
 
   test("creates separate categories for multiple repeated types", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.job_a": { action: "create" },
         "resources.jobs.job_b": { action: "create" },
@@ -1937,7 +2807,7 @@ describe("workspace resource type grouping", () => {
   });
 
   test("places repeated categories alongside the Lakebase hierarchy", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.job_a": { action: "create" },
         "resources.jobs.job_b": { action: "create" },
@@ -1955,7 +2825,7 @@ describe("workspace resource type grouping", () => {
   });
 
   test("creates no categories when the workspace only contains Lakebase", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.postgres_projects.pg_proj": {
           action: "create",
@@ -1972,7 +2842,7 @@ describe("workspace resource type grouping", () => {
   });
 
   test("does not count an external phantom toward the category threshold", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.my_job": {
           action: "create",
@@ -1994,8 +2864,32 @@ describe("workspace resource type grouping", () => {
     expect(edgePairs).toContain("workspace-root→job::123");
   });
 
+  test("resolves run_job_task vars before creating a numeric phantom", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.jobs.source": {
+          action: "create",
+          new_state: {
+            value: { tasks: [{ task_key: "trigger", run_job_task: { job_id: 123 } }] },
+            vars: { "tasks[0].run_job_task.job_id": "$" + "{resources.jobs.target.id}" },
+          },
+        },
+        "resources.jobs.target": {
+          action: "update",
+          new_state: { value: { job_id: 456 } },
+          remote_state: { job_id: 456 },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((node) => node.id);
+    const edgePairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(nodeIds).not.toContain("job::123");
+    expect(edgePairs).toContain("resources.jobs.source→resources.jobs.target");
+  });
+
   test("places a phantom under an existing matching type category", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.job_a": {
           action: "create",
@@ -2015,7 +2909,7 @@ describe("workspace resource type grouping", () => {
   });
 
   test("places unmatched phantom types under Other Resources when a category exists", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.job_a": { action: "create" },
         "resources.jobs.job_b": { action: "create" },
@@ -2034,8 +2928,37 @@ describe("workspace resource type grouping", () => {
 });
 
 describe("phantom node deduplication", () => {
+  test("Genie space warehouse references preserve real and missing targets", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.sql_warehouses.real": {
+          action: "create",
+          new_state: { value: { id: "warehouse-real" } },
+        },
+        "resources.genie_spaces.using_real": {
+          action: "create",
+          new_state: { value: { warehouse_id: "warehouse-real" } },
+        },
+        "resources.genie_spaces.using_missing": {
+          action: "create",
+          new_state: { value: { warehouse_id: "warehouse-missing" } },
+        },
+      },
+    });
+
+    const nodeIds = graph.nodes.map((node) => node.id);
+    const edgePairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(nodeIds).toContain("resources.sql_warehouses.real");
+    expect(nodeIds).toContain("sql-warehouse::warehouse-missing");
+    expect(nodeIds.filter((id) => id === "sql-warehouse::warehouse-missing")).toHaveLength(1);
+    expect(edgePairs).toContain("resources.genie_spaces.using_real→resources.sql_warehouses.real");
+    expect(edgePairs).toContain(
+      "resources.genie_spaces.using_missing→sql-warehouse::warehouse-missing",
+    );
+  });
+
   test("app and genie space sharing an external warehouse create one phantom node", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.apps.taxi_app": {
           action: "create",
@@ -2073,6 +2996,104 @@ describe("phantom node deduplication", () => {
   });
 });
 
+describe("job task references with shared raw IDs", () => {
+  test("parsed plan builds distinct real warehouse, dashboard and pipeline nodes and edges", () => {
+    const parsed = parsePlanJson({
+      plan: {
+        "resources.jobs.shared_references": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [
+                {
+                  task_key: "references",
+                  sql_task: { warehouse_id: "shared" },
+                  dashboard_task: { dashboard_id: "shared" },
+                  pipeline_task: { pipeline_id: "shared" },
+                },
+              ],
+            },
+          },
+        },
+        "resources.sql_warehouses.shared": {
+          action: "create",
+          new_state: { value: { id: "shared", name: "Shared" } },
+        },
+        "resources.dashboards.shared": {
+          action: "create",
+          new_state: { value: { dashboard_id: "shared", display_name: "Shared" } },
+        },
+        "resources.pipelines.shared": {
+          action: "create",
+          new_state: { value: { pipeline_id: "shared", name: "Shared" } },
+        },
+      },
+    });
+    if (!parsed.ok) throw new Error(parsed.error);
+    const graph = buildResourceGraphFromPlan(parsed.data);
+
+    expect(graph.nodes.map((node) => node.id)).toEqual(
+      expect.arrayContaining([
+        "resources.sql_warehouses.shared",
+        "resources.dashboards.shared",
+        "resources.pipelines.shared",
+      ]),
+    );
+    expect(
+      graph.lateralEdges
+        .filter((edge) => edge.source === "resources.jobs.shared_references")
+        .map((edge) => `${edge.source}→${edge.target}`)
+        .toSorted(),
+    ).toEqual([
+      "resources.jobs.shared_references→resources.dashboards.shared",
+      "resources.jobs.shared_references→resources.pipelines.shared",
+      "resources.jobs.shared_references→resources.sql_warehouses.shared",
+    ]);
+  });
+
+  test("parsed plan builds all three phantom nodes and exact lateral edges", () => {
+    const parsed = parsePlanJson({
+      plan: {
+        "resources.jobs.shared_references": {
+          action: "create",
+          new_state: {
+            value: {
+              tasks: [
+                {
+                  task_key: "references",
+                  sql_task: { warehouse_id: "shared" },
+                  dashboard_task: { dashboard_id: "shared" },
+                  pipeline_task: { pipeline_id: "shared" },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+    if (!parsed.ok) throw new Error(parsed.error);
+    const graph = buildResourceGraphFromPlan(parsed.data);
+
+    expect(graph.nodes.map((node) => node.id)).toEqual(
+      expect.arrayContaining(["sql-warehouse::shared", "dashboard::shared", "pipeline::shared"]),
+    );
+    expect(
+      graph.lateralEdges
+        .filter((edge) => edge.source === "resources.jobs.shared_references")
+        .map((edge) => `${edge.source}→${edge.target}`)
+        .toSorted(),
+    ).toEqual([
+      "resources.jobs.shared_references→dashboard::shared",
+      "resources.jobs.shared_references→pipeline::shared",
+      "resources.jobs.shared_references→sql-warehouse::shared",
+    ]);
+    const nodeIds = new Set(graph.nodes.map((node) => node.id));
+    expect(
+      graph.lateralEdges.every((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)),
+    ).toBe(true);
+  });
+});
+
 describe("parseThreePartName", () => {
   test("parses valid three-part name", () => {
     expect(parseThreePartName("catalog.schema.table")).toEqual({
@@ -2097,7 +3118,7 @@ describe("parseThreePartName", () => {
 
 describe("source table phantom nodes", () => {
   test("source in existing real schema creates phantom leaf under real schema node", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.schemas.analytics": {
           action: "update",
@@ -2131,7 +3152,7 @@ describe("source table phantom nodes", () => {
   });
 
   test("source in non-existent schema creates phantom leaf + phantom schema + phantom catalog", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.my_table": {
           action: "create",
@@ -2159,7 +3180,7 @@ describe("source table phantom nodes", () => {
   });
 
   test("two synced tables sharing source schema create one phantom schema and two leaves", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.table_a": {
           action: "create",
@@ -2195,7 +3216,7 @@ describe("source table phantom nodes", () => {
   });
 
   test("source matching real bundle synced table name creates no duplicate phantom", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.existing": {
           action: "create",
@@ -2214,7 +3235,7 @@ describe("source table phantom nodes", () => {
   });
 
   test("missing spec.source_table_full_name creates no phantom", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.no_spec": {
           action: "create",
@@ -2230,7 +3251,7 @@ describe("source table phantom nodes", () => {
   });
 
   test("non-three-part source_table_full_name creates no phantom", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.bad_ref": {
           action: "create",
@@ -2249,7 +3270,7 @@ describe("source table phantom nodes", () => {
   });
 
   test("deleted entry with remote_state.spec creates phantom from source ref", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.synced_database_tables.deleted_table": {
           action: "delete",
@@ -2269,11 +3290,107 @@ describe("source table phantom nodes", () => {
   });
 });
 
+describe("specialized real-reference resolution", () => {
+  test("pipeline ingestion schema resolves to the real schema resource node", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "create",
+          new_state: { value: { catalog_name: "prod", name: "analytics" } },
+        },
+        "resources.pipelines.ingest": {
+          action: "create",
+          new_state: {
+            value: {
+              ingestion_definition: {
+                objects: [{ schema: { source_catalog: "prod", source_schema: "analytics" } }],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id === "schema::prod.analytics")).toBe(false);
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.pipelines.ingest",
+        target: "resources.schemas.analytics",
+      }),
+    );
+  });
+
+  test("component table identity resolves app, monitor and other-owner references to the real table", () => {
+    const identity = "prod.analytics.orders";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.orders": {
+          action: "create",
+          new_state: {
+            value: { name: "orders", catalog_name: "prod", schema_name: "analytics" },
+          },
+        },
+        "resources.synced_database_tables.consumer": {
+          action: "create",
+          new_state: { value: { spec: { source_table_full_name: identity } } },
+        },
+        "resources.quality_monitors.orders": {
+          action: "create",
+          new_state: { value: { table_name: identity } },
+        },
+        "resources.apps.reader": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [{ name: "table", uc_securable: { securable_full_name: identity } }],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id === `source-table::${identity}`)).toBe(false);
+    for (const source of [
+      "resources.synced_database_tables.consumer",
+      "resources.quality_monitors.orders",
+      "resources.apps.reader",
+    ]) {
+      expect(graph.lateralEdges).toContainEqual(
+        expect.objectContaining({ source, target: "resources.synced_database_tables.orders" }),
+      );
+    }
+  });
+
+  test("quality-monitor and synced-table references resolve once to a real synced table", () => {
+    const identity = "prod.analytics.orders";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.orders": {
+          action: "create",
+          new_state: { value: { name: identity, spec: { source_table_full_name: identity } } },
+        },
+        "resources.quality_monitors.orders": {
+          action: "create",
+          new_state: { value: { table_name: identity } },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id === `source-table::${identity}`)).toBe(false);
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.quality_monitors.orders",
+        target: "resources.synced_database_tables.orders",
+      }),
+    );
+  });
+});
+
 describe("schema-supported workspace resource relationships", () => {
   test("builds instance pool and Vector Search endpoint lateral edges without fixtures", () => {
     const poolRef = "$" + "{resources.instance_pools.workers.id}";
     const endpointRef = "$" + "{resources.vector_search_endpoints.search.name}";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.clusters.interactive": {
           action: "create",
@@ -2305,7 +3422,7 @@ describe("schema-supported workspace resource relationships", () => {
 
   test("builds a nested for-each task instance pool lateral edge", () => {
     const poolRef = "$" + "{resources.instance_pools.workers.id}";
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.jobs.foreach": {
           action: "create",
@@ -2339,7 +3456,7 @@ describe("schema-supported workspace resource relationships", () => {
 
 describe("external leaf phantom refs (UC hierarchy placement)", () => {
   test("app uc_securable phantom is placed under correct catalog and schema", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.apps.my_app": {
           action: "update",
@@ -2370,7 +3487,7 @@ describe("external leaf phantom refs (UC hierarchy placement)", () => {
   });
 
   test("serving endpoint registered model phantom is placed in UC hierarchy", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.model_serving_endpoints.my_endpoint": {
           action: "update",
@@ -2394,8 +3511,28 @@ describe("external leaf phantom refs (UC hierarchy placement)", () => {
     expect(edgePairs).toContain("schema::ml.models→registered-model::ml.models.recommender");
   });
 
+  test("unsupported prepared source-table reference does not create hierarchy phantoms", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.owner": {
+          action: "create",
+          new_state: {
+            value: {
+              source_table_full_name: 42,
+              spec: { source_table_full_name: "source.raw.orders" },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toContain("resources.synced_database_tables.owner");
+    expect(graph.nodes.some((node) => node.id === "source-table::source.raw.orders")).toBe(false);
+    expect(graph.nodes.some((node) => node.id === "schema::source.raw")).toBe(false);
+  });
+
   test("quality monitor table_name phantom is placed in UC hierarchy", () => {
-    const graph = buildResourceGraph({
+    const graph = buildResourceGraphFromPlan({
       plan: {
         "resources.quality_monitors.mon": {
           action: "create",
@@ -2419,7 +3556,7 @@ describe("external leaf phantom refs (UC hierarchy placement)", () => {
 describe("sub-resources-plan.json (sub-resource merging)", () => {
   test("merges sub-resource keys into parent resource node", async () => {
     const plan = await loadFixture("sub-resources");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const nodeIds = graph.nodes.map((n) => n.id);
     expect(nodeIds).toContain("resources.jobs.job_perm_change");
@@ -2429,7 +3566,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
 
   test("includes non-sub-resource entries", async () => {
     const plan = await loadFixture("sub-resources");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const resourceKeys = graph.nodes
       .filter((n): n is ResourceGraphNode => n.nodeKind === "resource")
@@ -2440,7 +3577,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
 
   test("no edges reference sub-resource keys", async () => {
     const plan = await loadFixture("sub-resources");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     for (const edge of [...graph.edges, ...graph.lateralEdges]) {
       expect(edge.source).not.toContain(".permissions");
@@ -2452,7 +3589,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
 
   test("parent node has merged permission state from remote_state", async () => {
     const plan = await loadFixture("sub-resources");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const jobNode = graph.nodes.find(
       (n): n is ResourceGraphNode =>
@@ -2467,7 +3604,7 @@ describe("sub-resources-plan.json (sub-resource merging)", () => {
 
   test("schema node has merged grants changes", async () => {
     const plan = await loadFixture("sub-resources");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const schemaNode = graph.nodes.find(
       (n): n is ResourceGraphNode =>
@@ -2520,7 +3657,7 @@ describe("buildResourceGraph ctx-aware drift detection (dagshund-15yh)", () => {
   };
 
   test("taskChangeSummary entry for publish has isDrift=true", () => {
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
     const job = graph.nodes.find(
       (n): n is ResourceGraphNode =>
         n.nodeKind === "resource" && n.resourceKey === "resources.jobs.drift_pipeline",

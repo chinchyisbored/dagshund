@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { buildPlanGraph } from "../../src/graph/build-plan-graph.ts";
-import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
 import { parsePlanJson } from "../../src/parser/parse-plan.ts";
 import type { GraphNode } from "../../src/types/graph-types.ts";
 import type { Plan } from "../../src/types/plan-schema.ts";
 import type { JobRunEffect } from "../../src/utils/normalize-plan.ts";
+import {
+  buildPlanGraphFromPlan,
+  buildResourceGraphFromPlan,
+} from "../helpers/build-graphs-from-plan.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 const parsePlan = (rawPlan: Readonly<Record<string, unknown>>): Plan => {
@@ -28,8 +30,8 @@ describe("job-runs fixture — effects as annotations", () => {
   test("no standalone job_runs nodes appear in either graph", async () => {
     const plan = await loadFixture("job-runs");
 
-    const planGraph = buildPlanGraph(plan);
-    const resourceGraph = buildResourceGraph(plan);
+    const planGraph = buildPlanGraphFromPlan(plan);
+    const resourceGraph = buildResourceGraphFromPlan(plan);
 
     const allIds = [...planGraph.nodes, ...resourceGraph.nodes].map((node) => node.id);
     expect(allIds.filter((id) => id.startsWith("resources.job_runs."))).toEqual([]);
@@ -38,7 +40,7 @@ describe("job-runs fixture — effects as annotations", () => {
   test("every job stays unchanged — effects never promote the target", async () => {
     const plan = await loadFixture("job-runs");
 
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const jobs = graph.nodes.filter((node) => node.id.startsWith("resources.jobs."));
     expect(jobs).toHaveLength(5);
@@ -50,8 +52,8 @@ describe("job-runs fixture — effects as annotations", () => {
   test("jobs carry their effects in both graphs", async () => {
     const plan = await loadFixture("job-runs");
 
-    const planGraph = buildPlanGraph(plan);
-    const resourceGraph = buildResourceGraph(plan);
+    const planGraph = buildPlanGraphFromPlan(plan);
+    const resourceGraph = buildResourceGraphFromPlan(plan);
 
     for (const nodes of [planGraph.nodes, resourceGraph.nodes]) {
       const warmup = readEffects(findNode(nodes, "resources.jobs.cache_warmup"));
@@ -86,7 +88,7 @@ describe("orphan job_runs effects — phantom targets", () => {
   });
 
   test("orphan-only plan still builds a resource graph with the phantom", () => {
-    const graph = buildResourceGraph(orphanOnlyPlan);
+    const graph = buildResourceGraphFromPlan(orphanOnlyPlan);
 
     const phantom = findNode(graph.nodes, "job::999");
     expect(phantom?.nodeKind).toBe("phantom");
@@ -101,16 +103,39 @@ describe("orphan job_runs effects — phantom targets", () => {
   });
 
   test("orphan effects never surface in the jobs graph", () => {
-    const graph = buildPlanGraph(orphanOnlyPlan);
+    const graph = buildPlanGraphFromPlan(orphanOnlyPlan);
 
     expect(graph.nodes).toEqual([]);
+  });
+
+  test("orphan effect annotations win over a run_job_task phantom collision", () => {
+    const plan = parsePlan({
+      "resources.jobs.source": {
+        action: "create",
+        new_state: {
+          value: {
+            tasks: [{ task_key: "trigger", run_job_task: { job_id: 999 } }],
+          },
+        },
+      },
+      "resources.job_runs.external": {
+        action: "create",
+        new_state: { value: { job_id: 999 } },
+      },
+    });
+
+    const graph = buildResourceGraphFromPlan(plan);
+    const phantom = findNode(graph.nodes, "job::999");
+
+    expect(phantom?.nodeKind).toBe("phantom");
+    expect(readEffects(phantom)?.map((effect) => effect.name)).toEqual(["external"]);
   });
 
   test("the fixture's external run materializes a phantom job target", async () => {
     const plan = await loadFixture("job-runs");
 
-    const resourceGraph = buildResourceGraph(plan);
-    const planGraph = buildPlanGraph(plan);
+    const resourceGraph = buildResourceGraphFromPlan(plan);
+    const planGraph = buildPlanGraphFromPlan(plan);
 
     // Regens may rotate the external job id — locate the phantom by prefix.
     const phantom = resourceGraph.nodes.find((node) => node.id.startsWith("job::"));

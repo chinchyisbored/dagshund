@@ -1,0 +1,50 @@
+{
+  "cases": [
+    {
+      "name": "resolve real, derived, and phantom app targets",
+      "entries": {
+        "resources.synced_database_tables.real": {
+          "action": "create",
+          "new_state": {
+            "value": { "name": "orders", "catalog_name": "main", "schema_name": "sales" }
+          }
+        },
+        "resources.pipelines.ingest": {
+          "action": "create",
+          "new_state": {
+            "value": { "event_log": { "catalog": "main", "schema": "ops", "name": "events" } }
+          }
+        },
+        "resources.apps.app": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "resources": [
+                { "uc_securable": { "securable_full_name": "main.sales.orders" } },
+                { "uc_securable": { "securable_full_name": "main.ops.events" } },
+                { "uc_securable": { "securable_full_name": "other.raw.external" } }
+              ]
+            }
+          }
+        }
+      },
+      "expected": [
+        {
+          "kind": "resolved",
+          "targetNodeId": "resources.synced_database_tables.real",
+          "provenance": "real"
+        },
+        {
+          "kind": "resolved",
+          "targetNodeId": "pipeline-event-log::main.ops.events",
+          "provenance": "derived"
+        },
+        {
+          "kind": "phantom",
+          "targetNodeId": "source-table::other.raw.external",
+          "placement": { "kind": "hierarchy", "identity": "other.raw.external", "tier": 2 }
+        }
+      ]
+    }
+  ]
+}

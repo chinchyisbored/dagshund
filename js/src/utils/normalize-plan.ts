@@ -1,12 +1,7 @@
 import { buildJobIdMap } from "../graph/resolve-run-job-target.ts";
 import type { ActionType, ChangeDesc, PlanEntry } from "../types/plan-schema.ts";
 import { mergeSubResources } from "./merge-sub-resources.ts";
-import {
-  buildPrefixedNodeId,
-  extractResourceName,
-  extractResourceType,
-  type PhantomKind,
-} from "./resource-key.ts";
+import { extractResourceName, extractResourceType } from "./resource-key.ts";
 import { getUnknownProp } from "./unknown-record.ts";
 
 /** A deploy-triggered run (resources.job_runs.*) folded onto its target job.
@@ -25,8 +20,6 @@ type EffectTypeSpec = {
   readonly resourceType: string;
   /** Resource type of the entries this effect targets. */
   readonly targetResourceType: string;
-  /** Phantom kind used when the numeric target is absent from the plan. */
-  readonly phantomKind: PhantomKind;
   /** Extract the numeric target id from the effect entry's state. */
   readonly extractTargetId: (entry: PlanEntry) => number | undefined;
 };
@@ -44,7 +37,6 @@ export const EFFECT_TYPE_SPECS = {
   job_runs: {
     resourceType: "job_runs",
     targetResourceType: "jobs",
-    phantomKind: "job",
     extractTargetId: extractJobRunTargetJobId,
   },
 } as const satisfies Readonly<Record<string, EffectTypeSpec>>;
@@ -60,8 +52,12 @@ export type NormalizedEntry = PlanEntry & {
 
 export type NormalizedPlan = {
   readonly entries: Readonly<Record<string, NormalizedEntry>>;
-  /** Effects whose numeric target is not in the plan, keyed by phantom node id (job::<id>). */
-  readonly orphanEffects: ReadonlyMap<string, readonly JobRunEffect[]>;
+  /** Effects whose numeric target is not in the plan, grouped by semantic target. */
+  readonly orphanEffects: readonly {
+    readonly targetResourceType: "jobs";
+    readonly targetId: number;
+    readonly effects: readonly JobRunEffect[];
+  }[];
 };
 
 /** run_page_url values become href/markdown link targets, and plan files are
@@ -130,7 +126,7 @@ export const normalizePlan = (rawEntries: Readonly<Record<string, PlanEntry>>): 
       effectEntries.push([key, entry, spec]);
     }
   }
-  if (effectEntries.length === 0) return { entries: targets, orphanEffects: new Map() };
+  if (effectEntries.length === 0) return { entries: targets, orphanEffects: [] };
 
   // Built from job entries only — effect entries carry the target's job_id in
   // their own remote_state, and any other resource sharing the id must neither
@@ -139,7 +135,7 @@ export const normalizePlan = (rawEntries: Readonly<Record<string, PlanEntry>>): 
     Object.entries(targets).filter(([key]) => extractResourceType(key) === "jobs"),
   );
   const effectsByTarget = new Map<string, JobRunEffect[]>();
-  const orphansByPhantomId = new Map<string, JobRunEffect[]>();
+  const orphansByTarget = new Map<number, JobRunEffect[]>();
   for (const [key, entry, spec] of effectEntries) {
     const targetKey = resolveEffectTargetKey(entry, spec, targets, jobIdMap);
     if (targetKey !== undefined) {
@@ -153,20 +149,19 @@ export const normalizePlan = (rawEntries: Readonly<Record<string, PlanEntry>>): 
       targets[key] = entry;
       continue;
     }
-    const phantomId = buildPrefixedNodeId(spec.phantomKind, String(targetId));
-    const group = orphansByPhantomId.get(phantomId) ?? [];
+    const group = orphansByTarget.get(targetId) ?? [];
     group.push(buildJobRunEffect(key, entry));
-    orphansByPhantomId.set(phantomId, group);
+    orphansByTarget.set(targetId, group);
   }
 
   for (const [targetKey, effects] of effectsByTarget) {
     const target = targets[targetKey];
     if (target !== undefined) targets[targetKey] = { ...target, effects: sortByName(effects) };
   }
-  const orphanEffects = new Map(
-    [...orphansByPhantomId].map(
-      ([phantomId, effects]) => [phantomId, sortByName(effects)] as const,
-    ),
-  );
+  const orphanEffects = [...orphansByTarget].map(([targetId, effects]) => ({
+    targetResourceType: "jobs" as const,
+    targetId,
+    effects: sortByName(effects),
+  }));
   return { entries: targets, orphanEffects };
 };

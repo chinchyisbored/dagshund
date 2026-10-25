@@ -5,6 +5,7 @@ import "./styles/output.css";
 import { ErrorBoundary } from "./components/error-boundary.tsx";
 import { FlowCanvas } from "./components/flow-canvas.tsx";
 import { JobNode } from "./components/job-node.tsx";
+import { PreparationDiagnostics } from "./components/preparation-diagnostics.tsx";
 import { ProvenancePanel } from "./components/provenance-panel.tsx";
 import { ResourcesView } from "./components/resources-view.tsx";
 import { TabBar } from "./components/tab-bar.tsx";
@@ -14,13 +15,15 @@ import { JobNavigationContext, PlanContext, TabVisibilityContext } from "./hooks
 import { usePlanGraph } from "./hooks/use-plan-graph.ts";
 import { useProvenance } from "./hooks/use-provenance.ts";
 import { useStdinPlan } from "./hooks/use-stdin-plan.ts";
+import { preparePlan } from "./preparation/prepare-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
-import { normalizePlan } from "./utils/normalize-plan.ts";
+import type { PreparedPlan } from "./types/prepared-plan.ts";
+import { type NormalizedPlan, normalizePlan } from "./utils/normalize-plan.ts";
 
 /** Count plan entries by tab: jobs vs all resources (resources tab includes jobs).
  *  Effect entries (job_runs) are folded away by normalizePlan and never count. */
-const countByTab = (plan: Plan): Readonly<Record<"jobs" | "resources", number>> => {
-  const keys = Object.keys(normalizePlan(plan.plan ?? {}).entries);
+const countByTab = (plan: NormalizedPlan): Readonly<Record<"jobs" | "resources", number>> => {
+  const keys = Object.keys(plan.entries);
   const jobs = keys.filter((key) => key.startsWith("resources.jobs.")).length;
   return { jobs, resources: keys.length };
 };
@@ -28,7 +31,7 @@ const countByTab = (plan: Plan): Readonly<Record<"jobs" | "resources", number>> 
 const NODE_TYPES = { job: JobNode, task: TaskNode };
 
 type DagViewProps = {
-  readonly plan: Plan;
+  readonly plan: PreparedPlan;
   readonly focusNodeId?: string | null;
   readonly onFocusComplete?: () => void;
 };
@@ -83,9 +86,11 @@ function ErrorMessage({ message }: { readonly message: string }) {
 }
 
 function PlanView({ plan }: { readonly plan: Plan }) {
+  const normalizedPlan = useMemo(() => normalizePlan(plan.plan ?? {}), [plan]);
+  const preparedPlan = useMemo(() => preparePlan(normalizedPlan), [normalizedPlan]);
   const [activeTab, setActiveTab] = useState<"jobs" | "resources">("resources");
   const [focusJobId, setFocusJobId] = useState<string | null>(null);
-  const tabCounts = useMemo(() => countByTab(plan), [plan]);
+  const tabCounts = useMemo(() => countByTab(normalizedPlan), [normalizedPlan]);
 
   const handleNavigateToJob = useCallback((jobResourceKey: string) => {
     setActiveTab("jobs");
@@ -100,12 +105,13 @@ function PlanView({ plan }: { readonly plan: Plan }) {
     <PlanContext.Provider value={plan}>
       <div className="flex h-full flex-col">
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} counts={tabCounts} />
+        <PreparationDiagnostics diagnostics={preparedPlan.diagnostics} />
         <div className="min-h-0 flex-1">
           <div className="h-full" style={activeTab !== "jobs" ? { display: "none" } : undefined}>
             <ErrorBoundary>
               <TabVisibilityContext.Provider value={activeTab === "jobs"}>
                 <DagView
-                  plan={plan}
+                  plan={preparedPlan}
                   focusNodeId={focusJobId}
                   onFocusComplete={handleFocusComplete}
                 />
@@ -119,7 +125,7 @@ function PlanView({ plan }: { readonly plan: Plan }) {
             <ErrorBoundary>
               <TabVisibilityContext.Provider value={activeTab === "resources"}>
                 <JobNavigationContext.Provider value={handleNavigateToJob}>
-                  <ResourcesView plan={plan} />
+                  <ResourcesView plan={preparedPlan} />
                 </JobNavigationContext.Provider>
               </TabVisibilityContext.Provider>
             </ErrorBoundary>

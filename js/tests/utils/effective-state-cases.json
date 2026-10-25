@@ -1,0 +1,52 @@
+[
+  {
+    "name": "present empty object",
+    "entry": { "new_state": { "value": {} }, "remote_state": { "name": "old" } },
+    "origin": "new",
+    "snapshot": {}
+  },
+  {
+    "name": "present null",
+    "entry": { "new_state": { "value": null }, "remote_state": { "name": "old" } },
+    "origin": "new",
+    "snapshot": null
+  },
+  {
+    "name": "present wrong type",
+    "entry": { "new_state": { "value": [] }, "remote_state": { "name": "old" } },
+    "origin": "new",
+    "snapshot": []
+  },
+  {
+    "name": "absent wrapper value",
+    "entry": { "new_state": {}, "remote_state": { "name": "old" } },
+    "origin": "remote",
+    "snapshot": { "name": "old" }
+  },
+  {
+    "name": "absent new state",
+    "entry": { "remote_state": { "name": "old" } },
+    "origin": "remote",
+    "snapshot": { "name": "old" }
+  },
+  {
+    "name": "delete uses remote",
+    "entry": {
+      "action": "delete",
+      "new_state": { "value": { "name": "new" } },
+      "remote_state": { "name": "old" }
+    },
+    "origin": "remote",
+    "snapshot": { "name": "old" }
+  },
+  {
+    "name": "skip empty tasks",
+    "entry": {
+      "action": "skip",
+      "new_state": { "value": { "tasks": [] } },
+      "remote_state": { "tasks": [{ "task_key": "old" }] }
+    },
+    "origin": "new",
+    "snapshot": { "tasks": [] }
+  }
+]

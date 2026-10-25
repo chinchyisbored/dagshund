@@ -3,7 +3,7 @@ import type { TaskChangeSummary } from "../types/graph-types.ts";
 import type { ActionType, ChangeDesc } from "../types/plan-schema.ts";
 import { type DriftScanParent, hasTaskDriftWithContext } from "../utils/structural-diff.ts";
 import { TASK_KEY_PATTERN } from "../utils/task-key.ts";
-import type { TaskEntry } from "./extract-tasks.ts";
+
 import { resolveTaskDiffState } from "./resolve-task-diff-state.ts";
 
 /** Extract all unique task keys referenced in the changes record. */
@@ -23,10 +23,10 @@ const extractTaskKeysFromChanges = (
 
 /** Collect all task keys from both new_state tasks and changes (covers removed tasks). */
 const collectAllTaskKeys = (
-  tasks: readonly TaskEntry[],
+  tasks: readonly { readonly taskKey: string }[],
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
 ): ReadonlySet<string> => {
-  const fromTasks = new Set(tasks.map((t) => t.task_key));
+  const fromTasks = new Set(tasks.map((task) => task.taskKey));
   const fromChanges = extractTaskKeysFromChanges(changes);
   return new Set([...fromTasks, ...fromChanges]);
 };
@@ -48,7 +48,7 @@ const DIFF_STATE_ORDER: Readonly<Record<DiffState, number>> = {
  * - No tasks have a non-unchanged diff state
  */
 export const buildTaskChangeSummary = (
-  tasks: readonly TaskEntry[],
+  tasks: readonly { readonly taskKey: string }[],
   resourceAction: ActionType | undefined,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
   driftParent: DriftScanParent,

@@ -1,24 +1,27 @@
 import type { PlanEntry } from "../types/plan-schema.ts";
+import type { PreparedPlan, PreparedResource } from "../types/prepared-plan.ts";
+import type { PhantomPlacement, ReferenceIdentityCatalog } from "../types/reference-resolution.ts";
 import {
   buildPrefixedNodeId,
-  buildResourceKey,
+  extractPhantomResourceType,
   extractResourceType,
   type PhantomKind,
-  TASK_WAREHOUSE_KEYS,
+  WAREHOUSE_SOURCE_TYPES,
 } from "../utils/resource-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
-import { resolvePromotedPhantomNodeId } from "./derived-node-specs.ts";
-import {
-  extractResourceState,
-  extractStateField,
-  parseThreePartName,
-} from "./extract-resource-state.ts";
+import { extractHistoricalStateField, extractResourceState } from "./extract-resource-state.ts";
 import { extractBundleResourceIdRef } from "./postgres-paths.ts";
 
 export type LateralEdgeContext = {
+  readonly preparedPlan?: PreparedPlan;
+  readonly identityCatalog?: ReferenceIdentityCatalog;
   readonly entries: readonly (readonly [string, PlanEntry])[];
   readonly nodeIdByResourceKey: ReadonlyMap<string, string>;
   readonly nodeIds: ReadonlySet<string>;
+  readonly servedEntityNames?: ReadonlyMap<string, readonly string[]>;
+  readonly schemaNodeIdByIdentity?: ReadonlyMap<string, string>;
+  readonly sourceTableNodeIdByIdentity?: ReadonlyMap<string, string>;
+  readonly sourceTableResourceKeyByIdentity?: ReadonlyMap<string, string>;
 };
 
 export type ReferenceIndexes = {
@@ -50,13 +53,16 @@ export const buildApiIdIndex = (
 /** Extract job API ID from a job entry's state, handling both number and string job_id. */
 export const extractJobApiId = (entry: PlanEntry): string | undefined => {
   const state = extractResourceState(entry);
-  const v = state?.["job_id"];
-  return typeof v === "number" ? String(v) : typeof v === "string" ? v : undefined;
+  const remoteState = isUnknownRecord(entry.remote_state) ? entry.remote_state : undefined;
+  const newId = state?.["job_id"];
+  const historicalId = remoteState?.["job_id"];
+  const id = typeof newId === "string" || typeof newId === "number" ? newId : historicalId;
+  return typeof id === "number" ? String(id) : typeof id === "string" ? id : undefined;
 };
 
 /** Extract Genie space API ID from state. Created resources may expose either field shape. */
 export const extractGenieSpaceApiId = (entry: PlanEntry): string | undefined =>
-  extractStateField(entry, "space_id") ?? extractStateField(entry, "id");
+  extractHistoricalStateField(entry, "space_id") ?? extractHistoricalStateField(entry, "id");
 
 /** Resolve a synced-table pipeline reference to a real key or the standard pipeline phantom ID. */
 export const resolvePipelineReference = (
@@ -77,101 +83,64 @@ export const resolvePipelineReference = (
     : buildPrefixedNodeId("pipeline", reference);
 };
 
-export type AppResourceRef =
-  | { readonly kind: "job"; readonly id: string }
-  | { readonly kind: "sql_warehouse"; readonly id: string }
-  | { readonly kind: "genie_space"; readonly id: string; readonly name: string }
-  | { readonly kind: "secret_scope"; readonly name: string }
-  | { readonly kind: "serving_endpoint"; readonly name: string }
-  | { readonly kind: "experiment"; readonly id: string }
-  | { readonly kind: "uc_securable"; readonly fullName: string };
+export type { AppResourceRef } from "../preparation/prepare-app.ts";
 
-/** Extract typed resource references from an app entry's nested resources[] array. */
-export const extractAppResourceReferences = (entry: PlanEntry): readonly AppResourceRef[] => {
-  const state = extractResourceState(entry);
-  if (state === undefined) return [];
-  const resources = state["resources"];
-  if (!Array.isArray(resources)) return [];
-  const refs: AppResourceRef[] = [];
-  for (const resource of resources) {
-    if (!isUnknownRecord(resource)) continue;
-    const job = resource["job"];
-    if (isUnknownRecord(job) && typeof job["id"] === "string") {
-      refs.push({ kind: "job", id: job["id"] });
-      continue;
+export type ConventionalExtraction =
+  | { readonly kind: "absent" }
+  | {
+      readonly kind: "unsupported";
+      readonly diagnostic: { readonly capability: string; readonly reason: string };
     }
-    const warehouse = resource["sql_warehouse"];
-    if (isUnknownRecord(warehouse) && typeof warehouse["id"] === "string") {
-      refs.push({ kind: "sql_warehouse", id: warehouse["id"] });
-      continue;
-    }
-    const genieSpace = resource["genie_space"];
-    if (
-      isUnknownRecord(genieSpace) &&
-      typeof genieSpace["space_id"] === "string" &&
-      typeof genieSpace["name"] === "string"
-    ) {
-      refs.push({ kind: "genie_space", id: genieSpace["space_id"], name: genieSpace["name"] });
-      continue;
-    }
-    const secret = resource["secret"];
-    if (isUnknownRecord(secret) && typeof secret["scope"] === "string") {
-      refs.push({ kind: "secret_scope", name: secret["scope"] });
-      continue;
-    }
-    const endpoint = resource["serving_endpoint"];
-    if (isUnknownRecord(endpoint) && typeof endpoint["name"] === "string") {
-      refs.push({ kind: "serving_endpoint", name: endpoint["name"] });
-      continue;
-    }
-    const experiment = resource["experiment"];
-    if (isUnknownRecord(experiment) && typeof experiment["experiment_id"] === "string") {
-      refs.push({ kind: "experiment", id: experiment["experiment_id"] });
-      continue;
-    }
-    const ucSecurable = resource["uc_securable"];
-    if (isUnknownRecord(ucSecurable) && typeof ucSecurable["securable_full_name"] === "string") {
-      refs.push({ kind: "uc_securable", fullName: ucSecurable["securable_full_name"] });
-    }
-  }
-  return refs;
+  | { readonly kind: "supported"; readonly value: string };
+
+export type ConventionalReferenceSpec = {
+  readonly sourceTypes: ReadonlySet<string>;
+  readonly extract: (resource: PreparedResource | undefined) => ConventionalExtraction;
+  readonly targetResourceType: string;
+  readonly selectIndex: (indexes: ReferenceIndexes) => ReadonlyMap<string, string>;
+  readonly phantomKind: PhantomKind;
+  readonly phantomPlacement: PhantomPlacement;
+  readonly phantomPolicy: boolean;
+  readonly direction: "entry-to-target" | "target-to-entry";
 };
 
-/** Extract warehouse_id from a task's typed sub-object (sql_task, dashboard_task, etc.). */
-export const extractTaskWarehouseId = (
-  task: Readonly<Record<string, unknown>>,
-): string | undefined => {
-  for (const key of TASK_WAREHOUSE_KEYS) {
-    const sub = task[key];
-    if (!isUnknownRecord(sub)) continue;
-    const warehouseId = sub["warehouse_id"];
-    if (typeof warehouseId === "string") return warehouseId;
-  }
-  return undefined;
+const WAREHOUSE_TASK_REFERENCE = {
+  selectIndex: (indexes: ReferenceIndexes) => indexes.warehouseIndex,
+  targetResourceType: "sql_warehouses",
+  phantomKind: "sqlWarehouse" as const,
 };
 
-/** Extract dashboard_id from a task's dashboard_task sub-object. */
-export const extractTaskDashboardId = (
-  task: Readonly<Record<string, unknown>>,
-): string | undefined => {
-  const sub = task["dashboard_task"];
-  if (!isUnknownRecord(sub)) return undefined;
-  const dashboardId = sub["dashboard_id"];
-  return typeof dashboardId === "string" ? dashboardId : undefined;
-};
-
-/** Extract pipeline_id from a task's pipeline_task sub-object. */
-export const extractTaskPipelineId = (
-  task: Readonly<Record<string, unknown>>,
-): string | undefined => {
-  const sub = task["pipeline_task"];
-  if (!isUnknownRecord(sub)) return undefined;
-  const pipelineId = sub["pipeline_id"];
-  return typeof pipelineId === "string" ? pipelineId : undefined;
-};
-
+export const CONVENTIONAL_REFERENCE_SPECS = {
+  warehouse: {
+    sourceTypes: WAREHOUSE_SOURCE_TYPES,
+    extract: (resource) => {
+      if (resource === undefined || resource.warehouseId.status === "absent")
+        return { kind: "absent" };
+      if (resource.warehouseId.status === "unsupported") {
+        return {
+          kind: "unsupported",
+          diagnostic: {
+            capability: resource.warehouseId.diagnostic.capability,
+            reason: resource.warehouseId.diagnostic.reason,
+          },
+        };
+      }
+      return { kind: "supported", value: resource.warehouseId.value };
+    },
+    targetResourceType: WAREHOUSE_TASK_REFERENCE.targetResourceType,
+    selectIndex: WAREHOUSE_TASK_REFERENCE.selectIndex,
+    phantomKind: WAREHOUSE_TASK_REFERENCE.phantomKind,
+    phantomPlacement: {
+      kind: "workspace-resource",
+      resourceType:
+        extractPhantomResourceType(buildPrefixedNodeId("sqlWarehouse", "")) ?? "sql_warehouses",
+    },
+    phantomPolicy: true,
+    direction: "entry-to-target",
+  },
+} as const satisfies Readonly<Record<string, ConventionalReferenceSpec>>;
 export type TaskRefSpec = {
-  readonly extractId: (task: Readonly<Record<string, unknown>>) => string | undefined;
+  readonly referenceName: "warehouse_id" | "dashboard_id" | "pipeline_id";
   readonly selectIndex: (indexes: ReferenceIndexes) => ReadonlyMap<string, string>;
   readonly targetResourceType: string;
   readonly phantomKind: PhantomKind;
@@ -179,19 +148,17 @@ export type TaskRefSpec = {
 
 export const TASK_REF_SPECS: readonly TaskRefSpec[] = [
   {
-    extractId: extractTaskWarehouseId,
-    selectIndex: (indexes) => indexes.warehouseIndex,
-    targetResourceType: "sql_warehouses",
-    phantomKind: "sqlWarehouse",
+    referenceName: "warehouse_id",
+    ...WAREHOUSE_TASK_REFERENCE,
   },
   {
-    extractId: extractTaskDashboardId,
+    referenceName: "dashboard_id",
     selectIndex: (indexes) => indexes.dashboardIndex,
     targetResourceType: "dashboards",
     phantomKind: "dashboard",
   },
   {
-    extractId: extractTaskPipelineId,
+    referenceName: "pipeline_id",
     selectIndex: (indexes) => indexes.pipelineIndex,
     targetResourceType: "pipelines",
     phantomKind: "pipeline",
@@ -209,112 +176,4 @@ export const resolveTaskRefTargetKey = (
     return resourceRef;
   }
   return spec.selectIndex(indexes).get(refId) ?? buildPrefixedNodeId(spec.phantomKind, refId);
-};
-
-const genieSpaceResourceKey = (name: string): string => buildResourceKey("genie_spaces", name);
-const secretScopeResourceKey = (name: string): string => buildResourceKey("secret_scopes", name);
-const servingEndpointResourceKey = (name: string): string =>
-  buildResourceKey("model_serving_endpoints", name);
-
-const resolveGenieSpaceTargetKey = (
-  ref: Extract<AppResourceRef, { readonly kind: "genie_space" }>,
-  context: LateralEdgeContext,
-  indexes: ReferenceIndexes,
-): string => {
-  const resourceRef = extractBundleResourceIdRef(ref.id);
-  if (resourceRef !== undefined && extractResourceType(resourceRef) === "genie_spaces") {
-    return resourceRef;
-  }
-  const nameKey = genieSpaceResourceKey(ref.name);
-  return context.nodeIdByResourceKey.has(nameKey)
-    ? nameKey
-    : (indexes.genieSpaceIndex.get(ref.id) ?? nameKey);
-};
-
-export const resolveAppRefTargetKey = (
-  ref: AppResourceRef,
-  indexes: ReferenceIndexes,
-  context: LateralEdgeContext,
-): string | undefined => {
-  switch (ref.kind) {
-    case "job":
-      return indexes.jobIndex.get(ref.id) ?? buildPrefixedNodeId("job", ref.id);
-    case "sql_warehouse":
-      return indexes.warehouseIndex.get(ref.id) ?? buildPrefixedNodeId("sqlWarehouse", ref.id);
-    case "genie_space":
-      return resolveGenieSpaceTargetKey(ref, context, indexes);
-    case "experiment":
-      return indexes.experimentIndex.get(ref.id) ?? buildPrefixedNodeId("experiment", ref.id);
-    case "secret_scope":
-      return secretScopeResourceKey(ref.name);
-    case "serving_endpoint":
-      return servingEndpointResourceKey(ref.name);
-    case "uc_securable":
-      return parseThreePartName(ref.fullName) !== undefined
-        ? resolvePromotedPhantomNodeId("sourceTable", ref.fullName, context.nodeIds)
-        : undefined;
-  }
-  const exhaustive: never = ref;
-  return exhaustive;
-};
-
-export type PhantomReference = {
-  readonly id: string;
-  readonly label: string;
-  readonly resourceKey: string;
-};
-
-/** Resolve a single app resource reference to a phantom entry, or undefined if the target exists. */
-export const resolveAppPhantomRef = (
-  ref: AppResourceRef,
-  existingResourceKeys: ReadonlySet<string>,
-  indexes: ReferenceIndexes,
-): PhantomReference | undefined => {
-  switch (ref.kind) {
-    case "secret_scope": {
-      const rk = secretScopeResourceKey(ref.name);
-      return existingResourceKeys.has(rk)
-        ? undefined
-        : { id: buildPrefixedNodeId("secretScope", ref.name), resourceKey: rk, label: ref.name };
-    }
-    case "serving_endpoint": {
-      const rk = servingEndpointResourceKey(ref.name);
-      return existingResourceKeys.has(rk)
-        ? undefined
-        : {
-            id: buildPrefixedNodeId("servingEndpoint", ref.name),
-            resourceKey: rk,
-            label: ref.name,
-          };
-    }
-    case "job": {
-      if (indexes.jobIndex.has(ref.id)) return undefined;
-      const id = buildPrefixedNodeId("job", ref.id);
-      return { id, resourceKey: id, label: ref.id };
-    }
-    case "sql_warehouse": {
-      if (indexes.warehouseIndex.has(ref.id)) return undefined;
-      const id = buildPrefixedNodeId("sqlWarehouse", ref.id);
-      return { id, resourceKey: id, label: ref.id };
-    }
-    case "genie_space": {
-      const resourceRef = extractBundleResourceIdRef(ref.id);
-      if (resourceRef !== undefined) return undefined;
-      const rk = genieSpaceResourceKey(ref.name);
-      if (existingResourceKeys.has(rk)) return undefined;
-      if (indexes.genieSpaceIndex.has(ref.id)) return undefined;
-      const id = buildPrefixedNodeId("genieSpace", ref.name);
-      return { id, resourceKey: rk, label: ref.name };
-    }
-    case "experiment": {
-      if (indexes.experimentIndex.has(ref.id)) return undefined;
-      const id = buildPrefixedNodeId("experiment", ref.id);
-      return { id, resourceKey: id, label: ref.id };
-    }
-    case "uc_securable":
-      // Handled via externalLeafPhantomRefs in buildResourceGraph: placed in UC hierarchy, not workspace.
-      return undefined;
-  }
-  const exhaustive: never = ref;
-  return exhaustive;
 };

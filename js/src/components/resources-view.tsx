@@ -1,12 +1,12 @@
 import { useResourceGraph } from "../hooks/use-resource-graph.ts";
-import type { Plan } from "../types/plan-schema.ts";
+import type { PreparedPlan } from "../types/prepared-plan.ts";
 import { FlowCanvas } from "./flow-canvas.tsx";
 import { HierarchyNode } from "./hierarchy-node.tsx";
 import { ResourceNode } from "./resource-node.tsx";
 
 const NODE_TYPES = { resource: ResourceNode, root: HierarchyNode, phantom: HierarchyNode };
 
-export function ResourcesView({ plan }: { readonly plan: Plan }) {
+export function ResourcesView({ plan }: { readonly plan: PreparedPlan }) {
   const layoutState = useResourceGraph(plan);
   return (
     <FlowCanvas

@@ -1,44 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { mapActionToDiffState } from "../../src/parser/map-diff-state.ts";
+import { parsePlanJson } from "../../src/parser/parse-plan.ts";
+import cases from "./action-diff-state-cases.json";
 
-describe("mapActionToDiffState", () => {
-  test("maps 'create' to 'added'", () => {
-    expect(mapActionToDiffState("create")).toBe("added");
-  });
+describe("mapActionToDiffState parsed action cases", () => {
+  for (const testCase of cases) {
+    test(testCase.name, () => {
+      const entry = testCase.action === undefined ? {} : { action: testCase.action };
+      const parsed = parsePlanJson({ plan: { "resources.jobs.example": entry } });
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) throw new Error("action case must parse");
 
-  test("maps 'delete' to 'removed'", () => {
-    expect(mapActionToDiffState("delete")).toBe("removed");
-  });
-
-  test("maps 'update' to 'modified'", () => {
-    expect(mapActionToDiffState("update")).toBe("modified");
-  });
-
-  test("maps 'resize' to 'modified'", () => {
-    expect(mapActionToDiffState("resize")).toBe("modified");
-  });
-
-  test("maps 'recreate' to 'modified'", () => {
-    expect(mapActionToDiffState("recreate")).toBe("modified");
-  });
-
-  test("maps 'update_id' to 'modified'", () => {
-    expect(mapActionToDiffState("update_id")).toBe("modified");
-  });
-
-  test("maps 'skip' to 'unchanged'", () => {
-    expect(mapActionToDiffState("skip")).toBe("unchanged");
-  });
-
-  test("maps empty string to 'unchanged'", () => {
-    expect(mapActionToDiffState("")).toBe("unchanged");
-  });
-
-  test("maps 'unknown' to 'unknown'", () => {
-    expect(mapActionToDiffState("unknown")).toBe("unknown");
-  });
-
-  test("maps undefined to 'unchanged'", () => {
-    expect(mapActionToDiffState(undefined)).toBe("unchanged");
-  });
+      const action = parsed.data.plan?.["resources.jobs.example"]?.action;
+      expect(String(mapActionToDiffState(action))).toBe(testCase.expected);
+    });
+  }
 });

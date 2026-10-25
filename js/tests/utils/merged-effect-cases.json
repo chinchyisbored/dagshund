@@ -1,0 +1,45 @@
+{
+  "cases": [
+    {
+      "name": "merge sub-resource fields before attaching target effects",
+      "entries": {
+        "resources.jobs.etl": {
+          "action": "skip",
+          "new_state": { "value": { "job_id": 300 } },
+          "remote_state": { "job_id": 300 }
+        },
+        "resources.jobs.etl.permissions": {
+          "action": "skip",
+          "new_state": { "value": { "permissions": ["admin"] } }
+        },
+        "resources.job_runs.nightly": {
+          "action": "skip",
+          "remote_state": { "job_id": 300 }
+        }
+      },
+      "expected": {
+        "entries": ["resources.jobs.etl"],
+        "permissions": { "permissions": ["admin"] },
+        "effects": { "resources.jobs.etl": ["nightly"] },
+        "orphans": []
+      }
+    },
+    {
+      "name": "group semantic orphan effects by target and sort names",
+      "entries": {
+        "resources.job_runs.zulu": { "action": "skip", "remote_state": { "job_id": 300 } },
+        "resources.job_runs.alpha": { "action": "skip", "remote_state": { "job_id": 300 } },
+        "resources.job_runs.beta": { "action": "skip", "remote_state": { "job_id": 400 } }
+      },
+      "expected": {
+        "entries": [],
+        "permissions": null,
+        "effects": {},
+        "orphans": [
+          { "resourceType": "jobs", "targetId": 300, "effects": ["alpha", "zulu"] },
+          { "resourceType": "jobs", "targetId": 400, "effects": ["beta"] }
+        ]
+      }
+    }
+  ]
+}

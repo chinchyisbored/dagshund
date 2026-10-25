@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
-import { buildDerivedReferenceIndex } from "../../src/graph/derived-node-specs.ts";
+import { buildReferenceIdentityCatalog } from "../../src/graph/build-reference-identity-catalog.ts";
+import {
+  buildDerivedReferenceIndex,
+  collectOwnedDerivedNodeRefs,
+} from "../../src/graph/derived-node-specs.ts";
 import { extractLateralEdges as extractLateralEdgesRaw } from "../../src/graph/extract-lateral-edges.ts";
 import { extractStateField } from "../../src/graph/extract-resource-state.ts";
 import {
@@ -8,9 +11,16 @@ import {
   extractGenieSpaceApiId,
   extractJobApiId,
 } from "../../src/graph/reference-specs.ts";
+import { resolveReferences } from "../../src/graph/resolve-references.ts";
 import { buildJobIdMap } from "../../src/graph/resolve-run-job-target.ts";
+import { parsePlanJson } from "../../src/parser/parse-plan.ts";
+import { preparePlan } from "../../src/preparation/prepare-plan.ts";
 import type { Plan, PlanEntry } from "../../src/types/plan-schema.ts";
+import type { ReferenceResolution } from "../../src/types/reference-resolution.ts";
+import { normalizePlan } from "../../src/utils/normalize-plan.ts";
+import { buildResourceGraphFromPlan } from "../helpers/build-graphs-from-plan.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
+import targetPairCases from "./target-pair-cases.json";
 
 // ---------------------------------------------------------------------------
 // Helpers for building inline plan entries
@@ -30,31 +40,48 @@ const makeSkipEntry = (remoteState: Record<string, unknown>): PlanEntry =>
   }) as PlanEntry;
 
 /** Build shared reference indexes from entries. */
-const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => ({
-  warehouseIndex: buildApiIdIndex(entries, "sql_warehouses", (e) => extractStateField(e, "id")),
-  dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
-    extractStateField(e, "dashboard_id"),
-  ),
-  pipelineIndex: new Map([
-    ...buildDerivedReferenceIndex(entries, "pipelines"),
-    ...buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
-  ]),
-  genieSpaceIndex: buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId),
-  jobIndex: buildApiIdIndex(entries, "jobs", extractJobApiId),
-  experimentIndex: buildApiIdIndex(entries, "experiments", (e) =>
-    extractStateField(e, "experiment_id"),
-  ),
-  registeredModelFullNameIndex: buildApiIdIndex(entries, "registered_models", (e) =>
-    extractStateField(e, "full_name"),
-  ),
-  jobIdMap: buildJobIdMap(entries),
-});
+const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => {
+  const preparedPlan = preparePlan(normalizePlan(Object.fromEntries(entries)));
+  const ownedDerivedRefs = collectOwnedDerivedNodeRefs(preparedPlan.byResourceKey);
+  return {
+    warehouseIndex: buildApiIdIndex(entries, "sql_warehouses", (e) => extractStateField(e, "id")),
+    dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
+      extractStateField(e, "dashboard_id"),
+    ),
+    pipelineIndex: new Map([
+      ...buildDerivedReferenceIndex("pipelines", ownedDerivedRefs, preparedPlan.byResourceKey),
+      ...buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
+    ]),
+    genieSpaceIndex: buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId),
+    jobIndex: buildApiIdIndex(entries, "jobs", extractJobApiId),
+    experimentIndex: buildApiIdIndex(entries, "experiments", (e) =>
+      extractStateField(e, "experiment_id"),
+    ),
+    registeredModelFullNameIndex: buildApiIdIndex(entries, "registered_models", (e) =>
+      extractStateField(e, "full_name"),
+    ),
+    jobIdMap: buildJobIdMap(entries),
+  };
+};
 
 /** Wrapper: calls extractLateralEdges with auto-built indexes from the context's entries. */
 const extractLateralEdges = (
   context: Parameters<typeof extractLateralEdgesRaw>[0],
-  indexes?: Parameters<typeof extractLateralEdgesRaw>[1],
-) => extractLateralEdgesRaw(context, indexes ?? buildIndexes(context.entries));
+  indexes: Parameters<typeof extractLateralEdgesRaw>[1] = buildIndexes(context.entries),
+) => {
+  const preparedPlan =
+    context.preparedPlan ?? preparePlan(normalizePlan(Object.fromEntries(context.entries)));
+  const identityCatalog = buildReferenceIdentityCatalog(context.entries, indexes, preparedPlan);
+  const ownedDerivedRefs = collectOwnedDerivedNodeRefs(preparedPlan.byResourceKey);
+  const references = resolveReferences({
+    entries: context.entries,
+    indexes,
+    preparedPlan,
+    identityCatalog,
+    ownedDerivedRefs,
+  });
+  return extractLateralEdgesRaw({ ...context, preparedPlan, identityCatalog }, indexes, references);
+};
 
 const makeContext = (
   entries: readonly (readonly [string, PlanEntry])[],
@@ -65,7 +92,15 @@ const makeContext = (
     for (const [k, v] of nodeOverrides) nodeIdByResourceKey.set(k, v);
   }
   const nodeIds = new Set<string>(nodeIdByResourceKey.values());
-  return { entries, nodeIdByResourceKey, nodeIds };
+  const prepared = preparePlan(normalizePlan(Object.fromEntries(entries)));
+  const servedEntityNames = new Map(
+    [...prepared.byResourceKey].flatMap(([key, resource]) =>
+      resource.servedEntityNames.status === "supported"
+        ? [[key, resource.servedEntityNames.value] as const]
+        : [],
+    ),
+  );
+  return { preparedPlan: prepared, entries, nodeIdByResourceKey, nodeIds, servedEntityNames };
 };
 
 // ---------------------------------------------------------------------------
@@ -692,6 +727,124 @@ describe("extractJobTaskRefsEdges", () => {
     expect(edges).toHaveLength(0);
   });
 
+  test("same raw ID resolves to distinct real target kinds", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.shared_references",
+        makeEntry({
+          tasks: [
+            {
+              task_key: "references",
+              sql_task: { warehouse_id: "shared" },
+              dashboard_task: { dashboard_id: "shared" },
+              pipeline_task: { pipeline_id: "shared" },
+            },
+          ],
+        }),
+      ],
+      ["resources.sql_warehouses.shared", makeEntry({ id: "shared" })],
+      ["resources.dashboards.shared", makeEntry({ dashboard_id: "shared" })],
+      ["resources.pipelines.shared", makeEntry({ pipeline_id: "shared" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual([
+      "resources.jobs.shared_references→resources.dashboards.shared",
+      "resources.jobs.shared_references→resources.pipelines.shared",
+      "resources.jobs.shared_references→resources.sql_warehouses.shared",
+    ]);
+  });
+
+  for (const pairCase of targetPairCases.cases) {
+    test(pairCase.name, () => {
+      const parsed = parsePlanJson({ plan: pairCase.entries });
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) throw new Error("target-pair fixture must parse");
+      const entries = Object.entries(parsed.data.plan ?? {});
+      const edges = extractLateralEdges(makeContext(entries));
+      expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual(
+        pairCase.expected,
+      );
+    });
+  }
+
+  test("symbolic and concrete aliases deduplicate to one final target per kind", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.alias_references",
+        makeEntry({
+          tasks: [
+            {
+              task_key: "concrete",
+              sql_task: { warehouse_id: "warehouse-api-id" },
+              dashboard_task: { dashboard_id: "dashboard-api-id" },
+              pipeline_task: { pipeline_id: "pipeline-api-id" },
+            },
+            {
+              task_key: "symbolic",
+              // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+              sql_task: { warehouse_id: "${resources.sql_warehouses.compute.id}" },
+              // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+              dashboard_task: { dashboard_id: "${resources.dashboards.sales.id}" },
+              // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
+              pipeline_task: { pipeline_id: "${resources.pipelines.etl.id}" },
+            },
+            {
+              task_key: "repeated",
+              sql_task: { warehouse_id: "warehouse-api-id" },
+              dashboard_task: { dashboard_id: "dashboard-api-id" },
+              pipeline_task: { pipeline_id: "pipeline-api-id" },
+            },
+          ],
+        }),
+      ],
+      ["resources.sql_warehouses.compute", makeEntry({ id: "warehouse-api-id" })],
+      ["resources.dashboards.sales", makeEntry({ dashboard_id: "dashboard-api-id" })],
+      ["resources.pipelines.etl", makeEntry({ pipeline_id: "pipeline-api-id" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual([
+      "resources.jobs.alias_references→resources.dashboards.sales",
+      "resources.jobs.alias_references→resources.pipelines.etl",
+      "resources.jobs.alias_references→resources.sql_warehouses.compute",
+    ]);
+  });
+
+  test("same raw ID resolves to distinct phantom target kinds", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.shared_references",
+        makeEntry({
+          tasks: [
+            {
+              task_key: "references",
+              sql_task: { warehouse_id: "shared" },
+              dashboard_task: { dashboard_id: "shared" },
+              pipeline_task: { pipeline_id: "shared" },
+            },
+          ],
+        }),
+      ],
+    ];
+    const targetIds = ["dashboard::shared", "pipeline::shared"];
+    const nodeIdByResourceKey = new Map<string, string>([
+      ["resources.jobs.shared_references", "resources.jobs.shared_references"],
+    ]);
+    for (const id of targetIds) nodeIdByResourceKey.set(id, id);
+
+    const edges = extractLateralEdges(
+      { entries, nodeIdByResourceKey, nodeIds: new Set(nodeIdByResourceKey.values()) },
+      buildIndexes(entries),
+    );
+
+    expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual(
+      targetIds.map((targetId) => `resources.jobs.shared_references→${targetId}`).toSorted(),
+    );
+  });
+
   test("dashboard_task produces both warehouse and dashboard edges", () => {
     const entries: [string, PlanEntry][] = [
       [
@@ -905,29 +1058,32 @@ describe("extractPipelineIngestionSourceEdges", () => {
     expect(edges).toHaveLength(0);
   });
 
-  test("pipeline links to deduplicated ingestion source schemas", () => {
-    const schema = { source_catalog: "dagshund", source_schema: "analytics" };
-    const entries: [string, PlanEntry][] = [
-      [
-        "resources.pipelines.ingest",
-        makeEntry({
-          ingestion_definition: { objects: [{ schema }, { schema }] },
-        }),
-      ],
-    ];
-    const nodeIds = new Set(["resources.pipelines.ingest", "schema::dagshund.analytics"]);
-    const nodeIdByResourceKey = new Map([
-      ["resources.pipelines.ingest", "resources.pipelines.ingest"],
-    ]);
+  test("pipeline links once to a real ingestion source schema", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.pipelines.ingest": {
+          action: "create",
+          new_state: {
+            value: {
+              ingestion_definition: {
+                objects: [
+                  { schema: { source_catalog: "dagshund", source_schema: "analytics" } },
+                  { schema: { source_catalog: "dagshund", source_schema: "analytics" } },
+                ],
+              },
+            },
+          },
+        },
+        "resources.schemas.analytics": {
+          action: "create",
+          new_state: { value: { catalog_name: "dagshund", name: "analytics" } },
+        },
+      },
+    });
 
-    const edges = extractLateralEdges({ entries, nodeIdByResourceKey, nodeIds });
-
-    expect(edges).toEqual([
-      expect.objectContaining({
-        source: "resources.pipelines.ingest",
-        target: "schema::dagshund.analytics",
-      }),
-    ]);
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      "resources.pipelines.ingest→resources.schemas.analytics",
+    );
   });
 });
 
@@ -977,9 +1133,14 @@ describe("extractSourceTableEdges", () => {
           spec: { source_table_full_name: "dagshund.analytics.customer_profiles" },
         }),
       ],
+      [
+        "resources.postgres_synced_tables.customer_profiles",
+        makeEntry({ synced_table_id: "dagshund.analytics.customer_profiles" }),
+      ],
     ];
     const nodeIds = new Set([
       "resources.synced_database_tables.customer_360",
+      "resources.postgres_synced_tables.customer_profiles",
       "uc-synced-table::dagshund.analytics.customer_profiles",
     ]);
     const nodeIdByResourceKey = new Map([
@@ -1550,7 +1711,7 @@ describe("extractAppResourceEdges", () => {
 describe("app-dependencies integration", () => {
   test("app→job lateral edge exists", async () => {
     const plan = await loadFixture("app-dependencies");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const appJobEdges = graph.lateralEdges.filter(
       (e) => e.source === "resources.apps.my_test_app" && e.target === "resources.jobs.my_etl_job",
@@ -1561,7 +1722,7 @@ describe("app-dependencies integration", () => {
 
   test("phantom warehouse node created for warehouse API ID", async () => {
     const plan = await loadFixture("app-dependencies");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const phantomNode = graph.nodes.find((n) => n.id === "sql-warehouse::9d0afa601cb95187");
     expect(phantomNode).toBeDefined();
@@ -1571,7 +1732,7 @@ describe("app-dependencies integration", () => {
 
   test("app links to phantom warehouse via lateral edge", async () => {
     const plan = await loadFixture("app-dependencies");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const warehouseEdges = graph.lateralEdges.filter(
       (e) =>
@@ -1598,7 +1759,7 @@ describe("app-dependencies integration", () => {
         },
       },
     } as unknown as Plan;
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const appJobEdges = graph.lateralEdges.filter(
       (e) => e.source === "resources.apps.solo_app" && e.target === "resources.jobs.solo_job",
@@ -1726,7 +1887,7 @@ describe("extractJobPipelineTaskEdges", () => {
       },
     };
 
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     expect(graph.nodes.some((node) => node.id.startsWith("pipeline::${resources."))).toBe(false);
     expect(graph.lateralEdges).toContainEqual(
@@ -1832,11 +1993,22 @@ describe("extractServingEndpointModelEdges — remote_state", () => {
       ["registered-model::missing_model", "registered-model::missing_model"],
     ]);
     const nodeIds = new Set(nodeIdByResourceKey.values());
+    const servedEntityNames = makeContext(entries).servedEntityNames;
 
-    const edges = extractLateralEdges(
-      { entries, nodeIdByResourceKey, nodeIds },
-      buildIndexes(entries),
-    );
+    const context = { entries, nodeIdByResourceKey, nodeIds, servedEntityNames };
+    const references: readonly ReferenceResolution[] = [
+      {
+        kind: "phantom",
+        sourceResourceKey: "resources.model_serving_endpoints.predictor",
+        targetNodeId: "registered-model::missing_model",
+        resourceKey: "registered-model::missing_model",
+        label: "missing_model",
+        phantomKind: "registeredModel",
+        placement: { kind: "hierarchy", identity: "missing_model", tier: 2 },
+        direction: "entry-to-target",
+      },
+    ];
+    const edges = extractLateralEdgesRaw(context, buildIndexes(entries), references);
 
     expect(edges).toHaveLength(1);
     expect(edges[0]).toMatchObject({
@@ -1874,7 +2046,7 @@ describe("extractServingEndpointModelEdges — remote_state", () => {
 // ---------------------------------------------------------------------------
 
 describe("extractAppUcSecurableEdges", () => {
-  test("app links to source-table phantom via uc_securable three-part name", () => {
+  test("app UC reference is consumed from the shared resolution stream", () => {
     const entries: [string, PlanEntry][] = [
       [
         "resources.apps.my_app",
@@ -1903,7 +2075,7 @@ describe("extractAppUcSecurableEdges", () => {
     });
   });
 
-  test("app UC securable prefers a promoted derived table", () => {
+  test("standalone extraction needs the precomputed derived decision", () => {
     const entries: [string, PlanEntry][] = [
       [
         "resources.apps.my_app",
@@ -1928,12 +2100,7 @@ describe("extractAppUcSecurableEdges", () => {
       buildIndexes(entries),
     );
 
-    expect(edges).toContainEqual(
-      expect.objectContaining({
-        source: "resources.apps.my_app",
-        target: "uc-synced-table::dagshund.analytics.table1",
-      }),
-    );
+    expect(edges).toHaveLength(0);
   });
 
   test("no edge when source-table phantom not in nodeIds", () => {
@@ -1995,9 +2162,14 @@ describe("extractQualityMonitorTableEdges", () => {
   test("quality monitor prefers a promoted derived table", () => {
     const entries: [string, PlanEntry][] = [
       ["resources.quality_monitors.drift", makeEntry({ table_name: "dagshund.analytics.orders" })],
+      [
+        "resources.postgres_synced_tables.orders",
+        makeEntry({ synced_table_id: "dagshund.analytics.orders" }),
+      ],
     ];
     const nodeIds = new Set([
       "resources.quality_monitors.drift",
+      "resources.postgres_synced_tables.orders",
       "uc-synced-table::dagshund.analytics.orders",
     ]);
     const nodeIdByResourceKey = new Map([
@@ -2340,14 +2512,14 @@ describe("extractJobRunJobTaskEdges", () => {
 describe("lateral-deps integration", () => {
   test("produces expected lateral edge count", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     expect(graph.lateralEdges).toHaveLength(14);
   });
 
   test("produces expected phantom node count", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const phantoms = graph.nodes.filter((n) => n.nodeKind === "phantom");
     expect(phantoms).toHaveLength(7);
@@ -2355,7 +2527,7 @@ describe("lateral-deps integration", () => {
 
   test("orchestrator → worker_a and worker_b run_job_task laterals exist", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const runJobLaterals = graph.lateralEdges.filter(
       (e) => e.source === "resources.jobs.orchestrator",
@@ -2366,7 +2538,7 @@ describe("lateral-deps integration", () => {
 
   test("worker_a → etl_pipeline lateral exists (pipeline_task, in-bundle)", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const etlLaterals = graph.lateralEdges.filter(
       (e) =>
@@ -2377,7 +2549,7 @@ describe("lateral-deps integration", () => {
 
   test("worker_a → phantom pipeline lateral exists (pipeline_task, external)", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const pipelineLaterals = graph.lateralEdges.filter(
       (e) =>
@@ -2389,7 +2561,7 @@ describe("lateral-deps integration", () => {
 
   test("phantom_endpoint → registered-model phantom lateral exists", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const modelLaterals = graph.lateralEdges.filter(
       (e) =>
@@ -2401,7 +2573,7 @@ describe("lateral-deps integration", () => {
 
   test("table_monitor → source-table phantom lateral exists (table_name)", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const monitorLaterals = graph.lateralEdges.filter(
       (e) =>
@@ -2413,7 +2585,7 @@ describe("lateral-deps integration", () => {
 
   test("dashboard and warehouse phantoms exist (dagshund-2786)", async () => {
     const plan = await loadFixture("lateral-deps");
-    const graph = buildResourceGraph(plan);
+    const graph = buildResourceGraphFromPlan(plan);
 
     const dashboardPhantom = graph.nodes.find(
       (n) => n.id === "dashboard::01f10382fb111e3e9d8132f891c5b179",

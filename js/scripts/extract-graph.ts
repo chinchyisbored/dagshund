@@ -24,6 +24,8 @@ import type {
 } from "../src/types/graph-types.ts";
 import type { ActionType } from "../src/types/plan-schema.ts";
 import { LATERAL_EDGE_PREFIX } from "../src/utils/resource-key.ts";
+import { preparePlan } from "../src/preparation/prepare-plan.ts";
+import { normalizePlan } from "../src/utils/normalize-plan.ts";
 
 type EdgeKind = "dag" | "lateral";
 
@@ -281,7 +283,8 @@ const main = async (): Promise<void> => {
     process.exit(1);
   }
 
-  const plan = result.data;
+  const normalized = normalizePlan(result.data.plan ?? {});
+  const plan = preparePlan(normalized);
   const planGraph = buildPlanGraph(plan);
   const resourceGraph = buildResourceGraph(plan);
   const allResourceEdges = [...resourceGraph.edges, ...resourceGraph.lateralEdges];

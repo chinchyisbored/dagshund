@@ -1,0 +1,32 @@
+{
+  "cases": [
+    {
+      "name": "current, historical, and deleted task projections",
+      "entry": {
+        "action": "update",
+        "new_state": { "value": { "tasks": [] } },
+        "remote_state": { "tasks": [{ "task_key": "old", "depends_on": [] }] },
+        "changes": { "tasks[task_key='gone']": { "old": { "task_key": "gone" } } }
+      },
+      "expected": {
+        "current": { "status": "supported", "value": [] },
+        "historical": { "status": "supported", "value": [{ "taskKey": "old" }] },
+        "deleted": { "status": "supported", "value": [{ "taskKey": "gone" }] }
+      }
+    },
+    {
+      "name": "malformed current task reports safe diagnostic without remote fallback",
+      "entry": {
+        "action": "update",
+        "new_state": { "value": { "tasks": [{ "task_key": 12 }] } },
+        "remote_state": { "tasks": [{ "task_key": "historical" }] }
+      },
+      "expected": {
+        "current": { "status": "unsupported" },
+        "historical": { "status": "supported", "value": [{ "taskKey": "historical" }] },
+        "deleted": { "status": "supported", "value": [] },
+        "diagnostic": { "capability": "job-tasks", "reason": "invalid-shape" }
+      }
+    }
+  ]
+}

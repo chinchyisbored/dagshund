@@ -2,16 +2,28 @@ import { describe, expect, test } from "bun:test";
 import {
   buildDerivedNodeId,
   buildDerivedReferenceIndex,
-  entryOwnsPromotedPhantomIdentity,
+  collectOwnedDerivedNodeRefs,
   extractDerivedNodeBadge,
   extractDerivedNodeLabel,
-  extractDerivedNodeRefs,
+  extractDerivedNodeRefs as extractDerivedNodeRefsRaw,
   extractDerivedPlacement,
   extractDerivedRenderingConvention,
   extractPromotedPhantomKind,
-  resolvePromotedPhantomNodeId,
+  ownedRefsContainPromotedPhantomIdentity,
 } from "../../src/graph/derived-node-specs.ts";
+import { preparePlan } from "../../src/preparation/prepare-plan.ts";
 import type { PlanEntry } from "../../src/types/plan-schema.ts";
+import { normalizePlan } from "../../src/utils/normalize-plan.ts";
+
+const prepareEntry = (resourceKey: string, entry: PlanEntry) => {
+  const prepared = preparePlan(normalizePlan({ [resourceKey]: entry })).byResourceKey.get(
+    resourceKey,
+  );
+  if (prepared === undefined) throw new Error(`Missing prepared resource: ${resourceKey}`);
+  return prepared;
+};
+const extractDerivedNodeRefs = (resourceKey: string, entry: PlanEntry) =>
+  extractDerivedNodeRefsRaw(resourceKey, prepareEntry(resourceKey, entry));
 
 describe("derived node specs", () => {
   test("extracts a pipeline event-log table identity from new and remote state", () => {
@@ -196,7 +208,9 @@ describe("derived node specs", () => {
       [resourceKey, { new_state: { value: { pipeline_id: "pipeline-new" } } }],
     ];
 
-    const index = buildDerivedReferenceIndex(entries, "pipelines");
+    const prepared = preparePlan(normalizePlan(Object.fromEntries(entries)));
+    const ownedRefs = collectOwnedDerivedNodeRefs(prepared.byResourceKey);
+    const index = buildDerivedReferenceIndex("pipelines", ownedRefs, prepared.byResourceKey);
 
     expect(index.get("pipeline-new")).toBe("postgres-synced-pipeline::pipeline-new");
     // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks interpolation syntax
@@ -214,34 +228,16 @@ describe("derived node specs", () => {
       new_state: { value: { synced_table_id: "generated.weather.conditions" } },
     };
 
+    const refs = extractDerivedNodeRefs("resources.postgres_synced_tables.conditions", entry);
     expect(
-      entryOwnsPromotedPhantomIdentity(
-        "resources.postgres_synced_tables.conditions",
-        entry,
-        "sourceTable",
-        "generated.weather.conditions",
-      ),
+      ownedRefsContainPromotedPhantomIdentity(refs, "sourceTable", "generated.weather.conditions"),
     ).toBe(true);
     expect(
-      entryOwnsPromotedPhantomIdentity(
-        "resources.postgres_synced_tables.conditions",
-        entry,
+      ownedRefsContainPromotedPhantomIdentity(
+        refs,
         "registeredModel",
         "generated.weather.conditions",
       ),
     ).toBe(false);
-  });
-
-  test("promoted phantom resolution prefers derived and falls back to phantom", () => {
-    const identity = "generated.weather.conditions";
-    const derivedId = `uc-synced-table::${identity}`;
-    const phantomId = `source-table::${identity}`;
-
-    expect(resolvePromotedPhantomNodeId("sourceTable", identity, new Set([phantomId]))).toBe(
-      phantomId,
-    );
-    expect(
-      resolvePromotedPhantomNodeId("sourceTable", identity, new Set([phantomId, derivedId])),
-    ).toBe(derivedId);
   });
 });

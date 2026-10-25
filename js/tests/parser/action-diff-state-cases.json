@@ -1,0 +1,17 @@
+[
+  { "name": "create is added", "action": "create", "expected": "added" },
+  { "name": "delete is removed", "action": "delete", "expected": "removed" },
+  { "name": "update is modified", "action": "update", "expected": "modified" },
+  { "name": "resize is modified", "action": "resize", "expected": "modified" },
+  { "name": "recreate is modified", "action": "recreate", "expected": "modified" },
+  { "name": "update_id is modified", "action": "update_id", "expected": "modified" },
+  { "name": "skip is unchanged", "action": "skip", "expected": "unchanged" },
+  { "name": "empty action is unchanged", "action": "", "expected": "unchanged" },
+  { "name": "unknown action remains unknown", "action": "unknown", "expected": "unknown" },
+  {
+    "name": "unrecognized action maps to unknown",
+    "action": "future_action",
+    "expected": "unknown"
+  },
+  { "name": "absent action is unchanged", "expected": "unchanged" }
+]

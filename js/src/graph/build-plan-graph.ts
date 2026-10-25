@@ -1,4 +1,5 @@
 import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import type { PreparedJob, PreparedTask } from "../preparation/prepare-job.ts";
 import {
   buildGraphEdge,
   type EdgeDiffState,
@@ -9,30 +10,28 @@ import {
   type TaskGraphNode,
   toEdgeDiffState,
 } from "../types/graph-types.ts";
-import type { ChangeDesc, Plan, PlanEntry } from "../types/plan-schema.ts";
-import { type NormalizedEntry, normalizePlan } from "../utils/normalize-plan.ts";
+import type { ChangeDesc, PlanEntry } from "../types/plan-schema.ts";
+import type { PreparedPlan } from "../types/prepared-plan.ts";
+import type { NormalizedEntry } from "../utils/normalize-plan.ts";
 import { buildTaskNodeId, extractResourceName } from "../utils/resource-key.ts";
 import { hasFieldDrift, hasTaskDriftWithContext } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
 import { collectWheelUpdates, type WheelUpdateSummary } from "../utils/wheel-updates.ts";
-import { buildJobFields, isJobEntry } from "./build-resource-graph.ts";
+import { buildJobFields, isJobEntry } from "./build-resource-nodes.ts";
 import {
-  extractDeletedTaskEntries,
-  extractTaskEntriesFromRemoteState,
-  extractTaskState,
-  resolveAllTaskEntries,
-  resolveTaskEntries,
-  type TaskEntry,
-} from "./extract-tasks.ts";
-import { buildJobIdMap, resolveRunJobTarget } from "./resolve-run-job-target.ts";
+  buildFinalRunJobTargets,
+  buildJobIdMap,
+  type FinalRunJobTarget,
+} from "./resolve-run-job-target.ts";
 import { classifyChange, resolveTaskDiffState } from "./resolve-task-diff-state.ts";
 
 /** Create a job-level graph node for a plan entry. */
 const buildJobNode = (
   resourceKey: string,
   entry: NormalizedEntry,
-  tasks: readonly TaskEntry[],
+  tasks: readonly PreparedTask[],
+  preparedJob: PreparedJob,
   wheelSummary: WheelUpdateSummary | undefined,
 ): JobGraphNode => ({
   id: resourceKey,
@@ -40,15 +39,15 @@ const buildJobNode = (
   resourceKey,
   wheelUpdates: wheelSummary?.wheels,
   effects: entry.effects,
-  ...buildJobFields(resourceKey, entry, tasks),
+  ...buildJobFields(resourceKey, entry, tasks, preparedJob),
 });
 
 /** Create task-level graph nodes from extracted tasks. */
 const buildTaskNodes = (
   resourceKey: string,
   entry: PlanEntry,
-  tasks: readonly TaskEntry[],
-  jobIdMap: ReadonlyMap<number, string>,
+  tasks: readonly PreparedTask[],
+  runJobTargets: ReadonlyMap<string, FinalRunJobTarget>,
   wheelSummary: WheelUpdateSummary | undefined,
 ): readonly TaskGraphNode[] => {
   const resourceHasShapeDrift = hasFieldDrift(entry.changes);
@@ -58,25 +57,21 @@ const buildTaskNodes = (
     resourceHasShapeDrift,
   };
   return tasks.map((task) => {
-    const rawState = extractTaskState(task);
-    const jobId = task.run_job_task?.job_id;
-    const targetKey =
-      jobId !== undefined
-        ? resolveRunJobTarget(jobId, jobIdMap, entry.new_state, task.task_key)
-        : undefined;
+    const rawState = task.rawState;
+    const target = runJobTargets.get(buildTaskNodeId(resourceKey, task.taskKey));
     const resourceState =
-      targetKey !== undefined
-        ? annotateRunJobTaskState(rawState, extractResourceName(targetKey))
+      target?.kind === "managed"
+        ? annotateRunJobTaskState(rawState, extractResourceName(target.resourceKey))
         : rawState;
 
     return {
-      id: buildTaskNodeId(resourceKey, task.task_key),
-      label: task.task_key,
+      id: buildTaskNodeId(resourceKey, task.taskKey),
+      label: task.taskKey,
       nodeKind: "task" as const,
-      diffState: resolveTaskDiffState(task.task_key, entry.action, entry.changes),
+      diffState: resolveTaskDiffState(task.taskKey, entry.action, entry.changes),
       resourceKey,
-      taskKey: task.task_key,
-      changes: filterTaskChanges(task.task_key, entry.changes),
+      taskKey: task.taskKey,
+      changes: filterTaskChanges(task.taskKey, entry.changes),
       resourceState,
       // Task nodes carry the parent job's raw pre-fuse state because their change
       // keys (`tasks[task_key='X'].depends_on[...]`) are rooted at the job level.
@@ -89,8 +84,8 @@ const buildTaskNodes = (
       // which computes `resource_has_shape_drift(entry)` at the job level and
       // threads it into every field's ctx (dagshund-1naj, dagshund-15yh).
       resourceHasShapeDrift,
-      isDrift: hasTaskDriftWithContext(task.task_key, entry.changes, driftParent),
-      isWheelOnlyChange: wheelSummary?.wheelOnlyTaskKeys.has(task.task_key) ?? false,
+      isDrift: hasTaskDriftWithContext(task.taskKey, entry.changes, driftParent),
+      isWheelOnlyChange: wheelSummary?.wheelOnlyTaskKeys.has(task.taskKey) ?? false,
     };
   });
 };
@@ -107,13 +102,11 @@ const filterTaskChanges = (
 
 /** Build a map from task_key to its old dependency keys from remote_state. */
 const buildRemoteDependsOnMap = (
-  remoteState: unknown,
-): ReadonlyMap<string, ReadonlySet<string>> => {
-  const tasks = extractTaskEntriesFromRemoteState(remoteState);
-  return new Map(
-    tasks.map((t) => [t.task_key, new Set((t.depends_on ?? []).map((d) => d.task_key))]),
+  tasks: readonly PreparedTask[],
+): ReadonlyMap<string, ReadonlySet<string>> =>
+  new Map(
+    tasks.map((task) => [task.taskKey, new Set(task.dependencies.map((dep) => dep.task_key))]),
   );
-};
 
 /** Resolve edge diff state for a single dependency given the depends_on change. */
 const resolveDepEdgeDiffState = (
@@ -194,19 +187,20 @@ const buildEdgesForTask = (
 /** Build diff-aware edges for all tasks within a resource. */
 const buildDiffEdges = (
   resourceKey: string,
-  allTasks: readonly TaskEntry[],
+  allTasks: readonly PreparedTask[],
+  historicalTasks: readonly PreparedTask[],
   entry: PlanEntry,
 ): readonly GraphEdge[] => {
   const edgeDiffState = toEdgeDiffState(mapActionToDiffState(entry.action));
-  const remoteDepsMap = buildRemoteDependsOnMap(entry.remote_state);
+  const remoteDepsMap = buildRemoteDependsOnMap(historicalTasks);
   const emptySet: ReadonlySet<string> = new Set();
 
   return allTasks.flatMap((task) =>
     buildEdgesForTask(
       resourceKey,
-      task.task_key,
-      task.depends_on ?? [],
-      remoteDepsMap.get(task.task_key) ?? emptySet,
+      task.taskKey,
+      task.dependencies,
+      remoteDepsMap.get(task.taskKey) ?? emptySet,
       edgeDiffState,
       entry.changes,
     ),
@@ -217,20 +211,33 @@ const buildDiffEdges = (
 const buildEntryGraph = (
   resourceKey: string,
   entry: NormalizedEntry,
-  jobIdMap: ReadonlyMap<number, string>,
+  plan: PreparedPlan,
+  runJobTargets: ReadonlyMap<string, FinalRunJobTarget>,
 ): { readonly nodes: readonly GraphNode[]; readonly edges: readonly GraphEdge[] } => {
-  const tasks = resolveTaskEntries(entry.new_state, entry.remote_state);
-  const deletedTasks = extractDeletedTaskEntries(entry.changes);
+  const projection = plan.byResourceKey.get(resourceKey)?.job;
+  const job = projection?.status === "supported" ? projection.value : undefined;
+  const tasks = job?.currentTasks.status === "supported" ? job.currentTasks.value : [];
+  const deletedTasks = job?.deletedTasks.status === "supported" ? job.deletedTasks.value : [];
+  const historicalTasks =
+    job?.historicalTasks.status === "supported" ? job.historicalTasks.value : [];
   const allTasks = [...tasks, ...deletedTasks];
   const wheelSummary = collectWheelUpdates(entry.changes);
 
   return {
     nodes: [
-      buildJobNode(resourceKey, entry, tasks, wheelSummary),
-      ...buildTaskNodes(resourceKey, entry, allTasks, jobIdMap, wheelSummary),
+      buildJobNode(resourceKey, entry, tasks, job ?? EMPTY_PREPARED_JOB, wheelSummary),
+      ...buildTaskNodes(resourceKey, entry, allTasks, runJobTargets, wheelSummary),
     ],
-    edges: buildDiffEdges(resourceKey, allTasks, entry),
+    edges: buildDiffEdges(resourceKey, allTasks, historicalTasks, entry),
   };
+};
+
+const EMPTY_PREPARED_JOB: PreparedJob = {
+  jobState: { status: "absent" },
+  currentTasks: { status: "absent" },
+  historicalTasks: { status: "absent" },
+  deletedTasks: { status: "absent" },
+  clusters: { status: "absent" },
 };
 
 /** Replace run_job_task.job_id with an annotated string showing the resolved target name. */
@@ -252,37 +259,39 @@ const annotateRunJobTaskState = (
  *  Includes deleted tasks so that removed cross-job edges are visible in the graph. */
 const buildRunJobEdges = (
   entries: readonly (readonly [string, PlanEntry])[],
-  jobIdMap: ReadonlyMap<number, string>,
+  plan: PreparedPlan,
+  runJobTargets: ReadonlyMap<string, FinalRunJobTarget>,
 ): readonly GraphEdge[] =>
   entries.flatMap(([resourceKey, entry]) => {
-    const allTasks = resolveAllTaskEntries(entry.new_state, entry.remote_state, entry.changes);
-    return allTasks.flatMap((task) => {
-      const jobId = task.run_job_task?.job_id;
-      if (jobId === undefined) return [];
-      const targetResourceKey = resolveRunJobTarget(
-        jobId,
-        jobIdMap,
-        entry.new_state,
-        task.task_key,
-      );
-      if (targetResourceKey === undefined) return [];
-      const sourceNodeId = buildTaskNodeId(resourceKey, task.task_key);
+    const projection = plan.byResourceKey.get(resourceKey)?.job;
+    const job = projection?.status === "supported" ? projection.value : undefined;
+    const tasks = [
+      ...(job?.currentTasks.status === "supported" ? job.currentTasks.value : []),
+      ...(job?.deletedTasks.status === "supported" ? job.deletedTasks.value : []),
+    ];
+    return tasks.flatMap((task) => {
+      const target = runJobTargets.get(buildTaskNodeId(resourceKey, task.taskKey));
+      if (target?.kind !== "managed") return [];
+      const targetResourceKey = target.resourceKey;
+      const sourceNodeId = buildTaskNodeId(resourceKey, task.taskKey);
       const diffState = toEdgeDiffState(
-        resolveTaskDiffState(task.task_key, entry.action, entry.changes),
+        resolveTaskDiffState(task.taskKey, entry.action, entry.changes),
       );
       return [buildGraphEdge(sourceNodeId, targetResourceKey, diffState)];
     });
   });
 
 /** Build the complete plan graph from job entries only. */
-export const buildPlanGraph = (plan: Plan): PlanGraph => {
-  const entries = Object.entries(normalizePlan(plan.plan ?? {}).entries).filter(([key]) =>
-    isJobEntry(key),
-  );
+export const buildPlanGraph = (plan: PreparedPlan): PlanGraph => {
+  const entries = Object.entries(plan.normalized.entries).filter(([key]) => isJobEntry(key));
   const jobIdMap = buildJobIdMap(entries);
-  const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry, jobIdMap));
+  const runJobTargets = buildFinalRunJobTargets(entries, plan, jobIdMap);
+  const graphs = entries.map(([key, entry]) => buildEntryGraph(key, entry, plan, runJobTargets));
   return {
     nodes: graphs.flatMap((graph) => graph.nodes),
-    edges: [...graphs.flatMap((graph) => graph.edges), ...buildRunJobEdges(entries, jobIdMap)],
+    edges: [
+      ...graphs.flatMap((graph) => graph.edges),
+      ...buildRunJobEdges(entries, plan, runJobTargets),
+    ],
   };
 };

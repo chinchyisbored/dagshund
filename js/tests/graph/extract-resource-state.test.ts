@@ -39,13 +39,13 @@ describe("extractStateField", () => {
     expect(extractStateField(entry, "name")).toBe("new-name");
   });
 
-  test("falls back to remote_state when field missing from new_state", () => {
+  test("does not restore a field omitted from selected new state", () => {
     const entry: PlanEntry = {
       new_state: { value: { other: "val" } },
       remote_state: { name: "remote-name" },
     };
 
-    expect(extractStateField(entry, "name")).toBe("remote-name");
+    expect(extractStateField(entry, "name")).toBeUndefined();
   });
 
   test("returns undefined when field absent from both states", () => {
@@ -122,22 +122,22 @@ describe("extractExistingPipelineId", () => {
     expect(extractExistingPipelineId(entry)).toBe("pipeline-new");
   });
 
-  test("falls back to remote state when new state omits the reference", () => {
+  test("does not restore a reference omitted from selected new state", () => {
     const entry: PlanEntry = {
       new_state: { value: { name: "orders" } },
       remote_state: { existing_pipeline_id: "pipeline-remote" },
     };
 
-    expect(extractExistingPipelineId(entry)).toBe("pipeline-remote");
+    expect(extractExistingPipelineId(entry)).toBeUndefined();
   });
 
-  test("falls back to remote state when the new state reference is blank", () => {
+  test("does not restore remote reference when selected reference is blank", () => {
     const entry: PlanEntry = {
       new_state: { value: { existing_pipeline_id: "  " } },
       remote_state: { spec: { existing_pipeline_id: "pipeline-remote" } },
     };
 
-    expect(extractExistingPipelineId(entry)).toBe("pipeline-remote");
+    expect(extractExistingPipelineId(entry)).toBeUndefined();
   });
 
   test("returns undefined when the reference is absent or blank", () => {
@@ -186,7 +186,7 @@ describe("extractResourceState", () => {
     expect(extractResourceState(entry)).toBeUndefined();
   });
 
-  test("falls back to remote_state when new_state.value is undefined", () => {
+  test("uses remote_state when a valid wrapper has no value", () => {
     const entry: PlanEntry = {
       new_state: {},
       remote_state: { name: "fallback" },

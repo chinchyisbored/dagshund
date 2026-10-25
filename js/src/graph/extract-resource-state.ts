@@ -1,17 +1,11 @@
 import { z } from "zod/v4";
 import type { PlanEntry } from "../types/plan-schema.ts";
+import { selectEffectiveResourceState } from "../utils/effective-resource-state.ts";
 import { getUnknownProp } from "../utils/unknown-record.ts";
 
 // ---------------------------------------------------------------------------
 // Zod schemas (parse boundary only)
 // ---------------------------------------------------------------------------
-
-/** Schema for new_state: { value: { ...fields } } — generic (no field validation). */
-const resourceNewStateSchema = z
-  .object({
-    value: z.record(z.string(), z.unknown()).readonly().optional(),
-  })
-  .readonly();
 
 /** Schema for remote_state: { ...fields } — generic (no field validation). */
 const resourceRemoteStateSchema = z.record(z.string(), z.unknown()).readonly();
@@ -22,39 +16,38 @@ const resourceRemoteStateSchema = z.record(z.string(), z.unknown()).readonly();
 
 /**
  * Safely extract a named field from a plan entry's state.
- * Checks new_state.value first (for live resources), then remote_state (for deleted resources).
+ * Extract a string field from only the selected current snapshot.
  */
 export const extractStateField = (entry: PlanEntry, field: string): string | undefined => {
-  const parsedNew = resourceNewStateSchema.safeParse(entry.new_state);
-  if (parsedNew.success) {
-    const fieldValue = parsedNew.data.value?.[field];
-    if (typeof fieldValue === "string") return fieldValue;
-  }
+  const selected = selectEffectiveResourceState(entry);
+  const parsed = resourceRemoteStateSchema.safeParse(selected.snapshot);
+  if (!parsed.success) return undefined;
+  const fieldValue = parsed.data[field];
+  return typeof fieldValue === "string" ? fieldValue : undefined;
+};
 
-  const parsedRemote = resourceRemoteStateSchema.safeParse(entry.remote_state);
-  if (parsedRemote.success) {
-    const fieldValue = parsedRemote.data[field];
-    if (typeof fieldValue === "string") return fieldValue;
+/** Extract an API identity field from either snapshot for explicit historical indexing. */
+export const extractHistoricalStateField = (
+  entry: PlanEntry,
+  field: string,
+): string | undefined => {
+  const snapshots = [getUnknownProp(entry.new_state, "value"), entry.remote_state];
+  for (const snapshot of snapshots) {
+    const parsed = resourceRemoteStateSchema.safeParse(snapshot);
+    if (!parsed.success) continue;
+    const value = parsed.data[field];
+    if (typeof value === "string") return value;
   }
-
   return undefined;
 };
 
-/** Extract the flat state object from a plan entry (new_state.value or remote_state). */
+/** Extract the selected flat state object when it is a record. */
 export const extractResourceState = (
   entry: PlanEntry,
 ): Readonly<Record<string, unknown>> | undefined => {
-  const parsedNew = resourceNewStateSchema.safeParse(entry.new_state);
-  if (parsedNew.success && parsedNew.data.value !== undefined) {
-    return parsedNew.data.value;
-  }
-
-  const parsedRemote = resourceRemoteStateSchema.safeParse(entry.remote_state);
-  if (parsedRemote.success) {
-    return parsedRemote.data;
-  }
-
-  return undefined;
+  const selected = selectEffectiveResourceState(entry);
+  const parsed = resourceRemoteStateSchema.safeParse(selected.snapshot);
+  return parsed.success ? parsed.data : undefined;
 };
 
 const extractExistingPipelineIdFromState = (state: unknown): string | undefined => {
@@ -70,17 +63,9 @@ const extractExistingPipelineIdFromState = (state: unknown): string | undefined 
   return undefined;
 };
 
-/** Extract an existing pipeline reference from new state, falling back to remote state. */
-export const extractExistingPipelineId = (entry: PlanEntry): string | undefined => {
-  const parsedNew = resourceNewStateSchema.safeParse(entry.new_state);
-  if (parsedNew.success) {
-    const newPipelineId = extractExistingPipelineIdFromState(parsedNew.data.value);
-    if (newPipelineId !== undefined) return newPipelineId;
-  }
-
-  const parsedRemote = resourceRemoteStateSchema.safeParse(entry.remote_state);
-  return parsedRemote.success ? extractExistingPipelineIdFromState(parsedRemote.data) : undefined;
-};
+/** Extract an existing pipeline reference from the selected current snapshot. */
+export const extractExistingPipelineId = (entry: PlanEntry): string | undefined =>
+  extractExistingPipelineIdFromState(selectEffectiveResourceState(entry).snapshot);
 
 /** Extract top-level or spec.source_table_full_name from a synced table entry's state. */
 export const extractSourceTableFullName = (entry: PlanEntry): string | undefined => {
@@ -104,14 +89,15 @@ export const parseThreePartName = (
   return { catalog, schema, table };
 };
 
-/** Extract served_entities array from a serving endpoint entry.
- *  Handles both new_state shape (config.served_entities) and
- *  remote_state shape (endpoint_details.config.served_entities). */
-export const extractServedEntities = (entry: PlanEntry): readonly unknown[] => {
-  const state = extractResourceState(entry);
-  if (state === undefined) return [];
-  const entities =
-    getUnknownProp(state["config"], "served_entities") ??
-    getUnknownProp(getUnknownProp(state["endpoint_details"], "config"), "served_entities");
-  return Array.isArray(entities) ? entities : [];
+export const resolveUcLeafParentIdentity = (
+  fields: Readonly<{ catalog?: string; schema?: string; name?: string }>,
+): { readonly kind: "schema" | "catalog"; readonly identity: string } | undefined => {
+  if (fields.catalog !== undefined && fields.schema !== undefined) {
+    return { kind: "schema", identity: `${fields.catalog}.${fields.schema}` };
+  }
+  if (fields.catalog !== undefined) return { kind: "catalog", identity: fields.catalog };
+  const parsed = fields.name === undefined ? undefined : parseThreePartName(fields.name);
+  return parsed === undefined
+    ? undefined
+    : { kind: "schema", identity: `${parsed.catalog}.${parsed.schema}` };
 };

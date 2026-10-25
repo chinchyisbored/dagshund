@@ -26,6 +26,31 @@ fixtures/
     sanitize.py              # Deterministic email-only PII sanitizer (stdin -> stdout)
 ```
 
+## Semantic JS contract fixtures
+
+Narrow JSON vectors under `js/tests/` exercise named TypeScript consumers. They are not regenerated
+from a Databricks workspace and do not replace the shared golden plans above:
+
+| Contract vectors | Consumer tests |
+|---|---|
+| `js/tests/utils/effective-state-cases.json` | `js/tests/utils/effective-resource-state.test.ts`, `js/tests/graph/effective-resource-state.test.ts` |
+| `js/tests/utils/merged-effect-cases.json` | `js/tests/utils/normalize-plan.test.ts` |
+| `js/tests/parser/action-diff-state-cases.json` | `js/tests/parser/map-diff-state.test.ts` |
+| `js/tests/preparation/prepared-task-cases.json` | `js/tests/preparation/prepare-job.test.ts` |
+| `js/tests/graph/reference-outcome-cases.json` | `js/tests/graph/resolve-references.test.ts` |
+| `js/tests/graph/target-pair-cases.json` | `js/tests/graph/extract-lateral-edges.test.ts` |
+| `js/tests/utils/phantom-identity-cases.json` | `js/tests/utils/resource-key.test.ts` |
+| `js/tests/utils/drift-decision-cases.json` | `js/tests/utils/structural-diff.test.ts` |
+
+`fixtures/job-run-effect-cases.json` and `fixtures/job-run-outcome-cases.json` are shared by
+JavaScript and Python tests. Other shared semantic vectors include
+`fixtures/list-element-semantic-cases.json` and `fixtures/wheel-update-cases.json`. Browser-only
+preparation, graph identity/phantom, and drift-policy vectors describe JavaScript behavior; they do
+not define Python safety-analysis rules. The shared job-run effect cases can also have different
+orphan presentation: the browser retains orphan effect groups for graph display, while Python's
+standalone handling remains unchanged. See `.agents/guidelines/VISUALIZATION.md` for the browser
+pipeline and relationship semantics.
+
 ## Bundle schema
 
 All `databricks.yaml` files reference a local bundle schema for editor validation. Generate it once:

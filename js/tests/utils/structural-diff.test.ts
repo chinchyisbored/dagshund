@@ -10,6 +10,7 @@ import {
   isReclassifiedListElementDriftChange,
   isTopologyDriftChange,
 } from "../../src/utils/structural-diff.ts";
+import driftCases from "./drift-decision-cases.json";
 
 describe("findIdentityKey", () => {
   test("returns undefined for empty arrays", () => {
@@ -623,7 +624,6 @@ describe("isTopologyDriftChange", () => {
 });
 
 describe("isReclassifiedListElementDriftChange (dagshund-15yh)", () => {
-  const change: ChangeDesc = { action: "update", remote: { task_key: "ingest" } };
   const baseCtx = {
     changeKey: "tasks[task_key='publish'].depends_on[task_key='ingest']",
     newState: {
@@ -632,17 +632,14 @@ describe("isReclassifiedListElementDriftChange (dagshund-15yh)", () => {
     remoteState: { tasks: [{ task_key: "publish", depends_on: [{ task_key: "ingest" }] }] },
   };
 
-  test("true when shape matches and resourceHasShapeDrift gates it", () => {
-    expect(
-      isReclassifiedListElementDriftChange(change, { ...baseCtx, resourceHasShapeDrift: true }),
-    ).toBe(true);
-  });
-
-  test("false when resourceHasShapeDrift is false (gate closed)", () => {
-    expect(
-      isReclassifiedListElementDriftChange(change, { ...baseCtx, resourceHasShapeDrift: false }),
-    ).toBe(false);
-  });
+  for (const driftCase of driftCases.cases) {
+    test(driftCase.name, () => {
+      const change: ChangeDesc = { action: "update", remote: driftCase.change.remote };
+      expect(isReclassifiedListElementDriftChange(change, driftCase.context)).toBe(
+        driftCase.expected,
+      );
+    });
+  }
 
   test("false when change has old (not the reclassified shape)", () => {
     const c: ChangeDesc = { action: "update", old: "x", remote: "y" };

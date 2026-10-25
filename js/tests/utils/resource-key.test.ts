@@ -13,6 +13,7 @@ import {
   isPhantomLeaf,
   isSubResourceKey,
 } from "../../src/utils/resource-key.ts";
+import phantomIdentityCases from "./phantom-identity-cases.json";
 
 describe("buildPrefixedNodeId", () => {
   test("builds registered phantom and hierarchy node IDs", () => {
@@ -98,6 +99,13 @@ describe("extractTypeBadge", () => {
 });
 
 describe("extractPhantomResourceType", () => {
+  for (const identityCase of phantomIdentityCases.cases) {
+    test(identityCase.name, () => {
+      expect(extractPhantomResourceType(identityCase.id) ?? null).toBe(identityCase.resourceType);
+      expect(isPhantomLeaf(identityCase.id)).toBe(identityCase.leaf);
+    });
+  }
+
   test("returns the normalized type for workspace phantom leaves", () => {
     expect(extractPhantomResourceType("job::123")).toBe("jobs");
     expect(extractPhantomResourceType("sql-warehouse::abc")).toBe("sql_warehouses");

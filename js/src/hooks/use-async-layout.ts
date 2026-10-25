@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import type { LayoutResult } from "../types/layout-result.ts";
-import type { Plan } from "../types/plan-schema.ts";
 
 export type GraphLayoutState =
   | { readonly status: "loading" }
   | { readonly status: "ready"; readonly layout: LayoutResult }
   | { readonly status: "error"; readonly message: string };
 
-/** Generic hook for async Plan → LayoutResult transformations with cancellation. */
-export const useAsyncLayout = (
-  plan: Plan,
-  transformLayout: (plan: Plan) => Promise<LayoutResult>,
+/** Generic hook for async input → LayoutResult transformations with cancellation. */
+export const useAsyncLayout = <Input>(
+  plan: Input,
+  transformLayout: (plan: Input) => Promise<LayoutResult>,
 ): GraphLayoutState => {
   const [state, setState] = useState<GraphLayoutState>({ status: "loading" });
 

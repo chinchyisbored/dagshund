@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { buildTaskChangeSummary } from "../../src/graph/build-task-change-summary.ts";
-import type { TaskEntry } from "../../src/graph/extract-tasks.ts";
 import type { ActionType, ChangeDesc } from "../../src/types/plan-schema.ts";
 import type { DriftScanParent } from "../../src/utils/structural-diff.ts";
 
-const makeTask = (taskKey: string): TaskEntry => ({ task_key: taskKey });
+const makeTask = (taskKey: string): { readonly taskKey: string } => ({ taskKey });
 
 const makeChange = (action: ActionType, old?: unknown, newVal?: unknown): ChangeDesc => ({
   action,

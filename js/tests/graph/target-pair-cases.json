@@ -1,0 +1,29 @@
+{
+  "cases": [
+    {
+      "name": "deduplicate concrete, symbolic, and repeated references to one resolved target pair",
+      "entries": {
+        "resources.jobs.aliases": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "tasks": [
+                { "task_key": "concrete", "sql_task": { "warehouse_id": "warehouse-api-id" } },
+                {
+                  "task_key": "symbolic",
+                  "sql_task": { "warehouse_id": "${resources.sql_warehouses.compute.id}" }
+                },
+                { "task_key": "repeated", "sql_task": { "warehouse_id": "warehouse-api-id" } }
+              ]
+            }
+          }
+        },
+        "resources.sql_warehouses.compute": {
+          "action": "create",
+          "new_state": { "value": { "id": "warehouse-api-id" } }
+        }
+      },
+      "expected": ["resources.jobs.aliases→resources.sql_warehouses.compute"]
+    }
+  ]
+}

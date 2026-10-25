@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildPlanGraph } from "../../src/graph/build-plan-graph.ts";
-import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
 import type { GraphNode } from "../../src/types/graph-types.ts";
+import {
+  buildPlanGraphFromPlan,
+  buildResourceGraphFromPlan,
+} from "../helpers/build-graphs-from-plan.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 const findNode = (nodes: readonly GraphNode[], id: string): GraphNode | undefined =>
@@ -26,7 +28,7 @@ describe("manual-drift fixture — topology drift detection", () => {
   describe("plan graph (jobs → tasks)", () => {
     test("transform task has isDrift === true AND diffState === 'added'", async () => {
       const plan = await loadFixture("manual-drift");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const transform = findByLabel(graph.nodes, "transform");
       expect(transform).toBeDefined();
@@ -40,7 +42,7 @@ describe("manual-drift fixture — topology drift detection", () => {
 
     test("drift_pipeline job has isDrift === true (aggregate signal)", async () => {
       const plan = await loadFixture("manual-drift");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const job = findNode(graph.nodes, "resources.jobs.drift_pipeline");
       expect(job).toBeDefined();
@@ -50,7 +52,7 @@ describe("manual-drift fixture — topology drift detection", () => {
 
     test("ingest has isDrift falsy; publish has isDrift === true (field-level drift)", async () => {
       const plan = await loadFixture("manual-drift");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const ingest = findByLabel(graph.nodes, "ingest");
       const publish = findByLabel(graph.nodes, "publish");
@@ -66,7 +68,7 @@ describe("manual-drift fixture — topology drift detection", () => {
   describe("resource graph", () => {
     test("drift_pipeline job resource has isDrift === true", async () => {
       const plan = await loadFixture("manual-drift");
-      const { nodes } = buildResourceGraph(plan);
+      const { nodes } = buildResourceGraphFromPlan(plan);
 
       const job = nodes.find(
         (n) => n.nodeKind === "resource" && n.resourceKey === "resources.jobs.drift_pipeline",
@@ -77,7 +79,7 @@ describe("manual-drift fixture — topology drift detection", () => {
 
     test("drift_grants schema resource has isDrift === true", async () => {
       const plan = await loadFixture("manual-drift");
-      const { nodes } = buildResourceGraph(plan);
+      const { nodes } = buildResourceGraphFromPlan(plan);
 
       const schema = nodes.find(
         (n) => n.nodeKind === "resource" && n.resourceKey === "resources.schemas.drift_grants",
@@ -91,7 +93,7 @@ describe("manual-drift fixture — topology drift detection", () => {
       // with no remote_state in plan.json, indistinguishable from a brand-new
       // resource. The detector correctly declines to flag this case.
       const plan = await loadFixture("manual-drift");
-      const { nodes } = buildResourceGraph(plan);
+      const { nodes } = buildResourceGraphFromPlan(plan);
 
       const schema = nodes.find(
         (n) => n.nodeKind === "resource" && n.resourceKey === "resources.schemas.drift_doomed",
@@ -102,7 +104,7 @@ describe("manual-drift fixture — topology drift detection", () => {
 
     test("phantom nodes have isDrift undefined (type-system guarantee)", async () => {
       const plan = await loadFixture("manual-drift");
-      const { nodes } = buildResourceGraph(plan);
+      const { nodes } = buildResourceGraphFromPlan(plan);
 
       const phantoms = nodes.filter((n) => n.nodeKind === "phantom");
       for (const phantom of phantoms) {
@@ -114,14 +116,14 @@ describe("manual-drift fixture — topology drift detection", () => {
   describe("cross-fixture regression: isDrift stays falsy where no drift shape exists", () => {
     test("all-create fixture has no drifted nodes", async () => {
       const plan = await loadFixture("all-create");
-      const { nodes } = buildResourceGraph(plan);
+      const { nodes } = buildResourceGraphFromPlan(plan);
       const drifted = nodes.filter((n) => readIsDrift(n) === true);
       expect(drifted).toHaveLength(0);
     });
 
     test("mixed-changes fixture has no drifted nodes", async () => {
       const plan = await loadFixture("mixed-changes");
-      const { nodes } = buildResourceGraph(plan);
+      const { nodes } = buildResourceGraphFromPlan(plan);
       const drifted = nodes.filter((n) => readIsDrift(n) === true);
       expect(drifted).toHaveLength(0);
     });

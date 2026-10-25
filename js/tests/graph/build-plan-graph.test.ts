@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { buildPlanGraph } from "../../src/graph/build-plan-graph.ts";
-import type { JobGraphNode, TaskGraphNode } from "../../src/types/graph-types.ts";
+import type { JobGraphNode, PlanGraph, TaskGraphNode } from "../../src/types/graph-types.ts";
+import { buildPlanGraphFromPlan } from "../helpers/build-graphs-from-plan.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 describe("buildPlanGraph", () => {
   test("returns empty graph for empty plan", () => {
-    const graph = buildPlanGraph({});
+    const graph = buildPlanGraphFromPlan({});
     expect(graph.nodes).toHaveLength(0);
     expect(graph.edges).toHaveLength(0);
   });
 
   test("returns empty graph when plan record is empty", () => {
-    const graph = buildPlanGraph({ plan: {} });
+    const graph = buildPlanGraphFromPlan({ plan: {} });
     expect(graph.nodes).toHaveLength(0);
     expect(graph.edges).toHaveLength(0);
   });
@@ -19,7 +19,7 @@ describe("buildPlanGraph", () => {
   describe("all-create (all creates)", () => {
     test("creates job nodes plus task nodes", async () => {
       const plan = await loadFixture("all-create");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNodes = graph.nodes.filter((n) => n.nodeKind === "job");
       const taskNodes = graph.nodes.filter((n) => n.nodeKind === "task");
@@ -33,7 +33,7 @@ describe("buildPlanGraph", () => {
 
     test("all nodes have diffState 'added' for a create plan", async () => {
       const plan = await loadFixture("all-create");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       for (const node of graph.nodes) {
         expect(node.diffState).toBe("added");
@@ -42,7 +42,7 @@ describe("buildPlanGraph", () => {
 
     test("job node has no taskChangeSummary for a create plan (redundant)", async () => {
       const plan = await loadFixture("all-create");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNode = graph.nodes.find((n) => n.nodeKind === "job");
       expect(jobNode?.taskChangeSummary).toBeUndefined();
@@ -50,7 +50,7 @@ describe("buildPlanGraph", () => {
 
     test("creates correct edges from depends_on", async () => {
       const plan = await loadFixture("all-create");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const rk = "resources.jobs.etl_pipeline";
 
       const etlEdges = graph.edges.filter(
@@ -66,7 +66,7 @@ describe("buildPlanGraph", () => {
 
     test("all edges have diffState 'added' for a create plan", async () => {
       const plan = await loadFixture("all-create");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       for (const edge of graph.edges) {
         expect(edge.diffState).toBe("added");
@@ -77,7 +77,7 @@ describe("buildPlanGraph", () => {
   describe("mixed-changes (update jobs with task DAGs)", () => {
     test("creates job nodes for both update jobs", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNodes = graph.nodes.filter((n) => n.nodeKind === "job");
       expect(jobNodes).toHaveLength(2);
@@ -88,7 +88,7 @@ describe("buildPlanGraph", () => {
 
     test("extracts tasks from new_state for update jobs", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const etlTasks = graph.nodes.filter(
         (n): n is TaskGraphNode =>
@@ -105,7 +105,7 @@ describe("buildPlanGraph", () => {
 
     test("update job nodes have diffState modified", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNodes = graph.nodes.filter((n) => n.nodeKind === "job");
       for (const node of jobNodes) {
@@ -115,7 +115,7 @@ describe("buildPlanGraph", () => {
 
     test("creates correct intra-job edges from depends_on", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const rk = "resources.jobs.etl_pipeline";
 
       const etlEdges = graph.edges.filter(
@@ -133,7 +133,7 @@ describe("buildPlanGraph", () => {
 
     test("attaches job-level changes (non-task) to job node", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNode = graph.nodes.find(
         (n) => n.nodeKind === "job" && n.id === "resources.jobs.etl_pipeline",
@@ -148,7 +148,7 @@ describe("buildPlanGraph", () => {
 
     test("attaches resourceState to job node without tasks", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNode = graph.nodes.find(
         (n) => n.nodeKind === "job" && n.id === "resources.jobs.etl_pipeline",
@@ -161,7 +161,7 @@ describe("buildPlanGraph", () => {
 
     test("attaches resourceState to task nodes", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const extractNode = graph.nodes.find((n) => n.nodeKind === "task" && n.taskKey === "extract");
       expect(extractNode?.resourceState).toBeDefined();
@@ -170,7 +170,7 @@ describe("buildPlanGraph", () => {
 
     test("update jobs have taskChangeSummary", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const etlJob = graph.nodes.find((n) => n.nodeKind === "job");
       expect(etlJob?.taskChangeSummary).toBeArrayOfSize(8);
@@ -183,7 +183,7 @@ describe("buildPlanGraph", () => {
 
     test("creates cross-job edge from trigger_quality_check to data_quality_pipeline", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) =>
@@ -198,7 +198,7 @@ describe("buildPlanGraph", () => {
   describe("no-changes (all skip, no new_state)", () => {
     test("extracts tasks from remote_state when new_state is absent", async () => {
       const plan = await loadFixture("no-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNodes = graph.nodes.filter((n) => n.nodeKind === "job");
       const taskNodes = graph.nodes.filter((n) => n.nodeKind === "task");
@@ -209,7 +209,7 @@ describe("buildPlanGraph", () => {
 
     test("all nodes have diffState unchanged for all-skip plan", async () => {
       const plan = await loadFixture("no-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       for (const node of graph.nodes) {
         expect(node.diffState).toBe("unchanged");
@@ -218,7 +218,7 @@ describe("buildPlanGraph", () => {
 
     test("graph is non-empty (original bug: was empty for all-skip plans)", async () => {
       const plan = await loadFixture("no-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       expect(graph.nodes).toHaveLength(4);
       expect(graph.edges).toHaveLength(2);
@@ -268,7 +268,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) =>
@@ -312,7 +312,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) =>
@@ -347,7 +347,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) =>
@@ -384,7 +384,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) =>
@@ -414,7 +414,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) => e.source === "resources.jobs.pipeline_a::trigger_b",
@@ -453,7 +453,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       // trigger_b is deleted — it won't be in new_state.value.tasks,
       // so vars resolution cannot find its index
@@ -480,7 +480,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) => e.source === "resources.jobs.pipeline_a::trigger_b",
@@ -492,7 +492,7 @@ describe("buildPlanGraph", () => {
   describe("sub-resources-plan.json (sub-resource merging)", () => {
     test("creates job nodes, merging sub-resources into parents", async () => {
       const plan = await loadFixture("sub-resources");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const jobNodes = graph.nodes.filter((n) => n.nodeKind === "job");
       const labels = jobNodes.map((n) => n.label).sort();
@@ -501,7 +501,7 @@ describe("buildPlanGraph", () => {
 
     test("does not create nodes for permissions or grants sub-resources", async () => {
       const plan = await loadFixture("sub-resources");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const nodeIds = graph.nodes.map((n) => n.id);
       expect(nodeIds).not.toContain("resources.jobs.job_perm_change.permissions");
@@ -514,7 +514,7 @@ describe("buildPlanGraph", () => {
   describe("complex-plan.json (numeric job_id)", () => {
     test("extracts all tasks from etl_pipeline including run_job_task with numeric job_id", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const etlTaskNodes = graph.nodes.filter(
         (n): n is TaskGraphNode =>
@@ -533,7 +533,7 @@ describe("buildPlanGraph", () => {
 
     test("creates cross-job edge from trigger_quality_check to data_quality_pipeline via numeric job_id", async () => {
       const plan = await loadFixture("mixed-changes");
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
 
       const crossJobEdge = graph.edges.find(
         (e) =>
@@ -549,13 +549,13 @@ describe("buildPlanGraph", () => {
     const etl = "resources.jobs.etl_pipeline";
     const data = "resources.jobs.data_pipeline";
 
-    const findEdge = (graph: ReturnType<typeof buildPlanGraph>, source: string, target: string) =>
+    const findEdge = (graph: PlanGraph, source: string, target: string) =>
       graph.edges.find((e) => e.source === source && e.target === target);
 
     // --- Job 1: conditional scenarios ---
 
     test("#1 unchanged root: extract has no edges", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const extractEdges = graph.edges.filter(
         (e) => e.source === `${etl}::extract` || e.target === `${etl}::extract`,
       );
@@ -566,13 +566,13 @@ describe("buildPlanGraph", () => {
     });
 
     test("#2 unchanged with deps: extract→load edge is unchanged", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edge = findEdge(graph, `${etl}::extract`, `${etl}::load`);
       expect(edge?.diffState).toBe("unchanged");
     });
 
     test("#6 1→1 swap with outcome removal: full_validation has removed edge from check_row_count and added edge from load", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const removed = findEdge(graph, `${etl}::check_row_count`, `${etl}::full_validation`);
       const added = findEdge(graph, `${etl}::load`, `${etl}::full_validation`);
       expect(removed?.diffState).toBe("removed");
@@ -580,7 +580,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#8 2→1 shrink: publish keeps full_validation edge, loses skip_validation edge", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const kept = findEdge(graph, `${etl}::full_validation`, `${etl}::publish`);
       const removed = findEdge(graph, `${etl}::skip_validation`, `${etl}::publish`);
       expect(kept?.diffState).toBe("unchanged");
@@ -588,19 +588,19 @@ describe("buildPlanGraph", () => {
     });
 
     test("#15 removed with deps: check_row_count has removed edge from load", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edge = findEdge(graph, `${etl}::load`, `${etl}::check_row_count`);
       expect(edge?.diffState).toBe("removed");
     });
 
     test("#15 removed with deps: skip_validation has removed edge from check_row_count", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edge = findEdge(graph, `${etl}::check_row_count`, `${etl}::skip_validation`);
       expect(edge?.diffState).toBe("removed");
     });
 
     test("#16 removed task was depended on: check_row_count has removed edges to both branches", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const toFull = findEdge(graph, `${etl}::check_row_count`, `${etl}::full_validation`);
       const toSkip = findEdge(graph, `${etl}::check_row_count`, `${etl}::skip_validation`);
       expect(toFull?.diffState).toBe("removed");
@@ -610,19 +610,19 @@ describe("buildPlanGraph", () => {
     // --- Job 2: non-conditional scenarios ---
 
     test("#3 0→1 add first dep: monitor gains added edge from ingest", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edge = findEdge(graph, `${data}::ingest`, `${data}::monitor`);
       expect(edge?.diffState).toBe("added");
     });
 
     test("#4 1→0 remove all deps: normalize loses edge from ingest", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edge = findEdge(graph, `${data}::ingest`, `${data}::normalize`);
       expect(edge?.diffState).toBe("removed");
     });
 
     test("#5 1→1 swap: clean swaps dep from normalize to ingest", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const removed = findEdge(graph, `${data}::normalize`, `${data}::clean`);
       const added = findEdge(graph, `${data}::ingest`, `${data}::clean`);
       expect(removed?.diffState).toBe("removed");
@@ -630,7 +630,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#7 1→2 grow: enrich keeps validate edge, gains clean edge", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const kept = findEdge(graph, `${data}::validate`, `${data}::enrich`);
       const added = findEdge(graph, `${data}::clean`, `${data}::enrich`);
       expect(kept?.diffState).toBe("unchanged");
@@ -638,7 +638,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#9 2→2 swap one: process_a keeps clean edge, swaps filter for validate", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const kept = findEdge(graph, `${data}::clean`, `${data}::process_a`);
       const removed = findEdge(graph, `${data}::filter`, `${data}::process_a`);
       const added = findEdge(graph, `${data}::validate`, `${data}::process_a`);
@@ -648,7 +648,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#10 2→2 swap both: process_b swaps clean→ingest and filter→validate", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const removedClean = findEdge(graph, `${data}::clean`, `${data}::process_b`);
       const removedFilter = findEdge(graph, `${data}::filter`, `${data}::process_b`);
       const addedIngest = findEdge(graph, `${data}::ingest`, `${data}::process_b`);
@@ -660,7 +660,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#11 2→2 reorder: combine edges are unchanged (set-based comparison)", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edgeA = findEdge(graph, `${data}::process_a`, `${data}::combine`);
       const edgeB = findEdge(graph, `${data}::process_b`, `${data}::combine`);
       expect(edgeA?.diffState).toBe("unchanged");
@@ -668,7 +668,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#12 new task no deps: audit node exists with added state", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const node = graph.nodes.find((n) => n.nodeKind === "task" && n.id === `${data}::audit`);
       expect(node?.diffState).toBe("added");
       const edges = graph.edges.filter(
@@ -678,13 +678,13 @@ describe("buildPlanGraph", () => {
     });
 
     test("#13 new task with deps: clean_v2 has added edge from clean", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edge = findEdge(graph, `${data}::clean`, `${data}::clean_v2`);
       expect(edge?.diffState).toBe("added");
     });
 
     test("#14 removed task no deps: standby node exists with removed state and no edges", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const node = graph.nodes.find((n) => n.nodeKind === "task" && n.id === `${data}::standby`);
       expect(node?.diffState).toBe("removed");
       const ownEdges = graph.edges.filter(
@@ -694,7 +694,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#17 swap to newly added task: validate swaps dep from clean to clean_v2", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const removed = findEdge(graph, `${data}::clean`, `${data}::validate`);
       const added = findEdge(graph, `${data}::clean_v2`, `${data}::validate`);
       expect(removed?.diffState).toBe("removed");
@@ -702,7 +702,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("#18 dep on removed task replaced: filter swaps dep from standby to ingest", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const removed = findEdge(graph, `${data}::standby`, `${data}::filter`);
       const added = findEdge(graph, `${data}::ingest`, `${data}::filter`);
       expect(removed?.diffState).toBe("removed");
@@ -710,14 +710,14 @@ describe("buildPlanGraph", () => {
     });
 
     test("#2 unchanged with deps (data_pipeline): output→combine edge unchanged", async () => {
-      const graph = buildPlanGraph(await loadFixture("task-dag-rewiring"));
+      const graph = buildPlanGraphFromPlan(await loadFixture("task-dag-rewiring"));
       const edge = findEdge(graph, `${data}::combine`, `${data}::output`);
       expect(edge?.diffState).toBe("unchanged");
     });
   });
 
   describe("run_job_task job_id annotation", () => {
-    const findTaskNode = (graph: ReturnType<typeof buildPlanGraph>, taskKey: string) =>
+    const findTaskNode = (graph: PlanGraph, taskKey: string) =>
       graph.nodes.find((n): n is TaskGraphNode => n.nodeKind === "task" && n.taskKey === taskKey);
 
     const runJobTaskJobId = (node: TaskGraphNode | undefined) => {
@@ -750,7 +750,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "trigger_worker");
       expect(runJobTaskJobId(node)).toBe("0 (worker_job)");
     });
@@ -778,7 +778,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "trigger_b");
       expect(runJobTaskJobId(node)).toBe("200 (pipeline_b)");
     });
@@ -808,7 +808,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "trigger_b");
       // biome-ignore lint/suspicious/noTemplateCurlyInString: Databricks bundle interpolation syntax
       expect(runJobTaskJobId(node)).toBe("${resources.jobs.pipeline_b.id} (pipeline_b)");
@@ -828,7 +828,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "trigger_b");
       expect(runJobTaskJobId(node)).toBe(0);
     });
@@ -847,7 +847,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "extract");
       expect(node?.resourceState?.["run_job_task"]).toBeUndefined();
       expect(node?.resourceState?.["notebook_task"]).toEqual({ notebook_path: "/foo" });
@@ -883,7 +883,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "trigger_worker");
       // resourceState values are opaque `unknown` — cast to access individual fields
       const rjt = node?.resourceState?.["run_job_task"] as Record<string, unknown>;
@@ -920,7 +920,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "trigger_old");
       // Deleted tasks resolve via jobIdMap (numeric lookup), not vars.
       // The target job still exists in the plan, so annotation works.
@@ -952,7 +952,7 @@ describe("buildPlanGraph", () => {
         },
       };
 
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const node = findTaskNode(graph, "trigger_old");
       // job_id=0 with no vars and no jobIdMap match: unresolvable, stays raw.
       expect(runJobTaskJobId(node)).toBe(0);
@@ -997,7 +997,7 @@ describe("buildPlanGraph", () => {
     };
 
     test("task node isDrift=true when only signal is reclassified-list-element-delete", () => {
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const publish = graph.nodes.find(
         (n): n is TaskGraphNode => n.nodeKind === "task" && n.taskKey === "publish",
       );
@@ -1005,7 +1005,7 @@ describe("buildPlanGraph", () => {
     });
 
     test("job-level taskChangeSummary entry for publish has isDrift=true", () => {
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const job = graph.nodes.find(
         (n): n is JobGraphNode =>
           n.nodeKind === "job" && n.resourceKey === "resources.jobs.drift_pipeline",
@@ -1021,7 +1021,7 @@ describe("buildPlanGraph", () => {
       // whole-entry scan). This test pins that the call site emits a value
       // and that the ctx-aware swap didn't drop it; the bug-fix coverage is
       // in the two task-level assertions above.
-      const graph = buildPlanGraph(plan);
+      const graph = buildPlanGraphFromPlan(plan);
       const job = graph.nodes.find(
         (n): n is JobGraphNode =>
           n.nodeKind === "job" && n.resourceKey === "resources.jobs.drift_pipeline",
@@ -1069,7 +1069,7 @@ describe("wheel updates (dagshund-aqcx)", () => {
   };
 
   test("job node carries distinct wheel updates sorted by distribution", () => {
-    const graph = buildPlanGraph(wheelPlan);
+    const graph = buildPlanGraphFromPlan(wheelPlan);
 
     const jobNode = graph.nodes.find((n): n is JobGraphNode => n.nodeKind === "job");
     expect(jobNode?.wheelUpdates).toEqual([
@@ -1079,7 +1079,7 @@ describe("wheel updates (dagshund-aqcx)", () => {
   });
 
   test("wheel-only task is flagged, mixed task is not", () => {
-    const graph = buildPlanGraph(wheelPlan);
+    const graph = buildPlanGraphFromPlan(wheelPlan);
 
     const taskNodes = graph.nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task");
     const ingest = taskNodes.find((n) => n.taskKey === "ingest");
@@ -1093,7 +1093,7 @@ describe("wheel updates (dagshund-aqcx)", () => {
 
   test("job without wheel changes carries no wheel updates", async () => {
     const plan = await loadFixture("mixed-changes");
-    const graph = buildPlanGraph(plan);
+    const graph = buildPlanGraphFromPlan(plan);
 
     for (const node of graph.nodes) {
       if (node.nodeKind === "job") expect(node.wheelUpdates).toBeUndefined();
@@ -1105,7 +1105,7 @@ describe("wheel updates (dagshund-aqcx)", () => {
 describe("wheel updates from the wheel-bump golden fixture (mixed compute)", () => {
   test("job node carries both wheel bumps; only pure wheel-bump tasks are wheel-only", async () => {
     const plan = await loadFixture("wheel-bump");
-    const graph = buildPlanGraph(plan);
+    const graph = buildPlanGraphFromPlan(plan);
 
     const jobNode = graph.nodes.find((n): n is JobGraphNode => n.nodeKind === "job");
     expect(jobNode?.wheelUpdates).toEqual([
@@ -1137,7 +1137,7 @@ describe("wheel updates from the wheel-bump golden fixture (mixed compute)", () 
 
   test("tasks with a wheel bump plus a real change are not wheel-only", async () => {
     const plan = await loadFixture("wheel-bump");
-    const graph = buildPlanGraph(plan);
+    const graph = buildPlanGraphFromPlan(plan);
 
     const taskNodes = graph.nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task");
     const validateOrders = taskNodes.find((task) => task.taskKey === "validate_orders");

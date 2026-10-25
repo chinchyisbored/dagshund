@@ -25,64 +25,110 @@ or phantom provenance.
 
 ## Data Flow
 
-```
-Acquire input (JSON text, embedded data, or fetched data)
-  → Decode JSON text if needed + Zod validate (parser/)
-  → Normalize plan (utils/) + construct internal graph (graph/)
-  → Run asynchronous ELK layout + convert to React Flow nodes and edges (graph/)
-  → Render (components/)
-```
+`App` acquires an embedded plan or fetches the `/api/plan` response through `useStdinPlan`;
+the server supplies that response from its input. It displays loading, empty, or error states. A
+ready plan passes through these distinct stages:
 
-Parsing, normalization, graph construction, and layout input/output transformations are pure.
-Input acquisition and the ELK layout engine are effectful boundaries; hooks orchestrate browser
-acquisition and asynchronous layout. Component render bodies remain pure, with UI side effects
-confined to effects and event handlers.
+1. **Parse and redact** — `parser/parse-plan.ts` decodes JSON text when needed, validates it
+   with Zod, and returns a `Plan`. `redactUcSecretValues` redacts supported Unity Catalog
+   secret resource values and secret change payloads before they reach the UI.
+2. **Normalize once** — `utils/normalize-plan.ts` folds job-run effect entries into their target
+   jobs and associates effects/orphans. It returns a `NormalizedPlan`; it does not mutate the
+   parsed plan.
+3. **Prepare once** — `preparation/prepare-plan.ts` selects each entry's effective current
+   snapshot and projects only the fields consumed by graph builders into `PreparedPlan`. The
+   normalized entries remain available alongside those projections. Neither preparation nor
+   normalization mutates its input.
+4. **Resolve identities and assemble graphs** — `graph/build-plan-graph.ts` and
+   `graph/build-resource-graph.ts` build graph nodes and hierarchy edges. The resource graph
+   builds one identity catalog, then `graph/resolve-references.ts` composes conventional,
+   Postgres, UC-table, derived-output, ingestion, serving, app, task, Lakebase, and workspace
+   reference owners. Graph assembly materializes permitted phantom and derived nodes and emits
+   resolved lateral edges. These transformations are pure.
+5. **Layout asynchronously** — `hooks/use-plan-graph.ts` or `hooks/use-resource-graph.ts`
+   invokes `hooks/use-async-layout.ts`. `graph/layout-graph.ts` converts the graph to ELK input,
+   runs asynchronous ELK layout, then creates React Flow nodes and edges. Layout is the
+   effectful computation; the hook handles loading/error state and ignores stale results after
+   cleanup.
+6. **Render** — `app.tsx` passes the parsed `Plan` through `PlanContext` and renders the jobs
+   and resources views. Components render the resulting layout; UI effects belong in effects or
+   event handlers, not render-time transformations.
+
+The parser's `Plan` in `PlanContext` is the original parsed, redacted, pre-normalization plan.
+Keep it for historical diff/API-identity access; do not replace it with normalized or prepared
+entries. Graph builders consume `PreparedPlan` for current-state semantics and narrow reference
+projections.
+
+Preparation selects one effective snapshot per entry, rather than falling back field by field:
+non-delete entries use `new_state` when it contains a value, otherwise use `remote_state`; deletes
+use `remote_state`. A present empty `new_state.value` is an explicit empty current state, while an
+absent snapshot is absent. A malformed state wrapper can fall back to remote state, but an invalid
+current-state shape becomes unsupported. Historical diff and API identity extraction may still
+read the original entry where explicitly required; that is not current-state fallback.
+
+Prepared capabilities distinguish `supported`, `absent`, and `unsupported`. Preparation keeps
+arbitrary resource state and unknown fields opaque; it validates only the narrow shapes needed
+for a projection, not a complete Databricks resource schema. Unsupported projections produce
+safe diagnostics with a resource key, capability, and reason, not raw state values. The UI renders
+these as plan warnings in `components/preparation-diagnostics.tsx`; unsupported data remains
+uninterpreted rather than guessed.
 
 ## Resource Graph Structure
 
 Lateral edges point from the dependent resource to its dependency. Hierarchy edges point from
-parent to child. Keep these meanings distinct when adding relationships.
+parent to child. Derived-output ownership edges point from the output to its owning plan entry.
+Keep these meanings distinct when adding relationships. `depends_on` deployment-order references
+are not graph edges by themselves; use hierarchy or a semantic lateral relationship.
 
-The resource graph groups plan entries into two top-level sections:
+The resource graph has Unity Catalog and Workspace sections. UC catalogs (including database and
+Postgres catalogs) contain schemas, volumes, registered models, and synced-table leaves. Inferred
+source-table references can appear as phantom leaves. Managed derived UC synced tables and pipeline
+event logs are real derived outputs, not phantoms.
 
-- **UC** (`uc-root`) - Unity Catalog hierarchy: catalogs (including database/Postgres catalogs) → schemas → volumes/models/synced tables, plus inferred source-table phantom leaves and managed derived UC synced-table leaves
-- **Workspace** (`workspace-root`) — everything else, containing:
-  - **Lakebase** (`postgres-root`, labeled "Lakebase") — projects → branches → databases/endpoints/roles → synced tables
-  - Type categories for flat workspace resource types with at least two real resources, such as **Jobs** or **Pipelines**
-  - **Other Resources** (`other-resources-root`) for remaining singleton types, managed workspace outputs, and unmatched inferred references whenever a type category or Lakebase exists
+Workspace contains Lakebase (the Postgres project → branch → database/endpoint/role hierarchy),
+flat resource types grouped into categories when at least two entries of that type are present,
+and `Other Resources` when a subgroup exists and remaining nodes need a fallback. Managed derived
+workspace outputs currently count with plan entries when deciding whether a type category repeats.
+Phantoms never create a category, though a phantom of a type with an existing category can join it.
+`Other Resources` is omitted when no remaining nodes need it; fully flat plans stay directly under
+Workspace. Category IDs use `workspace-category::<resource-type>`.
 
-Category IDs use `workspace-category::<resource-type>`. Categories are derived from normalized real resource types, and phantom nodes never count toward the threshold for creating one. Matching phantoms join an existing type category. `Other Resources` appears only when a subgroup exists and at least one remaining node needs the fallback; fully flat plans stay directly under Workspace.
+Phantom nodes represent unresolved external entities and use inferred placement and dashed
+styling. Derived nodes represent outputs managed by another plan entry: they use ordinary resource
+styling, inherit the owner's diff state (including `unknown`), and link laterally from output to
+owner without copying the owner's plan state. `graph/derived-node-specs.ts` defines supported
+derived outputs and identity conventions. For example, `pipelines[].event_log` creates a derived
+Delta-table leaf under its configured catalog/schema, promotes a matching inferred source-table
+phantom, and links output to pipeline. `postgres_synced_tables` can produce a managed Workspace
+pipeline. Pipeline `catalog`/`target` fields describe output placement, not lateral references;
+ingestion source schemas are semantic dependencies and do produce lateral edges.
 
-Group nodes that represent inferred/external entities (not in the plan) render with dashed borders.
-Derived nodes represent real outputs managed through another plan entry. They use ordinary
-resource styling and inherit the owner's diff state, including dashed borders for `unknown`.
-They link laterally from output to owner without copying the owner's plan state. Derived Unity
-Catalog tables join the catalog hierarchy, while pipelines generated by `postgres_synced_tables`
-join the Workspace pipeline placement and resolve both symbolic output references and concrete IDs.
-A pipeline `event_log` is a managed Delta table and therefore renders as a derived Unity Catalog
-leaf beneath its configured catalog and schema. It promotes an inferred source-table phantom with
-the same identity and links laterally from the event-log table to its owning pipeline. Pipeline
-`catalog` and `target` fields only define output placement and do not produce lateral edges.
-Pipeline ingestion source schemas remain semantic dependencies and do produce lateral edges.
+### Adding a resource reference
 
-`postgres_catalogs` render as Unity Catalog catalog nodes because that is where users see the
-catalog. Their semantic `branch` field is shown as a lateral edge to the Lakebase Postgres branch
-when it resolves to a branch resource in the plan.
+1. Add only the consumed, narrow field projection in `preparation/prepare-resource-references.ts`
+   or the relevant preparation module. Preserve the `absent` / `supported` / `unsupported`
+   result and safe diagnostic behavior.
+2. Reuse or add a resource identity convention in `utils/resource-key.ts` or the relevant
+   identity/index helper. Use `graph/reference-specs.ts` for conventional reference facts.
+3. Add truly resource-specific resolution to its concrete owner: conventional references,
+   prepared tasks, workspace, Postgres, Lakebase, UC tables, pipeline ingestion, serving models,
+   or app resources. Keep identity catalog construction in `graph/build-reference-identity-catalog.ts`
+   and let `graph/resolve-references.ts` compose owners in the established order. Resolve once to
+   a `ReferenceResolution`, including its permitted phantom/derived identity and edge direction.
+4. Materialize allowed targets during graph assembly, then let
+   `graph/extract-lateral-edges.ts` emit deduplicated edges only when both endpoints exist.
+5. Cover the public graph behavior and the narrow semantic contract in the relevant tests.
+   See [semantic fixture consumers](../../fixtures/README.md#semantic-js-contract-fixtures).
 
-Branches created from another branch keep their project hierarchy placement. Their semantic
-`source_branch` lineage is shown as a lateral edge from the derived branch to the source branch.
-
-`postgres_roles.membership_roles` intentionally produces no graph edge. The CLI 1.14 schema only
-permits the fixed `DATABRICKS_SUPERUSER` role, not a reference to another bundle-managed role.
-
-Top-level clusters, job-level `job_clusters[].new_cluster`, task-level `new_cluster`, and pipeline
-clusters link to bundle-managed instance pools through schema-validated symbolic references.
-Concrete instance-pool API IDs intentionally remain unresolved because the free fixture workspace
-cannot provide deployed direct-engine evidence for their state shape.
-
-Vector Search indexes link to bundle-managed Vector Search endpoints through `endpoint_name`. The
-relationship resolves both a schema-validated symbolic endpoint `name` reference and a concrete
-name matching the endpoint state.
+Concrete references and tests include conventional specs and task-reference rules in
+`graph/reference-specs.ts` and `graph/resolve-task-references.ts`, domain policies in their
+`graph/resolve-*-references.ts` owners, and public outcomes in
+`js/tests/graph/reference-outcome-cases.json`. Resolved-target pair deduplication remains in
+`graph/extract-lateral-edges.ts` (`js/tests/graph/target-pair-cases.json`). `postgres_roles.membership_roles` intentionally has no
+graph edge. Top-level, job, task, and pipeline cluster references resolve symbolic instance-pool
+references; concrete instance-pool API IDs remain unsupported. Pipeline catalog/target placement
+and monitor output schema do not create graph edges. No claim is made here about CLI 1.20 or AI
+Gateway support.
 
 ## File Structure
 
@@ -91,17 +137,18 @@ js/src/
   index.ts              — Dev server entry point
   index.html            — Dev server HTML shell
   frontend.tsx          — React entry point
-  app.tsx               — Root React component
+  app.tsx               — Root React component and parsed Plan context
   html-assembler.ts     — HTML assembly (escape helpers, template building)
-  parser/               — Plan JSON parsing + Zod validation
-  graph/                — DAG graph construction
+  parser/               — Plan JSON parsing, Zod validation, secret redaction
+  preparation/          — Narrow, immutable graph-consumer projections
+  graph/                — Identity resolution, graph assembly, ELK layout conversion
   components/           — React components (each in its own file)
   types/                — TypeScript types and Zod schemas
-  utils/                - Shared utilities, including explicit I/O helpers such as open-browser.ts
-  hooks/                — Custom React hooks
+  utils/                — Normalization and shared utilities, including explicit I/O helpers
+  hooks/                — Custom React hooks, including acquisition and async layout
   styles/               — Tailwind CSS
 ```
 
 The production template is built by `js/scripts/build-template.ts` into `src/dagshund/_assets/`
-(the Python package). There are no `index.ts` barrels — import from concrete modules. Keep files
+(the Python package). There are no `index.ts` barrels; import from concrete modules. Keep files
 small and focused.
