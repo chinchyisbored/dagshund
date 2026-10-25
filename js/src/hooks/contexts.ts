@@ -32,7 +32,6 @@ type InteractionState = {
   readonly lateralNodeIds: ReadonlySet<string> | null;
   readonly isolatedLateralNodeId: string | null;
   readonly showLateralEdges: boolean;
-  readonly hideWheelUpdates: boolean;
 };
 
 export const InteractionContext = createContext<InteractionState>({
@@ -46,7 +45,6 @@ export const InteractionContext = createContext<InteractionState>({
   lateralNodeIds: null,
   isolatedLateralNodeId: null,
   showLateralEdges: false,
-  hideWheelUpdates: false,
 });
 
 /** Read the current interaction state from the nearest InteractionContext provider. */

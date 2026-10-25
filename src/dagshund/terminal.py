@@ -230,7 +230,6 @@ def _render_resource(
     *,
     use_color: bool,
     width: int | None = None,
-    suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
     standalone_run = select_standalone_job_run_effect(key, entry)
     if standalone_run is not None:
@@ -251,7 +250,7 @@ def _render_resource(
     for effect in entry.effects:
         yield from _render_effect_lines(effect, use_color=use_color, width=width)
 
-    details = select_resource_details(entry, suppress_wheel_updates=suppress_wheel_updates)
+    details = select_resource_details(entry)
     if details.has_drift:
         yield _colorize("      \u26a0 manually edited outside bundle", YELLOW, use_color=use_color)
 
@@ -259,10 +258,6 @@ def _render_resource(
         rendered = _render_field_change(field_name, change, ctx=ctx, use_color=use_color, width=width)
         if rendered is not None:
             yield rendered
-
-    for usage in details.wheel_updates:
-        line = _escape_terminal(f"      ~ {format_wheel_update_body(usage)}")
-        yield _colorize(line, YELLOW, use_color=use_color)
 
     if details.topology_readds:
         create_cfg = action_config(ActionType.CREATE)
@@ -290,7 +285,6 @@ def _print_resource_groups(
     *,
     use_color: bool,
     width: int | None = None,
-    suppress_wheel_updates: bool = False,
 ) -> None:
     for group in resource_groups:
         header = _escape_terminal(f"  {format_group_header(group.resource_type, group.total, len(group.entries))}")
@@ -301,7 +295,6 @@ def _print_resource_groups(
                 entry,
                 use_color=use_color,
                 width=width,
-                suppress_wheel_updates=suppress_wheel_updates,
             ):
                 print(line)
         print()
@@ -309,6 +302,16 @@ def _print_resource_groups(
 
 def _format_action_count(cfg: ActionConfig, count: int, *, use_color: bool) -> str:
     return _colorize(f"{cfg.symbol}{count} {cfg.display}", _action_color(cfg), use_color=use_color)
+
+
+def _print_wheel_updates(report: Report, *, use_color: bool) -> None:
+    if not report.wheel_updates:
+        return
+    print()
+    print(_colorize("  Wheel updates:", YELLOW + _BOLD, use_color=use_color))
+    for usage in report.wheel_updates:
+        line = _escape_terminal(f"    ~ {format_wheel_update_body(usage, report.wheel_updates)}")
+        print(_colorize(line, YELLOW, use_color=use_color))
 
 
 def _print_summary(report: Report, *, use_color: bool) -> None:
@@ -365,7 +368,12 @@ def render_text(
     not ``ResourceChange.key``. Version metadata is optional and does not require
     a parsed plan envelope.
     """
-    report = prepare_report(resources, visible_states=visible_states, filter_query=filter_query)
+    report = prepare_report(
+        resources,
+        visible_states=visible_states,
+        filter_query=filter_query,
+        suppress_wheel_updates=suppress_wheel_updates,
+    )
 
     use_color = _supports_color()
     width = _detect_terminal_width()
@@ -381,13 +389,11 @@ def render_text(
         )
         return
 
-    _print_resource_groups(
-        report.groups,
-        use_color=use_color,
-        width=width,
-        suppress_wheel_updates=suppress_wheel_updates,
-    )
+    if report.no_non_wheel_changes:
+        print("  No non-wheel changes")
+    _print_resource_groups(report.groups, use_color=use_color, width=width)
     _print_summary(report, use_color=use_color)
+    _print_wheel_updates(report, use_color=use_color)
 
     if report.warnings:
         _print_warnings(report.warnings, use_color=use_color, width=width)

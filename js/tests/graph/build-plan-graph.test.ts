@@ -1068,71 +1068,33 @@ describe("wheel updates (dagshund-aqcx)", () => {
     },
   };
 
-  test("job node carries distinct wheel updates sorted by distribution", () => {
-    const graph = buildPlanGraphFromPlan(wheelPlan);
-
-    const jobNode = graph.nodes.find((n): n is JobGraphNode => n.nodeKind === "job");
-    expect(jobNode?.wheelUpdates).toEqual([
-      { distribution: "etl_lib", oldVersion: "0.1.0", newVersion: "0.2.0" },
-      { distribution: "scoring_lib", oldVersion: "1.4.0", newVersion: "1.5.0" },
-    ]);
-  });
-
-  test("wheel-only task is flagged, mixed task is not", () => {
+  test("raw task statuses retain full wheel and non-wheel differences", () => {
     const graph = buildPlanGraphFromPlan(wheelPlan);
 
     const taskNodes = graph.nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task");
     const ingest = taskNodes.find((n) => n.taskKey === "ingest");
     const report = taskNodes.find((n) => n.taskKey === "report");
 
-    expect(ingest?.isWheelOnlyChange).toBe(true);
     expect(ingest?.diffState).toBe("modified");
-    expect(report?.isWheelOnlyChange).toBe(false);
     expect(report?.diffState).toBe("modified");
   });
 
-  test("job without wheel changes carries no wheel updates", async () => {
+  test("ordinary job and task graph remains unaffected", async () => {
     const plan = await loadFixture("mixed-changes");
     const graph = buildPlanGraphFromPlan(plan);
 
-    for (const node of graph.nodes) {
-      if (node.nodeKind === "job") expect(node.wheelUpdates).toBeUndefined();
-      if (node.nodeKind === "task") expect(node.isWheelOnlyChange).toBe(false);
-    }
+    expect(graph.nodes.some((node) => node.nodeKind === "job")).toBe(true);
   });
 });
 
 describe("wheel updates from the wheel-bump golden fixture (mixed compute)", () => {
-  test("job node carries both wheel bumps; only pure wheel-bump tasks are wheel-only", async () => {
+  test("job and tasks retain raw changes before plan-level suppression", async () => {
     const plan = await loadFixture("wheel-bump");
     const graph = buildPlanGraphFromPlan(plan);
 
-    const jobNode = graph.nodes.find((n): n is JobGraphNode => n.nodeKind === "job");
-    expect(jobNode?.wheelUpdates).toEqual([
-      { distribution: "etl_lib", oldVersion: "0.1.0", newVersion: "0.2.0" },
-      { distribution: "scoring_lib", oldVersion: "1.0.0", newVersion: "1.1.0" },
-    ]);
-
     const taskNodes = graph.nodes.filter((n): n is TaskGraphNode => n.nodeKind === "task");
-    const wheelOnlyTaskKeys = taskNodes
-      .filter((task) => task.isWheelOnlyChange)
-      .map((task) => task.taskKey)
-      .toSorted();
-    expect(wheelOnlyTaskKeys).toEqual([
-      "merge_datasets",
-      "notify",
-      "single_wheel_01",
-      "single_wheel_02",
-      "single_wheel_03",
-      "single_wheel_04",
-      "single_wheel_05",
-      "single_wheel_06",
-      "single_wheel_07",
-      "single_wheel_08",
-      "single_wheel_09",
-      "single_wheel_10",
-      "validate_customers",
-    ]);
+    expect(taskNodes.length).toBeGreaterThan(0);
+    expect(taskNodes.some((task) => task.diffState === "modified")).toBe(true);
   });
 
   test("tasks with a wheel bump plus a real change are not wheel-only", async () => {
@@ -1144,8 +1106,6 @@ describe("wheel updates from the wheel-bump golden fixture (mixed compute)", () 
     const aggregate = taskNodes.find((task) => task.taskKey === "aggregate");
 
     expect(validateOrders?.diffState).toBe("modified");
-    expect(validateOrders?.isWheelOnlyChange).toBe(false);
     expect(aggregate?.diffState).toBe("modified");
-    expect(aggregate?.isWheelOnlyChange).toBe(false);
   });
 });

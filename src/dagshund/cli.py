@@ -32,7 +32,7 @@ EPILOG = """\
 examples:
   dagshund plan.json                                  terminal diff summary (default)
   dagshund plan.json --format md                      markdown diff summary
-  dagshund plan.json --suppress-wheel-updates         hide wheel version churn, summarize per job
+  dagshund plan.json -c --suppress-wheel-updates     review non-wheel changes with a plan-level wheel summary
   dagshund plan.json -o output.html                   HTML + terminal output
   dagshund plan.json -o output.html -b                HTML + browser + terminal output
   dagshund plan.json -o out.html --format md          HTML file + markdown to stdout
@@ -149,7 +149,7 @@ def _build_parser() -> argparse.ArgumentParser:
     filter_group.add_argument(
         "--suppress-wheel-updates",
         action="store_true",
-        help="Hide wheel version bumps (task libraries and environment dependencies), summarize them once per job",
+        help="Treat wheel version bumps as unchanged and summarize them once per plan",
     )
     return parser
 

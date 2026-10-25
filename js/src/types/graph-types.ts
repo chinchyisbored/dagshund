@@ -1,6 +1,5 @@
 import type { DerivedKind } from "../graph/derived-node-specs.ts";
 import type { JobRunEffect } from "../utils/normalize-plan.ts";
-import type { WheelUpdate } from "../utils/wheel-updates.ts";
 import type { DiffState } from "./diff-state.ts";
 import type { ChangeDesc } from "./plan-schema.ts";
 
@@ -43,9 +42,6 @@ export type JobGraphNode = BaseGraphNode & {
   readonly nodeKind: "job";
   readonly taskChangeSummary: TaskChangeSummary | undefined;
   readonly isDrift?: boolean;
-  /** Distinct wheel-version bumps across this job's tasks (dagshund-aqcx).
-   *  Rendered once on the container when wheel suppression is toggled on. */
-  readonly wheelUpdates: readonly WheelUpdate[] | undefined;
   /** Deploy-triggered runs (resources.job_runs.*) targeting this job (dagshund-ocb1). */
   readonly effects?: readonly JobRunEffect[];
 };
@@ -54,9 +50,6 @@ export type TaskGraphNode = BaseGraphNode & {
   readonly nodeKind: "task";
   readonly taskKey: string;
   readonly isDrift?: boolean;
-  /** True when every change marking this task modified is a wheel-version bump —
-   *  the task renders as unchanged while wheel suppression is toggled on. */
-  readonly isWheelOnlyChange: boolean;
 };
 
 export type ResourceGraphNode = BaseGraphNode & {

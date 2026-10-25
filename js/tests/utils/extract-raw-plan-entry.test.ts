@@ -36,7 +36,6 @@ const buildJobData = (resourceKey: string): DagNodeData => ({
   remoteState: undefined,
   resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
-  wheelUpdates: undefined,
 });
 
 const buildTaskData = (resourceKey: string, taskKey: string): DagNodeData => ({
@@ -50,7 +49,6 @@ const buildTaskData = (resourceKey: string, taskKey: string): DagNodeData => ({
   newState: undefined,
   remoteState: undefined,
   resourceHasShapeDrift: false,
-  isWheelOnlyChange: false,
 });
 
 const buildRootData = (): DagNodeData => ({

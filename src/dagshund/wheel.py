@@ -15,7 +15,7 @@ apart.
 import re
 from collections import defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 from dagshund.model import FieldChange
@@ -28,6 +28,8 @@ _TASK_WHEEL_CHANGE_KEY_RE = re.compile(
 # Serverless environment dependency: environments[environment_key='K'].spec.dependencies[N].
 # Dependencies mix pip specs and wheel paths; the value filter below keeps only wheels.
 _ENVIRONMENT_WHEEL_CHANGE_KEY_RE = re.compile(r"^environments\[environment_key='([^']+)'\]\.spec\.dependencies\[\d+\]$")
+_PIPELINE_WHEEL_CHANGE_KEY_RE = re.compile(r"^libraries\[\d+\]\.whl$")
+_PIPELINE_ENVIRONMENT_WHEEL_CHANGE_KEY_RE = re.compile(r"^environment\.dependencies\[\d+\]$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +39,22 @@ class WheelUpdate:
     distribution: str
     old_version: str
     new_version: str
+    old_requirement: str = field(default="", compare=False, hash=False)
+    new_requirement: str = field(default="", compare=False, hash=False)
+
+
+def format_wheel_update(update: WheelUpdate, updates: tuple[WheelUpdate, ...]) -> str:
+    """Format a transition, disambiguating equal or colliding version labels."""
+    ambiguous = update.old_version == update.new_version or any(
+        other is not update
+        and (other.distribution, other.old_version, other.new_version)
+        == (update.distribution, update.old_version, update.new_version)
+        and (other.old_requirement, other.new_requirement) != (update.old_requirement, update.new_requirement)
+        for other in updates
+    )
+    if ambiguous:
+        return f"{update.distribution}: {update.old_requirement} → {update.new_requirement}"
+    return f"{update.distribution} {update.old_version} → {update.new_version}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +64,7 @@ class WheelUpdateUsage:
     update: WheelUpdate
     task_count: int
     environment_count: int
+    pipeline_count: int = 0
 
 
 _EXTRA_NAME = r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
@@ -83,7 +102,7 @@ def parse_wheel_filename(path: str) -> tuple[str, str] | None:
     return (parsed[0], parsed[1]) if parsed is not None else None
 
 
-def classify_wheel_update(change_key: str, change: FieldChange) -> WheelUpdate | None:
+def classify_wheel_update(change_key: str, change: FieldChange, resource_type: str | None = None) -> WheelUpdate | None:
     """Classify a field change as a suppressible wheel update, or ``None``.
 
     A wheel update replaces one wheel path with another whose filename parses
@@ -91,10 +110,15 @@ def classify_wheel_update(change_key: str, change: FieldChange) -> WheelUpdate |
     or an environment dependency (serverless). Swapping to a different
     distribution, or adding/removing a wheel, is a real change and stays visible.
     """
-    if (
-        _TASK_WHEEL_CHANGE_KEY_RE.match(change_key) is None
-        and _ENVIRONMENT_WHEEL_CHANGE_KEY_RE.match(change_key) is None
-    ):
+    is_job_path = resource_type != "pipelines" and (
+        _TASK_WHEEL_CHANGE_KEY_RE.fullmatch(change_key) is not None
+        or _ENVIRONMENT_WHEEL_CHANGE_KEY_RE.fullmatch(change_key) is not None
+    )
+    is_pipeline_path = resource_type == "pipelines" and (
+        _PIPELINE_WHEEL_CHANGE_KEY_RE.fullmatch(change_key) is not None
+        or _PIPELINE_ENVIRONMENT_WHEEL_CHANGE_KEY_RE.fullmatch(change_key) is not None
+    )
+    if not is_job_path and not is_pipeline_path:
         return None
     if not (isinstance(change.old, str) and isinstance(change.new, str)):
         return None
@@ -110,6 +134,8 @@ def classify_wheel_update(change_key: str, change: FieldChange) -> WheelUpdate |
         distribution=old_parsed[0],
         old_version=old_parsed[1],
         new_version=new_parsed[1],
+        old_requirement=change.old,
+        new_requirement=change.new,
     )
 
 
@@ -122,29 +148,44 @@ def collect_wheel_updates(changes: Mapping[str, FieldChange]) -> dict[str, Wheel
     }
 
 
-def summarize_wheel_updates(wheel_updates: Mapping[str, WheelUpdate]) -> list[WheelUpdateUsage]:
+def summarize_wheel_updates(wheel_updates: Mapping[str, WheelUpdate], resource_key: str = "") -> list[WheelUpdateUsage]:
     """Deduplicate wheel updates and count distinct carriers per distinct update.
 
     Sorted by distribution name so multi-wheel jobs render deterministically.
     """
-    tasks_by_update: defaultdict[WheelUpdate, set[str]] = defaultdict(set)
-    environments_by_update: defaultdict[WheelUpdate, set[str]] = defaultdict(set)
+    tasks_by_update: defaultdict[tuple[str, str, str], set[str]] = defaultdict(set)
+    environments_by_update: defaultdict[tuple[str, str, str], set[str]] = defaultdict(set)
+    pipelines_by_update: defaultdict[tuple[str, str, str], set[str]] = defaultdict(set)
+    update_by_identity: dict[tuple[str, str, str], WheelUpdate] = {}
     for change_key, update in wheel_updates.items():
-        task_match = _TASK_WHEEL_CHANGE_KEY_RE.match(change_key)
+        identity = (update.distribution, update.old_requirement, update.new_requirement)
+        update_by_identity[identity] = update
+        task_match = _TASK_WHEEL_CHANGE_KEY_RE.fullmatch(change_key)
         if task_match is not None:
-            tasks_by_update[update].add(task_match.group(1))
+            scope = "for_each" if ".for_each_task.task." in change_key else "task"
+            tasks_by_update[identity].add(f"{resource_key}:{scope}:{task_match.group(1)}")
             continue
-        environment_match = _ENVIRONMENT_WHEEL_CHANGE_KEY_RE.match(change_key)
+        environment_match = _ENVIRONMENT_WHEEL_CHANGE_KEY_RE.fullmatch(change_key)
         if environment_match is not None:
-            environments_by_update[update].add(environment_match.group(1))
+            environments_by_update[identity].add(f"{resource_key}:environment:{environment_match.group(1)}")
+            continue
+        if _PIPELINE_WHEEL_CHANGE_KEY_RE.fullmatch(change_key):
+            pipelines_by_update[identity].add(f"{resource_key}:pipeline")
+        elif _PIPELINE_ENVIRONMENT_WHEEL_CHANGE_KEY_RE.fullmatch(change_key):
+            pipelines_by_update[identity].add(f"{resource_key}:pipeline_environment")
     return sorted(
         (
             WheelUpdateUsage(
-                update=update,
-                task_count=len(tasks_by_update.get(update, ())),
-                environment_count=len(environments_by_update.get(update, ())),
+                update=update_by_identity[identity],
+                task_count=len(tasks_by_update.get(identity, ())),
+                environment_count=len(environments_by_update.get(identity, ())),
+                pipeline_count=len(pipelines_by_update.get(identity, ())),
             )
-            for update in tasks_by_update.keys() | environments_by_update.keys()
+            for identity in tasks_by_update.keys() | environments_by_update.keys() | pipelines_by_update.keys()
         ),
-        key=lambda usage: (usage.update.distribution, usage.update.old_version, usage.update.new_version),
+        key=lambda usage: (
+            usage.update.distribution,
+            usage.update.old_requirement,
+            usage.update.new_requirement,
+        ),
     )

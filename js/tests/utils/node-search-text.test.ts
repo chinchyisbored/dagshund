@@ -16,7 +16,6 @@ const makeTaskNode = (
   newState: undefined,
   remoteState: undefined,
   resourceHasShapeDrift: false,
-  isWheelOnlyChange: false,
 });
 
 const makeJobNode = (label: string): DagNodeData => ({
@@ -30,7 +29,6 @@ const makeJobNode = (label: string): DagNodeData => ({
   remoteState: undefined,
   resourceHasShapeDrift: false,
   taskChangeSummary: undefined,
-  wheelUpdates: undefined,
 });
 
 const makePhantomNode = (label: string, resourceKey: string): DagNodeData => ({

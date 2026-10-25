@@ -29,7 +29,6 @@ const defaultInteractionState: InteractionState = {
   lateralNodeIds: null,
   isolatedLateralNodeId: null,
   showLateralEdges: false,
-  hideWheelUpdates: false,
 };
 
 export const withInteractionState =

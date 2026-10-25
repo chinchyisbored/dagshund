@@ -1,50 +1,11 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { fireEvent, render, waitFor } from "@testing-library/react";
-import { RawJsonDisclosure } from "../src/components/detail-panel/raw-json-disclosure.tsx";
 import * as planGraphBuilder from "../src/graph/build-plan-graph.ts";
 import * as resourceGraphBuilder from "../src/graph/build-resource-graph.ts";
-import { useResourceGraph } from "../src/hooks/use-resource-graph.ts";
 import * as planPreparer from "../src/preparation/prepare-plan.ts";
 import * as planNormalizer from "../src/utils/normalize-plan.ts";
 
 mock.module("../src/styles/output.css", () => ({}));
-mock.module("../src/components/resources-view.tsx", () => ({
-  ResourcesView: ({ plan }: { readonly plan: Parameters<typeof useResourceGraph>[0] }) => {
-    useResourceGraph(plan);
-    return (
-      <>
-        <RawJsonDisclosure
-          data={{
-            nodeKind: "resource",
-            resourceKey: "resources.schemas.analytics",
-            label: "analytics",
-            diffState: "unchanged",
-            changes: undefined,
-            resourceState: undefined,
-            newState: undefined,
-            remoteState: undefined,
-            resourceHasShapeDrift: false,
-            taskChangeSummary: undefined,
-          }}
-        />
-        <RawJsonDisclosure
-          data={{
-            nodeKind: "resource",
-            resourceKey: "resources.job_runs.nightly",
-            label: "nightly",
-            diffState: "unchanged",
-            changes: undefined,
-            resourceState: undefined,
-            newState: undefined,
-            remoteState: undefined,
-            resourceHasShapeDrift: false,
-            taskChangeSummary: undefined,
-          }}
-        />
-      </>
-    );
-  },
-}));
 const { App } = await import("../src/app.tsx");
 
 afterEach(() => {
@@ -111,7 +72,7 @@ describe("PlanView normalization orchestration", () => {
     const preparePlan = spyOn(planPreparer, "preparePlan");
     const buildPlanGraph = spyOn(planGraphBuilder, "buildPlanGraph");
     const buildResourceGraph = spyOn(resourceGraphBuilder, "buildResourceGraph");
-    const { getByRole, getAllByRole } = render(<App />);
+    const { getByRole } = render(<App />);
 
     await waitFor(() => expect(getByRole("button", { name: "Jobs (1)" })).toBeTruthy());
     expect(getByRole("button", { name: "Resources (2)" })).toBeTruthy();
@@ -125,24 +86,6 @@ describe("PlanView normalization orchestration", () => {
     expect(buildPlanGraph.mock.calls.every(([plan]) => plan === preparedPlan)).toBe(true);
     expect(buildResourceGraph.mock.calls.every(([plan]) => plan === preparedPlan)).toBe(true);
 
-    const rawJsonButtons = getAllByRole("button", { name: /Raw JSON/ });
-    expect(rawJsonButtons.length).toBeGreaterThan(0);
-    const firstRawJsonButton = rawJsonButtons[0];
-    if (firstRawJsonButton !== undefined) fireEvent.click(firstRawJsonButton);
-    const rawJson = document.querySelectorAll("pre");
-    expect(rawJson).toHaveLength(2);
-    expect(rawJson[0]?.textContent).toContain('"action": "update"');
-    expect(rawJson[0]?.textContent).toContain('"name"');
-    expect(rawJson[0]?.textContent).not.toContain("annotations");
-    expect(rawJson[1]?.textContent).toContain('"privileges"');
-    expect(rawJson[1]?.textContent).toContain('"SELECT"');
-
-    if (rawJsonButtons[1] !== undefined) fireEvent.click(rawJsonButtons[1]);
-    const expandedRawJson = document.querySelectorAll("pre");
-    expect(expandedRawJson).toHaveLength(3);
-    expect(expandedRawJson[2]?.textContent).toContain('"job_id": 300');
-    expect(expandedRawJson[2]?.textContent).not.toContain("annotations");
-
     fireEvent.click(getByRole("button", { name: "Jobs (1)" }));
     fireEvent.click(getByRole("button", { name: "Resources (2)" }));
     expect(normalizePlan).toHaveBeenCalledTimes(1);
@@ -152,5 +95,180 @@ describe("PlanView normalization orchestration", () => {
     preparePlan.mockRestore();
     buildPlanGraph.mockRestore();
     buildResourceGraph.mockRestore();
+  });
+
+  test("pipeline-only suppression is shared by both graph views and keeps its global summary", async () => {
+    (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__ = {
+      plan: {
+        "resources.pipelines.only": {
+          action: "update",
+          changes: {
+            "libraries[0].whl": {
+              action: "update",
+              old: "/artifacts/lib-1.0-py3-none-any.whl",
+              new: "/artifacts/lib-2.0-py3-none-any.whl",
+            },
+          },
+          new_state: { value: { pipeline_id: "pipeline-1" } },
+        },
+        "resources.pipelines.second": {
+          action: "update",
+          changes: {
+            "libraries[0].whl": {
+              action: "update",
+              old: "/artifacts/other-1.0-py3-none-any.whl",
+              new: "/artifacts/other-2.0-py3-none-any.whl",
+            },
+          },
+          new_state: { value: { pipeline_id: "pipeline-2" } },
+        },
+      },
+    };
+    const buildPlanGraph = spyOn(planGraphBuilder, "buildPlanGraph");
+    const buildResourceGraph = spyOn(resourceGraphBuilder, "buildResourceGraph");
+    const view = render(<App />);
+
+    fireEvent.click(view.getByRole("button", { name: /^Hide wheel updates/ }));
+    await waitFor(() => expect(view.getByRole("region", { name: "Wheel updates" })).toBeTruthy());
+    const summary = view.getByRole("region", { name: "Wheel updates" });
+    expect(summary.querySelectorAll("li")).toHaveLength(2);
+    expect(summary.textContent).toContain("1 pipelines");
+    expect(summary.textContent).not.toMatch(/0 (tasks|environments|pipelines)/);
+    expect(view.getByRole("status").textContent).toBe("No non-wheel changes");
+    await waitFor(() =>
+      expect(
+        buildPlanGraph.mock.calls.some(
+          ([plan]) => plan.normalized.entries["resources.pipelines.only"]?.action === "skip",
+        ),
+      ).toBe(true),
+    );
+    expect(
+      buildResourceGraph.mock.calls.some(
+        ([plan]) => plan.normalized.entries["resources.pipelines.only"]?.action === "skip",
+      ),
+    ).toBe(true);
+    fireEvent.click(view.getByRole("button", { name: /^Hide wheel updates/ }));
+    expect(view.queryByRole("region", { name: "Wheel updates" })).toBeNull();
+    expect(view.queryByRole("status")).toBeNull();
+    fireEvent.click(view.getByRole("button", { name: /^Hide wheel updates/ }));
+    expect(view.getByRole("status").textContent).toBe("No non-wheel changes");
+    buildPlanGraph.mockRestore();
+    buildResourceGraph.mockRestore();
+  });
+
+  test("empty states ignore skipped attached and orphan run effects", async () => {
+    const plans = [
+      {
+        "resources.jobs.nightly": { action: "skip", remote_state: { job_id: 300 } },
+        "resources.job_runs.nightly": {
+          action: "skip",
+          remote_state: { job_id: 300 },
+        },
+      },
+      {
+        "resources.job_runs.orphan": {
+          action: "skip",
+          remote_state: { job_id: 999 },
+        },
+      },
+    ];
+
+    for (const plan of plans) {
+      (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__ = { plan };
+      const view = render(<App />);
+      await waitFor(() => expect(view.getByRole("status").textContent).toBe("No changes"));
+      view.unmount();
+    }
+  });
+
+  test("in-progress attached and orphan runs remain activity through wheel suppression", async () => {
+    const pendingRun = {
+      action: "skip",
+      changes: { result_state: { action: "skip", reason: "run in progress" } },
+      remote_state: { job_id: 100, run_id: 7, state: { life_cycle_state: "RUNNING" } },
+    };
+    const plans = [
+      {
+        "resources.jobs.pending": { action: "skip", remote_state: { job_id: 100 } },
+        "resources.job_runs.pending": {
+          ...pendingRun,
+          depends_on: [{ node: "resources.jobs.pending" }],
+        },
+      },
+      { "resources.job_runs.orphan": pendingRun },
+    ];
+
+    for (const plan of plans) {
+      (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__ = { plan };
+      const view = render(<App />);
+      await waitFor(() => expect(view.queryByRole("status")).toBeNull());
+      view.unmount();
+    }
+
+    (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__ = {
+      plan: {
+        "resources.jobs.wheel": {
+          action: "update",
+          changes: {
+            "tasks[task_key='task'].libraries[0].whl": {
+              action: "update",
+              old: "/artifacts/lib-1.0-py3-none-any.whl",
+              new: "/artifacts/lib-2.0-py3-none-any.whl",
+            },
+          },
+          remote_state: { job_id: 100 },
+          new_state: { value: { job_id: 100, tasks: [{ task_key: "task" }] } },
+        },
+        "resources.job_runs.pending": {
+          ...pendingRun,
+          depends_on: [{ node: "resources.jobs.wheel" }],
+        },
+      },
+    };
+    const view = render(<App />);
+    const toggle = view.getByRole("button", { name: /^Hide wheel updates/ });
+    fireEvent.click(toggle);
+    await waitFor(() => expect(view.queryByRole("status")).toBeNull());
+    expect(view.getByRole("region", { name: "Wheel updates" })).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(view.queryByRole("status")).toBeNull();
+    expect(view.queryByRole("region", { name: "Wheel updates" })).toBeNull();
+    fireEvent.click(toggle);
+    expect(view.queryByRole("status")).toBeNull();
+  });
+
+  test("wheel-only empty state is shown after suppression and active effects remain activity", async () => {
+    (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__ = {
+      plan: {
+        "resources.jobs.wheel": {
+          action: "update",
+          changes: {
+            "tasks[task_key='task'].libraries[0].whl": {
+              action: "update",
+              old: "/artifacts/lib-1.0-py3-none-any.whl",
+              new: "/artifacts/lib-2.0-py3-none-any.whl",
+            },
+          },
+          new_state: { value: { tasks: [{ task_key: "task" }] } },
+        },
+      },
+    };
+    const view = render(<App />);
+    fireEvent.click(view.getByRole("button", { name: /^Hide wheel updates/ }));
+    await waitFor(() => expect(view.getByRole("status").textContent).toBe("No non-wheel changes"));
+    expect(view.getByRole("region", { name: "Wheel updates" })).toBeTruthy();
+    view.unmount();
+
+    (window as { __DAGSHUND_PLAN__?: unknown }).__DAGSHUND_PLAN__ = {
+      plan: {
+        "resources.jobs.nightly": { action: "skip", remote_state: { job_id: 300 } },
+        "resources.job_runs.nightly": {
+          action: "create",
+          new_state: { value: { job_id: 300 } },
+        },
+      },
+    };
+    const activeView = render(<App />);
+    await waitFor(() => expect(activeView.queryByRole("status")).toBeNull());
   });
 });

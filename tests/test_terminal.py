@@ -1580,23 +1580,7 @@ def _wheel_whl_change(old_version: str, new_version: str, distribution: str = "e
     )
 
 
-def test_render_resource_suppress_wheel_updates_collapses_to_summary() -> None:
-    entry = make_resource(
-        "resources.jobs.etl",
-        action="update",
-        changes={
-            "tasks[task_key='ingest'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
-            "tasks[task_key='transform'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
-        },
-    )
-
-    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
-
-    assert "      ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (2 tasks)" in lines
-    assert not any(".whl" in line and "wheel" not in line for line in lines)
-
-
-def test_render_resource_suppress_wheel_updates_keeps_non_wheel_changes_on_mixed_task() -> None:
+def test_render_resource_keeps_resource_details_separate_from_plan_wheel_summary() -> None:
     entry = make_resource(
         "resources.jobs.etl",
         action="update",
@@ -1606,28 +1590,11 @@ def test_render_resource_suppress_wheel_updates_keeps_non_wheel_changes_on_mixed
         },
     )
 
-    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False))
 
     assert any("notebook_task.notebook_path" in line for line in lines)
-    assert not any("libraries[0].whl" in line for line in lines)
-    assert "      ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in lines
-
-
-def test_render_resource_suppress_wheel_updates_lists_each_distinct_wheel() -> None:
-    entry = make_resource(
-        "resources.jobs.etl",
-        action="update",
-        changes={
-            "tasks[task_key='ingest'].libraries[0].whl": _wheel_whl_change("0.1.0", "0.2.0"),
-            "tasks[task_key='enrich'].libraries[1].whl": _wheel_whl_change("1.4.0", "1.5.0", "scoring_lib"),
-        },
-    )
-
-    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
-
-    etl_index = lines.index("      ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)")
-    scoring_index = lines.index("      ~ wheel scoring_lib updated: 1.4.0 -> 1.5.0 (1 task)")
-    assert etl_index < scoring_index  # sorted by distribution
+    assert any("libraries[0].whl" in line for line in lines)
+    assert not any("wheel etl_lib updated" in line for line in lines)
 
 
 def test_render_resource_wheel_updates_visible_by_default() -> None:
@@ -1658,7 +1625,7 @@ def test_render_resource_suppress_keeps_different_distribution_swap_visible() ->
         },
     )
 
-    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False, suppress_wheel_updates=True))
+    lines = list(_render_resource("resources.jobs.etl", entry, use_color=False))
 
     assert any("libraries[0].whl" in line for line in lines)
     assert not any("wheel etl_lib updated" in line for line in lines)
@@ -2054,11 +2021,21 @@ def test_render_text_basic_run_kinds_attached_and_standalone(capsys: pytest.Capt
 
 
 def test_render_text_skip_only_effects_render_run_records(capsys: pytest.CaptureFixture[str]) -> None:
-    """Skip-only effects are not changes (exit stays 0), but their run records still render."""
+    """Pending runs prevent suppressed wheel activity from being called a no-op."""
     plan = plan_from_dict(
         {
             "plan": {
-                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.jobs.etl": {
+                    "action": "update",
+                    "changes": {
+                        "tasks[task_key='ingest'].libraries[0].whl": {
+                            "action": "update",
+                            "old": "/artifacts/lib-1.0-py3-none-any.whl",
+                            "new": "/artifacts/lib-2.0-py3-none-any.whl",
+                        },
+                    },
+                    "remote_state": {"job_id": 100},
+                },
                 "resources.job_runs.nightly": {
                     "depends_on": [{"node": "resources.jobs.etl"}],
                     "action": "skip",
@@ -2068,10 +2045,17 @@ def test_render_text_skip_only_effects_render_run_records(capsys: pytest.Capture
         }
     )
 
-    render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
+    render_text(
+        normalize_plan(plan.resources),
+        cli_version=plan.cli_version,
+        plan_version=plan.plan_version,
+        suppress_wheel_updates=True,
+    )
 
     out = capsys.readouterr().out
     assert "No changes" not in out
+    assert "No non-wheel changes" not in out
+    assert "Wheel updates" in out
     assert "      = run nightly (already ran)" in out
 
 

@@ -69,18 +69,24 @@ dagshund plan.json -c -f 'type:volumes'          # changed volumes only
 
 All tokens in a filter expression AND together. `-f` composes with `-c`/`-a`/`-m`/`-r`: both must match. `field:` is a substring match against changed field names.
 
-CI pipelines that rebuild your bundle's wheel on every run mark every task carrying that wheel as changed, burying real changes in noise. `--suppress-wheel-updates` collapses same-wheel version bumps into one summary line per job:
+CI pipelines that rebuild bundle wheels can make routine dependency updates dominate a plan. `--suppress-wheel-updates` classifies wheel-only changes as effectively unchanged and shows wheel updates once in a plan-level summary. Mixed resources keep their non-wheel changes:
 
 ```bash
 dagshund plan.json --suppress-wheel-updates
+# Wheel updates: etl_lib 0.1.0 -> 0.2.0 (12 tasks)
 #   ~ jobs/etl_pipeline  (update)
 #       ~ tasks[task_key='report'].notebook_task.base_parameters.mode: "daily" -> "hourly"
-#       ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (12 tasks)
 ```
 
-Only same-distribution version bumps are suppressed; swapping a task to a *different* wheel still shows in full. Works for classic compute (per-task `libraries`) and serverless (per-environment dependencies).
+The option covers supported classic and serverless job wheel carriers, plus pipeline libraries and environment dependencies. Use it with existing status filters to focus review. `-c`/`--changes-only`, `-m`, and `-f status:modified` use the effective classification, while the plan-level wheel summary remains visible even when those filters hide every wheel-only resource. A wheel-only plan reports **No non-wheel changes**; a truly unchanged plan reports **No changes**.
 
-![Wheel update suppression, before and after](docs/pictures/wheel_updates.png)
+For a focused CI summary, run:
+
+```bash
+dagshund plan.json -c --suppress-wheel-updates
+```
+
+HTML keeps the original plan and offers a reversible wheel-suppression toggle for full inspection. Suppression affects review output, not deployment-change detection: `--detailed-exitcode` still reflects actual plan changes, including wheel updates.
 
 Deploy-triggered runs (the experimental `resources.job_runs` blocks, Databricks CLI 1.7.0+) fold onto the job they target instead of listing as separate resources. Each run renders as a per-job line with its lifecycle:
 
@@ -139,7 +145,7 @@ Many resources reference each other across hierarchies, an alert might target a 
 
 ### Wheel Updates
 
-When a plan contains wheel version bumps, the **Hide wheel updates** toolbar button appears in the Jobs view. Toggling it renders tasks whose only change is the wheel bump as unchanged and shows the bump once as a badge on the job container instead, so real changes stand out in large DAGs. Tasks with other changes stay highlighted.
+When a plan contains wheel version bumps, the **Hide wheel updates** toggle appears in the HTML report. It applies the effective classification across the Jobs and Resources views: wheel-only changes become unchanged, mixed resources retain their other changes, and a plan-level summary reports the wheel updates. The toggle is reversible, so you can inspect the full original differences at any time.
 
 ### Deploy-Triggered Runs
 

@@ -31,6 +31,7 @@ _FIXTURE_PATH = Path(__file__).resolve().parent.parent / "fixtures" / "wheel-upd
 class _WheelCase:
     name: str
     change_key: str
+    resource_type: str | None
     old: object
     new: object
     expected: WheelUpdate | None
@@ -52,6 +53,7 @@ def _load_cases() -> list[_WheelCase]:
         _WheelCase(
             name=c["name"],
             change_key=c["changeKey"],
+            resource_type=c.get("resourceType"),
             old=c.get("old", UNSET),
             new=c.get("new", UNSET),
             expected=_parse_expected(c["expected"]),
@@ -67,7 +69,18 @@ _CASES = _load_cases()
 def test_classify_wheel_update_shared_fixture(case: _WheelCase) -> None:
     change = make_change("update", old=case.old, new=case.new)
 
-    assert classify_wheel_update(case.change_key, change) == case.expected
+    expected = (
+        WheelUpdate(
+            case.expected.distribution,
+            case.expected.old_version,
+            case.expected.new_version,
+            case.old,
+            case.new,
+        )
+        if case.expected is not None and isinstance(case.old, str) and isinstance(case.new, str)
+        else case.expected
+    )
+    assert classify_wheel_update(case.change_key, change, case.resource_type) == expected
 
 
 # --- parse_wheel_filename ---
@@ -119,7 +132,13 @@ def test_collect_wheel_updates_keeps_only_wheel_keys() -> None:
     collected = collect_wheel_updates(changes)
 
     assert set(collected) == {"tasks[task_key='ingest'].libraries[0].whl"}
-    assert collected["tasks[task_key='ingest'].libraries[0].whl"] == WheelUpdate("etl_lib", "0.1.0", "0.2.0")
+    assert collected["tasks[task_key='ingest'].libraries[0].whl"] == WheelUpdate(
+        "etl_lib",
+        "0.1.0",
+        "0.2.0",
+        "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+        "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+    )
 
 
 def test_summarize_wheel_updates_counts_distinct_tasks_per_wheel() -> None:
@@ -171,6 +190,27 @@ def test_summarize_wheel_updates_counts_environments_per_wheel() -> None:
         WheelUpdateUsage(WheelUpdate("etl_lib", "0.1.0", "0.2.0"), task_count=0, environment_count=2),
         WheelUpdateUsage(WheelUpdate("scoring_lib", "1.0.0", "1.1.0"), task_count=0, environment_count=1),
     ]
+
+
+def test_summarize_wheel_updates_preserves_same_version_path_transitions() -> None:
+    updates = collect_wheel_updates(
+        {
+            "tasks[task_key='one'].libraries[0].whl": make_change(
+                "update", old="/old/lib-1.0-py3-none-any.whl", new="/new/lib-1.0-py3-none-any.whl"
+            ),
+            "tasks[task_key='two'].libraries[0].whl": make_change(
+                "update", old="/other/lib-1.0-py3-none-any.whl", new="/else/lib-1.0-py3-none-any.whl"
+            ),
+        }
+    )
+
+    summary = summarize_wheel_updates(updates)
+
+    assert len(summary) == 2
+    assert {usage.update.old_requirement for usage in summary} == {
+        "/old/lib-1.0-py3-none-any.whl",
+        "/other/lib-1.0-py3-none-any.whl",
+    }
 
 
 def test_summarize_wheel_updates_empty_input() -> None:

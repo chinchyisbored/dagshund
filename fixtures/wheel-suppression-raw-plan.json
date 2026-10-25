@@ -1,0 +1,96 @@
+{
+  "plan": {
+    "resources.jobs.job": {
+      "action": "update",
+      "depends_on": [{ "node": "resources.jobs.other", "label": "managed" }],
+      "changes": {
+        "tasks[task_key='loop'].for_each_task.task.libraries[0].whl": {
+          "action": "update",
+          "old": "/a/lib-1.0-py3-none-any.whl",
+          "new": "/a/lib-2.0-py3-none-any.whl"
+        },
+        "tasks[task_key='loop'].depends_on[0]": {
+          "action": "update",
+          "old": [{ "task_key": "before" }],
+          "new": [{ "task_key": "after" }]
+        },
+        "tasks[task_key='run'].run_job_task.job_id": {
+          "action": "update",
+          "old": 10,
+          "new": 11
+        },
+        "tasks[task_key='pipeline'].pipeline_task.pipeline_id": {
+          "action": "update",
+          "old": "before-pipeline",
+          "new": "after-pipeline"
+        },
+        "environments[environment_key='serverless'].spec.dependencies[0]": {
+          "action": "update",
+          "old": "/a/env-1.0-py3-none-any.whl",
+          "new": "/a/env-2.0-py3-none-any.whl"
+        }
+      },
+      "new_state": {
+        "value": {
+          "job_id": 1,
+          "tasks": [
+            { "task_key": "loop", "for_each_task": { "task": { "libraries": [{ "whl": "/a/lib-2.0-py3-none-any.whl" }] } } },
+            { "task_key": "run", "run_job_task": { "job_id": 11 } },
+            { "task_key": "pipeline", "pipeline_task": { "pipeline_id": "after-pipeline" } }
+          ],
+          "environments": [{ "environment_key": "serverless" }]
+        }
+      },
+      "remote_state": {
+        "job_id": 1,
+        "tasks": [
+          { "task_key": "loop" },
+          { "task_key": "run", "run_job_task": { "job_id": 10 } },
+          { "task_key": "pipeline", "pipeline_task": { "pipeline_id": "before-pipeline" } }
+        ]
+      }
+    },
+    "resources.jobs.job.permissions": {
+      "action": "update",
+      "changes": { "[0].level": { "action": "update", "old": "CAN_VIEW", "new": "CAN_MANAGE" } },
+      "new_state": { "value": { "permissions": [{ "level": "CAN_MANAGE" }] } },
+      "remote_state": { "permissions": [{ "level": "CAN_VIEW" }] }
+    },
+    "resources.jobs.target": {
+      "action": "skip",
+      "new_state": { "value": { "job_id": 11, "name": "managed-target" } },
+      "remote_state": { "job_id": 11, "name": "managed-target" },
+      "changes": {}
+    },
+    "resources.job_runs.run": {
+      "action": "skip",
+      "new_state": { "value": { "job_id": 1 } },
+      "remote_state": { "run_page_url": "https://example.test/run/1" },
+      "changes": { "state": { "action": "skip", "old": "SUCCESS", "new": "SUCCESS" } }
+    },
+    "resources.job_runs.orphan": {
+      "action": "create",
+      "new_state": { "value": { "job_id": 99 } },
+      "changes": { "state": { "action": "create", "new": "PENDING" } }
+    },
+    "resources.pipelines.pipeline": {
+      "action": "update",
+      "depends_on": [{ "node": "resources.jobs.job", "label": "pipeline_task" }],
+      "changes": {
+        "libraries[0].whl": {
+          "action": "update",
+          "old": "/a/pipeline-1.0-py3-none-any.whl",
+          "new": "/a/pipeline-2.0-py3-none-any.whl"
+        },
+        "environment.dependencies[0]": {
+          "action": "update",
+          "old": "/a/dependency-1.0-py3-none-any.whl",
+          "new": "/a/dependency-2.0-py3-none-any.whl"
+        },
+        "continuous": { "action": "update", "old": false, "new": true }
+      },
+      "new_state": { "value": { "pipeline_id": "after-pipeline", "libraries": [{ "whl": "/a/pipeline-2.0-py3-none-any.whl" }] } },
+      "remote_state": { "pipeline_id": "before-pipeline", "libraries": [{ "whl": "/a/pipeline-1.0-py3-none-any.whl" }] }
+    }
+  }
+}

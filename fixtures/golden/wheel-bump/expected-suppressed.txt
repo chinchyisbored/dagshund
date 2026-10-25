@@ -12,7 +12,9 @@ dagshund plan (v2, cli 1.6.0)
       - tasks[task_key='ingest_customers'].depends_on: [{task_key: "bootstrap"}]
       - tasks[task_key='ingest_orders'].depends_on: [{task_key: "bootstrap"}]
       ~ tasks[task_key='validate_orders'].timeout_seconds: 1800 -> 2400
-      ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (14 tasks, 2 environments)
-      ~ wheel scoring_lib updated: 1.0.0 -> 1.1.0 (1 task, 1 environment)
 
   ~1 update
+
+  Wheel updates:
+    ~ wheel etl_lib updated: 0.1.0 -> 0.2.0 (14 tasks, 2 environments)
+    ~ wheel scoring_lib updated: 1.0.0 -> 1.1.0 (1 task, 1 environment)

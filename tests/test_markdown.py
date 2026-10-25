@@ -685,7 +685,8 @@ def test_render_markdown_suppress_wheel_updates_collapses_to_summary() -> None:
         suppress_wheel_updates=True,
     )
 
-    assert r"  - `~` wheel etl\_lib updated: 0.1.0 -&gt; 0.2.0 \(1 task\)" in result
+    assert r"- wheel etl\_lib updated: 0.1.0 -&gt; 0.2.0 \(1 task\)" in result
+    assert "#### Wheel updates" in result
     assert "libraries[0].whl" not in result
     assert "notebook_task.notebook_path" in result
 

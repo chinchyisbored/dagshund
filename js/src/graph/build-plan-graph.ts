@@ -17,7 +17,6 @@ import { buildTaskNodeId, extractResourceName } from "../utils/resource-key.ts";
 import { hasFieldDrift, hasTaskDriftWithContext } from "../utils/structural-diff.ts";
 import { buildTaskKeyPrefix, collectChangesForTask } from "../utils/task-key.ts";
 import { isUnknownRecord } from "../utils/unknown-record.ts";
-import { collectWheelUpdates, type WheelUpdateSummary } from "../utils/wheel-updates.ts";
 import { buildJobFields, isJobEntry } from "./build-resource-nodes.ts";
 import {
   buildFinalRunJobTargets,
@@ -32,12 +31,10 @@ const buildJobNode = (
   entry: NormalizedEntry,
   tasks: readonly PreparedTask[],
   preparedJob: PreparedJob,
-  wheelSummary: WheelUpdateSummary | undefined,
 ): JobGraphNode => ({
   id: resourceKey,
   nodeKind: "job",
   resourceKey,
-  wheelUpdates: wheelSummary?.wheels,
   effects: entry.effects,
   ...buildJobFields(resourceKey, entry, tasks, preparedJob),
 });
@@ -48,7 +45,6 @@ const buildTaskNodes = (
   entry: PlanEntry,
   tasks: readonly PreparedTask[],
   runJobTargets: ReadonlyMap<string, FinalRunJobTarget>,
-  wheelSummary: WheelUpdateSummary | undefined,
 ): readonly TaskGraphNode[] => {
   const resourceHasShapeDrift = hasFieldDrift(entry.changes);
   const driftParent = {
@@ -85,7 +81,6 @@ const buildTaskNodes = (
       // threads it into every field's ctx (dagshund-1naj, dagshund-15yh).
       resourceHasShapeDrift,
       isDrift: hasTaskDriftWithContext(task.taskKey, entry.changes, driftParent),
-      isWheelOnlyChange: wheelSummary?.wheelOnlyTaskKeys.has(task.taskKey) ?? false,
     };
   });
 };
@@ -221,12 +216,11 @@ const buildEntryGraph = (
   const historicalTasks =
     job?.historicalTasks.status === "supported" ? job.historicalTasks.value : [];
   const allTasks = [...tasks, ...deletedTasks];
-  const wheelSummary = collectWheelUpdates(entry.changes);
 
   return {
     nodes: [
-      buildJobNode(resourceKey, entry, tasks, job ?? EMPTY_PREPARED_JOB, wheelSummary),
-      ...buildTaskNodes(resourceKey, entry, allTasks, runJobTargets, wheelSummary),
+      buildJobNode(resourceKey, entry, tasks, job ?? EMPTY_PREPARED_JOB),
+      ...buildTaskNodes(resourceKey, entry, allTasks, runJobTargets),
     ],
     edges: buildDiffEdges(resourceKey, allTasks, historicalTasks, entry),
   };

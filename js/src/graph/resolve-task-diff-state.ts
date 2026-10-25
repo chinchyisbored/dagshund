@@ -49,8 +49,17 @@ export const resolveTaskDiffState = (
   const exactKey = buildTaskKeyPrefix(taskKey);
   const wholeTaskChange = taskChanges.find(([key]) => key === exactKey);
   if (wholeTaskChange !== undefined) {
-    const classification = classifyChange(wholeTaskChange[1]);
+    const change = wholeTaskChange[1];
+    const classification = classifyChange(change);
     if (classification === "added" || classification === "removed") return classification;
+    if (change.action === "skip" || change.action === "") {
+      if (isTopologyDriftChange(change)) return "added";
+      const hasSubstantiveTaskChange = taskChanges.some(
+        ([key, taskChange]) =>
+          key !== exactKey && taskChange.action !== "skip" && taskChange.action !== "",
+      );
+      return hasSubstantiveTaskChange ? "modified" : "unchanged";
+    }
     return "modified";
   }
 

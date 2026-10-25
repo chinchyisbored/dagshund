@@ -1,0 +1,195 @@
+{
+  "cases": [
+    {
+      "name": "wheel_only_job",
+      "resources": {
+        "resources.jobs.first": {
+          "action": "update",
+          "changes": {
+            "tasks[task_key='ingest'].libraries[0].whl": {
+              "action": "update",
+              "old": "/artifacts/lib-1.0-py3-none-any.whl",
+              "new": "/artifacts/lib-2.0-py3-none-any.whl"
+            }
+          }
+        }
+      },
+      "expected": {
+        "actions": { "resources.jobs.first": "skip" },
+        "remainingChanges": { "resources.jobs.first": [] },
+        "usages": [
+          { "distribution": "lib", "oldRequirement": "/artifacts/lib-1.0-py3-none-any.whl", "newRequirement": "/artifacts/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 0, "pipelineCount": 0 }
+        ]
+      }
+    },
+    {
+      "name": "mixed_permission_change",
+      "resources": {
+        "resources.jobs.first": {
+          "action": "update",
+          "changes": {
+            "tasks[task_key='ingest'].libraries[0].whl": {
+              "action": "update",
+              "old": "/artifacts/lib-1.0-py3-none-any.whl",
+              "new": "/artifacts/lib-2.0-py3-none-any.whl"
+            },
+            "permissions[0].level": { "action": "update", "old": "CAN_VIEW", "new": "CAN_MANAGE" }
+          }
+        }
+      },
+      "expected": {
+        "actions": { "resources.jobs.first": "update" },
+        "remainingChanges": { "resources.jobs.first": ["permissions[0].level"] },
+        "usages": [
+          { "distribution": "lib", "oldRequirement": "/artifacts/lib-1.0-py3-none-any.whl", "newRequirement": "/artifacts/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 0, "pipelineCount": 0 }
+        ]
+      }
+    },
+    {
+      "name": "unicode_requirement_order_matches_python_code_points",
+      "resources": {
+        "resources.jobs.unicode": {
+          "action": "update",
+          "changes": {
+            "tasks[task_key='emoji'].libraries[0].whl": {
+              "action": "update",
+              "old": "/😀/lib-1.0-py3-none-any.whl",
+              "new": "/😀/lib-2.0-py3-none-any.whl"
+            },
+            "tasks[task_key='fullwidth'].libraries[0].whl": {
+              "action": "update",
+              "old": "/Ａ/lib-1.0-py3-none-any.whl",
+              "new": "/Ａ/lib-2.0-py3-none-any.whl"
+            }
+          }
+        }
+      },
+      "expected": {
+        "actions": { "resources.jobs.unicode": "skip" },
+        "remainingChanges": { "resources.jobs.unicode": [] },
+        "usages": [
+          { "distribution": "lib", "oldRequirement": "/Ａ/lib-1.0-py3-none-any.whl", "newRequirement": "/Ａ/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 0, "pipelineCount": 0 },
+          { "distribution": "lib", "oldRequirement": "/😀/lib-1.0-py3-none-any.whl", "newRequirement": "/😀/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 0, "pipelineCount": 0 }
+        ]
+      }
+    },
+    {
+      "name": "retains_task_boundaries_and_nonwheel_changes",
+      "resources": {
+        "resources.jobs.boundaries": {
+          "action": "update",
+          "changes": {
+            "tasks[task_key='wheel'].libraries[0].whl": {
+              "action": "update",
+              "old": "/a/lib-1.0-py3-none-any.whl",
+              "new": "/a/lib-2.0-py3-none-any.whl"
+            },
+            "tasks[task_key='added']": { "action": "create", "new": { "task_key": "added" } },
+            "tasks[task_key='removed']": { "action": "delete", "old": { "task_key": "removed" } },
+            "tasks[task_key='drift']": { "action": "update", "old": { "task_key": "drift" }, "new": { "task_key": "drift" } },
+            "tasks[task_key='dependency'].depends_on[0]": { "action": "update", "old": { "task_key": "before" }, "new": { "task_key": "after" } },
+            "tasks[task_key='missing'].libraries[0].whl": { "action": "create", "new": "/a/lib-2.0-py3-none-any.whl" },
+            "tasks[task_key='malformed'].libraries[0].whl": { "action": "update", "old": "not-a-wheel", "new": "/a/lib-2.0-py3-none-any.whl" }
+          }
+        }
+      },
+      "expected": {
+        "actions": { "resources.jobs.boundaries": "update" },
+        "remainingChanges": { "resources.jobs.boundaries": ["tasks[task_key='added']", "tasks[task_key='dependency'].depends_on[0]", "tasks[task_key='drift']", "tasks[task_key='malformed'].libraries[0].whl", "tasks[task_key='missing'].libraries[0].whl", "tasks[task_key='removed']"] },
+        "usages": [
+          { "distribution": "lib", "oldRequirement": "/a/lib-1.0-py3-none-any.whl", "newRequirement": "/a/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 0, "pipelineCount": 0 }
+        ]
+      }
+    },
+    {
+      "name": "duplicate_slots_and_exact_transition_collisions_count_carriers_once",
+      "resources": {
+        "resources.jobs.first": {
+          "action": "update",
+          "changes": {
+            "tasks[task_key='same'].libraries[0].whl": { "action": "update", "old": "/one/lib-1.0-py3-none-any.whl", "new": "/one/lib-2.0-py3-none-any.whl" },
+            "tasks[task_key='same'].libraries[1].whl": { "action": "update", "old": "/one/lib-1.0-py3-none-any.whl", "new": "/one/lib-2.0-py3-none-any.whl" },
+            "tasks[task_key='other'].libraries[0].whl": { "action": "update", "old": "/two/lib-1.0-py3-none-any.whl", "new": "/two/lib-2.0-py3-none-any.whl" },
+            "environments[environment_key='env'].spec.dependencies[0]": { "action": "update", "old": "/one/lib-1.0-py3-none-any.whl", "new": "/one/lib-2.0-py3-none-any.whl" },
+            "environments[environment_key='env'].spec.dependencies[1]": { "action": "update", "old": "/one/lib-1.0-py3-none-any.whl", "new": "/one/lib-2.0-py3-none-any.whl" }
+          }
+        },
+        "resources.jobs.second": {
+          "action": "update",
+          "changes": {
+            "environments[environment_key='env'].spec.dependencies[0]": { "action": "update", "old": "/one/lib-1.0-py3-none-any.whl", "new": "/one/lib-2.0-py3-none-any.whl" }
+          }
+        },
+        "resources.pipelines.pipeline": {
+          "action": "update",
+          "changes": {
+            "libraries[0].whl": { "action": "update", "old": "/one/lib-1.0-py3-none-any.whl", "new": "/one/lib-2.0-py3-none-any.whl" },
+            "environment.dependencies[0]": { "action": "update", "old": "/one/lib-1.0-py3-none-any.whl", "new": "/one/lib-2.0-py3-none-any.whl" }
+          }
+        }
+      },
+      "expected": {
+        "actions": { "resources.jobs.first": "skip", "resources.jobs.second": "skip", "resources.pipelines.pipeline": "skip" },
+        "remainingChanges": { "resources.jobs.first": [], "resources.jobs.second": [], "resources.pipelines.pipeline": [] },
+        "usages": [
+          { "distribution": "lib", "oldRequirement": "/one/lib-1.0-py3-none-any.whl", "newRequirement": "/one/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 2, "pipelineCount": 2 },
+          { "distribution": "lib", "oldRequirement": "/two/lib-1.0-py3-none-any.whl", "newRequirement": "/two/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 0, "pipelineCount": 0 }
+        ]
+      }
+    },
+    {
+      "name": "negative_scalar_boundaries_with_eligible_wheel_and_drift",
+      "resources": {
+        "resources.jobs.boundaries": {
+          "action": "update",
+          "changes": {
+            "tasks[task_key='eligible'].libraries[0].whl": { "action": "update", "old": "/a/lib-1.0-py3-none-any.whl", "new": "/a/lib-2.0-py3-none-any.whl" },
+            "tasks[task_key='extras'].libraries[0].whl": { "action": "update", "old": "/a/lib-1.0-py3-none-any.whl[train]", "new": "/a/lib-2.0-py3-none-any.whl[gpu]" },
+            "tasks[task_key='distribution'].libraries[0].whl": { "action": "update", "old": "/a/lib-1.0-py3-none-any.whl", "new": "/a/other-2.0-py3-none-any.whl" },
+            "environments[environment_key='env'].spec.dependencies[0]": { "action": "update", "old": "requests==1.0", "new": "requests==2.0" },
+            "metadata.whl": { "action": "update", "old": "lib-1.0-py3-none-any.whl", "new": "lib-2.0-py3-none-any.whl" },
+            "tasks[task_key='drift'].notebook_path": { "action": "update", "old": "/same.py", "new": "/same.py", "remote": "/remote.py" }
+          }
+        },
+        "resources.jobs.missing_changes": { "action": "update" },
+        "resources.jobs.empty_changes": { "action": "update", "changes": {} }
+      },
+      "expected": {
+        "actions": { "resources.jobs.boundaries": "update", "resources.jobs.missing_changes": "update", "resources.jobs.empty_changes": "update" },
+        "remainingChanges": { "resources.jobs.boundaries": ["environments[environment_key='env'].spec.dependencies[0]", "metadata.whl", "tasks[task_key='distribution'].libraries[0].whl", "tasks[task_key='drift'].notebook_path", "tasks[task_key='extras'].libraries[0].whl"], "resources.jobs.missing_changes": [], "resources.jobs.empty_changes": [] },
+        "remainingPayloads": {
+          "resources.jobs.boundaries": {
+            "environments[environment_key='env'].spec.dependencies[0]": { "action": "update", "old": "requests==1.0", "new": "requests==2.0" },
+            "metadata.whl": { "action": "update", "old": "lib-1.0-py3-none-any.whl", "new": "lib-2.0-py3-none-any.whl" },
+            "tasks[task_key='distribution'].libraries[0].whl": { "action": "update", "old": "/a/lib-1.0-py3-none-any.whl", "new": "/a/other-2.0-py3-none-any.whl" },
+            "tasks[task_key='drift'].notebook_path": { "action": "update", "old": "/same.py", "new": "/same.py", "remote": "/remote.py" },
+            "tasks[task_key='extras'].libraries[0].whl": { "action": "update", "old": "/a/lib-1.0-py3-none-any.whl[train]", "new": "/a/lib-2.0-py3-none-any.whl[gpu]" }
+          }
+        },
+        "usages": [
+          { "distribution": "lib", "oldRequirement": "/a/lib-1.0-py3-none-any.whl", "newRequirement": "/a/lib-2.0-py3-none-any.whl", "taskCount": 1, "environmentCount": 0, "pipelineCount": 0 }
+        ]
+      }
+    },
+    {
+      "name": "resource_addition_is_not_suppressed",
+      "resources": {
+        "resources.jobs.first": {
+          "action": "create",
+          "changes": {
+            "tasks[task_key='ingest'].libraries[0].whl": {
+              "action": "update",
+              "old": "/artifacts/lib-1.0-py3-none-any.whl",
+              "new": "/artifacts/lib-2.0-py3-none-any.whl"
+            }
+          }
+        }
+      },
+      "expected": {
+        "actions": { "resources.jobs.first": "create" },
+        "remainingChanges": { "resources.jobs.first": ["tasks[task_key='ingest'].libraries[0].whl"] },
+        "usages": []
+      }
+    }
+  ]
+}

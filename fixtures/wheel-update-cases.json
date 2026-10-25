@@ -1,40 +1,60 @@
 {
-  "description": "Shared test vectors for classify_wheel_update (Python, wheel.py) and classifyWheelUpdate (TS, utils/wheel-updates.ts). Both test suites iterate this file and assert matching results — protects the two mirrored implementations from drifting apart (dagshund-aqcx). `expected` is null when the change is NOT a suppressible wheel update.",
+  "description": "Shared test vectors for classify_wheel_update (Python, wheel.py) and classifyWheelUpdate (TS, utils/wheel-updates.ts). Both test suites iterate this file and assert matching results \u2014 protects the two mirrored implementations from drifting apart (dagshund-aqcx). `expected` is null when the change is NOT a suppressible wheel update.",
   "cases": [
     {
       "name": "version_bump_same_distribution",
       "changeKey": "tasks[task_key='ingest'].libraries[0].whl",
       "old": "/Workspace/Users/user1@example.com/.bundle/etl/dev/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
       "new": "/Workspace/Users/user1@example.com/.bundle/etl/dev/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
-      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
+      "expected": {
+        "distribution": "etl_lib",
+        "oldVersion": "0.1.0",
+        "newVersion": "0.2.0"
+      }
     },
     {
       "name": "version_bump_higher_library_index",
       "changeKey": "tasks[task_key='enrich'].libraries[3].whl",
       "old": "/Workspace/artifacts/.internal/scoring_lib-1.4.0-py3-none-any.whl",
       "new": "/Workspace/artifacts/.internal/scoring_lib-1.5.0-py3-none-any.whl",
-      "expected": { "distribution": "scoring_lib", "oldVersion": "1.4.0", "newVersion": "1.5.0" }
+      "expected": {
+        "distribution": "scoring_lib",
+        "oldVersion": "1.4.0",
+        "newVersion": "1.5.0"
+      }
     },
     {
       "name": "for_each_task_version_bump",
       "changeKey": "tasks[task_key='process_files'].for_each_task.task.libraries[0].whl",
       "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
       "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
-      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
+      "expected": {
+        "distribution": "etl_lib",
+        "oldVersion": "0.1.0",
+        "newVersion": "0.2.0"
+      }
     },
     {
       "name": "version_bump_with_build_tag",
       "changeKey": "tasks[task_key='train'].libraries[0].whl",
       "old": "dbfs:/wheels/model_lib-2.0.0-1-py3-none-any.whl",
       "new": "dbfs:/wheels/model_lib-2.1.0-1-py3-none-any.whl",
-      "expected": { "distribution": "model_lib", "oldVersion": "2.0.0", "newVersion": "2.1.0" }
+      "expected": {
+        "distribution": "model_lib",
+        "oldVersion": "2.0.0",
+        "newVersion": "2.1.0"
+      }
     },
     {
       "name": "same_version_path_moved",
       "changeKey": "tasks[task_key='ingest'].libraries[0].whl",
       "old": "/Workspace/old-location/etl_lib-0.1.0-py3-none-any.whl",
       "new": "/Workspace/new-location/etl_lib-0.1.0-py3-none-any.whl",
-      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.1.0" }
+      "expected": {
+        "distribution": "etl_lib",
+        "oldVersion": "0.1.0",
+        "newVersion": "0.1.0"
+      }
     },
     {
       "name": "different_distribution_is_real_change",
@@ -109,21 +129,33 @@
       "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
       "old": "/Workspace/Users/user1@example.com/.bundle/etl/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
       "new": "/Workspace/Users/user1@example.com/.bundle/etl/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
-      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
+      "expected": {
+        "distribution": "etl_lib",
+        "oldVersion": "0.1.0",
+        "newVersion": "0.2.0"
+      }
     },
     {
       "name": "environment_dependency_version_bump_with_one_extra",
       "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
       "old": "/Workspace/Users/user1@example.com/.bundle/etl/default/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train]",
       "new": "/Workspace/Users/user1@example.com/.bundle/etl/default/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[train]",
-      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
+      "expected": {
+        "distribution": "etl_lib",
+        "oldVersion": "0.1.0",
+        "newVersion": "0.2.0"
+      }
     },
     {
       "name": "environment_dependency_version_bump_with_multiple_extras",
       "changeKey": "environments[environment_key='etl'].spec.dependencies[0]",
       "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl[train,gpu]",
       "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl[train,gpu]",
-      "expected": { "distribution": "etl_lib", "oldVersion": "0.1.0", "newVersion": "0.2.0" }
+      "expected": {
+        "distribution": "etl_lib",
+        "oldVersion": "0.1.0",
+        "newVersion": "0.2.0"
+      }
     },
     {
       "name": "environment_dependency_extra_added_is_real_change",
@@ -179,6 +211,38 @@
       "changeKey": "environments[environment_key='etl'].spec.dependencies[1]",
       "old": "requests==2.31.0",
       "new": "requests==2.32.0",
+      "expected": null
+    },
+    {
+      "name": "pipeline_library_version_bump",
+      "resourceType": "pipelines",
+      "changeKey": "libraries[0].whl",
+      "old": "/artifacts/pipeline_lib-1.0-py3-none-any.whl",
+      "new": "/artifacts/pipeline_lib-2.0-py3-none-any.whl",
+      "expected": {
+        "distribution": "pipeline_lib",
+        "oldVersion": "1.0",
+        "newVersion": "2.0"
+      }
+    },
+    {
+      "name": "pipeline_environment_dependency_version_bump",
+      "resourceType": "pipelines",
+      "changeKey": "environment.dependencies[0]",
+      "old": "/artifacts/pipeline_lib-1.0-py3-none-any.whl",
+      "new": "/artifacts/pipeline_lib-2.0-py3-none-any.whl",
+      "expected": {
+        "distribution": "pipeline_lib",
+        "oldVersion": "1.0",
+        "newVersion": "2.0"
+      }
+    },
+    {
+      "name": "pipeline_carrier_requires_pipeline_context",
+      "resourceType": "jobs",
+      "changeKey": "libraries[0].whl",
+      "old": "/artifacts/pipeline_lib-1.0-py3-none-any.whl",
+      "new": "/artifacts/pipeline_lib-2.0-py3-none-any.whl",
       "expected": null
     }
   ]

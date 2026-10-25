@@ -3,7 +3,7 @@ import { xyflowMockFactory } from "../helpers/xyflow-mock.ts";
 
 mock.module("@xyflow/react", xyflowMockFactory);
 
-const { render } = await import("@testing-library/react");
+const { fireEvent, render } = await import("@testing-library/react");
 const { createElement } = await import("react");
 const { FlowCanvas } = await import("../../src/components/flow-canvas.tsx");
 
@@ -62,6 +62,78 @@ const makeEdge = (source: string, target: string): Edge => ({
 });
 
 describe("FlowCanvas phantom filtering", () => {
+  test("selected details re-resolve by node ID when graph data changes", () => {
+    const createLayout = (diffState: "modified" | "unchanged"): LayoutResult => ({
+      nodes: [
+        {
+          id: "resource-id",
+          position: { x: 0, y: 0 },
+          data: {
+            nodeKind: "resource",
+            label: "resource",
+            resourceKey: "resources.schemas.analytics",
+            diffState,
+            changes:
+              diffState === "modified"
+                ? { name: { action: "update", old: "before", new: "after" } }
+                : undefined,
+            resourceState: undefined,
+            newState: undefined,
+            remoteState: undefined,
+            resourceHasShapeDrift: false,
+            taskChangeSummary: undefined,
+          },
+        },
+      ],
+      edges: [],
+      lateralEdges: [],
+    });
+    const layoutState = (diffState: "modified" | "unchanged") => ({
+      status: "ready" as const,
+      layout: createLayout(diffState),
+    });
+    const view = render(
+      createElement(FlowCanvas, {
+        layoutState: layoutState("modified"),
+        nodeTypes: {},
+        hideWheelUpdates: false,
+        onToggleWheelUpdates: () => undefined,
+        wheelUpdateCount: 0,
+      }),
+    );
+
+    expect(view.getByRole("button", { name: "Modified (1)" })).toBeDefined();
+    fireEvent.click(view.getByTestId("flow-node-resource-id"));
+    expect(view.getByText("Modified", { exact: true })).toBeDefined();
+    expect(view.getByText("after", { exact: true })).toBeDefined();
+
+    view.rerender(
+      createElement(FlowCanvas, {
+        layoutState: layoutState("unchanged"),
+        nodeTypes: {},
+        hideWheelUpdates: true,
+        onToggleWheelUpdates: () => undefined,
+        wheelUpdateCount: 0,
+      }),
+    );
+    expect(view.getByRole("button", { name: "Modified (0)" })).toBeDefined();
+    expect(view.queryByText("Modified", { exact: true })).toBeNull();
+    expect(view.queryByText("after", { exact: true })).toBeNull();
+
+    view.rerender(
+      createElement(FlowCanvas, {
+        layoutState: layoutState("modified"),
+        nodeTypes: {},
+        hideWheelUpdates: false,
+        onToggleWheelUpdates: () => undefined,
+        wheelUpdateCount: 0,
+      }),
+    );
+    expect(view.getByRole("button", { name: "Modified (1)" })).toBeDefined();
+    expect(view.getByText("Modified", { exact: true })).toBeDefined();
+    expect(view.getByText("after", { exact: true })).toBeDefined();
+  });
+
   test("keeps postgres branch hierarchy phantoms visible by default", () => {
     const layout: LayoutResult = {
       nodes: [
@@ -98,6 +170,9 @@ describe("FlowCanvas phantom filtering", () => {
       createElement(FlowCanvas, {
         layoutState: { status: "ready", layout },
         nodeTypes: {},
+        hideWheelUpdates: false,
+        onToggleWheelUpdates: () => {},
+        wheelUpdateCount: 0,
       }),
     );
 

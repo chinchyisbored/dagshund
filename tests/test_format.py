@@ -1,9 +1,11 @@
 """Direct unit tests for format.py functions."""
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
-from factories import make_change, make_resource, resources_from_dict
+from factories import make_change, make_resource, resource_from_dict, resources_from_dict
 
 from dagshund.format import (
     ACTIONS,
@@ -1106,15 +1108,15 @@ def test_prepare_report_mixed_details_render_equivalent_information(
             'description: "before" -> "after"',
             'edit_mode: "EDITABLE" -> "LOCKED" (drift)',
             "- tasks[task_key='extra']: {task_key: \"extra\"} (drift)",
-            "wheel etl_lib updated: 0.1.0 -> 0.2.0 (2 tasks)"
-            if case.suppress_wheel_updates
-            else "tasks[task_key='ingest'].libraries[0].whl",
+            *(("tasks[task_key='ingest'].libraries[0].whl",) if not case.suppress_wheel_updates else ()),
             "+ tasks[task_key='restore'] (drift) (re-added)",
         )
         positions = tuple(output.index(detail) for detail in ordered_details)
         assert positions == tuple(sorted(positions))
-        assert ("tasks[task_key='transform'].libraries[0].whl" in output) is not case.suppress_wheel_updates
         assert ("wheel etl_lib updated" in output) is case.suppress_wheel_updates
+        if case.suppress_wheel_updates:
+            assert output.index("wheel etl_lib updated") > output.index("+ tasks[task_key='restore']")
+        assert ("tasks[task_key='transform'].libraries[0].whl" in output) is not case.suppress_wheel_updates
         assert "no_op" not in output
         assert "skipped" not in output
         assert "run retry" in output or "run [retry]" in output
@@ -1149,6 +1151,118 @@ class FilteredReportCase:
     group_headers: tuple[str, ...]
     summary: str | None
     has_effect: bool = False
+
+
+def test_renderers_project_shared_safe_wheel_vectors_before_filtering(capsys: pytest.CaptureFixture[str]) -> None:
+    fixture_path = Path(__file__).resolve().parent.parent / "fixtures" / "wheel-suppression-cases.json"
+    fixture = json.loads(fixture_path.read_text())
+    case = next(
+        case
+        for case in fixture["cases"]
+        if case["name"] == "duplicate_slots_and_exact_transition_collisions_count_carriers_once"
+    )
+    resources = normalize_plan({key: resource_from_dict(key, raw) for key, raw in case["resources"].items()})
+
+    render_text(resources, suppress_wheel_updates=True)
+    terminal = capsys.readouterr().out
+    markdown = render_markdown(resources, suppress_wheel_updates=True)
+
+    assert "-&gt;" in markdown
+    for output in (terminal, markdown):
+        output = output.replace("&gt;", ">").replace("\\", "")
+        assert "Wheel updates" in output
+        assert "1 task, 2 environments, 2 pipelines" in output
+        assert "1 task" in output
+        assert "/one/lib-1.0-py3-none-any.whl -> /one/lib-2.0-py3-none-any.whl" in output
+        assert "/two/lib-1.0-py3-none-any.whl -> /two/lib-2.0-py3-none-any.whl" in output
+        assert "libraries[0].whl" not in output
+        assert "No non-wheel changes" in output
+
+    for query, states, expected_keys in (
+        ("type:jobs", None, {"resources.jobs.first", "resources.jobs.second"}),
+        ("type:jobs", frozenset({DiffState.MODIFIED}), set()),
+        ("type:jobs", frozenset({DiffState.UNCHANGED}), {"resources.jobs.first", "resources.jobs.second"}),
+        ("status:modified", None, set()),
+        ("not-present", None, set()),
+    ):
+        report = prepare_report(resources, filter_query=query, visible_states=states, suppress_wheel_updates=True)
+        assert {key for group in report.groups for key, _ in group.entries} == expected_keys
+        assert [(config.display, count) for config, count in report.action_counts] == (
+            [("unchanged", len(expected_keys))] if expected_keys else []
+        )
+        render_text(resources, filter_query=query, visible_states=states, suppress_wheel_updates=True)
+        terminal = capsys.readouterr().out
+        markdown = render_markdown(resources, filter_query=query, visible_states=states, suppress_wheel_updates=True)
+        for output in (terminal, markdown):
+            assert ("jobs/first" in output) is ("resources.jobs.first" in expected_keys)
+            assert ("jobs/second" in output) is ("resources.jobs.second" in expected_keys)
+            assert "Wheel updates" in output
+            assert "No non-wheel changes" in output
+            if output is terminal:
+                assert ("=2 unchanged" in output) is bool(expected_keys)
+                assert "~2 update" not in output
+            else:
+                assert output.count("- `=` `jobs/") == len(expected_keys)
+                assert "~2 update" not in output
+
+
+def test_suppression_keeps_genuinely_unchanged_plan_message(capsys: pytest.CaptureFixture[str]) -> None:
+    key = "resources.jobs.unchanged"
+    resources = normalize_plan({key: resource_from_dict(key, {"action": "skip"})})
+
+    render_text(resources, suppress_wheel_updates=True)
+    terminal = capsys.readouterr().out
+    markdown = render_markdown(resources, suppress_wheel_updates=True)
+
+    assert "No changes" in terminal
+    assert "No changes" in markdown
+    assert "No non-wheel changes" not in terminal + markdown
+
+
+def test_renderers_show_nested_same_version_requirements_with_escaping(capsys: pytest.CaptureFixture[str]) -> None:
+    resources = normalize_plan(
+        resources_from_dict(
+            {
+                "resources.jobs.first": {
+                    "action": "update",
+                    "changes": {
+                        "tasks[task_key='same'].for_each_task.task.libraries[0].whl": {
+                            "action": "update",
+                            "old": "/old&<dir>/lib-1.0-py3-none-any.whl",
+                            "new": "/new&<dir>/lib-1.0-py3-none-any.whl",
+                        }
+                    },
+                },
+                "resources.jobs.second": {
+                    "action": "update",
+                    "changes": {
+                        "tasks[task_key='same'].for_each_task.task.libraries[0].whl": {
+                            "action": "update",
+                            "old": "/old&<dir>/lib-1.0-py3-none-any.whl",
+                            "new": "/new&<dir>/lib-1.0-py3-none-any.whl",
+                        }
+                    },
+                },
+            }
+        )
+    )
+
+    render_text(resources, suppress_wheel_updates=True)
+    terminal = capsys.readouterr().out
+    markdown = render_markdown(resources, suppress_wheel_updates=True)
+
+    assert "2 tasks" in terminal
+    assert "2 tasks" in markdown
+    assert "/old&<dir>/lib-1.0-py3-none-any.whl -> /new&<dir>/lib-1.0-py3-none-any.whl" in terminal
+    escaped_transition = " ".join(
+        (
+            "/old&amp;&lt;dir&gt;/lib-1.0-py3-none-any.whl",
+            "-&gt;",
+            "/new&amp;&lt;dir&gt;/lib-1.0-py3-none-any.whl",
+        )
+    )
+    assert escaped_transition in markdown
+    assert "for_each_task" not in terminal + markdown
 
 
 @pytest.mark.parametrize(
@@ -1202,13 +1316,14 @@ def test_prepare_report_filters_keep_renderer_details_counts_and_warnings_in_agr
         if case.summary is not None:
             assert case.summary in output
         else:
-            assert output.count("\n") <= 2
+            assert "Wheel updates" in output
+            assert "No non-wheel changes" not in output
         assert ("runs: ~1 recreate" in output) is case.has_effect
         assert ("Retry this task." in output) is case.has_effect
         assert ("job_parameters['region']" in output) is case.has_effect
         assert ("Dangerous Actions" in output) is ("volumes/archive" in case.visible_resources)
         assert ("Manual Edits Detected" in output) is ("jobs/etl" in case.visible_resources)
-        assert ("wheel etl_lib updated" in output) is ("jobs/etl" in case.visible_resources)
+        assert "wheel etl_lib updated" in output
         assert ("1 task will be re-added (restore)" in output) is ("jobs/etl" in case.visible_resources)
         assert "No changes" not in output
         assert "schemas/hidden was edited" not in output

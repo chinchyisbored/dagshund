@@ -25,7 +25,8 @@ from dagshund.types import (
     ResourceType,
     parse_resource_key,
 )
-from dagshund.wheel import WheelUpdateUsage, collect_wheel_updates, summarize_wheel_updates
+from dagshund.wheel import WheelUpdateUsage
+from dagshund.wheel_suppression import apply_wheel_suppression
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +52,6 @@ type ContextualFieldChange = tuple[str, FieldChange, FieldChangeContext]
 class ResourceDetails:
     has_drift: bool = False
     fields: tuple[ContextualFieldChange, ...] = ()
-    wheel_updates: tuple[WheelUpdateUsage, ...] = ()
     topology_readds: tuple[str, ...] = ()
 
 
@@ -70,6 +70,8 @@ class Report:
     effect_counts: tuple[tuple[ActionConfig, int], ...]
     warnings: tuple[str, ...]
     drift_summaries: tuple[DriftSummary, ...]
+    wheel_updates: tuple[WheelUpdateUsage, ...] = ()
+    no_non_wheel_changes: bool = False
 
 
 ACTIONS: dict[ActionType, ActionConfig] = {
@@ -293,12 +295,11 @@ def iter_non_topology_field_changes(
         )
 
 
-def select_resource_details(entry: ResourceChange, *, suppress_wheel_updates: bool = False) -> ResourceDetails:
+def select_resource_details(entry: ResourceChange) -> ResourceDetails:
     """Partition visible details without changing the resource's domain semantics."""
     if not (entry.changes and action_config(entry.action).show_field_changes):
         return ResourceDetails()
     drift = classify_resource_drift(entry)
-    wheel_updates = collect_wheel_updates(entry.changes) if suppress_wheel_updates else {}
     fields = iter_non_topology_field_changes(
         entry.changes,
         new_state=entry.new_state,
@@ -307,8 +308,7 @@ def select_resource_details(entry: ResourceChange, *, suppress_wheel_updates: bo
     )
     return ResourceDetails(
         has_drift=drift.has_drift,
-        fields=tuple(field for field in fields if field[0] not in wheel_updates),
-        wheel_updates=tuple(summarize_wheel_updates(wheel_updates)),
+        fields=tuple(fields),
         topology_readds=drift.topology_readds,
     )
 
@@ -396,31 +396,37 @@ def prepare_report(
     *,
     visible_states: frozenset[DiffState] | None = None,
     filter_query: str | None = None,
+    suppress_wheel_updates: bool = False,
 ) -> Report:
     """Aggregate normalized resources for both reports; filters only affect visibility."""
     if not resources:
         raise DagshundError("plan is empty")
+    suppression = apply_wheel_suppression(resources) if suppress_wheel_updates else None
+    effective = suppression.resources if suppression is not None else resources
     resource_filter = None
     if filter_query:
         from dagshund.filter import build_query_predicate
 
         resource_filter = build_query_predicate(filter_query)
 
-    visible = filter_resources(resources, visible_states=visible_states, resource_filter=resource_filter)
+    visible = filter_resources(effective, visible_states=visible_states, resource_filter=resource_filter)
     # Even skip-only run records need the group view, although nothing fires.
     has_standalone_runs = any(select_standalone_job_run_effect(key, entry) for key, entry in resources.items())
-    no_changes = (
-        not detect_changes(resources)
-        and not any(entry.effects for entry in resources.values())
-        and not has_standalone_runs
+    has_run_activity = any(entry.effects for entry in resources.values()) or has_standalone_runs
+    source_no_changes = not detect_changes(resources) and not has_run_activity
+    no_non_wheel_changes = (
+        suppression is not None and bool(suppression.usages) and not detect_changes(effective) and not has_run_activity
     )
+    no_changes = source_no_changes
     return Report(
         no_changes=no_changes,
-        groups=_select_resource_groups(resources, visible),
+        groups=_select_resource_groups(effective, visible),
         action_counts=tuple(sorted(count_by_action(visible).items(), key=lambda item: item[0].display)),
         effect_counts=tuple(sorted(count_effects_by_action(visible).items(), key=lambda item: item[0].display)),
         warnings=tuple(collect_warnings(visible)),
         drift_summaries=tuple(collect_drift_summaries(visible)),
+        wheel_updates=suppression.usages if suppression is not None else (),
+        no_non_wheel_changes=no_non_wheel_changes,
     )
 
 
@@ -510,12 +516,12 @@ def _format_count_noun(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
-def format_wheel_update_body(usage: WheelUpdateUsage) -> str:
+def format_wheel_update_body(usage: WheelUpdateUsage, usages: tuple[WheelUpdateUsage, ...] = ()) -> str:
     """Build the shared body of a wheel summary line: 'wheel etl_lib updated: 0.1.0 -> 0.2.0 (8 tasks)'.
 
-    Renderers wrap this with their own prefix, mirroring ``format_drift_subline_body``.
-    Carriers are tasks (classic compute), environments (serverless), or both.
-    Equal versions (wheel path moved, same build) drop the version transition.
+    Renderers wrap this with their own prefix. Carrier counts cover task,
+    environment, and pipeline scopes. Ambiguous and same-version transitions
+    expose exact requirements to keep distinct updates distinguishable.
     """
     update = usage.update
     carriers = ", ".join(
@@ -523,11 +529,24 @@ def format_wheel_update_body(usage: WheelUpdateUsage) -> str:
         for part in (
             _format_count_noun(usage.task_count, "task") if usage.task_count else "",
             _format_count_noun(usage.environment_count, "environment") if usage.environment_count else "",
+            _format_count_noun(usage.pipeline_count, "pipeline") if usage.pipeline_count else "",
         )
         if part
     )
-    versions = f": {update.old_version} -> {update.new_version}" if update.old_version != update.new_version else ""
-    return f"wheel {update.distribution} updated{versions} ({carriers})"
+    ambiguous = update.old_version == update.new_version or any(
+        other.update.distribution == update.distribution
+        and other.update.old_version == update.old_version
+        and other.update.new_version == update.new_version
+        and (other.update.old_requirement, other.update.new_requirement)
+        != (update.old_requirement, update.new_requirement)
+        for other in usages
+    )
+    transition = (
+        f": {update.old_requirement} -> {update.new_requirement}"
+        if ambiguous
+        else f": {update.old_version} -> {update.new_version}"
+    )
+    return f"wheel {update.distribution} updated{transition} ({carriers})"
 
 
 def format_drift_subline_body(count: int, noun: str, suffix: str, labels: str = "") -> str:

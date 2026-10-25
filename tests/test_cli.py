@@ -1226,7 +1226,20 @@ def test_main_combined_output_preserves_redacted_payload_and_source_digest(
     plan_file.write_bytes(raw_bytes)
     expected_payload = json.loads(raw_bytes.replace(b"UC_SECRET_SENTINEL", b"[redacted]"))
 
-    monkeypatch.setattr("sys.argv", ["dagshund", str(plan_file), "-o", str(output), "--format", output_format, "-e"])
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "dagshund",
+            str(plan_file),
+            "-o",
+            str(output),
+            "--format",
+            output_format,
+            "-c",
+            "--suppress-wheel-updates",
+            "-e",
+        ],
+    )
 
     with pytest.raises(SystemExit) as exc_info:
         main()
@@ -1241,6 +1254,8 @@ def test_main_combined_output_preserves_redacted_payload_and_source_digest(
     content = output.read_text()
     assert json.dumps(expected_payload, separators=(",", ":")) in content
     assert f'"source_plan_sha256":"{hashlib.sha256(raw_bytes).hexdigest()}"' in content
+    assert '"resources.secrets.token"' in content
+    assert '"source_plan_sha256"' in content
     assert "UC_SECRET_SENTINEL" not in content + captured.out + captured.err
 
 
@@ -1590,7 +1605,7 @@ def test_main_suppress_wheel_updates_flag(
             }
         )
     )
-    monkeypatch.setattr("sys.argv", ["dagshund", str(plan_file), "--suppress-wheel-updates"])
+    monkeypatch.setattr("sys.argv", ["dagshund", str(plan_file), "-c", "--suppress-wheel-updates"])
 
     with pytest.raises(SystemExit) as exc_info:
         main()
@@ -1599,3 +1614,77 @@ def test_main_suppress_wheel_updates_flag(
     out = capsys.readouterr().out
     assert "wheel etl_lib updated: 0.1.0 -> 0.2.0 (1 task)" in out
     assert "libraries[0].whl" not in out
+    assert "No non-wheel changes" in out
+    assert "jobs/etl" not in out
+
+
+def test_cli_renders_safe_nested_wheel_vector_and_preserves_detailed_exitcode(tmp_path: Path) -> None:
+    fixture_path = Path(__file__).resolve().parent.parent / "fixtures" / "wheel-suppression-cases.json"
+    fixture = json.loads(fixture_path.read_text())
+    case = next(
+        case
+        for case in fixture["cases"]
+        if case["name"] == "duplicate_slots_and_exact_transition_collisions_count_carriers_once"
+    )
+    plan_file = tmp_path / "safe-wheel-plan.json"
+    plan_file.write_text(json.dumps({"plan": case["resources"]}))
+
+    for output_format in ("term", "md"):
+        result = _run_dagshund(str(plan_file), "--format", output_format, "--suppress-wheel-updates")
+        assert result.returncode == 0
+        assert "Wheel updates" in result.stdout
+        assert "1 task, 2 environments, 2 pipelines" in result.stdout
+        rendered = result.stdout.replace("&gt;", ">").replace("\\", "")
+        assert "/one/lib-1.0-py3-none-any.whl -> /one/lib-2.0-py3-none-any.whl" in rendered
+        assert "/two/lib-1.0-py3-none-any.whl -> /two/lib-2.0-py3-none-any.whl" in rendered
+        assert "No non-wheel changes" in result.stdout
+
+        for query, expected_resource in ((None, True), ("status:modified", False), ("status:unchanged", True)):
+            args = [str(plan_file), "--format", output_format, "--suppress-wheel-updates"]
+            if query is not None:
+                args.extend(("-f", query))
+            filtered = _run_dagshund(*args)
+            assert filtered.returncode == 0
+            assert ("jobs/first" in filtered.stdout) is expected_resource
+            assert "Wheel updates" in filtered.stdout
+
+        detailed = _run_dagshund(str(plan_file), "--format", output_format, "--suppress-wheel-updates", "-e")
+        detailed_off = _run_dagshund(str(plan_file), "--format", output_format, "-e")
+        assert detailed.returncode == detailed_off.returncode == 2
+        assert "Wheel updates" in detailed.stdout
+
+
+def test_cli_status_unchanged_includes_suppressed_wheel_only_resources(tmp_path: Path) -> None:
+    plan_file = tmp_path / "wheel-only.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.jobs.etl": {
+                        "action": "update",
+                        "changes": {
+                            "tasks[task_key='ingest'].libraries[0].whl": {
+                                "action": "update",
+                                "old": "/Workspace/artifacts/.internal/etl_lib-0.1.0-py3-none-any.whl",
+                                "new": "/Workspace/artifacts/.internal/etl_lib-0.2.0-py3-none-any.whl",
+                            },
+                        },
+                    },
+                },
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_file), "--format", "md", "-f", "status:unchanged", "--suppress-wheel-updates")
+
+    assert result.returncode == 0
+    assert "jobs/etl" in result.stdout
+    assert "No non-wheel changes" in result.stdout
+    assert "Wheel updates" in result.stdout
+
+    modified = _run_dagshund(str(plan_file), "-m", "--suppress-wheel-updates")
+
+    assert modified.returncode == 0
+    assert "jobs/etl" not in modified.stdout
+    assert "No non-wheel changes" in modified.stdout
+    assert "Wheel updates" in modified.stdout

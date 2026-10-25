@@ -165,7 +165,7 @@ export function FlowCanvasLayout({
               active={hideWheelUpdates}
               onToggle={onToggleWheelUpdates}
               count={wheelUpdateCount}
-              title="Collapse wheel version bumps: affected tasks render as unchanged, the bump shows once on the job header"
+              title="Review the plan without routine wheel version updates"
             />
           )}
         </Panel>

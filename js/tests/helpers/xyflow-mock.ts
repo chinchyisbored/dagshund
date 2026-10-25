@@ -49,22 +49,25 @@ type MockFlowNode = {
   readonly id: string;
   readonly data?: {
     readonly label?: string;
+    readonly [key: string]: unknown;
   };
 };
 
 type ReactFlowProps = {
   readonly nodes?: readonly MockFlowNode[];
   readonly children?: ReactElement | readonly ReactElement[];
+  readonly onNodeClick?: (event: unknown, node: MockFlowNode) => void;
   readonly onInit?: (instance: {
     readonly fitView: () => void;
     readonly zoomIn: () => void;
     readonly zoomOut: () => void;
     readonly setCenter: () => void;
     readonly getNodes: () => readonly MockFlowNode[];
+    readonly getInternalNode: () => undefined;
   }) => void;
 };
 
-const ReactFlow = ({ nodes = [], children, onInit }: ReactFlowProps): ReactElement => {
+const ReactFlow = ({ nodes = [], children, onInit, onNodeClick }: ReactFlowProps): ReactElement => {
   useEffect(() => {
     onInit?.({
       fitView: () => undefined,
@@ -72,6 +75,7 @@ const ReactFlow = ({ nodes = [], children, onInit }: ReactFlowProps): ReactEleme
       zoomOut: () => undefined,
       setCenter: () => undefined,
       getNodes: () => nodes,
+      getInternalNode: () => undefined,
     });
   }, [nodes, onInit]);
 
@@ -80,8 +84,13 @@ const ReactFlow = ({ nodes = [], children, onInit }: ReactFlowProps): ReactEleme
     { "data-testid": "react-flow" },
     nodes.map((node) =>
       createElement(
-        "div",
-        { key: node.id, "data-testid": `flow-node-${node.id}` },
+        "button",
+        {
+          key: node.id,
+          type: "button",
+          "data-testid": `flow-node-${node.id}`,
+          onClick: () => onNodeClick?.({}, node),
+        },
         node.data?.label ?? node.id,
       ),
     ),

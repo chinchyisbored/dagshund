@@ -6,12 +6,25 @@ import { ResourceNode } from "./resource-node.tsx";
 
 const NODE_TYPES = { resource: ResourceNode, root: HierarchyNode, phantom: HierarchyNode };
 
-export function ResourcesView({ plan }: { readonly plan: PreparedPlan }) {
+export function ResourcesView({
+  plan,
+  hideWheelUpdates,
+  onToggleWheelUpdates,
+  wheelUpdateCount,
+}: {
+  readonly plan: PreparedPlan;
+  readonly hideWheelUpdates: boolean;
+  readonly onToggleWheelUpdates: () => void;
+  readonly wheelUpdateCount: number;
+}) {
   const layoutState = useResourceGraph(plan);
   return (
     <FlowCanvas
       layoutState={layoutState}
       nodeTypes={NODE_TYPES}
+      hideWheelUpdates={hideWheelUpdates}
+      onToggleWheelUpdates={onToggleWheelUpdates}
+      wheelUpdateCount={wheelUpdateCount}
       emptyLabel="No resources in this plan"
     />
   );

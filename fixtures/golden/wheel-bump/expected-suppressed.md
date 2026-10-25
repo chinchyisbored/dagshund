@@ -12,7 +12,9 @@
   - `-` `tasks[task_key='ingest_customers'].depends_on`: \[\{task\_key: "bootstrap"\}\]
   - `-` `tasks[task_key='ingest_orders'].depends_on`: \[\{task\_key: "bootstrap"\}\]
   - `~` `tasks[task_key='validate_orders'].timeout_seconds`: 1800 -&gt; 2400
-  - `~` wheel etl\_lib updated: 0.1.0 -&gt; 0.2.0 \(14 tasks, 2 environments\)
-  - `~` wheel scoring\_lib updated: 1.0.0 -&gt; 1.1.0 \(1 task, 1 environment\)
 
 **~1** update
+
+#### Wheel updates
+- wheel etl\_lib updated: 0.1.0 -&gt; 0.2.0 \(14 tasks, 2 environments\)
+- wheel scoring\_lib updated: 1.0.0 -&gt; 1.1.0 \(1 task, 1 environment\)

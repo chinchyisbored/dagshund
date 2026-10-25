@@ -121,8 +121,6 @@ def _render_effect_lines(effect: JobRunEffect, *, standalone: bool = False) -> I
 def _render_resource(
     key: ResourceKey,
     entry: ResourceChange,
-    *,
-    suppress_wheel_updates: bool = False,
 ) -> Iterator[str]:
     standalone_run = select_standalone_job_run_effect(key, entry)
     if standalone_run is not None:
@@ -142,7 +140,7 @@ def _render_resource(
     for effect in entry.effects:
         yield from _render_effect_lines(effect)
 
-    details = select_resource_details(entry, suppress_wheel_updates=suppress_wheel_updates)
+    details = select_resource_details(entry)
     if details.has_drift:
         yield "  - :warning: manually edited outside bundle"
 
@@ -150,9 +148,6 @@ def _render_resource(
         rendered = _render_field_change(field_name, change, ctx=ctx)
         if rendered is not None:
             yield rendered
-
-    for usage in details.wheel_updates:
-        yield f"  - `~` {_escape_plain_text(format_wheel_update_body(usage))}"
 
     if details.topology_readds:
         create_cfg = action_config(ActionType.CREATE)
@@ -167,17 +162,22 @@ def _render_header(*, cli_version: str | None, plan_version: int | None) -> Iter
     yield ""
 
 
-def _render_resource_groups(
-    resource_groups: Sequence[ResourceGroup],
-    *,
-    suppress_wheel_updates: bool = False,
-) -> Iterator[str]:
+def _render_resource_groups(resource_groups: Sequence[ResourceGroup]) -> Iterator[str]:
     for group in resource_groups:
         count = f"({len(group.entries)}/{group.total})" if len(group.entries) != group.total else f"({group.total})"
         yield f"#### {_escape_plain_text(group.resource_type)} {count}"
         for key, entry in group.entries:
-            yield from _render_resource(key, entry, suppress_wheel_updates=suppress_wheel_updates)
+            yield from _render_resource(key, entry)
         yield ""
+
+
+def _render_wheel_updates(report: Report) -> Iterator[str]:
+    if not report.wheel_updates:
+        return
+    yield ""
+    yield "#### Wheel updates"
+    for usage in report.wheel_updates:
+        yield f"- {_escape_plain_text(format_wheel_update_body(usage, report.wheel_updates))}"
 
 
 def _render_summary(report: Report) -> Iterator[str]:
@@ -235,7 +235,12 @@ def render_markdown(
     Version metadata is optional and does not require a parsed plan envelope.
     The renderer only reads borrowed resources; callers must not mutate them while rendering.
     """
-    report = prepare_report(resources, visible_states=visible_states, filter_query=filter_query)
+    report = prepare_report(
+        resources,
+        visible_states=visible_states,
+        filter_query=filter_query,
+        suppress_wheel_updates=suppress_wheel_updates,
+    )
 
     lines: list[str] = []
     lines.extend(_render_header(cli_version=cli_version, plan_version=plan_version))
@@ -244,13 +249,11 @@ def render_markdown(
         lines.append(f"No changes ({len(resources)} resources unchanged)")
         return "\n".join(lines)
 
-    lines.extend(
-        _render_resource_groups(
-            report.groups,
-            suppress_wheel_updates=suppress_wheel_updates,
-        )
-    )
+    if report.no_non_wheel_changes:
+        lines.append("No non-wheel changes")
+    lines.extend(_render_resource_groups(report.groups))
     lines.extend(_render_summary(report))
+    lines.extend(_render_wheel_updates(report))
 
     if report.warnings:
         lines.extend(_render_warnings(report.warnings))
