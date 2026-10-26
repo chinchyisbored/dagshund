@@ -11,11 +11,14 @@ export type PreparationDiagnostic = {
     | "instance-pool-reference"
     | "app-resources"
     | "source-table-reference"
+    | "vector-index-references"
     | "pipeline-ingestion-schemas"
     | "pipeline-event-log"
     | "synced-table-output"
     | "existing-pipeline-reference"
-    | "postgres-identity";
+    | "postgres-identity"
+    | "external-location-credential"
+    | "ai-gateway-references";
   readonly reason: "invalid-shape";
 };
 
@@ -35,6 +38,10 @@ export type PreparedResource = {
   >;
   readonly sourceTableFullName: Projection<string>;
   readonly qualityMonitorTableName: Projection<string>;
+  readonly qualityMonitorBaselineTableName: Projection<string>;
+  readonly vectorIndex: Projection<
+    Readonly<{ endpointName: string; sourceTable: string; embeddingEndpoints: readonly string[] }>
+  >;
   readonly pipelineIngestionSchemas: Projection<readonly string[]>;
   readonly pipelineEventLog: Projection<
     Readonly<{ catalog: string; schema: string; name: string }>
@@ -43,6 +50,10 @@ export type PreparedResource = {
   readonly existingPipelineId: Projection<string>;
   readonly syncedTableId: Projection<string>;
   readonly postgres: Projection<Readonly<Record<string, string>>>;
+  readonly externalLocationCredentialName: Projection<string>;
+  readonly aiGatewayReferences: Projection<
+    import("../preparation/prepare-ai-gateway.ts").AiGatewayReferences
+  >;
 };
 
 export type PreparedPlan = {

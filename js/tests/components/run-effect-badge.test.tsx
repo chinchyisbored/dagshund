@@ -132,7 +132,7 @@ describe("RunEffectBadge", () => {
     const badge = container.querySelector("span");
     expect(badge?.textContent).toBe("▶");
     expect(badge?.getAttribute("title")).toBe(
-      "audit: run record will be deleted, migrate: re-runs on deploy",
+      "audit: bundle run entry will be removed, migrate: re-runs on deploy",
     );
   });
 });

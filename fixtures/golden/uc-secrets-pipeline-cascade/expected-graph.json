@@ -187,7 +187,7 @@
         "unchanged": 0,
         "unknown": 0
       },
-      "total_change_entries": 12,
+      "total_change_entries": 35,
       "total_effect_entries": 0,
       "with_resource_state": 10,
       "task_change_summary_total": 0,
@@ -278,12 +278,7 @@
           "kind": "resource",
           "diffState": "unchanged",
           "isDrift": false,
-          "changes": [
-            {
-              "key": "properties",
-              "action": "skip"
-            }
-          ],
+          "changes": [],
           "effects": [],
           "hasResourceState": true,
           "taskChangeSummary": []
@@ -321,6 +316,26 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "created_by",
+              "action": "skip"
+            },
+            {
+              "key": "effective_owner",
+              "action": "skip"
+            },
+            {
+              "key": "effective_value",
+              "action": "skip"
+            },
+            {
+              "key": "full_name",
+              "action": "skip"
+            },
+            {
               "key": "grants.[principal='data_analysts']",
               "action": "update"
             },
@@ -329,7 +344,19 @@
               "action": "update"
             },
             {
+              "key": "metastore_id",
+              "action": "skip"
+            },
+            {
               "key": "owner",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            },
+            {
+              "key": "updated_by",
               "action": "skip"
             },
             {
@@ -350,11 +377,43 @@
           "isDrift": false,
           "changes": [
             {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "created_by",
+              "action": "skip"
+            },
+            {
+              "key": "effective_owner",
+              "action": "skip"
+            },
+            {
+              "key": "effective_value",
+              "action": "skip"
+            },
+            {
+              "key": "full_name",
+              "action": "skip"
+            },
+            {
+              "key": "metastore_id",
+              "action": "skip"
+            },
+            {
               "key": "name",
               "action": "recreate"
             },
             {
               "key": "owner",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            },
+            {
+              "key": "updated_by",
               "action": "skip"
             },
             {
@@ -379,7 +438,39 @@
               "action": "update"
             },
             {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "created_by",
+              "action": "skip"
+            },
+            {
+              "key": "effective_owner",
+              "action": "skip"
+            },
+            {
+              "key": "effective_value",
+              "action": "skip"
+            },
+            {
+              "key": "full_name",
+              "action": "skip"
+            },
+            {
+              "key": "metastore_id",
+              "action": "skip"
+            },
+            {
               "key": "owner",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            },
+            {
+              "key": "updated_by",
               "action": "skip"
             },
             {

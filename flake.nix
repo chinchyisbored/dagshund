@@ -42,7 +42,7 @@
             pkgs.glab
             pkgs.just
             pkgs.process-compose
-            mv.versions.databricks-cli."1.17.0"
+            mv.versions.databricks-cli."1.20.0"
             mv.versions.uv."0.12.5"
             pkgs.python314
           ];

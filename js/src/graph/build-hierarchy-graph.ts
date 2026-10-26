@@ -38,6 +38,13 @@ export type ExternalDerivedLeafRef = {
   readonly node: DerivedGraphNode;
 };
 
+export type ExternalRootLeafRef = {
+  readonly nodeId: string;
+  readonly label: string;
+};
+
+const UC_SCHEMA_TIER_INDEX = 1;
+
 type TierIndex = {
   readonly byIdentity: ReadonlyMap<string, string>;
   readonly byResourceKey: ReadonlyMap<string, string>;
@@ -207,11 +214,13 @@ export const buildChainGraph = (
   externalLeafPhantomRefs?: readonly ExternalLeafPhantomRef[],
   externalHierarchyRefs?: readonly ExternalHierarchyRef[],
   externalDerivedLeafRefs?: readonly ExternalDerivedLeafRef[],
+  externalRootLeafRefs?: readonly ExternalRootLeafRef[],
 ): PlanGraph => {
   const hasExternalRefs =
     (externalLeafPhantomRefs?.length ?? 0) > 0 ||
     (externalHierarchyRefs?.length ?? 0) > 0 ||
-    (externalDerivedLeafRefs?.length ?? 0) > 0;
+    (externalDerivedLeafRefs?.length ?? 0) > 0 ||
+    (externalRootLeafRefs?.length ?? 0) > 0;
   if (entries.length === 0 && !hasExternalRefs) return { nodes: [], edges: [] };
 
   const root = buildHierarchyGraphNode("root", spec.rootId, spec.rootLabel);
@@ -262,7 +271,7 @@ export const buildChainGraph = (
     if (parsed === undefined) continue;
     const parentNodeId = resolveParentChain(
       `${parsed.catalog}.${parsed.schema}`,
-      spec.tiers.length - 2,
+      UC_SCHEMA_TIER_INDEX,
       spec,
       tierIndexes,
       phantomNodes,
@@ -272,13 +281,19 @@ export const buildChainGraph = (
     phantomEdges.push(buildEdge(parentNodeId, phantomId));
   }
 
+  for (const { nodeId, label } of externalRootLeafRefs ?? []) {
+    if (phantomNodes.has(nodeId)) continue;
+    phantomNodes.set(nodeId, buildHierarchyGraphNode("phantom", nodeId, label));
+    phantomEdges.push(buildEdge(spec.rootId, nodeId));
+  }
+
   for (const { identity, node } of externalDerivedLeafRefs ?? []) {
     if (derivedNodes.has(node.id)) continue;
     const parsed = parseThreePartName(identity);
     if (parsed === undefined) continue;
     const parentNodeId = resolveParentChain(
       `${parsed.catalog}.${parsed.schema}`,
-      spec.tiers.length - 2,
+      UC_SCHEMA_TIER_INDEX,
       spec,
       tierIndexes,
       phantomNodes,

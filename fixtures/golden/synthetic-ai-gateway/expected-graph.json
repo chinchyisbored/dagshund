@@ -1,0 +1,556 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 0,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 0,
+      "total_effect_entries": 0,
+      "with_resource_state": 0,
+      "task_change_summary_total": 0,
+      "entries": []
+    },
+    "edges": {
+      "total": 0,
+      "by_kind": {
+        "dag": 0,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 0
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": []
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 14,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 4,
+        "derived": 0,
+        "root": 2,
+        "phantom": 8
+      },
+      "by_diff_state": {
+        "added": 4,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 10,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 4,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 8,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 4,
+      "total_effect_entries": 0,
+      "with_resource_state": 4,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "catalog::main",
+          "resourceKey": "catalog::main",
+          "label": "main",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "catalog::system",
+          "resourceKey": "catalog::system",
+          "label": "system",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "external-connection::main.synthetic_ai.example_connection",
+          "resourceKey": "external-connection::main.synthetic_ai.example_connection",
+          "label": "example_connection",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "registered-model::system.ai.example_foundation_model",
+          "resourceKey": "registered-model::system.ai.example_foundation_model",
+          "label": "example_foundation_model",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.mcp_services.example",
+          "resourceKey": "resources.mcp_services.example",
+          "label": "example",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.model_provider_services.bedrock",
+          "resourceKey": "resources.model_provider_services.bedrock",
+          "label": "bedrock",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.model_provider_services.example",
+          "resourceKey": "resources.model_provider_services.example",
+          "label": "example",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.model_services.example",
+          "resourceKey": "resources.model_services.example",
+          "label": "example",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::main.synthetic_ai",
+          "resourceKey": "schema::main.synthetic_ai",
+          "label": "synthetic_ai",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::system.ai",
+          "resourceKey": "schema::system.ai",
+          "label": "ai",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "service-credential::synthetic_bedrock",
+          "resourceKey": "service-credential::synthetic_bedrock",
+          "label": "synthetic_bedrock",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "serving-endpoint::example_endpoint",
+          "resourceKey": "serving-endpoint::example_endpoint",
+          "label": "example_endpoint",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 17,
+      "by_kind": {
+        "dag": 12,
+        "lateral": 5
+      },
+      "by_diff_state": {
+        "added": 4,
+        "removed": 0,
+        "unchanged": 13
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 4,
+          "removed": 0,
+          "unchanged": 8
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 5
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::main",
+          "target": "schema::main.synthetic_ai",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::system",
+          "target": "schema::system.ai",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::main.synthetic_ai",
+          "target": "external-connection::main.synthetic_ai.example_connection",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::main.synthetic_ai",
+          "target": "resources.mcp_services.example",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::main.synthetic_ai",
+          "target": "resources.model_provider_services.bedrock",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::main.synthetic_ai",
+          "target": "resources.model_provider_services.example",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::main.synthetic_ai",
+          "target": "resources.model_services.example",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::system.ai",
+          "target": "registered-model::system.ai.example_foundation_model",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::main",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::system",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "service-credential::synthetic_bedrock",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "serving-endpoint::example_endpoint",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.mcp_services.example",
+          "target": "external-connection::main.synthetic_ai.example_connection",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.model_provider_services.bedrock",
+          "target": "service-credential::synthetic_bedrock",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.model_services.example",
+          "target": "registered-model::system.ai.example_foundation_model",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.model_services.example",
+          "target": "resources.model_provider_services.example",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.model_services.example",
+          "target": "serving-endpoint::example_endpoint",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "catalog::main",
+        "label": "main",
+        "resourceKey": "catalog::main"
+      },
+      {
+        "id": "catalog::system",
+        "label": "system",
+        "resourceKey": "catalog::system"
+      },
+      {
+        "id": "external-connection::main.synthetic_ai.example_connection",
+        "label": "example_connection",
+        "resourceKey": "external-connection::main.synthetic_ai.example_connection"
+      },
+      {
+        "id": "registered-model::system.ai.example_foundation_model",
+        "label": "example_foundation_model",
+        "resourceKey": "registered-model::system.ai.example_foundation_model"
+      },
+      {
+        "id": "schema::main.synthetic_ai",
+        "label": "synthetic_ai",
+        "resourceKey": "schema::main.synthetic_ai"
+      },
+      {
+        "id": "schema::system.ai",
+        "label": "ai",
+        "resourceKey": "schema::system.ai"
+      },
+      {
+        "id": "service-credential::synthetic_bedrock",
+        "label": "synthetic_bedrock",
+        "resourceKey": "service-credential::synthetic_bedrock"
+      },
+      {
+        "id": "serving-endpoint::example_endpoint",
+        "label": "example_endpoint",
+        "resourceKey": "serving-endpoint::example_endpoint"
+      }
+    ]
+  }
+}

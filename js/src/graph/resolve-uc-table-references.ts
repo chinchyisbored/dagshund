@@ -25,6 +25,13 @@ export const findPromotedSourceTable = (
     ),
   )[0];
 
+const supportedTableProjection = (
+  value: string,
+): { readonly status: "supported"; readonly value: string } => ({
+  status: "supported",
+  value,
+});
+
 export const resolveSourceTableReference = (
   sourceResourceKey: string,
   context: ReferenceResolutionContext,
@@ -32,19 +39,18 @@ export const resolveSourceTableReference = (
   const resourceType = extractResourceType(sourceResourceKey);
   const prepared = context.preparedPlan.byResourceKey.get(sourceResourceKey);
   const ownedOutputs = context.ownedDerivedRefs.get(sourceResourceKey) ?? [];
-  const sourceTable =
+  const tableNames = [
     resourceType === "synced_database_tables" || resourceType === "postgres_synced_tables"
       ? prepared?.sourceTableFullName
-      : undefined;
-  const monitorTable =
-    resourceType === "quality_monitors" ? prepared?.qualityMonitorTableName : undefined;
-  const tableName =
-    sourceTable?.status === "supported"
-      ? sourceTable.value
-      : monitorTable?.status === "supported"
-        ? monitorTable.value
-        : undefined;
-  if (tableName !== undefined && parseThreePartName(tableName) !== undefined) {
+      : undefined,
+    resourceType === "quality_monitors" ? prepared?.qualityMonitorTableName : undefined,
+    resourceType === "quality_monitors" ? prepared?.qualityMonitorBaselineTableName : undefined,
+    resourceType === "vector_search_indexes" && prepared?.vectorIndex?.status === "supported"
+      ? supportedTableProjection(prepared.vectorIndex.value.sourceTable)
+      : undefined,
+  ].flatMap((projection) => (projection?.status === "supported" ? [projection.value] : []));
+  return [...new Set(tableNames)].flatMap<ReferenceResolution>((tableName) => {
+    if (parseThreePartName(tableName) === undefined) return [];
     const realKey = context.identityCatalog.resourceKeyByAlias.get(`sourceTable:${tableName}`);
     if (realKey === sourceResourceKey) return [];
     const realNodeId = context.identityCatalog.nodeIdByAlias.get(`sourceTable:${tableName}`);
@@ -79,7 +85,5 @@ export const resolveSourceTableReference = (
         direction: "entry-to-target",
       },
     ];
-  }
-
-  return [];
+  });
 };

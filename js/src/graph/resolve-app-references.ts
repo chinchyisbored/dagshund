@@ -6,7 +6,7 @@ import {
   type PhantomKind,
 } from "../utils/resource-key.ts";
 import { buildDerivedNodeId } from "./derived-node-specs.ts";
-import { parseThreePartName } from "./extract-resource-state.ts";
+import { extractStateField, parseThreePartName } from "./extract-resource-state.ts";
 import { extractBundleResourceIdRef } from "./postgres-paths.ts";
 import type { ReferenceResolutionContext } from "./reference-resolution-context.ts";
 import { findPromotedSourceTable } from "./resolve-uc-table-references.ts";
@@ -19,40 +19,86 @@ export const resolveAppReferences = (
   if (projection?.status !== "supported") return [];
   const existingResourceKeys = new Set(context.entries.map(([key]) => key));
   return projection.value.flatMap<ReferenceResolution>((ref) => {
-    if (ref.kind === "uc_securable" && parseThreePartName(ref.fullName) !== undefined) {
-      const promoted = findPromotedSourceTable(ref.fullName, context);
-      const targetNodeId =
-        (promoted === undefined
-          ? undefined
-          : buildDerivedNodeId(promoted.derivedKind, promoted.identity)) ??
-        context.identityCatalog.nodeIdByAlias.get(`sourceTable:${ref.fullName}`);
-      if (targetNodeId !== undefined) {
+    if (ref.kind === "uc_securable") {
+      if (ref.securableType === "TABLE" && parseThreePartName(ref.fullName) !== undefined) {
+        const promoted = findPromotedSourceTable(ref.fullName, context);
+        const alias = `sourceTable:${ref.fullName}`;
+        const targetNodeId =
+          (promoted === undefined
+            ? undefined
+            : buildDerivedNodeId(promoted.derivedKind, promoted.identity)) ??
+          context.identityCatalog.nodeIdByAlias.get(alias);
+        if (targetNodeId !== undefined) {
+          return [
+            {
+              kind: "resolved",
+              sourceResourceKey,
+              targetNodeId,
+              targetResourceKey: context.identityCatalog.resourceKeyByAlias.get(alias),
+              provenance: promoted === undefined ? "real" : "derived",
+              direction: "entry-to-target",
+            },
+          ];
+        }
+        const phantomId = buildPrefixedNodeId("sourceTable", ref.fullName);
         return [
           {
-            kind: "resolved",
+            kind: "phantom",
             sourceResourceKey,
-            targetNodeId,
-            targetResourceKey: context.identityCatalog.resourceKeyByAlias.get(
-              `sourceTable:${ref.fullName}`,
-            ),
-            provenance: promoted === undefined ? "real" : "derived",
+            targetNodeId: phantomId,
+            resourceKey: phantomId,
+            label: ref.fullName.split(".").at(-1) ?? ref.fullName,
+            phantomKind: "sourceTable",
+            placement: { kind: "hierarchy", identity: ref.fullName, tier: 2 },
             direction: "entry-to-target",
           },
         ];
       }
-      const phantomId = buildPrefixedNodeId("sourceTable", ref.fullName);
-      return [
-        {
-          kind: "phantom",
-          sourceResourceKey,
-          targetNodeId: phantomId,
-          resourceKey: phantomId,
-          label: ref.fullName.split(".").at(-1) ?? ref.fullName,
-          phantomKind: "sourceTable",
-          placement: { kind: "hierarchy", identity: ref.fullName, tier: 2 },
-          direction: "entry-to-target",
-        },
-      ];
+      if (ref.securableType === "VOLUME" || ref.securableType === "FUNCTION") {
+        const parsed = parseThreePartName(ref.fullName);
+        if (parsed === undefined) return [];
+        if (ref.securableType === "VOLUME") {
+          const volumeKey = context.entries.find(
+            ([key, entry]) =>
+              extractResourceType(key) === "volumes" &&
+              (extractStateField(entry, "full_name") === ref.fullName ||
+                (extractStateField(entry, "catalog_name") === parsed.catalog &&
+                  extractStateField(entry, "schema_name") === parsed.schema &&
+                  extractStateField(entry, "name") === parsed.table)),
+          )?.[0];
+          const nodeId =
+            volumeKey === undefined
+              ? undefined
+              : context.identityCatalog.nodeIdByResourceKey.get(volumeKey);
+          if (volumeKey !== undefined && nodeId !== undefined) {
+            return [
+              {
+                kind: "resolved",
+                sourceResourceKey,
+                targetNodeId: nodeId,
+                targetResourceKey: volumeKey,
+                provenance: "real",
+                direction: "entry-to-target",
+              },
+            ];
+          }
+        }
+        const phantomKind = ref.securableType === "VOLUME" ? "volume" : "function";
+        const nodeId = buildPrefixedNodeId(phantomKind, ref.fullName);
+        return [
+          {
+            kind: "phantom",
+            sourceResourceKey,
+            targetNodeId: nodeId,
+            resourceKey: nodeId,
+            label: parsed.table,
+            phantomKind,
+            placement: { kind: "hierarchy", identity: ref.fullName, tier: 2 },
+            direction: "entry-to-target",
+          },
+        ];
+      }
+      return [];
     }
     const resolveNamedTarget = (
       targetKey: string | undefined,
@@ -138,8 +184,6 @@ export const resolveAppReferences = (
           "model_serving_endpoints",
           buildResourceKey("model_serving_endpoints", ref.name),
         );
-      case "uc_securable":
-        return [];
     }
     const exhaustive: never = ref;
     return exhaustive;

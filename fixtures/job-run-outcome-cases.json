@@ -244,6 +244,26 @@
         "badgeVisible": true,
         "visibleChangeKeys": ["job_parameters['region']"]
       }
+    },
+    {
+      "name": "removed_bundle_run_entry",
+      "plan": {
+        "resources.jobs.audit": { "action": "skip", "remote_state": { "job_id": 107 } },
+        "resources.job_runs.audit": {
+          "depends_on": [{ "node": "resources.jobs.audit" }],
+          "action": "delete",
+          "remote_state": { "job_id": 107, "run_id": 7 }
+        }
+      },
+      "effectKey": "resources.job_runs.audit",
+      "expected": {
+        "kind": "delete",
+        "wording": "bundle run entry will be removed",
+        "stateMessage": null,
+        "firesOnDeploy": false,
+        "badgeVisible": false,
+        "visibleChangeKeys": []
+      }
     }
   ]
 }

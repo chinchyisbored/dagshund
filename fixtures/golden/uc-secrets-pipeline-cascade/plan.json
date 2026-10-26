@@ -1,7 +1,7 @@
 {
   "plan_version": 2,
-  "cli_version": "1.14.0",
-  "lineage": "455b416d-266b-4e7f-bc96-709246a6bb62",
+  "cli_version": "1.20.0",
+  "lineage": "70585bc3-04c6-4df9-adf3-260c38c21de0",
   "serial": 1,
   "plan": {
     "resources.pipelines.cascade_on_delete": {
@@ -17,8 +17,8 @@
         "edition": "ADVANCED",
         "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
         "effective_serverless_compute_id": "26f5d666-fa69-3ea6-a255-6494b61e9026",
-        "id": "ee3834ef-bc82-4d3e-adb7-c15af38f6816",
-        "last_modified": 1787782925773,
+        "id": "21b201ed-854b-4608-aac1-d5074554c041",
+        "last_modified": 1792974510471,
         "libraries": [
           {
             "notebook": {
@@ -27,7 +27,7 @@
           }
         ],
         "name": "cli_resources_cascade_on_delete",
-        "pipeline_id": "ee3834ef-bc82-4d3e-adb7-c15af38f6816",
+        "pipeline_id": "21b201ed-854b-4608-aac1-d5074554c041",
         "run_as_user_name": "user1@example.com",
         "serverless": true,
         "state": "IDLE",
@@ -47,8 +47,8 @@
         "edition": "ADVANCED",
         "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
         "effective_serverless_compute_id": "26f5d666-fa69-3ea6-a255-6494b61e9026",
-        "id": "6d3463c5-d907-468e-bbd7-e5d80d4613c0",
-        "last_modified": 1787782925703,
+        "id": "fec8a5d6-b058-4b39-bedc-504ad59d55db",
+        "last_modified": 1792974510394,
         "libraries": [
           {
             "notebook": {
@@ -57,7 +57,7 @@
           }
         ],
         "name": "cli_resources_default_on_delete",
-        "pipeline_id": "6d3463c5-d907-468e-bbd7-e5d80d4613c0",
+        "pipeline_id": "fec8a5d6-b058-4b39-bedc-504ad59d55db",
         "run_as_user_name": "user1@example.com",
         "serverless": true,
         "state": "IDLE",
@@ -77,8 +77,8 @@
         "edition": "ADVANCED",
         "effective_publishing_mode": "DEFAULT_PUBLISHING_MODE",
         "effective_serverless_compute_id": "26f5d666-fa69-3ea6-a255-6494b61e9026",
-        "id": "c70079df-5a82-463e-aa4c-1c000327ae27",
-        "last_modified": 1787782925742,
+        "id": "6d41de1e-f698-4e81-b0f7-cfdd72801d72",
+        "last_modified": 1792974510505,
         "libraries": [
           {
             "notebook": {
@@ -87,7 +87,7 @@
           }
         ],
         "name": "cli_resources_retain_on_delete",
-        "pipeline_id": "c70079df-5a82-463e-aa4c-1c000327ae27",
+        "pipeline_id": "6d41de1e-f698-4e81-b0f7-cfdd72801d72",
         "run_as_user_name": "user1@example.com",
         "serverless": true,
         "state": "IDLE",
@@ -145,8 +145,8 @@
           "name": "pipeline_events",
           "schema": "cli_resources"
         },
-        "id": "1535b259-9a59-4401-bd8d-5de761fe33be",
-        "last_modified": 1787782926257,
+        "id": "95349a02-b3e7-4312-9481-2538c3b06120",
+        "last_modified": 1792974511054,
         "libraries": [
           {
             "notebook": {
@@ -155,7 +155,7 @@
           }
         ],
         "name": "cli_resources_update_cascade_only",
-        "pipeline_id": "1535b259-9a59-4401-bd8d-5de761fe33be",
+        "pipeline_id": "95349a02-b3e7-4312-9481-2538c3b06120",
         "run_as_user_name": "user1@example.com",
         "serverless": true,
         "state": "IDLE",
@@ -176,7 +176,7 @@
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
         "comment": "Dagshund CLI resource fixture",
-        "created_at": 1787782925412,
+        "created_at": 1792974510054,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -188,21 +188,9 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "cli_resources",
         "owner": "user1@example.com",
-        "properties": {
-          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
-        },
-        "schema_id": "6ff0d464-f7b6-4bcf-bbda-a606a7665857",
-        "updated_at": 1787782927766,
+        "schema_id": "5f2afa98-165c-4fcf-b7af-1f7b55970e93",
+        "updated_at": 1792974511924,
         "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
-      },
-      "changes": {
-        "properties": {
-          "action": "skip",
-          "reason": "backend_default",
-          "remote": {
-            "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
-          }
-        }
       }
     },
     "resources.secrets.created_secret": {
@@ -232,15 +220,16 @@
       "action": "delete",
       "remote_state": {
         "catalog_name": "dagshund",
-        "create_time": "2026-08-26T22:22:06.140Z",
+        "create_time": "2026-10-26T00:28:30.542Z",
         "created_by": "user1@example.com",
         "effective_owner": "user1@example.com",
         "effective_value": "[redacted]",
         "full_name": "dagshund.cli_resources.deleted_secret",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "deleted_secret",
+        "owner": "user1@example.com",
         "schema_name": "cli_resources",
-        "update_time": "2026-08-26T22:22:06.140Z",
+        "update_time": "2026-10-26T00:28:30.542Z",
         "updated_by": "user1@example.com",
         "value": "[redacted]"
       }
@@ -255,22 +244,63 @@
       "action": "skip",
       "remote_state": {
         "catalog_name": "dagshund",
-        "create_time": "2026-08-26T22:22:06.037Z",
+        "create_time": "2026-10-26T00:28:30.938Z",
         "created_by": "user1@example.com",
         "effective_owner": "user1@example.com",
         "effective_value": "[redacted]",
         "full_name": "dagshund.cli_resources.grants_secret",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "grants_secret",
+        "owner": "user1@example.com",
         "schema_name": "cli_resources",
-        "update_time": "2026-08-26T22:22:06.037Z",
+        "update_time": "2026-10-26T00:28:30.938Z",
         "updated_by": "user1@example.com",
         "value": "[redacted]"
       },
       "changes": {
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-26T00:28:30.938Z"
+        },
+        "created_by": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "effective_owner": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "effective_value": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "[redacted]"
+        },
+        "full_name": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "dagshund.cli_resources.grants_secret"
+        },
+        "metastore_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84"
+        },
         "owner": {
           "action": "skip",
           "reason": "spec:input_only",
+          "remote": "user1@example.com"
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-26T00:28:30.938Z"
+        },
+        "updated_by": {
+          "action": "skip",
+          "reason": "spec:output_only",
           "remote": "user1@example.com"
         },
         "value": {
@@ -373,19 +403,50 @@
       },
       "remote_state": {
         "catalog_name": "dagshund",
-        "create_time": "2026-08-26T22:22:05.913Z",
+        "create_time": "2026-10-26T00:28:30.688Z",
         "created_by": "user1@example.com",
         "effective_owner": "user1@example.com",
         "effective_value": "[redacted]",
         "full_name": "dagshund.cli_resources.recreated_secret_before",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "recreated_secret_before",
+        "owner": "user1@example.com",
         "schema_name": "cli_resources",
-        "update_time": "2026-08-26T22:22:05.913Z",
+        "update_time": "2026-10-26T00:28:30.688Z",
         "updated_by": "user1@example.com",
         "value": "[redacted]"
       },
       "changes": {
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-26T00:28:30.688Z"
+        },
+        "created_by": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "effective_owner": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "effective_value": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "[redacted]"
+        },
+        "full_name": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "dagshund.cli_resources.recreated_secret_before"
+        },
+        "metastore_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84"
+        },
         "name": {
           "action": "recreate",
           "reason": "spec:immutable",
@@ -396,6 +457,16 @@
         "owner": {
           "action": "skip",
           "reason": "spec:input_only",
+          "remote": "user1@example.com"
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-26T00:28:30.688Z"
+        },
+        "updated_by": {
+          "action": "skip",
+          "reason": "spec:output_only",
           "remote": "user1@example.com"
         },
         "value": {
@@ -427,15 +498,16 @@
       "remote_state": {
         "catalog_name": "dagshund",
         "comment": "Before update",
-        "create_time": "2026-08-26T22:22:05.801Z",
+        "create_time": "2026-10-26T00:28:30.815Z",
         "created_by": "user1@example.com",
         "effective_owner": "user1@example.com",
         "effective_value": "[redacted]",
         "full_name": "dagshund.cli_resources.updated_secret",
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "updated_secret",
+        "owner": "user1@example.com",
         "schema_name": "cli_resources",
-        "update_time": "2026-08-26T22:22:05.801Z",
+        "update_time": "2026-10-26T00:28:30.815Z",
         "updated_by": "user1@example.com",
         "value": "[redacted]"
       },
@@ -446,9 +518,49 @@
           "new": "After update",
           "remote": "Before update"
         },
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-26T00:28:30.815Z"
+        },
+        "created_by": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "effective_owner": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "effective_value": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "[redacted]"
+        },
+        "full_name": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "dagshund.cli_resources.updated_secret"
+        },
+        "metastore_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84"
+        },
         "owner": {
           "action": "skip",
           "reason": "spec:input_only",
+          "remote": "user1@example.com"
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-26T00:28:30.815Z"
+        },
+        "updated_by": {
+          "action": "skip",
+          "reason": "spec:output_only",
           "remote": "user1@example.com"
         },
         "value": {

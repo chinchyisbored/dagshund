@@ -20,9 +20,24 @@
           "new_state": {
             "value": {
               "resources": [
-                { "uc_securable": { "securable_full_name": "main.sales.orders" } },
-                { "uc_securable": { "securable_full_name": "main.ops.events" } },
-                { "uc_securable": { "securable_full_name": "other.raw.external" } }
+                {
+                  "uc_securable": {
+                    "securable_type": "TABLE",
+                    "securable_full_name": "main.sales.orders"
+                  }
+                },
+                {
+                  "uc_securable": {
+                    "securable_type": "TABLE",
+                    "securable_full_name": "main.ops.events"
+                  }
+                },
+                {
+                  "uc_securable": {
+                    "securable_type": "TABLE",
+                    "securable_full_name": "other.raw.external"
+                  }
+                }
               ]
             }
           }
@@ -43,6 +58,174 @@
           "kind": "phantom",
           "targetNodeId": "source-table::other.raw.external",
           "placement": { "kind": "hierarchy", "identity": "other.raw.external", "tier": 2 }
+        }
+      ]
+    },
+    {
+      "name": "AI Gateway primary and fallback provider targets share one semantic dependency",
+      "sourceResourceKey": "resources.model_services.gateway",
+      "entries": {
+        "resources.model_services.gateway": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "parent": "schemas/main.ai",
+              "model_service_id": "gateway",
+              "config": {
+                "routing": {
+                  "destinations": [
+                    {
+                      "destination_type": "DESTINATION_TYPE_EXTERNAL_FOUNDATION_MODEL",
+                      "external_model_config": {
+                        "model_provider_service": "model-provider-services/main.ai.provider"
+                      }
+                    }
+                  ],
+                  "fallback": {
+                    "destinations": [
+                      {
+                        "destination_type": "DESTINATION_TYPE_EXTERNAL_FOUNDATION_MODEL",
+                        "external_model_config": {
+                          "model_provider_service": "model-provider-services/main.ai.provider"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "resources.model_provider_services.provider": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "parent": "schemas/main.ai",
+              "model_provider_service_id": "provider",
+              "config": {}
+            }
+          }
+        }
+      },
+      "expected": [
+        {
+          "kind": "resolved",
+          "targetNodeId": "resources.model_provider_services.provider",
+          "provenance": "real",
+          "direction": "entry-to-target"
+        }
+      ]
+    },
+    {
+      "name": "constructed CLI 1.20 source-backed: keep typed app securables and defer CONNECTION",
+      "entries": {
+        "resources.apps.app": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "resources": [
+                {
+                  "uc_securable": {
+                    "securable_type": "VOLUME",
+                    "securable_full_name": "main.analytics.shared"
+                  }
+                },
+                {
+                  "uc_securable": {
+                    "securable_type": "FUNCTION",
+                    "securable_full_name": "main.analytics.shared"
+                  }
+                },
+                {
+                  "uc_securable": {
+                    "securable_type": "CONNECTION",
+                    "securable_full_name": "main.analytics.shared"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": [
+        {
+          "kind": "phantom",
+          "targetNodeId": "volume::main.analytics.shared",
+          "placement": { "kind": "hierarchy", "identity": "main.analytics.shared", "tier": 2 }
+        },
+        {
+          "kind": "phantom",
+          "targetNodeId": "function::main.analytics.shared",
+          "placement": { "kind": "hierarchy", "identity": "main.analytics.shared", "tier": 2 }
+        }
+      ]
+    },
+    {
+      "name": "constructed CLI 1.20 source-backed: resolve vector source, baseline, and distinct endpoint targets",
+      "sourceResourceKey": "resources.vector_search_indexes.index",
+      "entries": {
+        "resources.vector_search_indexes.index": {
+          "action": "update",
+          "new_state": {
+            "value": {
+              "name": "main.analytics.index",
+              "endpoint_name": "vector-api-name",
+              "delta_sync_index_spec": {
+                "source_table": "main.analytics.source",
+                "embedding_source_columns": [
+                  {
+                    "embedding_model_endpoint_name": "${resources.model_serving_endpoints.embedding.name}"
+                  },
+                  { "model_endpoint_name_for_query": "query-api-name" }
+                ]
+              }
+            }
+          },
+          "remote_state": {
+            "endpoint_name": "stale-vector",
+            "delta_sync_index_spec": {
+              "source_table": "main.analytics.stale"
+            }
+          }
+        },
+        "resources.quality_monitors.monitor": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "table_name": "main.analytics.index",
+              "baseline_table_name": "main.analytics.source"
+            }
+          }
+        },
+        "resources.synced_database_tables.source": {
+          "action": "create",
+          "new_state": { "value": { "name": "main.analytics.source" } }
+        },
+        "resources.model_serving_endpoints.embedding": {
+          "action": "skip",
+          "remote_state": { "name": "embedding-api-name" }
+        }
+      },
+      "expected": [
+        {
+          "kind": "resolved",
+          "targetNodeId": "resources.synced_database_tables.source",
+          "provenance": "real"
+        },
+        {
+          "kind": "resolved",
+          "targetNodeId": "resources.model_serving_endpoints.embedding",
+          "provenance": "real"
+        },
+        {
+          "kind": "phantom",
+          "targetNodeId": "serving-endpoint::query-api-name",
+          "phantomKind": "servingEndpoint"
+        },
+        {
+          "kind": "phantom",
+          "targetNodeId": "vector-endpoint::vector-api-name",
+          "phantomKind": "vectorEndpoint"
         }
       ]
     }

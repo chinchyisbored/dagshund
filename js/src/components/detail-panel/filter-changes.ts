@@ -1,5 +1,6 @@
 import type { ChangeDesc } from "../../types/plan-schema.ts";
 import { deepEqual } from "../../utils/deep-equal.ts";
+import { compareProviderChangeValues } from "../../utils/provider-comparison-facts.ts";
 import {
   type DriftScanParent,
   isReclassifiedListElementDriftChange,
@@ -18,9 +19,23 @@ const NOISE_ACTIONS: ReadonlySet<string> = new Set(["skip", ""]);
 export const isNoOpChange = (change: ChangeDesc): boolean => {
   if (isTopologyDriftChange(change)) return false;
   if (change.old === undefined || change.new === undefined) return false;
-  if (!deepEqual(change.old, change.new)) return false;
+  const oldNewEqual = compareProviderChangeValues(change, "old", "new");
+  if (
+    oldNewEqual === false ||
+    oldNewEqual === null ||
+    (oldNewEqual === undefined && !deepEqual(change.old, change.new))
+  )
+    return false;
   // Field-level drift (remote differs) is also meaningful
-  if (change.remote !== undefined && !deepEqual(change.remote, change.old)) return false;
+  if (change.remote !== undefined) {
+    const oldRemoteEqual = compareProviderChangeValues(change, "old", "remote");
+    if (
+      oldRemoteEqual === false ||
+      (oldRemoteEqual === undefined && !deepEqual(change.remote, change.old))
+    )
+      return false;
+    if (oldRemoteEqual === null) return false;
+  }
   return true;
 };
 

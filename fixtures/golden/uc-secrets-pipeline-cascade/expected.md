@@ -1,4 +1,4 @@
-### dagshund plan (v2, cli 1.14.0)
+### dagshund plan (v2, cli 1.20.0)
 
 #### pipelines (4)
 - `-` `pipelines/cascade_on_delete` — delete

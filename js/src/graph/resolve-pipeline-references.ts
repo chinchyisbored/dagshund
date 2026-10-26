@@ -60,9 +60,15 @@ export const resolvePipelineIngestionReferences = (
           ...(resource.qualityMonitorTableName.status === "supported"
             ? [resource.qualityMonitorTableName.value]
             : []),
+          ...(resource.qualityMonitorBaselineTableName.status === "supported"
+            ? [resource.qualityMonitorBaselineTableName.value]
+            : []),
+          ...(resource.vectorIndex.status === "supported"
+            ? [resource.vectorIndex.value.sourceTable]
+            : []),
           ...(resource.appResources?.status === "supported"
             ? resource.appResources.value.flatMap((ref) =>
-                ref.kind === "uc_securable" ? [ref.fullName] : [],
+                ref.kind === "uc_securable" && ref.securableType === "TABLE" ? [ref.fullName] : [],
               )
             : []),
         ]),

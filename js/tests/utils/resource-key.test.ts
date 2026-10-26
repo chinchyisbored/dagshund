@@ -80,12 +80,17 @@ describe("extractTypeBadge", () => {
     );
     expect(extractTypeBadge("resources.postgres_databases.app_db")).toBe("postgres database");
     expect(extractTypeBadge("resources.postgres_roles.data_engineers")).toBe("postgres role");
+    expect(extractTypeBadge("resources.postgres_snapshot_schedules.daily")).toBe(
+      "snapshot schedule",
+    );
     expect(extractTypeBadge("resources.postgres_synced_tables.phantom_table")).toBe(
       "postgres synced table",
     );
     expect(extractTypeBadge("resources.registered_models.fraud_detector")).toBe("model");
     expect(extractTypeBadge("resources.secrets.api_token")).toBe("secret");
     expect(extractTypeBadge("resources.external_locations.my_loc")).toBe("external location");
+    expect(extractTypeBadge("resources.vector_search_indexes.index")).toBe("vector index");
+    expect(extractTypeBadge("resources.vector_search_endpoints.endpoint")).toBe("vector endpoint");
   });
 
   test("falls back to raw segment for unknown resource types", () => {
@@ -220,6 +225,9 @@ describe("extractPhantomBadge", () => {
     expect(extractPhantomBadge("catalog::prod")).toBe("catalog");
     expect(extractPhantomBadge("schema::prod.staging")).toBe("schema");
     expect(extractPhantomBadge("source-table::prod.staging.customers")).toBe("table");
+    expect(extractPhantomBadge("volume::prod.staging.data")).toBe("volume");
+    expect(extractPhantomBadge("function::prod.staging.lookup")).toBe("function");
+    expect(extractPhantomBadge("external-connection::prod.staging.remote")).toBe("connection");
     expect(extractPhantomBadge("database-instance::my_db")).toBe("database instance");
     expect(extractPhantomBadge("dashboard::abc123")).toBe("dashboard");
     expect(extractPhantomBadge("genie-space::space-abc")).toBe("genie");

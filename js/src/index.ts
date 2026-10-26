@@ -3,6 +3,7 @@ import index from "./index.html";
 import { parsePlanFromString } from "./parser/parse-plan.ts";
 import type { Plan } from "./types/plan-schema.ts";
 import { tryOpenBrowser } from "./utils/open-browser.ts";
+import { serializePlanWithProviderComparisonFacts } from "./utils/provider-comparison-facts.ts";
 
 const readStdinPlan = async (): Promise<Plan | null> => {
   if (process.stdin.isTTY) {
@@ -41,7 +42,9 @@ const server = serve({
   hostname: "127.0.0.1",
   routes: {
     "/api/plan": (request) =>
-      isAllowedHost(request) ? Response.json(plan) : createForbiddenResponse(),
+      isAllowedHost(request)
+        ? Response.json(plan === null ? null : serializePlanWithProviderComparisonFacts(plan))
+        : createForbiddenResponse(),
     // Static assets only (HTML/JS/CSS) — no secrets. Host validation on /api/plan
     // prevents DNS rebinding from accessing plan data. Bun's HTML import syntax
     // requires direct assignment here; wrapping in a handler loses bundling/HMR.

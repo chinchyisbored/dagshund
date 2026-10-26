@@ -9,6 +9,7 @@ import {
   type ExternalDerivedLeafRef,
   type ExternalHierarchyRef,
   type ExternalLeafPhantomRef,
+  type ExternalRootLeafRef,
 } from "./build-hierarchy-graph.ts";
 import { buildReferenceIdentityCatalog } from "./build-reference-identity-catalog.ts";
 import { buildDerivedNode, isJobEntry } from "./build-resource-nodes.ts";
@@ -96,13 +97,33 @@ const collectExternalLeafPhantomRefs = (
     reference.kind === "phantom" &&
     reference.placement.kind === "hierarchy" &&
     reference.placement.tier === 2 &&
-    (reference.phantomKind === "sourceTable" || reference.phantomKind === "registeredModel")
+    (reference.phantomKind === "sourceTable" ||
+      reference.phantomKind === "registeredModel" ||
+      reference.phantomKind === "volume" ||
+      reference.phantomKind === "function" ||
+      reference.phantomKind === "externalConnection" ||
+      reference.phantomKind === "modelProviderService" ||
+      reference.phantomKind === "serviceCredential")
       ? [
           {
             identity: reference.placement.identity,
             phantomId: reference.targetNodeId,
             label: reference.label,
             phantomKind: reference.phantomKind,
+          },
+        ]
+      : [],
+  );
+
+const collectExternalRootLeafRefs = (
+  references: readonly ReferenceResolution[],
+): readonly ExternalRootLeafRef[] =>
+  references.flatMap((reference) =>
+    reference.kind === "phantom" && reference.placement.kind === "uc-root"
+      ? [
+          {
+            nodeId: reference.targetNodeId,
+            label: reference.label,
           },
         ]
       : [],
@@ -217,6 +238,7 @@ export const buildResourceGraph = (
   const externalPostgresDatabaseRefs = collectExternalPostgresRefs(referenceResolutions);
   const externalLeafPhantomRefs = collectExternalLeafPhantomRefs(referenceResolutions);
   const externalUcHierarchyRefs = collectExternalHierarchyRefs(referenceResolutions);
+  const externalUcRootLeafRefs = collectExternalRootLeafRefs(referenceResolutions);
 
   const ucGraph = buildChainGraph(
     ucEntries,
@@ -225,6 +247,7 @@ export const buildResourceGraph = (
     externalLeafPhantomRefs,
     externalUcHierarchyRefs,
     externalDerivedLeafRefs,
+    externalUcRootLeafRefs,
   );
   const workspaceDerivedRefs = collectWorkspaceDerivedNodeRefs(entries, ownedDerivedRefs);
   const { graph: workspaceGraph, placement: workspacePlacement } = buildWorkspaceGraph(
@@ -263,6 +286,7 @@ export const buildResourceGraph = (
   const workspacePhantomReferences = referenceResolutions.filter((reference) => {
     if (reference.kind !== "phantom") return true;
     if (ucNodeIds.has(reference.targetNodeId)) return false;
+    if (reference.placement.kind === "uc-root") return false;
     if (
       reference.placement.kind === "hierarchy" &&
       (reference.phantomKind === "postgresBranch" || reference.phantomKind === "postgresDatabase")

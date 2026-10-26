@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { splitMeaningfulChanges } from "../../src/components/detail-panel/filter-changes.ts";
 import { parsePlanFromString, parsePlanJson } from "../../src/parser/parse-plan.ts";
+import { serializePlanWithProviderComparisonFacts } from "../../src/utils/provider-comparison-facts.ts";
+import { isFieldDriftChange, isTopologyDriftChange } from "../../src/utils/structural-diff.ts";
+import { isUnknownRecord } from "../../src/utils/unknown-record.ts";
 
 describe("parsePlanJson", () => {
   test("parses a minimal valid plan", () => {
@@ -62,6 +66,412 @@ describe("parsePlanJson", () => {
       expect(entry?.depends_on?.[1]?.label).toBeUndefined();
       expect(entry?.action).toBe("create");
       expect(entry?.changes?.["name"]?.action).toBe("create");
+    }
+  });
+
+  test("redacts provider credentials in snapshots and leaf or aggregate changes", () => {
+    const input = {
+      plan: {
+        "resources.model_provider_services.provider": {
+          action: "update",
+          new_state: {
+            value: {
+              config: {
+                amazon_bedrock: {
+                  direct: {
+                    aws_access_key: {
+                      access_key_id: "AWS_ID_SENTINEL",
+                      secret_access_key: { plaintext: "AWS_SECRET_SENTINEL" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          changes: {
+            "config.amazon_bedrock.direct.aws_access_key.access_key_id": {
+              action: "update",
+              old: "OLD_ID_SENTINEL",
+              new: "NEW_ID_SENTINEL",
+              remote: "REMOTE_ID_SENTINEL",
+            },
+            "config.amazon_bedrock.direct": {
+              action: "update",
+              old: { plaintext: "OLD_SECRET_SENTINEL" },
+              new: { plaintext: "NEW_SECRET_SENTINEL" },
+              remote: { plaintext: "REMOTE_SECRET_SENTINEL" },
+            },
+          },
+        },
+      },
+    };
+
+    const result = parsePlanJson(input);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const serialized = JSON.stringify(result.data);
+      for (const sentinel of [
+        "AWS_ID_SENTINEL",
+        "AWS_SECRET_SENTINEL",
+        "OLD_ID_SENTINEL",
+        "NEW_ID_SENTINEL",
+        "REMOTE_ID_SENTINEL",
+        "OLD_SECRET_SENTINEL",
+        "NEW_SECRET_SENTINEL",
+        "REMOTE_SECRET_SENTINEL",
+      ]) {
+        expect(serialized).not.toContain(sentinel);
+      }
+    }
+    expect(
+      input.plan["resources.model_provider_services.provider"].new_state.value.config.amazon_bedrock
+        .direct.aws_access_key.access_key_id,
+    ).toBe("AWS_ID_SENTINEL");
+  });
+
+  test("preserves safe provider aggregate values and safe leaf distinctions", () => {
+    const input = {
+      plan: {
+        "resources.model_provider_services.provider": {
+          changes: {
+            "config.azure_openai.direct": {
+              action: "update",
+              old: {
+                base_url: "https://safe.example",
+                service_credential: { name: "credentials/safe" },
+              },
+              new: {
+                base_url: "https://safe.example",
+                service_credential: { name: "credentials/safe" },
+              },
+              remote: {
+                base_url: "https://safe.example",
+                service_credential: { name: "credentials/safe" },
+              },
+            },
+            "config.openai.direct.api_key": {
+              action: "update",
+              old: {},
+              new: "",
+            },
+          },
+        },
+      },
+    };
+
+    const result = parsePlanJson(input);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const entry = result.data.plan?.["resources.model_provider_services.provider"];
+      expect(entry?.changes?.["config.azure_openai.direct"]?.old).toEqual({
+        base_url: "https://safe.example",
+        service_credential: { name: "credentials/safe" },
+      });
+      expect(entry?.changes?.["config.azure_openai.direct"]?.new).toEqual({
+        base_url: "https://safe.example",
+        service_credential: { name: "credentials/safe" },
+      });
+      expect(entry?.changes?.["config.azure_openai.direct"]?.remote).toEqual({
+        base_url: "https://safe.example",
+        service_credential: { name: "credentials/safe" },
+      });
+      expect(entry?.changes?.["config.openai.direct.api_key"]?.old).toEqual({});
+      expect(entry?.changes?.["config.openai.direct.api_key"]?.new).toBe("");
+      expect(JSON.stringify(result.data)).toContain("credentials/safe");
+    }
+  });
+
+  test("preserves provider credential comparison semantics without topology false positives", () => {
+    const parseChange = (old: string, next: string, remote?: string) => {
+      const result = parsePlanJson({
+        plan: {
+          "resources.model_provider_services.provider": {
+            changes: {
+              "config.openai.direct.api_key.plaintext": {
+                action: "update",
+                old,
+                new: next,
+                ...(remote === undefined ? {} : { remote }),
+              },
+            },
+          },
+        },
+      });
+      if (!result.ok) throw new Error(result.error);
+      return result.data.plan?.["resources.model_provider_services.provider"]?.changes?.[
+        "config.openai.direct.api_key.plaintext"
+      ];
+    };
+
+    const rotation = parseChange("OLD_SENTINEL", "NEW_SENTINEL");
+    const topology = parseChange("OLD_SENTINEL", "OLD_SENTINEL");
+    const drift = parseChange("OLD_SENTINEL", "OLD_SENTINEL", "REMOTE_SENTINEL");
+    const aggregate = (old: string, next: string, remote?: string) => {
+      const result = parsePlanJson({
+        plan: {
+          "resources.model_provider_services.provider": {
+            changes: {
+              "config.openai.direct": {
+                action: "update",
+                old: { api_key: { plaintext: old }, base_url: "https://safe.example" },
+                new: { api_key: { plaintext: next }, base_url: "https://safe.example" },
+                ...(remote === undefined
+                  ? {}
+                  : {
+                      remote: { api_key: { plaintext: remote }, base_url: "https://safe.example" },
+                    }),
+              },
+            },
+          },
+        },
+      });
+      if (!result.ok) throw new Error(result.error);
+      return result.data.plan?.["resources.model_provider_services.provider"]?.changes?.[
+        "config.openai.direct"
+      ];
+    };
+    const aggregateRotation = aggregate("OLD_SENTINEL", "NEW_SENTINEL");
+    const aggregateDrift = aggregate("OLD_SENTINEL", "OLD_SENTINEL", "REMOTE_SENTINEL");
+    expect(rotation).toBeDefined();
+    expect(topology).toBeDefined();
+    expect(drift).toBeDefined();
+    expect(aggregateRotation).toBeDefined();
+    expect(aggregateDrift).toBeDefined();
+    if (rotation !== undefined) expect(isTopologyDriftChange(rotation)).toBe(false);
+    if (topology !== undefined) expect(isTopologyDriftChange(topology)).toBe(true);
+    if (drift !== undefined) {
+      expect(isTopologyDriftChange(drift)).toBe(false);
+      expect(isFieldDriftChange(drift)).toBe(true);
+      expect(
+        splitMeaningfulChanges(
+          { credential: drift },
+          {
+            newState: undefined,
+            remoteState: undefined,
+            resourceHasShapeDrift: false,
+          },
+        ).fieldChanges.map(([key]) => key),
+      ).toEqual(["credential"]);
+    }
+    if (aggregateRotation !== undefined) {
+      expect(isTopologyDriftChange(aggregateRotation)).toBe(false);
+      expect(
+        splitMeaningfulChanges(
+          { credential: aggregateRotation },
+          {
+            newState: undefined,
+            remoteState: undefined,
+            resourceHasShapeDrift: false,
+          },
+        ).fieldChanges.map(([key]) => key),
+      ).toEqual(["credential"]);
+    }
+    if (aggregateDrift !== undefined) {
+      expect(isTopologyDriftChange(aggregateDrift)).toBe(false);
+      expect(isFieldDriftChange(aggregateDrift)).toBe(true);
+      expect(
+        splitMeaningfulChanges(
+          { credential: aggregateDrift },
+          {
+            newState: undefined,
+            remoteState: undefined,
+            resourceHasShapeDrift: false,
+          },
+        ).fieldChanges.map(([key]) => key),
+      ).toEqual(["credential"]);
+    }
+
+    const unknownRemote = parseChange("OLD_SENTINEL", "OLD_SENTINEL", "[redacted]");
+    const unknownOldNew = parseChange("[redacted]", "[redacted]");
+    expect(unknownRemote).toBeDefined();
+    expect(unknownOldNew).toBeDefined();
+    if (unknownRemote !== undefined) {
+      expect(isFieldDriftChange(unknownRemote)).toBe(false);
+      expect(
+        splitMeaningfulChanges(
+          { credential: unknownRemote },
+          {
+            newState: undefined,
+            remoteState: undefined,
+            resourceHasShapeDrift: false,
+          },
+        ).fieldChanges.map(([key]) => key),
+      ).toEqual(["credential"]);
+    }
+    if (unknownOldNew !== undefined) {
+      expect(isFieldDriftChange(unknownOldNew)).toBe(false);
+      expect(
+        splitMeaningfulChanges(
+          { credential: unknownOldNew },
+          {
+            newState: undefined,
+            remoteState: undefined,
+            resourceHasShapeDrift: false,
+          },
+        ).fieldChanges.map(([key]) => key),
+      ).toEqual(["credential"]);
+    }
+  });
+
+  test("preserves provider comparison facts through stdin server JSON transport", async () => {
+    const cases = [
+      {
+        path: "config.openai.direct.api_key.plaintext",
+        old: "OLD_SENTINEL",
+        new: "OLD_SENTINEL",
+        remote: "REMOTE_SENTINEL",
+        expectedDrift: true,
+      },
+      {
+        path: "config.openai.direct.api_key.plaintext",
+        old: "OLD_SENTINEL",
+        new: "OLD_SENTINEL",
+        expectedDrift: false,
+        expectedTopology: true,
+      },
+      {
+        path: "config.openai.direct",
+        old: { api_key: { plaintext: "OLD_SENTINEL" }, base_url: "https://safe.example" },
+        new: { api_key: { plaintext: "OLD_SENTINEL" }, base_url: "https://safe.example" },
+        remote: { api_key: { plaintext: "REMOTE_SENTINEL" }, base_url: "https://safe.example" },
+        expectedDrift: true,
+      },
+      {
+        path: "config.openai.direct.api_key.plaintext",
+        old: "[redacted]",
+        new: "[redacted]",
+        remote: "[redacted]",
+        expectedDrift: false,
+      },
+    ] as const;
+
+    for (const changeCase of cases) {
+      const parsed = parsePlanJson({
+        plan: {
+          "resources.model_provider_services.provider": {
+            changes: {
+              [changeCase.path]: {
+                action: "update",
+                old: changeCase.old,
+                new: changeCase.new,
+                ...("remote" in changeCase ? { remote: changeCase.remote } : {}),
+              },
+            },
+          },
+        },
+      });
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) continue;
+
+      const response = Response.json(serializePlanWithProviderComparisonFacts(parsed.data));
+      const transported: unknown = await response.json();
+      const received = parsePlanJson(transported);
+      expect(received.ok).toBe(true);
+      if (!received.ok) continue;
+      const change =
+        received.data.plan?.["resources.model_provider_services.provider"]?.changes?.[
+          changeCase.path
+        ];
+      expect(change).toBeDefined();
+      if (change === undefined) continue;
+      expect(isFieldDriftChange(change)).toBe(changeCase.expectedDrift);
+      if ("expectedTopology" in changeCase)
+        expect(isTopologyDriftChange(change)).toBe(changeCase.expectedTopology);
+      if (!("expectedTopology" in changeCase)) {
+        expect(
+          splitMeaningfulChanges(
+            { credential: change },
+            { newState: undefined, remoteState: undefined, resourceHasShapeDrift: false },
+          ).fieldChanges.map(([key]) => key),
+        ).toEqual(["credential"]);
+      }
+      expect(JSON.stringify(transported)).not.toContain("OLD_SENTINEL");
+      expect(JSON.stringify(transported)).not.toContain("REMOTE_SENTINEL");
+      expect(JSON.stringify(received.data)).not.toContain("_dagshund_provider_comparison_facts");
+    }
+  });
+
+  test("restores safe comparison facts from embedded plans without exposing credentials", () => {
+    const result = parsePlanFromString(
+      JSON.stringify({
+        plan: {
+          "resources.model_provider_services.provider": {
+            changes: {
+              "config.openai.direct.api_key.plaintext": {
+                action: "update",
+                old: "[redacted]",
+                new: "[redacted]",
+                remote: "[redacted]",
+                _dagshund_provider_comparison_facts: {
+                  old_new_equal: true,
+                  old_remote_equal: false,
+                },
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const change =
+        result.data.plan?.["resources.model_provider_services.provider"]?.changes?.[
+          "config.openai.direct.api_key.plaintext"
+        ];
+      expect(change).toBeDefined();
+      if (change !== undefined) {
+        expect(isFieldDriftChange(change)).toBe(true);
+        expect(JSON.stringify(result.data)).not.toContain("_dagshund_provider_comparison_facts");
+      }
+    }
+  });
+
+  test("redacts every schema provider credential arm", () => {
+    const paths = [
+      ["anthropic", "direct", "api_key", "plaintext"],
+      ["azure_openai", "direct", "api_key", "plaintext"],
+      ["azure_openai", "direct", "entra_service_principal", "client_secret", "plaintext"],
+      ["custom", "direct", "api_key", "plaintext"],
+      ["gemini_enterprise", "direct", "api_key", "plaintext"],
+      ["microsoft_foundry", "direct", "api_key", "plaintext"],
+      ["microsoft_foundry", "direct", "entra_service_principal", "client_secret", "plaintext"],
+      ["openai", "direct", "api_key", "plaintext"],
+      ["amazon_bedrock", "direct", "aws_access_key", "secret_access_key", "plaintext"],
+      ["amazon_bedrock", "direct", "aws_access_key", "access_key_id"],
+    ] as const;
+    const config: Record<string, unknown> = {};
+    for (const [index, path] of paths.entries()) {
+      let current = config;
+      for (const segment of path.slice(0, -1)) {
+        const child = current[segment];
+        if (isUnknownRecord(child)) {
+          current = child;
+        } else {
+          const nested: Record<string, unknown> = {};
+          current[segment] = nested;
+          current = nested;
+        }
+      }
+      current[path.at(-1) ?? ""] = `PROVIDER_SENTINEL_${index}`;
+    }
+
+    const result = parsePlanJson({
+      plan: {
+        "resources.model_provider_services.provider": {
+          new_state: { value: { config } },
+        },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const serialized = JSON.stringify(result.data);
+      for (const index of paths.keys()) {
+        expect(serialized).not.toContain(`PROVIDER_SENTINEL_${index}`);
+      }
     }
   });
 
@@ -210,14 +620,12 @@ describe("parsePlanJson", () => {
     }
   });
 
-  test("returns error for invalid schema", () => {
+  test("returns a value-free error for invalid schema", () => {
     const result = parsePlanJson({
       plan_version: "not_a_number",
     });
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("expected number");
-    }
+    if (!result.ok) expect(result.error).toBe("Invalid plan JSON");
   });
 
   test("coerces unknown action type to 'unknown'", () => {
@@ -254,12 +662,21 @@ describe("parsePlanFromString", () => {
     }
   });
 
-  test("returns error for invalid JSON syntax", () => {
-    const result = parsePlanFromString("{not valid json}");
+  test("does not echo provider credentials in invalid JSON diagnostics", () => {
+    const input =
+      '{"plan":{"resources.model_provider_services.provider":{"new_state":{"value":{"config":{"openai":{"direct":{"api_key":{"plaintext":CREDENTIAL_SENTINEL}}}}}}}}}';
+    const result = parsePlanFromString(input);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toContain("Invalid JSON");
+      expect(result.error).toBe("Invalid JSON");
+      expect(result.error).not.toContain("CREDENTIAL_SENTINEL");
     }
+  });
+
+  test("returns a value-free error for invalid JSON syntax", () => {
+    const result = parsePlanFromString("{not valid json}");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("Invalid JSON");
   });
 
   test("returns error for empty string", () => {
@@ -270,12 +687,10 @@ describe("parsePlanFromString", () => {
     }
   });
 
-  test("returns error for valid JSON but invalid schema", () => {
+  test("returns a value-free error for invalid schema", () => {
     const result = parsePlanFromString('{"plan_version": "oops"}');
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain("expected number");
-    }
+    if (!result.ok) expect(result.error).toBe("Invalid plan JSON");
   });
 
   test("round-trips through invalid fixture file", async () => {

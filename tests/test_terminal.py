@@ -389,6 +389,14 @@ def test_render_resource_delete_action() -> None:
     assert "(delete)" in lines[0]
 
 
+def test_render_resource_snapshot_schedule_delete_explains_preserved_data() -> None:
+    key = "resources.postgres_snapshot_schedules.daily"
+    lines = list(_render_resource(key, make_resource(action="delete"), use_color=False))
+
+    assert "clearing cadences" in lines[0]
+    assert "existing snapshots and branch are preserved" in lines[0]
+
+
 def test_render_resource_postgres_synced_table_create_shows_managed_outputs() -> None:
     key = "resources.postgres_synced_tables.orders"
     entry = make_resource(
@@ -1811,7 +1819,7 @@ def test_render_text_delete_effect_uses_destructive_wording(capsys: pytest.Captu
     render_text(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
     out = capsys.readouterr().out
-    assert "      - run audit (run record will be deleted)" in out
+    assert "      - run audit (bundle run entry will be removed)" in out
 
 
 def test_render_text_job_run_outcomes_hide_generated_fields(capsys: pytest.CaptureFixture[str]) -> None:
@@ -2008,7 +2016,7 @@ def test_render_text_shared_job_run_vectors_attached_and_standalone(capsys: pyte
 
 
 def test_render_text_basic_run_kinds_attached_and_standalone(capsys: pytest.CaptureFixture[str]) -> None:
-    cases = (("create", "runs on deploy"), ("skip", "already ran"), ("delete", "run record will be deleted"))
+    cases = (("create", "runs on deploy"), ("skip", "already ran"), ("delete", "bundle run entry will be removed"))
     for action, wording in cases:
         for standalone in (False, True):
             resources: dict[str, dict[str, object]] = {"resources.job_runs.basic": {"action": action}}

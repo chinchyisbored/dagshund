@@ -195,7 +195,7 @@ def _base_wording(kind: JobRunEffectKind, action: ActionType) -> str:
         case "trigger-removed":
             return "deploy trigger removed; no run will start"
         case "delete":
-            return "run record will be deleted"
+            return "bundle run entry will be removed"
         case "unknown":
             return "unchanged" if action == ActionType.EMPTY else action.value
 

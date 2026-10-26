@@ -30,12 +30,13 @@ describe("RunEffectsSection", () => {
     expect(getByText("already ran")).toBeDefined();
   });
 
-  test("delete effect shows the destructive wording", () => {
-    const { getByText } = render(
+  test("delete effect describes bundle entry removal without claiming history deletion", () => {
+    const { container, getByText } = render(
       <RunEffectsSection effects={[makeEffect({ name: "audit", action: "delete" })]} />,
     );
 
-    expect(getByText("run record will be deleted")).toBeDefined();
+    expect(getByText("bundle run entry will be removed")).toBeDefined();
+    expect(container.textContent).not.toContain("run record will be deleted");
   });
 
   test("run page url renders as an external link", () => {

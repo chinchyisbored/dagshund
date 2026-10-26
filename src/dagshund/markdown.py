@@ -13,6 +13,7 @@ from dagshund.format import (
     iter_drift_subline_bodies,
     iter_effect_field_changes,
     prepare_report,
+    resource_action_note,
     select_resource_details,
     select_standalone_job_run_effect,
 )
@@ -131,7 +132,9 @@ def _render_resource(
     resource_type, resource_name = parse_resource_key(key)
 
     label = f" \u2014 {cfg.display}" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
-    yield f"- `{cfg.symbol}` {_code_span(f'{resource_type}/{resource_name}')}{label}"
+    note = resource_action_note(resource_type, entry.action)
+    note_text = f"; {_escape_plain_text(note)}" if note is not None else ""
+    yield f"- `{cfg.symbol}` {_code_span(f'{resource_type}/{resource_name}')}{label}{note_text}"
 
     for output in extract_synced_table_outputs(key, entry):
         yield _render_synced_table_output(output, entry.action)

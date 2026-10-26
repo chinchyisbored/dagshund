@@ -74,6 +74,22 @@ describe("HierarchyNode", () => {
     expect(badge?.textContent).toBe("catalog");
   });
 
+  test("renders distinct badges for new UC phantom kinds", () => {
+    for (const [resourceKey, expectedBadge] of [
+      ["volume::main.analytics.data", "volume"],
+      ["function::main.analytics.lookup", "function"],
+      ["external-connection::main.analytics.remote", "connection"],
+    ]) {
+      const { container, unmount } = renderHierarchy({
+        nodeKind: "phantom",
+        resourceKey,
+        label: "unrelated label",
+      });
+      expect(container.querySelector("span.bg-badge-bg")?.textContent).toBe(expectedBadge);
+      unmount();
+    }
+  });
+
   test("root nodes do not render a phantom badge", () => {
     // A root node with a resourceKey that would otherwise produce a badge.
     const { container } = renderHierarchy({ resourceKey: "jobs" });

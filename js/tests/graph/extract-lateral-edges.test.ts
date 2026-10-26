@@ -761,8 +761,14 @@ describe("extractJobTaskRefsEdges", () => {
       const parsed = parsePlanJson({ plan: pairCase.entries });
       expect(parsed.ok).toBe(true);
       if (!parsed.ok) throw new Error("target-pair fixture must parse");
-      const entries = Object.entries(parsed.data.plan ?? {});
-      const edges = extractLateralEdges(makeContext(entries));
+      const plan = parsed.data.plan ?? {};
+      const entries = Object.entries(plan);
+      const edges = Object.keys(plan).some(
+        (key) =>
+          key.startsWith("resources.apps.") || key.startsWith("resources.vector_search_indexes."),
+      )
+        ? buildResourceGraphFromPlan({ plan }).lateralEdges
+        : extractLateralEdges(makeContext(entries));
       expect(edges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual(
         pairCase.expected,
       );
@@ -2053,7 +2059,10 @@ describe("extractAppUcSecurableEdges", () => {
         makeEntry({
           resources: [
             {
-              uc_securable: { securable_full_name: "dagshund.analytics.table1" },
+              uc_securable: {
+                securable_type: "TABLE",
+                securable_full_name: "dagshund.analytics.table1",
+              },
               name: "data",
             },
           ],
@@ -2082,7 +2091,10 @@ describe("extractAppUcSecurableEdges", () => {
         makeEntry({
           resources: [
             {
-              uc_securable: { securable_full_name: "dagshund.analytics.table1" },
+              uc_securable: {
+                securable_type: "TABLE",
+                securable_full_name: "dagshund.analytics.table1",
+              },
               name: "data",
             },
           ],

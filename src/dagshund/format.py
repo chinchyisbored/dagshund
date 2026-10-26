@@ -93,6 +93,12 @@ def action_config(action: ActionType) -> ActionConfig:
     return ACTIONS.get(action, DEFAULT_ACTION)
 
 
+def resource_action_note(resource_type: str, action: ActionType) -> str | None:
+    if resource_type == "postgres_snapshot_schedules" and action == ActionType.DELETE:
+        return "disables automatic snapshots by clearing cadences; existing snapshots and branch are preserved"
+    return None
+
+
 def field_action_config(change: FieldChange, ctx: FieldChangeContext | None = None) -> ActionConfig:
     """Derive the display config for a field change from data presence, not the action label.
 

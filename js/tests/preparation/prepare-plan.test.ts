@@ -69,6 +69,92 @@ describe("preparePlan app resource projections", () => {
   });
 });
 
+describe("preparePlan typed app securables", () => {
+  test("leaves unknown UC securable types opaque", () => {
+    const prepared = prepareEntries({
+      "resources.apps.app": {
+        action: "create",
+        new_state: {
+          value: {
+            resources: [{ uc_securable: { securable_type: "FUTURE", credential: "PRIVATE" } }],
+          },
+        },
+      },
+    });
+
+    expect(prepared.byResourceKey.get("resources.apps.app")?.appResources).toEqual({
+      status: "supported",
+      value: [],
+    });
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("PRIVATE");
+  });
+
+  test("retains supported UC securable discriminants including deferred CONNECTION", () => {
+    const prepared = prepareEntries({
+      "resources.apps.app": {
+        action: "create",
+        new_state: {
+          value: {
+            resources: [
+              ...(["TABLE", "VOLUME", "FUNCTION", "CONNECTION"] as const).map((securable_type) => ({
+                uc_securable: { securable_type, securable_full_name: "main.analytics.shared" },
+              })),
+            ],
+          },
+        },
+      },
+    });
+
+    expect(prepared.byResourceKey.get("resources.apps.app")?.appResources).toEqual({
+      status: "supported",
+      value: (["TABLE", "VOLUME", "FUNCTION", "CONNECTION"] as const).map((securableType) => ({
+        kind: "uc_securable",
+        fullName: "main.analytics.shared",
+        securableType,
+      })),
+    });
+  });
+
+  test("diagnoses malformed UC securable types without exposing values", () => {
+    const prepared = prepareEntries({
+      "resources.apps.app": {
+        action: "create",
+        new_state: {
+          value: {
+            resources: [
+              {
+                uc_securable: { securable_type: 42, securable_full_name: "main.analytics.shared" },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(prepared.byResourceKey.get("resources.apps.app")?.appResources).toMatchObject({
+      status: "unsupported",
+      diagnostic: { capability: "app-resources", reason: "invalid-shape" },
+    });
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("42");
+  });
+
+  test("diagnoses a missing recognized UC securable type", () => {
+    const prepared = prepareEntries({
+      "resources.apps.app": {
+        action: "create",
+        new_state: {
+          value: { resources: [{ uc_securable: { securable_full_name: "main.schema.table" } }] },
+        },
+      },
+    });
+
+    expect(prepared.byResourceKey.get("resources.apps.app")?.appResources).toMatchObject({
+      status: "unsupported",
+      diagnostic: { capability: "app-resources", reason: "invalid-shape" },
+    });
+  });
+});
+
 describe("preparePlan specialized reference projections", () => {
   test("ignores Postgres fields not consumed by the resource family", () => {
     const prepared = prepareEntries({
@@ -169,6 +255,154 @@ describe("preparePlan specialized reference projections", () => {
   });
 });
 
+describe("preparePlan vector and monitor reference projections", () => {
+  test("projects consumed fields, preserves optional absence, and diagnoses malformed shapes safely", () => {
+    const prepared = prepareEntries({
+      "resources.vector_search_indexes.direct": {
+        action: "create",
+        new_state: { value: { endpoint_name: "vector" } },
+      },
+      "resources.vector_search_indexes.sync": {
+        action: "create",
+        new_state: {
+          value: {
+            endpoint_name: "vector",
+            delta_sync_index_spec: {
+              source_table: "main.analytics.source",
+              embedding_source_columns: [{ embedding_model_endpoint_name: "embed" }],
+              unrelated: { opaque: true },
+            },
+          },
+        },
+      },
+      "resources.vector_search_indexes.malformed": {
+        action: "create",
+        new_state: {
+          value: {
+            endpoint_name: "vector",
+            delta_sync_index_spec: {
+              source_table: "main.analytics.source",
+              embedding_source_columns: [{ embedding_model_endpoint_name: 42 }],
+            },
+          },
+        },
+      },
+      "resources.quality_monitors.monitor": {
+        action: "create",
+        new_state: { value: { table_name: "main.analytics.source", baseline_table_name: 7 } },
+      },
+      "resources.quality_monitors.valid_baseline": {
+        action: "create",
+        new_state: {
+          value: {
+            table_name: "main.analytics.monitored",
+            baseline_table_name: "main.analytics.baseline",
+          },
+        },
+      },
+    });
+
+    expect(
+      prepared.byResourceKey.get("resources.vector_search_indexes.direct")?.vectorIndex,
+    ).toEqual({
+      status: "supported",
+      value: { endpointName: "vector", sourceTable: "", embeddingEndpoints: [] },
+    });
+    expect(prepared.byResourceKey.get("resources.vector_search_indexes.sync")?.vectorIndex).toEqual(
+      {
+        status: "supported",
+        value: {
+          endpointName: "vector",
+          sourceTable: "main.analytics.source",
+          embeddingEndpoints: ["embed"],
+        },
+      },
+    );
+    expect(
+      prepared.byResourceKey.get("resources.vector_search_indexes.malformed")?.vectorIndex,
+    ).toMatchObject({
+      status: "unsupported",
+      diagnostic: { capability: "vector-index-references" },
+    });
+    expect(
+      prepared.byResourceKey.get("resources.quality_monitors.monitor")?.qualityMonitorTableName,
+    ).toEqual({ status: "supported", value: "main.analytics.source" });
+    expect(
+      prepared.byResourceKey.get("resources.quality_monitors.monitor")
+        ?.qualityMonitorBaselineTableName,
+    ).toMatchObject({
+      status: "unsupported",
+      diagnostic: { capability: "source-table-reference" },
+    });
+    expect(
+      prepared.byResourceKey.get("resources.quality_monitors.valid_baseline")
+        ?.qualityMonitorBaselineTableName,
+    ).toEqual({ status: "supported", value: "main.analytics.baseline" });
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("42");
+  });
+
+  test("uses the effective delete snapshot and does not mutate input", () => {
+    const entries = {
+      "resources.vector_search_indexes.deleted": {
+        action: "delete",
+        remote_state: {
+          endpoint_name: "old-vector",
+          delta_sync_index_spec: {
+            source_table: "main.analytics.old",
+          },
+        },
+        new_state: {
+          value: {
+            endpoint_name: "new-vector",
+            delta_sync_index_spec: {
+              source_table: "main.analytics.new",
+            },
+          },
+        },
+      },
+    };
+    const original = structuredClone(entries);
+    const prepared = prepareEntries(entries);
+
+    expect(
+      prepared.byResourceKey.get("resources.vector_search_indexes.deleted")?.vectorIndex,
+    ).toEqual({
+      status: "supported",
+      value: {
+        endpointName: "old-vector",
+        sourceTable: "main.analytics.old",
+        embeddingEndpoints: [],
+      },
+    });
+    expect(entries).toEqual(original);
+  });
+});
+
+describe("preparePlan external location projection", () => {
+  test("projects only a string credential name and safely diagnoses malformed values", () => {
+    const prepared = prepareEntries({
+      "resources.external_locations.valid": {
+        action: "create",
+        new_state: { value: { credential_name: "storage-prod" } },
+      },
+      "resources.external_locations.malformed": {
+        action: "create",
+        new_state: { value: { credential_name: { secret: "PRIVATE" } } },
+      },
+    });
+
+    expect(
+      prepared.byResourceKey.get("resources.external_locations.valid")
+        ?.externalLocationCredentialName,
+    ).toEqual({ status: "supported", value: "storage-prod" });
+    expect(
+      prepared.byResourceKey.get("resources.external_locations.malformed")
+        ?.externalLocationCredentialName,
+    ).toMatchObject({ status: "unsupported", diagnostic: { reason: "invalid-shape" } });
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("PRIVATE");
+  });
+});
+
 describe("preparePlan Postgres projections", () => {
   test("prepares consumed identities and diagnoses malformed fields safely", () => {
     const prepared = prepareEntries({
@@ -211,6 +445,61 @@ describe("preparePlan Postgres projections", () => {
     ]);
     expect(JSON.stringify(prepared.diagnostics)).not.toContain("SECRET");
   });
+});
+
+test("snapshot schedule projects only its branch identity and leaves cadences opaque", () => {
+  const entries = {
+    "resources.postgres_snapshot_schedules.daily": {
+      action: "create",
+      new_state: {
+        value: {
+          branch: "projects/pr-1/branches/br-1",
+          schedule: [
+            { cadence: "DAILY", retention_days: 7 },
+            { cadence: "MONTHLY", retention_days: 90 },
+          ],
+        },
+      },
+    },
+  };
+  const original = JSON.stringify(entries);
+  const prepared = prepareEntries(entries);
+
+  expect(
+    prepared.byResourceKey.get("resources.postgres_snapshot_schedules.daily")?.postgres,
+  ).toEqual({
+    status: "supported",
+    value: { branch: "projects/pr-1/branches/br-1" },
+  });
+  expect(prepared.diagnostics).toEqual([]);
+  expect(JSON.stringify(entries)).toBe(original);
+});
+
+test("snapshot schedule does not infer identity when its branch projection is malformed or absent", () => {
+  const prepared = prepareEntries({
+    "resources.postgres_snapshot_schedules.malformed": {
+      action: "update",
+      new_state: { value: { branch: 42, schedule: "opaque malformed payload" } },
+    },
+    "resources.postgres_snapshot_schedules.absent": {
+      action: "update",
+      new_state: { value: { schedule: [{ cadence: "DAILY" }] } },
+    },
+  });
+
+  expect(
+    prepared.byResourceKey.get("resources.postgres_snapshot_schedules.malformed")?.postgres.status,
+  ).toBe("unsupported");
+  expect(
+    prepared.byResourceKey.get("resources.postgres_snapshot_schedules.absent")?.postgres,
+  ).toEqual({ status: "supported", value: {} });
+  expect(prepared.diagnostics).toEqual([
+    {
+      resourceKey: "resources.postgres_snapshot_schedules.malformed",
+      capability: "postgres-identity",
+      reason: "invalid-shape",
+    },
+  ]);
 });
 
 describe("preparePlan instance-pool projections", () => {

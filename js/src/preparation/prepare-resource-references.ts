@@ -7,6 +7,10 @@ import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
 type PreparedReferences = {
   readonly sourceTableFullName: Projection<string>;
   readonly qualityMonitorTableName: Projection<string>;
+  readonly qualityMonitorBaselineTableName: Projection<string>;
+  readonly vectorIndex: Projection<
+    Readonly<{ endpointName: string; sourceTable: string; embeddingEndpoints: readonly string[] }>
+  >;
   readonly pipelineIngestionSchemas: Projection<readonly string[]>;
   readonly pipelineEventLog: Projection<
     Readonly<{ catalog: string; schema: string; name: string }>
@@ -15,6 +19,7 @@ type PreparedReferences = {
   readonly existingPipelineId: Projection<string>;
   readonly syncedTableId: Projection<string>;
   readonly postgres: Projection<Readonly<Record<string, string>>>;
+  readonly externalLocationCredentialName: Projection<string>;
   readonly diagnostics: readonly PreparationDiagnostic[];
 };
 
@@ -52,12 +57,26 @@ export const prepareResourceReferences = (
   const diagnostics: PreparationDiagnostic[] = [];
   let sourceTableFullName: Projection<string> = absent;
   let qualityMonitorTableName: Projection<string> = absent;
+  let qualityMonitorBaselineTableName: Projection<string> = absent;
+  let vectorIndex: PreparedReferences["vectorIndex"] = absent;
   let pipelineIngestionSchemas: Projection<readonly string[]> = absent;
   let pipelineEventLog: PreparedReferences["pipelineEventLog"] = absent;
   let pipelineOutputId: Projection<string> = absent;
   let existingPipelineId: Projection<string> = absent;
   let syncedTableId: Projection<string> = absent;
   let postgres: PreparedReferences["postgres"] = absent;
+  let externalLocationCredentialName: Projection<string> = absent;
+
+  if (
+    state !== undefined &&
+    resourceType === "external_locations" &&
+    Object.hasOwn(state, "credential_name")
+  ) {
+    externalLocationCredentialName =
+      typeof state["credential_name"] === "string"
+        ? supported(state["credential_name"])
+        : unsupported(resourceKey, "external-location-credential");
+  }
 
   if (
     state !== undefined &&
@@ -87,16 +106,76 @@ export const prepareResourceReferences = (
     }
   }
 
-  if (
-    state !== undefined &&
-    resourceType === "quality_monitors" &&
-    Object.hasOwn(state, "table_name")
-  ) {
-    const tableName = state["table_name"];
-    qualityMonitorTableName =
-      typeof tableName === "string"
-        ? supported(tableName)
-        : unsupported(resourceKey, "source-table-reference");
+  if (state !== undefined && resourceType === "quality_monitors") {
+    for (const [field, assign] of [
+      [
+        "table_name",
+        (projection: Projection<string>) => {
+          qualityMonitorTableName = projection;
+        },
+      ],
+      [
+        "baseline_table_name",
+        (projection: Projection<string>) => {
+          qualityMonitorBaselineTableName = projection;
+        },
+      ],
+    ] as const) {
+      if (!Object.hasOwn(state, field)) continue;
+      const value = state[field];
+      assign(
+        typeof value === "string" && value.trim() !== ""
+          ? supported(value)
+          : unsupported(resourceKey, "source-table-reference"),
+      );
+    }
+  }
+
+  if (state !== undefined && resourceType === "vector_search_indexes") {
+    const spec = state["delta_sync_index_spec"];
+    if (!isUnknownRecord(spec)) {
+      const endpointName = state["endpoint_name"];
+      vectorIndex =
+        !Object.hasOwn(state, "delta_sync_index_spec") &&
+        typeof endpointName === "string" &&
+        endpointName.trim() !== ""
+          ? supported({ endpointName, sourceTable: "", embeddingEndpoints: [] })
+          : unsupported(resourceKey, "vector-index-references");
+    } else {
+      const endpointName = state["endpoint_name"];
+      const sourceTable = spec["source_table"];
+      const columns = spec["embedding_source_columns"];
+      const endpoints = Array.isArray(columns)
+        ? columns.flatMap((column) => {
+            if (!isUnknownRecord(column)) return [];
+            return [
+              column["embedding_model_endpoint_name"],
+              column["model_endpoint_name_for_query"],
+            ].filter((value): value is string => typeof value === "string");
+          })
+        : [];
+      const validColumns =
+        columns === undefined ||
+        (Array.isArray(columns) &&
+          columns.every(
+            (column) =>
+              isUnknownRecord(column) &&
+              ["embedding_model_endpoint_name", "model_endpoint_name_for_query"].every(
+                (field) =>
+                  column[field] === undefined ||
+                  (typeof column[field] === "string" && column[field].trim() !== ""),
+              ),
+          ));
+      vectorIndex =
+        typeof endpointName === "string" &&
+        endpointName.trim() !== "" &&
+        typeof sourceTable === "string" &&
+        sourceTable.trim() !== "" &&
+        validColumns &&
+        (columns === undefined || Array.isArray(columns))
+          ? supported({ endpointName, sourceTable, embeddingEndpoints: [...new Set(endpoints)] })
+          : unsupported(resourceKey, "vector-index-references");
+    }
   }
 
   if (
@@ -188,6 +267,7 @@ export const prepareResourceReferences = (
       "postgres_catalogs",
       "postgres_roles",
       "postgres_synced_tables",
+      "postgres_snapshot_schedules",
     ].includes(resourceType ?? "")
   ) {
     const fieldsByType: Readonly<Record<string, readonly string[]>> = {
@@ -198,6 +278,7 @@ export const prepareResourceReferences = (
       postgres_catalogs: ["branch", "postgres_database", "catalog_id"],
       postgres_roles: ["parent", "role_id", "name"],
       postgres_synced_tables: ["branch", "postgres_database"],
+      postgres_snapshot_schedules: ["branch"],
     };
     const fields = fieldsByType[resourceType ?? ""] ?? [];
     const values: Record<string, string> = {};
@@ -225,18 +306,24 @@ export const prepareResourceReferences = (
     syncedTableId,
     existingPipelineId,
     postgres,
+    externalLocationCredentialName,
+    qualityMonitorBaselineTableName,
+    vectorIndex,
   ]) {
     if (projection.status === "unsupported") diagnostics.push(projection.diagnostic);
   }
   return {
     sourceTableFullName,
     qualityMonitorTableName,
+    qualityMonitorBaselineTableName,
+    vectorIndex,
     pipelineIngestionSchemas,
     pipelineEventLog,
     pipelineOutputId,
     existingPipelineId,
     syncedTableId,
     postgres,
+    externalLocationCredentialName,
     diagnostics,
   };
 };

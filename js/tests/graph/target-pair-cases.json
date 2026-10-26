@@ -24,6 +24,79 @@
         }
       },
       "expected": ["resources.jobs.aliases→resources.sql_warehouses.compute"]
+    },
+    {
+      "name": "constructed CLI 1.20 source-backed: deduplicate typed app target pairs",
+      "entries": {
+        "resources.apps.app": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "resources": [
+                {
+                  "uc_securable": {
+                    "securable_type": "VOLUME",
+                    "securable_full_name": "main.analytics.shared"
+                  }
+                },
+                {
+                  "uc_securable": {
+                    "securable_type": "VOLUME",
+                    "securable_full_name": "main.analytics.shared"
+                  }
+                },
+                {
+                  "uc_securable": {
+                    "securable_type": "FUNCTION",
+                    "securable_full_name": "main.analytics.shared"
+                  }
+                },
+                {
+                  "uc_securable": {
+                    "securable_type": "FUNCTION",
+                    "securable_full_name": "main.analytics.shared"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": [
+        "resources.apps.app→function::main.analytics.shared",
+        "resources.apps.app→volume::main.analytics.shared"
+      ]
+    },
+    {
+      "name": "constructed CLI 1.20 source-backed: deduplicate vector serving and UC table targets",
+      "entries": {
+        "resources.vector_search_indexes.index": {
+          "action": "create",
+          "new_state": {
+            "value": {
+              "name": "main.analytics.index",
+              "endpoint_name": "vector",
+              "delta_sync_index_spec": {
+                "source_table": "main.analytics.source",
+                "embedding_source_columns": [
+                  { "embedding_model_endpoint_name": "embedding" },
+                  {
+                    "embedding_model_endpoint_name": "embedding",
+                    "model_endpoint_name_for_query": "query"
+                  },
+                  { "model_endpoint_name_for_query": "query" }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": [
+        "resources.vector_search_indexes.index→serving-endpoint::embedding",
+        "resources.vector_search_indexes.index→serving-endpoint::query",
+        "resources.vector_search_indexes.index→source-table::main.analytics.source",
+        "resources.vector_search_indexes.index→vector-endpoint::vector"
+      ]
     }
   ]
 }

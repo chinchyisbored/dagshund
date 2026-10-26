@@ -1,4 +1,4 @@
-dagshund plan (v2, cli 1.14.0)
+dagshund plan (v2, cli 1.20.0)
 
   job_runs (1)
   + job_runs/ping_healthcheck (runs on deploy)
@@ -15,7 +15,7 @@ dagshund plan (v2, cli 1.14.0)
   = jobs/seed_lookup_tables
       + run initial_seed (runs on deploy)
   = jobs/smoke_check
-      - run one_off_audit (run record will be deleted)
+      - run one_off_audit (bundle run entry will be removed)
 
   +1 create, =5 unchanged
   runs: +2 create, -1 delete, ~1 recreate, =2 unchanged

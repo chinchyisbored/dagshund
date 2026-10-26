@@ -131,7 +131,10 @@ describe("resolveReferences", () => {
         preparedPlan,
         identityCatalog,
         ownedDerivedRefs,
-      }).filter((reference) => reference.sourceResourceKey === "resources.apps.app");
+      }).filter(
+        (reference) =>
+          reference.sourceResourceKey === (outcomeCase.sourceResourceKey ?? "resources.apps.app"),
+      );
 
       for (const expected of outcomeCase.expected) {
         expect(resolutions).toContainEqual(expect.objectContaining(expected));

@@ -4,7 +4,8 @@ export type ReferenceDirection = "entry-to-target" | "target-to-entry";
 
 export type PhantomPlacement =
   | { readonly kind: "workspace-resource"; readonly resourceType: string }
-  | { readonly kind: "hierarchy"; readonly identity: string; readonly tier: number };
+  | { readonly kind: "hierarchy"; readonly identity: string; readonly tier: number }
+  | { readonly kind: "uc-root" };
 
 export type ReferenceResolution =
   | { readonly kind: "absent"; readonly sourceResourceKey: string }

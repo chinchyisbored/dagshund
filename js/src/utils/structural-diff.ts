@@ -9,6 +9,7 @@ import type {
 } from "../types/structural-diff.ts";
 import { deepEqual } from "./deep-equal.ts";
 import { extractListElementSemantic, type FieldChangeContext } from "./field-action.ts";
+import { compareProviderChangeValues } from "./provider-comparison-facts.ts";
 import { collectChangesForTask } from "./task-key.ts";
 import { isUnknownRecord } from "./unknown-record.ts";
 
@@ -23,7 +24,9 @@ export const isTopologyDriftChange = (change: ChangeDesc): boolean =>
   change.old !== undefined &&
   change.new !== undefined &&
   !("remote" in change) &&
-  deepEqual(change.old, change.new);
+  (compareProviderChangeValues(change, "old", "new") === true ||
+    (compareProviderChangeValues(change, "old", "new") === undefined &&
+      deepEqual(change.old, change.new)));
 
 /**
  * Shape-only predicate for field-level drift: both old and new are present
@@ -35,8 +38,12 @@ const isDriftSwapShape = (change: ChangeDesc): boolean =>
   "old" in change &&
   "new" in change &&
   "remote" in change &&
-  deepEqual(change.old, change.new) &&
-  !deepEqual(change.remote, change.old);
+  (compareProviderChangeValues(change, "old", "new") === true ||
+    (compareProviderChangeValues(change, "old", "new") === undefined &&
+      deepEqual(change.old, change.new))) &&
+  (compareProviderChangeValues(change, "old", "remote") === false ||
+    (compareProviderChangeValues(change, "old", "remote") === undefined &&
+      !deepEqual(change.remote, change.old)));
 
 /**
  * Detect a field-level drift change entry: the bundle's view is unchanged

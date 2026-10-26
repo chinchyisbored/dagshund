@@ -25,6 +25,27 @@ describe("preparation diagnostic disclosure", () => {
     );
   });
 
+  test("renders a safe app-resource warning without raw malformed values", () => {
+    const { getByText, container } = render(
+      <PreparationDiagnostics
+        diagnostics={[
+          {
+            resourceKey: "resources.apps.malformed",
+            capability: "app-resources",
+            reason: "invalid-shape",
+          },
+        ]}
+      />,
+    );
+
+    expect(getByText("1 plan warning")).toBeTruthy();
+    fireEvent.click(getByText("1 plan warning"));
+    expect(container.querySelector("li")?.textContent).toContain(
+      "App resource references could not be interpreted.",
+    );
+    expect(container.textContent).not.toContain("PRIVATE");
+  });
+
   test("renders nothing when there are no diagnostics", () => {
     const { container } = render(<PreparationDiagnostics diagnostics={[]} />);
     expect(container.firstChild).toBeNull();

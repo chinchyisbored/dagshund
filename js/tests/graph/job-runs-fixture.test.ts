@@ -61,6 +61,14 @@ describe("job-runs fixture — effects as annotations", () => {
         "warm_eu_cache:create",
         "warm_us_cache:skip",
       ]);
+      expect(warmup?.find((effect) => effect.name === "warm_us_cache")?.runPageUrl).toContain(
+        "/runs/",
+      );
+
+      const nightlyReport = readEffects(findNode(nodes, "resources.jobs.nightly_report"));
+      expect(nightlyReport?.find((effect) => effect.name === "seed_report")?.runPageUrl).toContain(
+        "/runs/",
+      );
 
       const migration = readEffects(findNode(nodes, "resources.jobs.schema_migration"));
       expect(migration).toHaveLength(1);
@@ -74,7 +82,7 @@ describe("job-runs fixture — effects as annotations", () => {
       expect(audit?.map((effect) => `${effect.name}:${effect.action}`)).toEqual([
         "one_off_audit:delete",
       ]);
-      expect(audit?.[0]?.runPageUrl).toContain("/runs/");
+      expect(audit?.[0]?.runPageUrl).toBeUndefined();
     }
   });
 });

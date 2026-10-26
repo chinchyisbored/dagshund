@@ -20,6 +20,7 @@ from dagshund.format import (
     iter_drift_subline_bodies,
     iter_effect_field_changes,
     prepare_report,
+    resource_action_note,
     select_resource_details,
     select_standalone_job_run_effect,
 )
@@ -240,7 +241,9 @@ def _render_resource(
     resource_type, resource_name = parse_resource_key(key)
 
     label = f"  ({cfg.display})" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
-    header = _escape_terminal(f"  {cfg.symbol} {resource_type}/{resource_name}{label}")
+    note = resource_action_note(resource_type, entry.action)
+    note_text = f"; {note}" if note is not None else ""
+    header = _escape_terminal(f"  {cfg.symbol} {resource_type}/{resource_name}{label}{note_text}")
     yield _colorize(header, _action_color(cfg), use_color=use_color)
 
     for output in extract_synced_table_outputs(key, entry):

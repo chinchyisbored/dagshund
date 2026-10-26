@@ -73,11 +73,16 @@ const CATALOG_TIER_TYPES: ReadonlySet<string> = new Set([
   "postgres_catalogs",
 ]);
 const SCHEMA_TIER_TYPES: ReadonlySet<string> = new Set(["schemas"]);
+const UC_ROOT_LEAF_TYPES: ReadonlySet<string> = new Set(["external_locations"]);
 const UC_LEAF_TIER_TYPES: ReadonlySet<string> = new Set([
   "volumes",
   "registered_models",
   "secrets",
   "synced_database_tables",
+  "model_services",
+  "mcp_services",
+  "model_provider_services",
+  "vector_search_indexes",
 ]);
 const POSTGRES_PROJECT_TIER_TYPES: ReadonlySet<string> = new Set(["postgres_projects"]);
 const POSTGRES_BRANCH_TIER_TYPES: ReadonlySet<string> = new Set(["postgres_branches"]);
@@ -85,6 +90,7 @@ const POSTGRES_BRANCH_CHILD_TIER_TYPES: ReadonlySet<string> = new Set([
   "postgres_databases",
   "postgres_endpoints",
   "postgres_roles",
+  "postgres_snapshot_schedules",
 ]);
 const POSTGRES_DATABASE_CHILD_TIER_TYPES: ReadonlySet<string> = new Set(["postgres_synced_tables"]);
 const POSTGRES_RESOURCE_TYPES: ReadonlySet<string> = new Set([
@@ -127,21 +133,53 @@ export const UC_CHAIN: ChainSpec = {
       name: "leaf",
       resourceTypes: UC_LEAF_TIER_TYPES,
       resolveIdentity: () => undefined,
-      resolveParentRef: (currentState) => {
+      resolveParentRef: (currentState, key) => {
+        const type = extractResourceType(key);
+        if (
+          type === "model_services" ||
+          type === "mcp_services" ||
+          type === "model_provider_services"
+        ) {
+          const parent = getCurrentStateField(currentState, "parent");
+          const match = parent?.match(/^schemas\/([^.]*)\.([^.]*)$/);
+          return match === null || match === undefined
+            ? undefined
+            : parentIdentityRef(`${match[1]}.${match[2]}`);
+        }
+        const name = getCurrentStateField(currentState, "name");
+        if (type === "vector_search_indexes") {
+          const parsedVectorName = name === undefined ? undefined : parseThreePartName(name);
+          if (parsedVectorName !== undefined) {
+            return parentIdentityRef(`${parsedVectorName.catalog}.${parsedVectorName.schema}`);
+          }
+        }
         const parent = resolveUcLeafParentIdentity({
           catalog: getCurrentStateField(currentState, "catalog_name"),
           schema: getCurrentStateField(currentState, "schema_name"),
-          name: getCurrentStateField(currentState, "name"),
+          name,
         });
         if (parent?.kind === "schema") return parentIdentityRef(parent.identity);
-        if (parent?.kind === "catalog") return tierIdentityRef(parent.identity, 0);
-        return undefined;
+        if (extractResourceType(key) === "volumes") {
+          const fullName = getCurrentStateField(currentState, "full_name");
+          const parsed = fullName === undefined ? undefined : parseThreePartName(fullName);
+          if (parsed !== undefined) {
+            return parentIdentityRef(`${parsed.catalog}.${parsed.schema}`);
+          }
+        }
+        return parent?.kind === "catalog" ? tierIdentityRef(parent.identity, 0) : undefined;
       },
       deriveParentRef: (identity) => {
         const parsed = parseThreePartName(identity);
         return parsed !== undefined ? `${parsed.catalog}.${parsed.schema}` : undefined;
       },
       buildHierarchyId: (identity) => buildPrefixedNodeId("sourceTable", identity),
+    },
+    {
+      name: "UC root leaf",
+      resourceTypes: UC_ROOT_LEAF_TYPES,
+      resolveIdentity: () => undefined,
+      resolveParentRef: () => undefined,
+      buildHierarchyId: (identity) => identity,
     },
   ],
 };

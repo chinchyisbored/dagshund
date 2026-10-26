@@ -159,6 +159,14 @@ def test_render_resource_delete_action() -> None:
     assert "delete" in lines[0]
 
 
+def test_render_resource_snapshot_schedule_delete_explains_preserved_data() -> None:
+    key = "resources.postgres_snapshot_schedules.daily"
+    lines = list(_render_resource(key, make_resource(action="delete")))
+
+    assert "clearing cadences" in lines[0]
+    assert "existing snapshots and branch are preserved" in lines[0]
+
+
 def test_render_resource_postgres_synced_table_create_shows_managed_outputs() -> None:
     key = "resources.postgres_synced_tables.orders"
     entry = make_resource(
@@ -755,7 +763,7 @@ def test_render_markdown_effect_name_links_to_run_page() -> None:
 
     out = render_markdown(normalize_plan(plan.resources), cli_version=plan.cli_version, plan_version=plan.plan_version)
 
-    assert "  - `-` run [`audit`](https://example.test/run/7) (run record will be deleted)" in out
+    assert "  - `-` run [`audit`](https://example.test/run/7) (bundle run entry will be removed)" in out
 
 
 def test_render_markdown_escapes_run_labels_and_state_messages_but_keeps_validated_link() -> None:
@@ -917,7 +925,7 @@ def test_render_markdown_shared_job_run_vectors_attached_and_standalone() -> Non
 
 
 def test_render_markdown_basic_run_kinds_attached_and_standalone() -> None:
-    cases = (("create", "runs on deploy"), ("skip", "already ran"), ("delete", "run record will be deleted"))
+    cases = (("create", "runs on deploy"), ("skip", "already ran"), ("delete", "bundle run entry will be removed"))
     for action, wording in cases:
         for standalone in (False, True):
             resources: dict[str, dict[str, object]] = {"resources.job_runs.basic": {"action": action}}

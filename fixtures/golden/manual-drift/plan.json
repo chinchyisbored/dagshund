@@ -1,8 +1,8 @@
 {
   "plan_version": 2,
-  "cli_version": "1.14.0",
-  "lineage": "8c9c5b4e-4f20-4ceb-a076-0b0d412da509",
-  "serial": 2,
+  "cli_version": "1.20.0",
+  "lineage": "51e49e0e-f857-45a6-9775-e973ed2bc4a7",
+  "serial": 1,
   "plan": {
     "resources.jobs.drift_pipeline": {
       "action": "update",
@@ -52,7 +52,7 @@
         }
       },
       "remote_state": {
-        "created_time": 1787776201688,
+        "created_time": 1792974531363,
         "creator_user_name": "user1@example.com",
         "deployment": {
           "kind": "BUNDLE",
@@ -63,7 +63,7 @@
           "no_alert_for_skipped_runs": false
         },
         "format": "MULTI_TASK",
-        "job_id": 884615502169461,
+        "job_id": 979710909146026,
         "max_concurrent_runs": 1,
         "name": "drift_pipeline",
         "performance_target": "PERFORMANCE_OPTIMIZED",
@@ -249,7 +249,7 @@
         "browse_only": false,
         "catalog_name": "dagshund",
         "catalog_type": "MANAGED_CATALOG",
-        "created_at": 1787776201506,
+        "created_at": 1792974531315,
         "created_by": "user1@example.com",
         "effective_predictive_optimization_flag": {
           "inherited_from_name": "metastore_aws_us_east_2",
@@ -261,21 +261,9 @@
         "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
         "name": "drift_grants",
         "owner": "user1@example.com",
-        "properties": {
-          "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
-        },
-        "schema_id": "835263f9-1a22-41cd-973c-d77a28ff2389",
-        "updated_at": 1787776294450,
+        "schema_id": "44b15709-aaa4-4f7b-b29c-642d0f8f3c8b",
+        "updated_at": 1792974533448,
         "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
-      },
-      "changes": {
-        "properties": {
-          "action": "skip",
-          "reason": "backend_default",
-          "remote": {
-            "unity.catalog.managed.iceberg.defaults.delta.feature.catalogManaged": "supported"
-          }
-        }
       }
     },
     "resources.schemas.drift_grants.grants": {

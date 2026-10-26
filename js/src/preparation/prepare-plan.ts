@@ -10,6 +10,7 @@ import { selectEffectiveResourceState } from "../utils/effective-resource-state.
 import type { NormalizedPlan } from "../utils/normalize-plan.ts";
 import { extractResourceType, WAREHOUSE_SOURCE_TYPES } from "../utils/resource-key.ts";
 import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
+import { prepareAiGatewayReferences } from "./prepare-ai-gateway.ts";
 import { prepareAppResources } from "./prepare-app.ts";
 import { prepareJob } from "./prepare-job.ts";
 import { prepareResourceReferences } from "./prepare-resource-references.ts";
@@ -141,6 +142,12 @@ export const preparePlan = (normalized: NormalizedPlan): PreparedPlan => {
           )
         : { names: { status: "absent" } as const, diagnostic: undefined };
     if (serving.diagnostic !== undefined) diagnostics.push(serving.diagnostic);
+    const aiGatewayReferences = prepareAiGatewayReferences(
+      resourceKey,
+      current.projection.status === "supported" ? current.projection.value : undefined,
+    );
+    if (aiGatewayReferences.status === "unsupported")
+      diagnostics.push(aiGatewayReferences.diagnostic);
     const appResources =
       resourceType === "apps"
         ? prepareAppResources(
@@ -162,12 +169,16 @@ export const preparePlan = (normalized: NormalizedPlan): PreparedPlan => {
       appResources: appResources.projection,
       sourceTableFullName: references.sourceTableFullName,
       qualityMonitorTableName: references.qualityMonitorTableName,
+      qualityMonitorBaselineTableName: references.qualityMonitorBaselineTableName,
+      vectorIndex: references.vectorIndex,
       pipelineIngestionSchemas: references.pipelineIngestionSchemas,
       pipelineEventLog: references.pipelineEventLog,
       pipelineOutputId: references.pipelineOutputId,
       existingPipelineId: references.existingPipelineId,
       syncedTableId: references.syncedTableId,
       postgres: references.postgres,
+      externalLocationCredentialName: references.externalLocationCredentialName,
+      aiGatewayReferences,
     });
   }
   return { normalized, byResourceKey, diagnostics };

@@ -695,6 +695,37 @@ def test_cli_bool_number_transition_is_visible_in_both_renderers(
     assert quiet_result.stdout == ""
 
 
+def test_provider_credentials_are_redacted_from_text_and_markdown() -> None:
+    raw = json.dumps(
+        {
+            "plan": {
+                "resources.model_provider_services.provider": {
+                    "action": "update",
+                    "new_state": {
+                        "value": {
+                            "config": {"openai": {"direct": {"api_key": {"plaintext": "PROVIDER_TEXT_SENTINEL"}}}}
+                        }
+                    },
+                    "changes": {
+                        "config.openai.direct.api_key": {
+                            "action": "update",
+                            "reason": "rotated",
+                            "old": {"plaintext": "PROVIDER_CHANGE_SENTINEL"},
+                            "new": {"plaintext": "PROVIDER_NEW_SENTINEL"},
+                        }
+                    },
+                }
+            }
+        }
+    )
+
+    results = tuple(_run_dagshund("--format", output_format, stdin=raw) for output_format in ("term", "md"))
+
+    for result in results:
+        assert result.returncode == 0
+        assert "PROVIDER_" not in result.stdout + result.stderr
+
+
 def test_detailed_exitcode_no_changes_exits_zero(fixtures_dir: Path) -> None:
     result = _run_dagshund(str(fixtures_dir / "no-changes" / "plan.json"), "--detailed-exitcode")
 
@@ -759,7 +790,7 @@ def test_detailed_exitcode_shared_job_run_vectors_attached_and_standalone(tmp_pa
     [
         ("create", 2, "runs on deploy"),
         ("skip", 0, "already ran"),
-        ("delete", 2, "run record will be deleted"),
+        ("delete", 2, "bundle run entry will be removed"),
     ],
     ids=["create", "legacy-skip", "delete"],
 )
@@ -1027,6 +1058,31 @@ def test_debug_does_not_leak_uc_secret_input(
     assert "→ _decode_plan" not in result.stderr
     assert "→ parse_plan" not in result.stderr
     assert "→ render_text" in result.stderr
+
+
+def test_debug_does_not_leak_provider_credentials(tmp_path: Path) -> None:
+    sentinel = "PROVIDER_DEBUG_SENTINEL"
+    plan_file = tmp_path / "provider-plan.json"
+    plan_file.write_text(
+        json.dumps(
+            {
+                "plan": {
+                    "resources.model_provider_services.provider": {
+                        "action": "update",
+                        "new_state": {
+                            "value": {"config": {"openai": {"direct": {"api_key": {"plaintext": sentinel}}}}}
+                        },
+                    }
+                }
+            }
+        )
+    )
+
+    result = _run_dagshund(str(plan_file), "-d")
+
+    assert result.returncode == 0
+    assert sentinel not in result.stderr
+    assert sentinel not in result.stdout
 
 
 def test_debug_does_not_leak_unknown_uc_secret_change_payload(tmp_path: Path) -> None:

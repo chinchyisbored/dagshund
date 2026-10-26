@@ -80,6 +80,13 @@ describe("ResourceNode", () => {
     expect(container.textContent).toContain("pipeline");
   });
 
+  test("renders the AI Gateway service badge through ordinary resource rendering", () => {
+    const { container } = renderResource({
+      resourceKey: "resources.model_provider_services.provider",
+    });
+    expect(container.textContent).toContain("model provider service");
+  });
+
   test("isDrift=true applies border-dashed", () => {
     const { container } = renderResource({ isDrift: true });
     const outer = container.firstElementChild as HTMLElement;

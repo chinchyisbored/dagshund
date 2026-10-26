@@ -6,6 +6,7 @@ import type { LateralContext } from "../../types/lateral-context.ts";
 import type { PhantomContext } from "../../types/phantom-context.ts";
 import { expandEmbedEntries } from "../../utils/embed-entries.ts";
 import type { ValueFormat } from "../../utils/format-value.ts";
+import { extractResourceType } from "../../utils/resource-key.ts";
 import { DiffStateBadge } from "./diff-state-badge.tsx";
 import { DriftPill } from "./drift-pill.tsx";
 import { DriftReentrySection } from "./drift-reentry-section.tsx";
@@ -82,6 +83,13 @@ export function DetailPanel({
   }, [onClose]);
 
   const toggleFormat = () => setValueFormat((current) => NEXT_FORMAT[current]);
+
+  const removalExplanation =
+    data.nodeKind === "resource" &&
+    data.diffState === "removed" &&
+    extractResourceType(data.resourceKey) === "postgres_snapshot_schedules"
+      ? "Removing this schedule disables automatic snapshots by clearing cadences. Existing snapshots and the branch are preserved."
+      : undefined;
 
   const hasTaskSummary =
     (data.nodeKind === "job" || data.nodeKind === "resource") &&
@@ -199,6 +207,7 @@ export function DetailPanel({
                 resourceState={expandedState}
                 variant={data.diffState}
                 isDriftReentry={isDriftNode && data.diffState === "added"}
+                removalExplanation={removalExplanation}
               />
             )}
 

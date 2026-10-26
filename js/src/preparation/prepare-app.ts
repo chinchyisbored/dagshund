@@ -8,7 +8,11 @@ export type AppResourceRef =
   | { readonly kind: "secret_scope"; readonly name: string }
   | { readonly kind: "serving_endpoint"; readonly name: string }
   | { readonly kind: "experiment"; readonly id: string }
-  | { readonly kind: "uc_securable"; readonly fullName: string };
+  | {
+      readonly kind: "uc_securable";
+      readonly fullName: string;
+      readonly securableType: "TABLE" | "VOLUME" | "FUNCTION" | "CONNECTION";
+    };
 
 const APP_VARIANTS = [
   "job",
@@ -39,10 +43,33 @@ const projectRef = (resource: Readonly<Record<string, unknown>>): AppResourceRef
     const name = value[field];
     if (typeof name !== "string") return undefined;
     if (variant === "secret") return { kind: "secret_scope", name };
-    if (variant === "uc_securable") return { kind: variant, fullName: name };
+    if (variant === "uc_securable") {
+      const securableType = value["securable_type"];
+      if (typeof securableType !== "string") return undefined;
+      if (
+        securableType !== "TABLE" &&
+        securableType !== "VOLUME" &&
+        securableType !== "FUNCTION" &&
+        securableType !== "CONNECTION"
+      )
+        return undefined;
+      return { kind: variant, fullName: name, securableType };
+    }
     return { kind: variant, name };
   }
   return undefined;
+};
+
+const isUnknownUcSecurableType = (value: unknown): boolean => {
+  if (!isUnknownRecord(value)) return false;
+  const type = value["securable_type"];
+  return (
+    typeof type === "string" &&
+    type !== "TABLE" &&
+    type !== "VOLUME" &&
+    type !== "FUNCTION" &&
+    type !== "CONNECTION"
+  );
 };
 
 const invalid = (resourceKey: string): PreparationDiagnostic => ({
@@ -70,6 +97,8 @@ export const prepareAppResources = (
   for (const resource of resources) {
     if (!isUnknownRecord(resource)) continue;
     if (!APP_VARIANTS.some((variant) => Object.hasOwn(resource, variant))) continue;
+    const ucSecurable = resource["uc_securable"];
+    if (isUnknownUcSecurableType(ucSecurable)) continue;
     const ref = projectRef(resource);
     if (ref === undefined) {
       const diagnostic = invalid(resourceKey);

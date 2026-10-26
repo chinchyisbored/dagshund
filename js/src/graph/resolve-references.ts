@@ -2,8 +2,10 @@ import type { ReferenceResolution } from "../types/reference-resolution.ts";
 import { extractResourceType } from "../utils/resource-key.ts";
 import { resolveDerivedOutputReferences } from "./derived-node-specs.ts";
 import type { ReferenceResolutionContext } from "./reference-resolution-context.ts";
+import { resolveAiGatewayReferences } from "./resolve-ai-gateway-references.ts";
 import { resolveAppReferences } from "./resolve-app-references.ts";
 import { resolveConventionalReference } from "./resolve-conventional-references.ts";
+import { resolveExternalLocationReferences } from "./resolve-external-location-references.ts";
 import {
   resolveDatabaseInstanceReference,
   resolveExistingPipelineReference,
@@ -40,7 +42,9 @@ export const resolveReferences = (
     ),
     ...resolvePipelineIngestionReferences(sourceResourceKey, context),
     ...resolveServingModelReferences(sourceResourceKey, context),
+    ...resolveAiGatewayReferences(sourceResourceKey, context),
     ...resolveAppReferences(sourceResourceKey, context),
+    ...resolveExternalLocationReferences(sourceResourceKey, context),
     ...resolvePreparedTaskReferences(sourceResourceKey, context, finalRunJobTargets),
     ...resolveDatabaseInstanceReference(sourceResourceKey, context),
     ...resolveExistingPipelineReference(sourceResourceKey, context),

@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,6 +16,7 @@ from dagshund.model import (
     parse_plan_data,
     parse_resource_change,
 )
+from dagshund.redaction import SecretComparisonFacts
 from dagshund.types import DagshundError
 
 GOLDEN_DIR = Path(__file__).parent.parent / "fixtures" / "golden"
@@ -324,6 +326,145 @@ def test_parse_plan_data_resource_keys_match_enclosing_mapping_keys() -> None:
     assert result.resources["resources.jobs.actual"].key == "resources.jobs.actual"
 
 
+def test_parse_plan_data_preserves_safe_provider_change_values_and_leaf_distinctions() -> None:
+    raw = {
+        "plan": {
+            "resources.model_provider_services.provider": {
+                "changes": {
+                    "config.azure_openai.direct": {
+                        "action": "update",
+                        "old": {
+                            "base_url": "https://safe.example",
+                            "service_credential": {"name": "credentials/safe"},
+                        },
+                        "new": {
+                            "base_url": "https://safe.example",
+                            "service_credential": {"name": "credentials/safe"},
+                        },
+                        "remote": {
+                            "base_url": "https://safe.example",
+                            "service_credential": {"name": "credentials/safe"},
+                        },
+                    },
+                    "config.openai.direct.api_key": {
+                        "action": "update",
+                        "old": {},
+                        "new": "",
+                    },
+                }
+            }
+        }
+    }
+
+    result = parse_plan_data(raw)
+
+    changes = result.resources["resources.model_provider_services.provider"].changes
+    assert changes["config.azure_openai.direct"].old == {
+        "base_url": "https://safe.example",
+        "service_credential": {"name": "credentials/safe"},
+    }
+    assert changes["config.azure_openai.direct"].new == {
+        "base_url": "https://safe.example",
+        "service_credential": {"name": "credentials/safe"},
+    }
+    assert changes["config.azure_openai.direct"].remote == {
+        "base_url": "https://safe.example",
+        "service_credential": {"name": "credentials/safe"},
+    }
+    assert changes["config.openai.direct.api_key"].old == {}
+    assert changes["config.openai.direct.api_key"].new == ""
+    assert "ROTATED_SENTINEL" not in json.dumps(result.raw)
+
+
+def test_parse_plan_data_redacts_provider_credentials_and_aggregate_changes() -> None:
+    raw = {
+        "plan": {
+            "resources.model_provider_services.provider": {
+                "action": "update",
+                "new_state": {
+                    "value": {
+                        "config": {
+                            "amazon_bedrock": {
+                                "direct": {
+                                    "aws_access_key": {
+                                        "access_key_id": "AWS_ID_SENTINEL",
+                                        "secret_access_key": {"plaintext": "AWS_SECRET_SENTINEL"},
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "changes": {
+                    "config.amazon_bedrock.direct.aws_access_key.access_key_id": {
+                        "action": "update",
+                        "old": "OLD_ID_SENTINEL",
+                        "new": "NEW_ID_SENTINEL",
+                        "remote": "REMOTE_ID_SENTINEL",
+                    },
+                    "config.amazon_bedrock.direct": {
+                        "action": "update",
+                        "old": {"secret_access_key": {"plaintext": "OLD_SECRET_SENTINEL"}},
+                        "new": {"secret_access_key": {"plaintext": "NEW_SECRET_SENTINEL"}},
+                        "remote": {"secret_access_key": {"plaintext": "REMOTE_SECRET_SENTINEL"}},
+                    },
+                },
+            }
+        }
+    }
+
+    result = parse_plan_data(raw)
+
+    serialized = json.dumps(result.raw)
+    for sentinel in (
+        "AWS_ID_SENTINEL",
+        "AWS_SECRET_SENTINEL",
+        "OLD_ID_SENTINEL",
+        "NEW_ID_SENTINEL",
+        "REMOTE_ID_SENTINEL",
+        "OLD_SECRET_SENTINEL",
+        "NEW_SECRET_SENTINEL",
+        "REMOTE_SECRET_SENTINEL",
+    ):
+        assert sentinel not in serialized
+    assert (
+        raw["plan"]["resources.model_provider_services.provider"]["new_state"]["value"]["config"]["amazon_bedrock"][
+            "direct"
+        ]["aws_access_key"]["access_key_id"]
+        == "AWS_ID_SENTINEL"
+    )
+
+
+def test_parse_plan_data_redacts_every_schema_provider_credential_arm() -> None:
+    credential_paths = (
+        ("anthropic", "direct", "api_key", "plaintext"),
+        ("azure_openai", "direct", "api_key", "plaintext"),
+        ("azure_openai", "direct", "entra_service_principal", "client_secret", "plaintext"),
+        ("custom", "direct", "api_key", "plaintext"),
+        ("gemini_enterprise", "direct", "api_key", "plaintext"),
+        ("microsoft_foundry", "direct", "api_key", "plaintext"),
+        ("microsoft_foundry", "direct", "entra_service_principal", "client_secret", "plaintext"),
+        ("openai", "direct", "api_key", "plaintext"),
+        ("amazon_bedrock", "direct", "aws_access_key", "secret_access_key", "plaintext"),
+        ("amazon_bedrock", "direct", "aws_access_key", "access_key_id"),
+    )
+    config: dict[str, Any] = {}
+    for index, path in enumerate(credential_paths):
+        current: dict[str, Any] = config
+        for segment in path[:-1]:
+            current = current.setdefault(segment, {})
+        current[path[-1]] = f"PROVIDER_SENTINEL_{index}"
+
+    result = parse_plan_data(
+        {"plan": {"resources.model_provider_services.provider": {"new_state": {"value": {"config": config}}}}}
+    )
+
+    serialized = json.dumps(result.raw)
+    for index in range(len(credential_paths)):
+        assert f"PROVIDER_SENTINEL_{index}" not in serialized
+    assert "noncredential" not in serialized
+
+
 def test_parse_plan_data_redacts_uc_secret_values_without_mutating_input() -> None:
     raw = {
         "plan": {
@@ -532,6 +673,52 @@ def test_parse_plan_attaches_safe_secret_comparison_facts() -> None:
     assert repr(facts) == "SecretComparisonFacts(old_new_equal=False, old_remote_equal=True)"
     assert "[redacted]" in repr(plan.raw)
     assert "nested" not in repr(plan.raw)
+
+
+def test_parse_plan_attaches_safe_provider_comparison_facts() -> None:
+    raw = {
+        "plan": {
+            "resources.model_provider_services.provider": {
+                "changes": {
+                    "config.openai.direct.api_key.plaintext": {
+                        "action": "update",
+                        "old": "OLD_SENTINEL",
+                        "new": "NEW_SENTINEL",
+                    },
+                    "config.azure_openai.direct.api_key.plaintext": {
+                        "action": "update",
+                        "old": "SAME_SENTINEL",
+                        "new": "SAME_SENTINEL",
+                        "remote": "REMOTE_SENTINEL",
+                    },
+                    "config.openai.direct": {
+                        "action": "update",
+                        "old": {"api_key": {"plaintext": "AGG_OLD"}, "base_url": "https://safe.example"},
+                        "new": {"api_key": {"plaintext": "AGG_NEW"}, "base_url": "https://safe.example"},
+                    },
+                }
+            }
+        }
+    }
+
+    plan = parse_plan_data(raw)
+    changes = plan.resources["resources.model_provider_services.provider"].changes
+
+    assert changes["config.openai.direct.api_key.plaintext"].secret_facts == SecretComparisonFacts(
+        old_new_equal=False, old_remote_equal=None
+    )
+    assert changes["config.azure_openai.direct.api_key.plaintext"].secret_facts == SecretComparisonFacts(
+        old_new_equal=True, old_remote_equal=False
+    )
+    assert changes["config.openai.direct"].secret_facts == SecretComparisonFacts(
+        old_new_equal=False, old_remote_equal=None
+    )
+    assert "SENTINEL" not in repr(changes)
+    assert "AGG_OLD" not in repr(changes)
+    assert "AGG_NEW" not in repr(changes)
+    assert "SENTINEL" not in json.dumps(plan.raw)
+    assert "AGG_OLD" not in json.dumps(plan.raw)
+    assert "AGG_NEW" not in json.dumps(plan.raw)
 
 
 def test_parse_plan_marker_makes_secret_facts_unknown() -> None:

@@ -7,7 +7,7 @@ export const parsePlanJson = (input: unknown): Result<Plan, string> => {
   if (result.success) {
     return ok(redactUcSecretValues(result.data));
   }
-  return err(result.error.message);
+  return err("Invalid plan JSON");
 };
 
 export const parsePlanFromString = (jsonString: string): Result<Plan, string> => {
@@ -16,7 +16,7 @@ export const parsePlanFromString = (jsonString: string): Result<Plan, string> =>
     return parsePlanJson(parsed);
   } catch (e) {
     if (e instanceof SyntaxError) {
-      return err(`Invalid JSON: ${e.message}`);
+      return err("Invalid JSON");
     }
     return err("Unknown error parsing JSON");
   }

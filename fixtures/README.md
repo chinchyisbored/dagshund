@@ -1,6 +1,6 @@
 # Fixtures
 
-Golden test fixtures generated from real Databricks workspaces. These are deterministic, sanitized snapshots of `databricks bundle plan -o json` output used by both JS and Python test suites.
+Most deployable golden fixtures are sanitized captures of `databricks bundle plan -o json` from a real Databricks workspace. `synthetic-ai-gateway` is a constructed, plan-only input for unavailable services; it is not a workspace capture or deployment config. Both fixture classes use the existing JS and Python plan consumers, but synthetic `cli_version` values identify a targeted contract, not a generating CLI run.
 
 Run every fixture maintenance command through the repository's Nix development shell.
 
@@ -13,7 +13,8 @@ fixtures/
     <name>/
       before/databricks.yaml # Bundle config for baseline (deployed first)
       after/databricks.yaml  # Bundle config for changed state (planned against baseline)
-      plan.json              # Sanitized plan output (the fixture)
+      plan.json              # Captured plan, or a documented constructed plan-only input
+      README.md               # Provenance and limitations for synthetic fixtures
       expected.txt           # Expected CLI text output
       expected.md            # Expected CLI markdown output
       expected-suppressed.txt # Text output with --suppress-wheel-updates; only present when it differs from expected.txt
@@ -25,6 +26,12 @@ fixtures/
     generate_expected.sh     # Generate or --check expected.txt + expected.md
     sanitize.py              # Deterministic email-only PII sanitizer (stdin -> stdout)
 ```
+
+## Synthetic AI Gateway fixture
+
+`golden/synthetic-ai-gateway/` has a constructed `plan.json` and provenance README, with no `before/` or `after/` deployment configs. Its fictional service identities and external references cover schema-scoped model, provider, and MCP services; routing; connection references; named service credentials; and grant subresources. It targets CLI 1.20.0 source/schema and SDK v0.185.0 contracts. It does not establish DAB acceptance, backend normalization, deployment behavior, or service availability. See its README for source links and exact limits.
+
+Do not add synthetic-only plans to the deployable regeneration set. Existing Python and JavaScript public fixture consumers discover plan files without requiring deployment configs.
 
 ## Semantic JS contract fixtures
 
@@ -70,7 +77,7 @@ This file is gitignored — regenerate it after upgrading the Databricks CLI.
 
 ## Workspace setup
 
-Fixtures are generated against a real Databricks workspace. The following resources must exist before running regeneration — they are **not** created by the bundle configs.
+Live fixture regeneration uses a real Databricks workspace. The following resources must exist before running it; they are external prerequisites, not resources created by the fixture bundle configs.
 
 | Resource | Type | Purpose |
 |---|---|---|
@@ -83,6 +90,8 @@ Fixtures are generated against a real Databricks workspace. The following resour
 | `data_readers` | Group | Schema grants (sub-resources fixture) |
 | `data_analysts` | Group | Schema grants (sub-resources fixture) |
 | `phantom_job` | Job | Serverless no-op job outside any bundle, targeted by the job-runs fixture's phantom run entry. Its id is the `external_job_id` variable in `externals.yaml`. |
+| `phantom-lineage-lakebase` | Lakebase project with a `production` branch | External source branch referenced by `lakebase-autoscaling`; retained as a fixture prerequisite, not created or destroyed by the bundle. |
+| `dagshund.phantom_schema.phantom_table` | Unity Catalog table | Source for the Lakebase synced-table fixture. |
 
 Starter SQL warehouse (`9d0afa601cb95187`) is used by the app-dependencies fixture for lateral edge testing.
 
@@ -102,24 +111,27 @@ nix develop --command just regen                  # All unattended fixtures
 | `manual-drift` | Follow `fixtures/golden/manual-drift/README.md`. It requires workspace UI edits between deploy and plan. |
 | `wheel-bump` | Needs classic compute (job clusters with task libraries); the default fixture workspace is serverless-only. Regenerate ad hoc with `nix develop --command just regen wheel-bump` against a workspace that allows job clusters, then `nix develop --command just gen-expected wheel-bump`. |
 
-`lakebase-autoscaling` is part of the unattended `nix develop --command just regen` set. If it fails
-because a Lakebase endpoint is left list-visible but not get/delete-addressable,
-clean up the workspace endpoint and rerun the fixture.
+`lakebase-autoscaling` is part of the unattended `nix develop --command just regen` set. It requires the external `phantom-lineage-lakebase` project with a `production` branch, plus the UC source table listed above. Keep these prerequisites outside the fixture bundle lifecycle. If a Lakebase endpoint is left list-visible but not get/delete-addressable, clean up that endpoint before rerunning only the affected fixture.
 
 `job-runs` regenerates unattended but needs Databricks CLI 1.7.0+ (`resources.job_runs`
 is experimental) and its deploys really fire the runs they declare: eight tiny
 serverless notebook runs across the before/after deploys, one of which fires on the
 pre-existing `phantom_job` outside the bundle. Runs can queue on serverless capacity
-for a few minutes; `regen.sh` drains active runs before each step that deletes run
-records. The bundle destroy cleans everything up, erasing the external job's run
-record via `jobs/runs/delete`.
+for a few minutes; `regen.sh` drains active runs before destructive bundle steps.
+The CLI 1.20 job-run adapter does not implement a backend run-record delete, so do
+not assume bundle cleanup removes the external job's run history; see `dagshund-n8zt.8`.
 
-After regenerating, update the expected dagshund output:
+After regeneration and explicit approval of the reviewed output changes, update expected dagshund output with `nix develop --command just gen-expected <fixture-name>`. Do not bless mismatches without reviewing their meaning.
 
-```bash
-nix develop --command just gen-expected <fixture-name>
-nix develop --command just gen-expected
-```
+## CLI compatibility limits
+
+A live fixture refresh checks only the captured plans; it does not establish general CLI compatibility. These separately tracked findings remain open:
+
+- `dagshund-n8zt.7`: `gone` and `state_only` delete entries can be misreported as backend deletion and trigger a false data-loss warning.
+- `dagshund-n8zt.8`: CLI 1.20 file-change trigger fingerprints, trigger-removal reasons, and preserved job-run history need follow-up. The `job-runs` plan is a live capture, but it does not by itself resolve these semantics.
+- `dagshund-n8zt.9`: managed-cluster wheel changes, `run_as.group_name`, dashboard/Genie serialized-content hashes, and Lakebase duration/timestamp/zero/false rendering still need assessment.
+
+`wheel-bump` remains a historical CLI 1.6.0 plan because the default serverless workspace cannot regenerate its classic-compute fixture. Do not relabel or refresh it as CLI 1.20 without the separately scoped workspace and review.
 
 ## Checking expected output
 

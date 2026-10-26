@@ -9,11 +9,15 @@ const CAPABILITY_MESSAGES = {
   "warehouse-reference": "Warehouse reference could not be interpreted.",
   "instance-pool-reference": "Instance pool references could not be interpreted.",
   "source-table-reference": "Source table references could not be interpreted.",
+  "vector-index-references": "Vector index references could not be interpreted.",
   "pipeline-ingestion-schemas": "Pipeline ingestion schema references could not be interpreted.",
   "pipeline-event-log": "Pipeline event log output could not be interpreted.",
   "synced-table-output": "Synced table output could not be interpreted.",
   "existing-pipeline-reference": "Existing pipeline reference could not be interpreted.",
   "postgres-identity": "Lakebase resource identity or relationship could not be interpreted.",
+  "external-location-credential":
+    "External location storage credential reference could not be interpreted.",
+  "ai-gateway-references": "AI Gateway references could not be interpreted.",
 } as const;
 
 export function PreparationDiagnostics({

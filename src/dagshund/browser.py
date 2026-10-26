@@ -58,8 +58,42 @@ def _validate_placeholder(template: str, placeholder: str) -> None:
         raise DagshundError(f"expected 1 placeholder in template, found {count}")
 
 
+def _plan_with_comparison_facts(plan: Plan) -> dict[str, object]:
+    raw = dict(plan.raw)
+    raw_plan = raw.get("plan")
+    if not isinstance(raw_plan, dict):
+        return raw
+    embedded_plan = dict(raw_plan)
+    for resource_key, resource in plan.resources.items():
+        if not resource_key.startswith("resources.model_provider_services."):
+            continue
+        raw_entry = embedded_plan.get(resource_key)
+        if not isinstance(raw_entry, dict):
+            continue
+        raw_changes = raw_entry.get("changes")
+        if not isinstance(raw_changes, dict):
+            continue
+        embedded_changes = dict(raw_changes)
+        for field_key, change in resource.changes.items():
+            facts = change.secret_facts
+            raw_change = embedded_changes.get(field_key)
+            if facts is None or not isinstance(raw_change, dict):
+                continue
+            embedded_changes[field_key] = {
+                **raw_change,
+                "_dagshund_provider_comparison_facts": {
+                    "old_new_equal": facts.old_new_equal,
+                    "old_remote_equal": facts.old_remote_equal,
+                },
+            }
+        embedded_plan[resource_key] = {**raw_entry, "changes": embedded_changes}
+    raw["plan"] = embedded_plan
+    return raw
+
+
 def _inject_plan(template: str, plan: Plan, provenance: HtmlProvenance | None = None) -> str:
-    replacements = {PLACEHOLDER: _escape_for_script_tag(json.dumps(plan.raw, separators=(",", ":")))}
+    embedded_plan = _plan_with_comparison_facts(plan)
+    replacements = {PLACEHOLDER: _escape_for_script_tag(json.dumps(embedded_plan, separators=(",", ":")))}
     if provenance is not None or PROVENANCE_PLACEHOLDER in template:
         provenance_json = "null" if provenance is None else _serialize_provenance(provenance)
         replacements[PROVENANCE_PLACEHOLDER] = _escape_for_script_tag(provenance_json)

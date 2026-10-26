@@ -193,7 +193,7 @@ const baseWording = (kind: JobRunEffectKind, action: string): string => {
     case "trigger-removed":
       return "deploy trigger removed; no run will start";
     case "delete":
-      return "run record will be deleted";
+      return "bundle run entry will be removed";
     case "unknown":
       return action === "" ? "unchanged" : action;
     default: {

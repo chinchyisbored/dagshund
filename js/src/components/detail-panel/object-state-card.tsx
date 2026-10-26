@@ -22,19 +22,21 @@ export function ObjectStateCard({
   resourceState,
   variant,
   isDriftReentry = false,
+  removalExplanation,
 }: {
   readonly label: string;
   readonly nodeKind: NodeKind;
   readonly resourceState: Readonly<Record<string, unknown>>;
   readonly variant: "added" | "removed";
   readonly isDriftReentry?: boolean;
+  readonly removalExplanation?: string;
 }) {
   const style = OBJECT_CARD_STYLES[variant];
   const sortedKeys = Object.keys(resourceState).toSorted();
   const kindLabel = nodeKind === "root" || nodeKind === "phantom" ? "resource" : nodeKind;
   const subtitle = isDriftReentry
     ? `This ${kindLabel} ${DRIFT_REENTRY_SUBTITLE}`
-    : `This ${kindLabel} ${OBJECT_CARD_SUBTITLE[variant]}`;
+    : (removalExplanation ?? `This ${kindLabel} ${OBJECT_CARD_SUBTITLE[variant]}`);
 
   return (
     <div className={`rounded-lg border ${style.border} bg-surface-raised/50`}>

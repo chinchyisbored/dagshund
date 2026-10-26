@@ -55,6 +55,12 @@ describe("isUnityCatalogType", () => {
     expect(isUnityCatalogType("synced_database_tables")).toBe(true);
   });
 
+  test("recognizes AI Gateway service collections as UC types", () => {
+    expect(isUnityCatalogType("model_services")).toBe(true);
+    expect(isUnityCatalogType("mcp_services")).toBe(true);
+    expect(isUnityCatalogType("model_provider_services")).toBe(true);
+  });
+
   test("returns false for non-UC types", () => {
     expect(isUnityCatalogType("dashboards")).toBe(false);
     expect(isUnityCatalogType("apps")).toBe(false);
@@ -118,6 +124,90 @@ describe("extractStateField", () => {
       new_state: { value: { name: "test" } },
     };
     expect(extractStateField(entry, "catalog_name")).toBeUndefined();
+  });
+});
+
+describe("AI Gateway references", () => {
+  test("places services in schema hierarchy and resolves provider routes and MCP connections", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.schemas.real_ai": {
+          action: "create",
+          new_state: { value: { catalog_name: "main", name: "real_ai" } },
+        },
+        "resources.model_provider_services.provider": {
+          action: "create",
+          new_state: {
+            value: {
+              parent: "schemas/main.synthetic_ai",
+              model_provider_service_id: "external",
+              config: {},
+            },
+          },
+        },
+        "resources.model_services.gateway": {
+          action: "create",
+          new_state: {
+            value: {
+              parent: "schemas/main.real_ai",
+              model_service_id: "gateway",
+              config: {
+                routing: {
+                  destinations: [
+                    {
+                      destination_type: "DESTINATION_TYPE_EXTERNAL_FOUNDATION_MODEL",
+                      external_model_config: {
+                        model_provider_service:
+                          "model-provider-services/main.synthetic_ai.external",
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        "resources.mcp_services.mcp": {
+          action: "create",
+          new_state: {
+            value: {
+              parent: "schemas/main.synthetic_ai",
+              mcp_service_id: "mcp",
+              config: { source_connection: { name: "connections/main.synthetic_ai.external" } },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.resourceKey)).toContain(
+      "resources.model_services.gateway",
+    );
+    expect(graph.nodes.map((node) => node.resourceKey)).toContain(
+      "resources.model_provider_services.provider",
+    );
+    expect(graph.lateralEdges).toHaveLength(2);
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.schemas.real_ai",
+        target: "resources.model_services.gateway",
+      }),
+    );
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "schema::main.synthetic_ai",
+        target: "resources.model_provider_services.provider",
+      }),
+    );
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "schema::main.synthetic_ai",
+        target: "resources.mcp_services.mcp",
+      }),
+    );
+    expect(
+      graph.nodes.some((node) => node.id === "external-connection::main.synthetic_ai.external"),
+    ).toBe(true);
   });
 });
 
@@ -288,7 +378,11 @@ describe("buildResourceGraph", () => {
       ["resources.quality_monitors.monitor", { table_name: "cat.sch.output" }],
       [
         "resources.apps.app",
-        { resources: [{ uc_securable: { securable_full_name: "cat.sch.output" } }] },
+        {
+          resources: [
+            { uc_securable: { securable_type: "TABLE", securable_full_name: "cat.sch.output" } },
+          ],
+        },
       ],
     ] as const;
 
@@ -444,7 +538,16 @@ describe("buildResourceGraph", () => {
         "resources.apps.app": {
           action: "create",
           new_state: {
-            value: { resources: [{ uc_securable: { securable_full_name: "missing.raw.table" } }] },
+            value: {
+              resources: [
+                {
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "missing.raw.table",
+                  },
+                },
+              ],
+            },
           },
         },
         "resources.pipelines.events": {
@@ -1136,6 +1239,7 @@ describe("isPostgresType", () => {
     expect(isPostgresType("postgres_endpoints")).toBe(true);
     expect(isPostgresType("postgres_roles")).toBe(true);
     expect(isPostgresType("postgres_synced_tables")).toBe(true);
+    expect(isPostgresType("postgres_snapshot_schedules")).toBe(true);
   });
 
   test("returns false for non-postgres types", () => {
@@ -1147,6 +1251,117 @@ describe("isPostgresType", () => {
 });
 
 describe("postgres hierarchy", () => {
+  test("source-grounded synthetic snapshot schedules are one managed child per resource key", () => {
+    const branch = "$" + "{resources.postgres_branches.main.id}";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.main": {
+          action: "skip",
+          new_state: { value: { branch_id: "main", parent: "projects/demo" } },
+        },
+        "resources.postgres_snapshot_schedules.daily": {
+          action: "update",
+          new_state: {
+            value: {
+              branch,
+              schedule: [
+                { cadence: "DAILY", retention_days: 7 },
+                { cadence: "WEEKLY", retention_days: 28 },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.filter((node) => node.nodeKind === "resource")).toHaveLength(2);
+    expect(
+      graph.nodes.find((node) => node.id === "resources.postgres_snapshot_schedules.daily"),
+    ).toMatchObject({ id: "resources.postgres_snapshot_schedules.daily", diffState: "modified" });
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_branches.main",
+        target: "resources.postgres_snapshot_schedules.daily",
+      }),
+    );
+    expect(graph.lateralEdges).toEqual([]);
+    expect(
+      graph.nodes.find((node) => node.id === "resources.postgres_branches.main"),
+    ).toMatchObject({ diffState: "unchanged" });
+  });
+
+  test("schedule lifecycle actions remain schedule-level managed nodes", () => {
+    const branch = "projects/demo/branches/main";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_snapshot_schedules.created": {
+          action: "create",
+          new_state: { value: { branch, schedule: [] } },
+        },
+        "resources.postgres_snapshot_schedules.deleted": {
+          action: "delete",
+          remote_state: { branch, schedule: [{ cadence: "WEEKLY", retention_days: 21 }] },
+        },
+        "resources.postgres_snapshot_schedules.skipped": {
+          action: "skip",
+          new_state: { value: { branch, schedule: [] } },
+        },
+        "resources.postgres_snapshot_schedules.unrecognized": {
+          action: "unknown",
+          new_state: { value: { branch, schedule: [] } },
+        },
+      },
+    });
+
+    expect(
+      graph.nodes.find((node) => node.id === "resources.postgres_snapshot_schedules.created"),
+    ).toMatchObject({ diffState: "added" });
+    expect(
+      graph.nodes.find((node) => node.id === "resources.postgres_snapshot_schedules.deleted"),
+    ).toMatchObject({ diffState: "removed" });
+    expect(
+      graph.nodes.find((node) => node.id === "resources.postgres_snapshot_schedules.skipped"),
+    ).toMatchObject({ diffState: "unchanged" });
+    expect(
+      graph.nodes.find((node) => node.id === "resources.postgres_snapshot_schedules.unrecognized"),
+    ).toMatchObject({ diffState: "unknown" });
+  });
+
+  test("schedule branch path infers missing concrete project and branch ancestors", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_snapshot_schedules.daily": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: "projects/external/branches/production",
+              schedule: [],
+            },
+          },
+        },
+        "resources.postgres_snapshot_schedules.weekly": {
+          action: "create",
+          new_state: {
+            value: {
+              branch: "projects/external/branches/staging",
+              schedule: [{ cadence: "WEEKLY", retention_days: 28 }],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toContain("postgres-project::external");
+    expect(graph.nodes.map((node) => node.id)).toContain("postgres-branch::external/production");
+    expect(graph.nodes.map((node) => node.id)).toContain(
+      "resources.postgres_snapshot_schedules.daily",
+    );
+    expect(graph.nodes.map((node) => node.id)).toContain("postgres-branch::external/staging");
+    expect(graph.nodes.map((node) => node.id)).toContain(
+      "resources.postgres_snapshot_schedules.weekly",
+    );
+  });
+
   test("status postgres_database identity resolves real hierarchy and catalog target", () => {
     const branchRef = "projects/demo/branches/main";
     const graph = buildResourceGraphFromPlan({
@@ -1987,7 +2202,12 @@ describe("postgres_synced_tables derived UC tables", () => {
           action: "create",
           new_state: {
             value: {
-              resources: [{ name: "table", uc_securable: { securable_full_name: tableName } }],
+              resources: [
+                {
+                  name: "table",
+                  uc_securable: { securable_type: "TABLE", securable_full_name: tableName },
+                },
+              ],
             },
           },
         },
@@ -3342,7 +3562,12 @@ describe("specialized real-reference resolution", () => {
           action: "create",
           new_state: {
             value: {
-              resources: [{ name: "table", uc_securable: { securable_full_name: identity } }],
+              resources: [
+                {
+                  name: "table",
+                  uc_securable: { securable_type: "TABLE", securable_full_name: identity },
+                },
+              ],
             },
           },
         },
@@ -3420,6 +3645,430 @@ describe("schema-supported workspace resource relationships", () => {
     );
   });
 
+  test("adds monitor baseline dependencies and deduplicates identical table references", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.quality_monitors.monitor": {
+          action: "create",
+          new_state: {
+            value: {
+              table_name: "main.analytics.source",
+              baseline_table_name: "main.analytics.source",
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toContain("source-table::main.analytics.source");
+    expect(
+      graph.lateralEdges.filter((edge) => edge.source === "resources.quality_monitors.monitor"),
+    ).toHaveLength(1);
+  });
+
+  test("resolves baseline and vector source references to the same promoted table", () => {
+    const monitoredIdentity = "prod.analytics.monitored";
+    const baselineIdentity = "prod.analytics.pipeline_events";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.monitored": {
+          action: "create",
+          new_state: { value: { name: monitoredIdentity } },
+        },
+        "resources.pipelines.ingest": {
+          action: "create",
+          new_state: {
+            value: { event_log: { catalog: "prod", schema: "analytics", name: "pipeline_events" } },
+          },
+        },
+        "resources.quality_monitors.monitor": {
+          action: "create",
+          new_state: {
+            value: { table_name: monitoredIdentity, baseline_table_name: baselineIdentity },
+          },
+        },
+        "resources.vector_search_indexes.index": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "prod.analytics.index",
+              endpoint_name: "search",
+              delta_sync_index_spec: { source_table: baselineIdentity },
+            },
+          },
+        },
+      },
+    });
+    const baselineTableId = `pipeline-event-log::${baselineIdentity}`;
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toEqual(
+      expect.arrayContaining([
+        `resources.quality_monitors.monitor→resources.synced_database_tables.monitored`,
+        `resources.quality_monitors.monitor→${baselineTableId}`,
+        `resources.vector_search_indexes.index→${baselineTableId}`,
+        `${baselineTableId}→resources.pipelines.ingest`,
+      ]),
+    );
+    expect(
+      graph.lateralEdges
+        .filter(
+          (edge) =>
+            edge.source === "resources.quality_monitors.monitor" ||
+            edge.source === "resources.vector_search_indexes.index",
+        )
+        .map((edge) => `${edge.source}→${edge.target}`),
+    ).toEqual([
+      `resources.quality_monitors.monitor→resources.synced_database_tables.monitored`,
+      `resources.quality_monitors.monitor→${baselineTableId}`,
+      `resources.vector_search_indexes.index→${baselineTableId}`,
+      `resources.vector_search_indexes.index→vector-endpoint::search`,
+    ]);
+    expect(graph.nodes.some((node) => node.id === `source-table::${baselineIdentity}`)).toBe(false);
+    expect(graph.nodes.some((node) => node.id === `source-table::${monitoredIdentity}`)).toBe(
+      false,
+    );
+  });
+
+  test("uses delete snapshots and current references instead of stale remote table targets", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.quality_monitors.deleted": {
+          action: "delete",
+          remote_state: {
+            table_name: "prod.analytics.deleted-monitor",
+            baseline_table_name: "prod.analytics.deleted-baseline",
+          },
+          new_state: {
+            value: {
+              table_name: "prod.analytics.ignored-monitor",
+              baseline_table_name: "prod.analytics.ignored-baseline",
+            },
+          },
+        },
+        "resources.quality_monitors.changed": {
+          action: "update",
+          new_state: {
+            value: {
+              table_name: "prod.analytics.current-monitor",
+              baseline_table_name: "prod.analytics.current-baseline",
+            },
+          },
+          remote_state: {
+            table_name: "prod.analytics.stale-monitor",
+            baseline_table_name: "prod.analytics.stale-baseline",
+          },
+        },
+        "resources.quality_monitors.empty": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: {
+            table_name: "prod.analytics.empty-stale-monitor",
+            baseline_table_name: "prod.analytics.empty-stale-baseline",
+          },
+        },
+        "resources.vector_search_indexes.deleted": {
+          action: "delete",
+          remote_state: {
+            endpoint_name: "deleted-vector",
+            delta_sync_index_spec: {
+              source_table: "prod.analytics.deleted-source",
+              embedding_source_columns: [{ embedding_model_endpoint_name: "deleted-model" }],
+            },
+          },
+          new_state: {
+            value: {
+              endpoint_name: "ignored-vector",
+              delta_sync_index_spec: { source_table: "prod.analytics.ignored-source" },
+            },
+          },
+        },
+        "resources.vector_search_indexes.changed": {
+          action: "update",
+          new_state: {
+            value: {
+              endpoint_name: "current-vector",
+              delta_sync_index_spec: {
+                source_table: "prod.analytics.current-source",
+                embedding_source_columns: [{ embedding_model_endpoint_name: "current-model" }],
+              },
+            },
+          },
+          remote_state: {
+            endpoint_name: "stale-vector",
+            delta_sync_index_spec: {
+              source_table: "prod.analytics.stale-source",
+              embedding_source_columns: [{ embedding_model_endpoint_name: "stale-model" }],
+            },
+          },
+        },
+        "resources.vector_search_indexes.empty": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: {
+            endpoint_name: "empty-stale-vector",
+            delta_sync_index_spec: {
+              source_table: "prod.analytics.empty-stale-source",
+              embedding_source_columns: [{ embedding_model_endpoint_name: "empty-stale-model" }],
+            },
+          },
+        },
+      },
+    });
+    const edgePairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+
+    expect(edgePairs).toEqual(
+      expect.arrayContaining([
+        "resources.quality_monitors.deleted→source-table::prod.analytics.deleted-monitor",
+        "resources.quality_monitors.deleted→source-table::prod.analytics.deleted-baseline",
+        "resources.quality_monitors.changed→source-table::prod.analytics.current-monitor",
+        "resources.quality_monitors.changed→source-table::prod.analytics.current-baseline",
+        "resources.vector_search_indexes.deleted→vector-endpoint::deleted-vector",
+        "resources.vector_search_indexes.deleted→source-table::prod.analytics.deleted-source",
+        "resources.vector_search_indexes.deleted→serving-endpoint::deleted-model",
+        "resources.vector_search_indexes.changed→vector-endpoint::current-vector",
+        "resources.vector_search_indexes.changed→source-table::prod.analytics.current-source",
+        "resources.vector_search_indexes.changed→serving-endpoint::current-model",
+      ]),
+    );
+    for (const forbiddenPair of [
+      "resources.quality_monitors.deleted→source-table::prod.analytics.ignored-monitor",
+      "resources.quality_monitors.deleted→source-table::prod.analytics.ignored-baseline",
+      "resources.quality_monitors.changed→source-table::prod.analytics.stale-monitor",
+      "resources.quality_monitors.changed→source-table::prod.analytics.stale-baseline",
+      "resources.vector_search_indexes.deleted→vector-endpoint::ignored-vector",
+      "resources.vector_search_indexes.deleted→source-table::prod.analytics.ignored-source",
+      "resources.vector_search_indexes.changed→vector-endpoint::stale-vector",
+      "resources.vector_search_indexes.changed→source-table::prod.analytics.stale-source",
+      "resources.vector_search_indexes.changed→serving-endpoint::stale-model",
+    ]) {
+      expect(edgePairs).not.toContain(forbiddenPair);
+    }
+    expect(
+      edgePairs.filter((edge) => edge.startsWith("resources.quality_monitors.empty→")),
+    ).toEqual([]);
+    expect(
+      edgePairs.filter((edge) => edge.startsWith("resources.vector_search_indexes.empty→")),
+    ).toEqual([]);
+  });
+
+  test("materializes literal vector and serving endpoint dependencies and source tables", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.vector_search_indexes.docs": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "main.analytics.docs",
+              endpoint_name: "external-vector",
+              delta_sync_index_spec: {
+                source_table: "main.analytics.source",
+                embedding_source_columns: [
+                  {
+                    name: "text",
+                    embedding_model_endpoint_name: "embed-model",
+                    model_endpoint_name_for_query: "query-model",
+                  },
+                  { name: "other", embedding_model_endpoint_name: "embed-model" },
+                ],
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toEqual(
+      expect.arrayContaining([
+        "vector-endpoint::external-vector",
+        "serving-endpoint::embed-model",
+        "serving-endpoint::query-model",
+        "source-table::main.analytics.source",
+      ]),
+    );
+    expect(graph.lateralEdges.map((edge) => edge.target)).toEqual(
+      expect.arrayContaining([
+        "vector-endpoint::external-vector",
+        "serving-endpoint::embed-model",
+        "serving-endpoint::query-model",
+        "source-table::main.analytics.source",
+      ]),
+    );
+  });
+
+  test("resolves symbolic embedding serving endpoints and rejects unresolved expressions", () => {
+    const servingRef = "$" + "{resources.model_serving_endpoints.embedding.name}";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.vector_search_indexes.docs": {
+          action: "create",
+          new_state: {
+            value: {
+              name: "main.analytics.docs",
+              endpoint_name: "external-vector",
+              delta_sync_index_spec: {
+                source_table: "main.analytics.source",
+                embedding_source_columns: [
+                  { embedding_model_endpoint_name: servingRef },
+                  { model_endpoint_name_for_query: servingRef },
+                  {
+                    embedding_model_endpoint_name:
+                      "$" + "{resources.model_serving_endpoints.missing.id}",
+                  },
+                  { model_endpoint_name_for_query: "$" + "{malformed" },
+                ],
+              },
+            },
+          },
+        },
+        "resources.model_serving_endpoints.embedding": {
+          action: "skip",
+          new_state: { value: { name: "embedding-api-name" } },
+        },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.filter(
+        (edge) => edge.target === "resources.model_serving_endpoints.embedding",
+      ),
+    ).toHaveLength(1);
+    expect(graph.nodes.some((node) => node.id.includes("missing"))).toBe(false);
+    expect(graph.nodes.map((node) => node.id)).toContain("vector-endpoint::external-vector");
+  });
+
+  test("does not use stale remote vector references when current state is explicitly empty", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.vector_search_indexes.docs": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: {
+            endpoint_name: "stale-vector",
+            delta_sync_index_spec: {
+              source_table: "main.analytics.stale",
+              embedding_source_columns: [{ embedding_model_endpoint_name: "stale-model" }],
+            },
+          },
+        },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.filter((edge) => edge.source === "resources.vector_search_indexes.docs"),
+    ).toEqual([]);
+    expect(graph.nodes.map((node) => node.id)).not.toEqual(
+      expect.arrayContaining([
+        "vector-endpoint::stale-vector",
+        "serving-endpoint::stale-model",
+        "source-table::main.analytics.stale",
+      ]),
+    );
+  });
+
+  test("places vector indexes by qualified name while preserving their managed identity", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.schemas.analytics": {
+          action: "create",
+          new_state: { value: { catalog_name: "main", name: "analytics" } },
+        },
+        "resources.vector_search_indexes.managed": {
+          action: "update",
+          new_state: { value: { name: "main.analytics.search", endpoint_name: "vector" } },
+          remote_state: { name: "old.search.index", endpoint_name: "stale" },
+        },
+        "resources.vector_search_indexes.external": {
+          action: "delete",
+          remote_state: { name: "other.raw.index", endpoint_name: "external" },
+        },
+      },
+    });
+    const managed = graph.nodes.find(
+      (node) => node.resourceKey === "resources.vector_search_indexes.managed",
+    );
+    const external = graph.nodes.find(
+      (node) => node.resourceKey === "resources.vector_search_indexes.external",
+    );
+
+    expect(managed?.id).toBe("resources.vector_search_indexes.managed");
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.schemas.analytics",
+        target: "resources.vector_search_indexes.managed",
+      }),
+    );
+    expect(managed?.resourceState).toMatchObject({ name: "main.analytics.search" });
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "schema::other.raw",
+        target: "resources.vector_search_indexes.external",
+      }),
+    );
+    expect(external?.diffState).toBe("removed");
+    expect(graph.lateralEdges.some((edge) => edge.target === "vector-endpoint::stale")).toBe(false);
+    expect(graph.lateralEdges.some((edge) => edge.target === "vector-endpoint::external")).toBe(
+      true,
+    );
+  });
+
+  test("keeps vector index resource keys and all plan diff states", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.vector_search_indexes.created": {
+          action: "create",
+          new_state: { value: { name: "main.analytics.created", endpoint_name: "vector" } },
+        },
+        "resources.vector_search_indexes.changed": {
+          action: "update",
+          new_state: { value: { name: "main.analytics.changed", endpoint_name: "vector" } },
+          remote_state: { name: "main.analytics.changed", endpoint_name: "old-vector" },
+          changes: { endpoint_name: { action: "update", old: "old-vector", new: "vector" } },
+        },
+        "resources.vector_search_indexes.deleted": {
+          action: "delete",
+          remote_state: { name: "main.analytics.deleted", endpoint_name: "vector" },
+        },
+        "resources.vector_search_indexes.skipped": {
+          action: "skip",
+          remote_state: { name: "main.analytics.skipped", endpoint_name: "vector" },
+        },
+        "resources.vector_search_indexes.unknown": {
+          action: "unknown",
+          new_state: { value: { name: "main.analytics.unknown", endpoint_name: "vector" } },
+        },
+      },
+    });
+    const states = new Map(
+      graph.nodes
+        .filter((node) => node.resourceKey.startsWith("resources.vector_search_indexes."))
+        .map((node) => [node.resourceKey, node.diffState]),
+    );
+
+    expect(states).toEqual(
+      new Map([
+        ["resources.vector_search_indexes.created", "added"],
+        ["resources.vector_search_indexes.changed", "modified"],
+        ["resources.vector_search_indexes.deleted", "removed"],
+        ["resources.vector_search_indexes.skipped", "unchanged"],
+        ["resources.vector_search_indexes.unknown", "unknown"],
+      ]),
+    );
+  });
+
+  test("does not create a source-table edge for direct-access indexes", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.vector_search_indexes.direct": {
+          action: "create",
+          new_state: { value: { endpoint_name: "external-vector" } },
+        },
+      },
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toContain("vector-endpoint::external-vector");
+    expect(graph.nodes.some((node) => node.id.startsWith("source-table::"))).toBe(false);
+  });
+
   test("builds a nested for-each task instance pool lateral edge", () => {
     const poolRef = "$" + "{resources.instance_pools.workers.id}";
     const graph = buildResourceGraphFromPlan({
@@ -3463,7 +4112,13 @@ describe("external leaf phantom refs (UC hierarchy placement)", () => {
           new_state: {
             value: {
               resources: [
-                { name: "tbl", uc_securable: { securable_full_name: "prod.analytics.users" } },
+                {
+                  name: "tbl",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "prod.analytics.users",
+                  },
+                },
               ],
             },
           },

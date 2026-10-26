@@ -18,7 +18,7 @@ Dagshund sits between `databricks bundle plan` and `databricks bundle deploy`. T
 
 ## Install
 
-Requires Python 3.12+. Last validated against Databricks CLI 1.14.0. Dagshund reads `databricks bundle plan -o json`, whose JSON shape can change between CLI releases.
+Requires Python 3.12+. Last validated against Databricks CLI 1.20.0 on the supported-resource live fixtures. Separate source-backed synthetic plans cover unavailable AI Gateway services; this does not establish general CLI compatibility or live service behavior. Dagshund reads `databricks bundle plan -o json`, whose JSON shape can change between CLI releases. The historical `wheel-bump` fixture remains CLI 1.6.0.
 
 ```bash
 # Install (recommended for regular use)
@@ -96,10 +96,10 @@ dagshund plan.json
 #       ~ run apply_migrations (re-runs on deploy)
 #           ~ job_parameters['migration_version']: "v1" -> "v2"
 #   = jobs/smoke_check
-#       - run one_off_audit (run record will be deleted)
+#       - run one_off_audit (bundle run entry will be removed)
 ```
 
-Deleting a `job_runs` entry deletes the recorded run from the job's history and reports `run record will be deleted`. Removing only `lifecycle.triggers.on_bundle_deploy` removes the deploy trigger, starts no run, and shows no play badge. With `--detailed-exitcode`, a plan whose only changes are deploy-triggered runs exits 2.
+Deleting a `job_runs` entry removes it from bundle state; `bundle run entry will be removed` does not claim that Databricks deletes the remote run history. The CLI 1.20 adapter does not issue a backend run-record delete. Trigger fingerprints, trigger-removal semantics, and preserved-history compatibility remain open (`dagshund-n8zt.8`). Removing only `lifecycle.triggers.on_bundle_deploy` removes the deploy trigger, starts no run, and shows no play badge. With `--detailed-exitcode`, a plan whose only changes are deploy-triggered runs exits 2.
 
 Export the HTML report with `-o` for detailed inspection in a browser:
 
@@ -149,7 +149,7 @@ When a plan contains wheel version bumps, the **Hide wheel updates** toggle appe
 
 ### Deploy-Triggered Runs
 
-Jobs targeted by `resources.job_runs` entries (experimental, Databricks CLI 1.7.0+) get a play badge: green when a run fires on this deploy, grey when a completed run already succeeded, and a distinct activity badge while a run is still in progress. The detail panel lists each run with its semantic outcome, a link to the existing run page, and the parameter diff that forces a re-run. A recreate with an armed `on_bundle_deploy` trigger says it runs on every deploy. Removing only `lifecycle.triggers.on_bundle_deploy` says the deploy trigger was removed and shows no badge. Deleting a `job_runs` entry reports `run record will be deleted`. Deploy-triggered runs never count toward tab counts or diff filters, and the target job itself stays unchanged.
+Jobs targeted by `resources.job_runs` entries (experimental, Databricks CLI 1.7.0+) get a play badge: green when a run fires on this deploy, grey when a completed run already succeeded, and a distinct activity badge while a run is still in progress. The detail panel lists each run with its semantic outcome, a link to the existing run page, and the parameter diff that forces a re-run. A recreate with an armed `on_bundle_deploy` trigger says it runs on every deploy. Removing only `lifecycle.triggers.on_bundle_deploy` says the deploy trigger was removed and shows no badge. Deleting a `job_runs` entry reports `bundle run entry will be removed`; this describes bundle state, not remote run-history deletion. Deploy-triggered runs never count toward tab counts or diff filters, and the target job itself stays unchanged.
 
 ### Search
 

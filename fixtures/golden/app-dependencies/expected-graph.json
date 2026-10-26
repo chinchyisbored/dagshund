@@ -488,18 +488,6 @@
           "taskChangeSummary": []
         },
         {
-          "id": "source-table::dagshund.models.a_volume",
-          "resourceKey": "source-table::dagshund.models.a_volume",
-          "label": "a_volume",
-          "kind": "phantom",
-          "diffState": "unchanged",
-          "isDrift": false,
-          "changes": [],
-          "effects": [],
-          "hasResourceState": false,
-          "taskChangeSummary": []
-        },
-        {
           "id": "sql-warehouse::9d0afa601cb95187",
           "resourceKey": "sql-warehouse::9d0afa601cb95187",
           "label": "9d0afa601cb95187",
@@ -516,6 +504,18 @@
           "resourceKey": "uc-root",
           "label": "Unity Catalog",
           "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "volume::dagshund.models.a_volume",
+          "resourceKey": "volume::dagshund.models.a_volume",
+          "label": "a_volume",
+          "kind": "phantom",
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
@@ -575,7 +575,7 @@
         },
         {
           "source": "schema::dagshund.models",
-          "target": "source-table::dagshund.models.a_volume",
+          "target": "volume::dagshund.models.a_volume",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -665,13 +665,13 @@
         },
         {
           "source": "resources.apps.my_test_app",
-          "target": "source-table::dagshund.models.a_volume",
+          "target": "sql-warehouse::9d0afa601cb95187",
           "diffState": "unchanged",
           "kind": "lateral"
         },
         {
           "source": "resources.apps.my_test_app",
-          "target": "sql-warehouse::9d0afa601cb95187",
+          "target": "volume::dagshund.models.a_volume",
           "diffState": "unchanged",
           "kind": "lateral"
         },
@@ -716,14 +716,14 @@
         "resourceKey": "resources.secret_scopes.app_secrets"
       },
       {
-        "id": "source-table::dagshund.models.a_volume",
-        "label": "a_volume",
-        "resourceKey": "source-table::dagshund.models.a_volume"
-      },
-      {
         "id": "sql-warehouse::9d0afa601cb95187",
         "label": "9d0afa601cb95187",
         "resourceKey": "sql-warehouse::9d0afa601cb95187"
+      },
+      {
+        "id": "volume::dagshund.models.a_volume",
+        "label": "a_volume",
+        "resourceKey": "volume::dagshund.models.a_volume"
       }
     ]
   }

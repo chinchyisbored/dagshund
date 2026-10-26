@@ -1,4 +1,4 @@
-dagshund plan (v2, cli 1.14.0)
+dagshund plan (v2, cli 1.20.0)
 
   apps (1)
   ~ apps/my_test_app  (update)

@@ -1,0 +1,237 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.20.0",
+  "plan": {
+    "resources.model_provider_services.example": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "parent": "schemas/main.synthetic_ai",
+          "model_provider_service_id": "example_provider",
+          "comment": "Constructed source-backed example; not deployed",
+          "config": {
+            "provider_type": "EXTERNAL_MODEL_PROVIDER_TYPE_CUSTOM",
+            "custom": {
+              "direct": {
+                "base_url": "https://provider.example.invalid/v1"
+              }
+            },
+            "targets": [
+              {
+                "model": "example-model",
+                "native_api_types": [
+                  "openai/v1/chat/completions"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "resources.model_provider_services.example.grants": {
+      "depends_on": [
+        {
+          "node": "resources.model_provider_services.example",
+          "label": "${resources.model_provider_services.example.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "model_provider_service",
+          "full_name": "",
+          "__embed__": [
+            {
+              "principal": "synthetic_reviewers",
+              "privileges": [
+                "APPLY_TAG"
+              ]
+            }
+          ]
+        },
+        "vars": {
+          "full_name": "${resources.model_provider_services.example.id}"
+        }
+      }
+    },
+    "resources.model_provider_services.bedrock": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "parent": "schemas/main.synthetic_ai",
+          "model_provider_service_id": "bedrock_provider",
+          "comment": "Constructed UC service-credential reference; not deployed",
+          "config": {
+            "provider_type": "EXTERNAL_MODEL_PROVIDER_TYPE_AMAZON_BEDROCK",
+            "amazon_bedrock": {
+              "direct": {
+                "region": "us-east-1",
+                "service_credential": {
+                  "name": "credentials/synthetic_bedrock"
+                }
+              }
+            },
+            "targets": [
+              {
+                "model": "example-model",
+                "native_api_types": [
+                  "openai/v1/chat/completions"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "resources.model_provider_services.bedrock.grants": {
+      "depends_on": [
+        {
+          "node": "resources.model_provider_services.bedrock",
+          "label": "${resources.model_provider_services.bedrock.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "model_provider_service",
+          "full_name": "",
+          "__embed__": [
+            {
+              "principal": "synthetic_reviewers",
+              "privileges": [
+                "APPLY_TAG"
+              ]
+            }
+          ]
+        },
+        "vars": {
+          "full_name": "${resources.model_provider_services.bedrock.id}"
+        }
+      }
+    },
+    "resources.model_services.example": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "parent": "schemas/main.synthetic_ai",
+          "model_service_id": "example_router",
+          "comment": "Constructed primary and fallback routing example; not deployed",
+          "config": {
+            "routing": {
+              "destinations": [
+                {
+                  "name": "external_primary",
+                  "destination_type": "DESTINATION_TYPE_EXTERNAL_FOUNDATION_MODEL",
+                  "traffic_percentage": 100,
+                  "external_model_config": {
+                    "model_provider_service": "model-provider-services/main.synthetic_ai.example_provider",
+                    "target": {
+                      "model": "example-model",
+                      "native_api_types": [
+                        "openai/v1/chat/completions"
+                      ]
+                    }
+                  }
+                }
+              ],
+              "fallback": {
+                "destinations": [
+                  {
+                    "name": "foundation_fallback",
+                    "destination_type": "DESTINATION_TYPE_PAY_PER_TOKEN_FOUNDATION_MODEL",
+                    "pay_per_token_config": {
+                      "model": "models/system.ai.example_foundation_model"
+                    }
+                  },
+                  {
+                    "name": "provisioned_fallback",
+                    "destination_type": "DESTINATION_TYPE_PROVISIONED_THROUGHPUT_FOUNDATION_MODEL",
+                    "provisioned_throughput_config": {
+                      "model_serving_endpoint": "serving-endpoints/example_endpoint"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "resources.model_services.example.grants": {
+      "depends_on": [
+        {
+          "node": "resources.model_services.example",
+          "label": "${resources.model_services.example.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "model_service",
+          "full_name": "",
+          "__embed__": [
+            {
+              "principal": "synthetic_reviewers",
+              "privileges": [
+                "APPLY_TAG"
+              ]
+            },
+            {
+              "principal": "synthetic_operators",
+              "privileges": [
+                "EXECUTE"
+              ]
+            }
+          ]
+        },
+        "vars": {
+          "full_name": "${resources.model_services.example.id}"
+        }
+      }
+    },
+    "resources.mcp_services.example": {
+      "action": "create",
+      "new_state": {
+        "value": {
+          "parent": "schemas/main.synthetic_ai",
+          "mcp_service_id": "example_tools",
+          "comment": "Constructed MCP connection reference example; not deployed",
+          "config": {
+            "source_connection": {
+              "name": "connections/main.synthetic_ai.example_connection"
+            },
+            "include_tool_selectors": [
+              "read_*"
+            ]
+          }
+        }
+      }
+    },
+    "resources.mcp_services.example.grants": {
+      "depends_on": [
+        {
+          "node": "resources.mcp_services.example",
+          "label": "${resources.mcp_services.example.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "mcp_service",
+          "full_name": "",
+          "__embed__": [
+            {
+              "principal": "synthetic_reviewers",
+              "privileges": [
+                "APPLY_TAG"
+              ]
+            }
+          ]
+        },
+        "vars": {
+          "full_name": "${resources.mcp_services.example.id}"
+        }
+      }
+    }
+  }
+}

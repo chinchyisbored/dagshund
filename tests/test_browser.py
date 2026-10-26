@@ -11,6 +11,7 @@ from dagshund.browser import (
     _load_template,
     render_browser,
 )
+from dagshund.model import parse_plan_data
 from dagshund.provenance import HtmlProvenance
 from dagshund.types import DagshundError
 
@@ -124,6 +125,68 @@ def test_inject_plan_excludes_uc_secret_values() -> None:
     assert "plaintext-secret" not in result
     assert "plaintext-effective-secret" not in result
     assert "[redacted]" in result
+
+
+def test_inject_plan_excludes_provider_credentials_from_embedded_plan() -> None:
+    template = f"<script>{PLACEHOLDER}</script>"
+    plan = parse_plan_data(
+        {
+            "plan": {
+                "resources.model_provider_services.provider": {
+                    "action": "update",
+                    "new_state": {
+                        "value": {
+                            "config": {
+                                "amazon_bedrock": {
+                                    "direct": {
+                                        "aws_access_key": {
+                                            "access_key_id": "PROVIDER_ID_SENTINEL",
+                                            "secret_access_key": {"plaintext": "PROVIDER_SECRET_SENTINEL"},
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "changes": {
+                        "config.amazon_bedrock": {
+                            "action": "update",
+                            "old": {"direct": {"aws_access_key": {"access_key_id": "PROVIDER_OLD_SENTINEL"}}},
+                        },
+                        "config.azure_openai.direct": {
+                            "action": "update",
+                            "old": {
+                                "base_url": "https://safe.example",
+                                "service_credential": {"name": "credentials/safe"},
+                            },
+                            "new": {
+                                "base_url": "https://safe.example",
+                                "service_credential": {"name": "credentials/safe"},
+                            },
+                            "remote": {
+                                "base_url": "https://safe.example",
+                                "service_credential": {"name": "credentials/safe"},
+                            },
+                        },
+                        "config.openai.direct.api_key.plaintext": {
+                            "action": "update",
+                            "old": "PROVIDER_DRIFT_SENTINEL",
+                            "new": "PROVIDER_DRIFT_SENTINEL",
+                            "remote": "PROVIDER_REMOTE_SENTINEL",
+                        },
+                    },
+                }
+            }
+        }
+    )
+
+    result = _inject_plan(template, plan)
+
+    assert "PROVIDER_" not in result
+    assert "[redacted]" in result
+    assert "https://safe.example" in result
+    assert "credentials/safe" in result
+    assert '"_dagshund_provider_comparison_facts":{"old_new_equal":true,"old_remote_equal":false}' in result
 
 
 def test_inject_plan_excludes_unknown_uc_secret_change_payloads() -> None:

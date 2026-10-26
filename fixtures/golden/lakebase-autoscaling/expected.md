@@ -1,4 +1,4 @@
-### dagshund plan (v2, cli 1.14.0)
+### dagshund plan (v2, cli 1.20.0)
 
 #### postgres\_branches (3)
 - `+` `postgres_branches/dev_branch` — create
