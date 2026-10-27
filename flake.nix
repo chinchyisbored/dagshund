@@ -21,10 +21,10 @@
 
           beadsRust = pkgs.stdenvNoCC.mkDerivation {
             pname = "beads-rust";
-            version = "0.5.12";
+            version = "0.7.0";
             src = pkgs.fetchurl {
-              url = "https://github.com/Dicklesworthstone/beads_rust/releases/download/v0.5.12/br-0.5.12-linux_musl_amd64.tar.gz";
-              hash = "sha256-PXd2yttoUaYdUVYsFvqR7O/gJ5DJqCE9DOgS7bQm8Bs=";
+              url = "https://github.com/Dicklesworthstone/beads_rust/releases/download/v0.7.0/br-0.7.0-linux_musl_amd64.tar.gz";
+              hash = "sha256-KD4vO06xtXM2JXjN+CKHko5sAktkZP54E3M1i3L/gl0=";
             };
             sourceRoot = ".";
             dontConfigure = true;
