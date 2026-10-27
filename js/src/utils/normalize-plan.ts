@@ -13,6 +13,8 @@ export type JobRunEffect = {
   readonly changes: Readonly<Record<string, ChangeDesc>> | undefined;
   readonly newState: unknown;
   readonly remoteState: unknown;
+  readonly gone?: unknown;
+  readonly stateOnly?: unknown;
 };
 
 type EffectTypeSpec = {
@@ -81,6 +83,8 @@ const buildJobRunEffect = (key: string, entry: PlanEntry): JobRunEffect => ({
   changes: entry.changes,
   newState: entry.new_state,
   remoteState: entry.remote_state,
+  gone: entry.gone,
+  stateOnly: entry.state_only,
 });
 
 /** Resolve the target resource key: prefer the symbolic depends_on reference,

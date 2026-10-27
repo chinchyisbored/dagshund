@@ -15,3 +15,22 @@ const ACTION_TO_DIFF_STATE: Readonly<Record<ActionType, DiffState>> = {
 
 export const mapActionToDiffState = (action: ActionType | undefined): DiffState =>
   action === undefined ? "unchanged" : ACTION_TO_DIFF_STATE[action];
+
+export const isStateCleanup = (entry: {
+  readonly action?: ActionType;
+  readonly gone?: unknown;
+  readonly state_only?: unknown;
+  readonly stateCleanups?: readonly unknown[];
+}): boolean => entry.action === "delete" && (entry.gone === true || entry.state_only === true);
+
+export const mapEntryToDiffState = (entry: {
+  readonly action?: ActionType;
+  readonly gone?: unknown;
+  readonly state_only?: unknown;
+  readonly stateCleanups?: readonly unknown[];
+}): DiffState =>
+  isStateCleanup(entry) ||
+  ((entry.action === undefined || entry.action === "" || entry.action === "skip") &&
+    (entry.stateCleanups?.length ?? 0) > 0)
+    ? "modified"
+    : mapActionToDiffState(entry.action);

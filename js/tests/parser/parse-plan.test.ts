@@ -1,11 +1,34 @@
 import { describe, expect, test } from "bun:test";
+import cleanupCases from "../../../fixtures/state-cleanup-cases.json";
 import { splitMeaningfulChanges } from "../../src/components/detail-panel/filter-changes.ts";
+import { isStateCleanup } from "../../src/parser/map-diff-state.ts";
 import { parsePlanFromString, parsePlanJson } from "../../src/parser/parse-plan.ts";
 import { serializePlanWithProviderComparisonFacts } from "../../src/utils/provider-comparison-facts.ts";
 import { isFieldDriftChange, isTopologyDriftChange } from "../../src/utils/structural-diff.ts";
 import { isUnknownRecord } from "../../src/utils/unknown-record.ts";
 
 describe("parsePlanJson", () => {
+  test("preserves shared cleanup flags and classifies only literal true on delete", () => {
+    for (const vector of cleanupCases) {
+      const rawEntry = Object.fromEntries(
+        Object.entries(vector).filter(([key]) => key !== "name" && key !== "cleanup"),
+      );
+      const input = { plan: { "resources.test.cleanup": rawEntry } };
+      const original = structuredClone(input);
+      const result = parsePlanJson(input);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const entry = result.data.plan?.["resources.test.cleanup"];
+        expect(entry).toBeDefined();
+        expect(isStateCleanup(entry ?? {})).toBe(vector.cleanup);
+        expect(String(entry?.action)).toBe(vector.action);
+        expect(entry?.gone).toBe(vector.gone);
+        expect(entry?.state_only).toBe(vector.state_only);
+      }
+      expect(input).toEqual(original);
+    }
+  });
   test("parses a minimal valid plan", () => {
     const result = parsePlanJson({});
     expect(result.ok).toBe(true);

@@ -61,7 +61,7 @@ export function DetailPanel({
 }: DetailPanelProps) {
   const [valueFormat, setValueFormat] = useState<ValueFormat>("yaml");
   const { driftReentryChanges, driftRemovalChanges, fieldChanges, allChangePaths } =
-    splitMeaningfulChanges(data.changes, {
+    splitMeaningfulChanges(data.isStateCleanup === true ? undefined : data.changes, {
       newState: data.newState,
       remoteState: data.remoteState,
       resourceHasShapeDrift: data.resourceHasShapeDrift,
@@ -107,7 +107,9 @@ export function DetailPanel({
     !hasDriftReentries &&
     !hasDriftRemovals &&
     data.resourceState === undefined &&
-    !hasTaskSummary;
+    !hasTaskSummary &&
+    data.isStateCleanup !== true &&
+    (data.stateCleanups?.length ?? 0) === 0;
 
   return (
     <ValueFormatContext.Provider value={valueFormat}>
@@ -119,6 +121,11 @@ export function DetailPanel({
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="min-w-0 break-words text-sm font-semibold text-ink">{data.label}</h2>
             <DiffStateBadge diffState={data.diffState} />
+            {data.isStateCleanup === true && (
+              <span className="rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
+                State cleanup
+              </span>
+            )}
             {isDriftNode && <DriftPill />}
           </div>
           <div className="ml-2 flex shrink-0 items-center gap-1.5">
@@ -144,6 +151,26 @@ export function DetailPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {data.isStateCleanup === true && (
+            <p className="mb-3 rounded border border-outline/60 bg-surface-inset/40 px-3 py-2 text-xs text-ink-muted">
+              {data.stateCleanupGone === true
+                ? "Already absent; removing stale bundle state."
+                : "Removing from bundle state; backend resource is preserved."}
+            </p>
+          )}
+          {data.stateCleanups?.map((cleanup) => (
+            <p
+              key={cleanup.key}
+              className="mb-2 rounded border border-outline/60 px-3 py-2 text-xs text-ink-muted"
+            >
+              State cleanup: {cleanup.key} (
+              {cleanup.gone === true
+                ? "already absent; removing stale bundle state"
+                : "removing from bundle state; backend resource is preserved"}
+              )
+            </p>
+          ))}
+
           {data.nodeKind === "derived" && (
             <ManagedOutputCard data={data} onNavigateToOwner={onNavigateToNode} />
           )}

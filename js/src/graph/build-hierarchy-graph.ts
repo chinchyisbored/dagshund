@@ -1,4 +1,4 @@
-import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import { isStateCleanup, mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type {
   DerivedGraphNode,
   GraphEdge,
@@ -253,7 +253,11 @@ export const buildChainGraph = (
       phantomEdges,
     );
     hierarchyEdges.push(
-      buildEdge(parentNodeId, nodeId, toEdgeDiffState(mapActionToDiffState(entry.action))),
+      buildEdge(
+        parentNodeId,
+        nodeId,
+        toEdgeDiffState(isStateCleanup(entry) ? "modified" : mapActionToDiffState(entry.action)),
+      ),
     );
   }
 

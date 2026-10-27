@@ -1,7 +1,7 @@
 import type { DerivedKind } from "../graph/derived-node-specs.ts";
 import type { JobRunEffect } from "../utils/normalize-plan.ts";
 import type { DiffState } from "./diff-state.ts";
-import type { ChangeDesc } from "./plan-schema.ts";
+import type { ChangeDesc, StateCleanupAnnotation } from "./plan-schema.ts";
 
 type TaskChangeSummaryEntry = {
   readonly taskKey: string;
@@ -36,6 +36,9 @@ type BaseGraphNode = {
    *  graph-build time over the full `entry.changes`, so task nodes inherit
    *  the parent job's flag — matches Python's behavior. */
   readonly resourceHasShapeDrift: boolean;
+  readonly isStateCleanup?: boolean;
+  readonly stateCleanupGone?: boolean;
+  readonly stateCleanups?: readonly StateCleanupAnnotation[];
 };
 
 export type JobGraphNode = BaseGraphNode & {

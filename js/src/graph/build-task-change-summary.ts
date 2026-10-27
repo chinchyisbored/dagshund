@@ -52,17 +52,23 @@ export const buildTaskChangeSummary = (
   resourceAction: ActionType | undefined,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
   driftParent: DriftScanParent,
+  isStateCleanup = false,
 ): TaskChangeSummary | undefined => {
-  const resourceDiff =
-    resourceAction === "create" ? "added" : resourceAction === "delete" ? "removed" : undefined;
-  if (resourceDiff === "added" || resourceDiff === "removed") return undefined;
+  const resourceDiff = isStateCleanup
+    ? undefined
+    : resourceAction === "create"
+      ? "added"
+      : resourceAction === "delete"
+        ? "removed"
+        : undefined;
+  if (isStateCleanup || resourceDiff === "added" || resourceDiff === "removed") return undefined;
 
   const allKeys = collectAllTaskKeys(tasks, changes);
   if (allKeys.size === 0) return undefined;
 
   const entries = [...allKeys].map((taskKey) => ({
     taskKey,
-    diffState: resolveTaskDiffState(taskKey, resourceAction, changes),
+    diffState: resolveTaskDiffState(taskKey, resourceAction, changes, isStateCleanup),
     isDrift: hasTaskDriftWithContext(taskKey, changes, driftParent),
   }));
 

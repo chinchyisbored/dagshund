@@ -29,6 +29,7 @@ from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, Resourc
 from dagshund.plan import (
     action_to_diff_state,
     has_drifted_field,
+    is_state_cleanup,
 )
 from dagshund.synced_table_outputs import (
     OutputRelationship,
@@ -59,6 +60,7 @@ _DISPLAY_COLORS: dict[str, str] = {
     "create": GREEN,
     "delete": RED,
     "update": YELLOW,
+    "state cleanup": YELLOW,
     "recreate": YELLOW,
     "resize": YELLOW,
     "update_id": YELLOW,
@@ -204,7 +206,8 @@ def _render_effect_lines(
 ) -> Iterator[str]:
     """Render shared semantic details for attached or standalone runs."""
     semantics = classify_job_run_effect(effect)
-    cfg = action_config(effect.action)
+    cleanup = effect.action == ActionType.DELETE and (effect.gone is True or effect.state_only is True)
+    cfg = ActionConfig("state cleanup", "~") if cleanup else action_config(effect.action)
     indent = 2 if standalone else _EFFECT_LINE_INDENT
     name = f"job_runs/{effect.name}" if standalone else f"run {effect.name}"
     line = _escape_terminal(f"{' ' * indent}{cfg.symbol} {name} ({semantics.wording})")
@@ -212,6 +215,9 @@ def _render_effect_lines(
 
     state_indent = " " * (indent + _EFFECT_FIELD_EXTRA_INDENT)
     field_indent = " " * (0 if standalone else _EFFECT_FIELD_EXTRA_INDENT)
+    for detail in semantics.watched_patterns:
+        pattern_line = f"{' ' * (indent + _EFFECT_FIELD_EXTRA_INDENT)}watched pattern {detail.pattern}: {detail.status}"
+        yield _escape_terminal(pattern_line)
     if semantics.state_message is not None:
         state_line = _escape_terminal(f"{state_indent}state: {semantics.state_message}")
         if width is not None and width >= _MIN_WRAP_WIDTH:
@@ -237,17 +243,36 @@ def _render_resource(
         yield from _render_effect_lines(standalone_run, use_color=use_color, width=width, standalone=True)
         return
 
+    owner_cleanup = is_state_cleanup(entry)
     cfg = action_config(entry.action)
+    if owner_cleanup:
+        cfg = ActionConfig("state cleanup", "~")
     resource_type, resource_name = parse_resource_key(key)
 
-    label = f"  ({cfg.display})" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
-    note = resource_action_note(resource_type, entry.action)
+    label = f"  ({cfg.display})" if owner_cleanup or action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
+    note = None if owner_cleanup else resource_action_note(resource_type, entry.action)
     note_text = f"; {note}" if note is not None else ""
     header = _escape_terminal(f"  {cfg.symbol} {resource_type}/{resource_name}{label}{note_text}")
     yield _colorize(header, _action_color(cfg), use_color=use_color)
+    if owner_cleanup:
+        explanation = (
+            "already absent; removing stale bundle state"
+            if entry.gone is True
+            else "removing from bundle state; backend resource is preserved"
+        )
+        yield _escape_terminal(f"      {explanation}")
 
+    for annotation in entry.state_cleanups:
+        wording = (
+            "already absent; removing stale bundle state"
+            if annotation.gone is True
+            else "removing from bundle state; backend resource is preserved"
+        )
+        yield _escape_terminal(f"      {annotation.key}: {wording}")
+
+    output_action = ActionType.EMPTY if owner_cleanup else entry.action
     for output in extract_synced_table_outputs(key, entry):
-        yield _render_synced_table_output(output, entry.action, use_color=use_color)
+        yield _render_synced_table_output(output, output_action, use_color=use_color)
 
     # Effects remain visible even when the parent has no field details.
     for effect in entry.effects:

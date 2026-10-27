@@ -1,0 +1,383 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 2,
+      "by_kind": {
+        "job": 1,
+        "task": 1,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 2,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 8,
+      "total_effect_entries": 3,
+      "with_resource_state": 2,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "resources.jobs.trigger_job",
+          "resourceKey": "resources.jobs.trigger_job",
+          "label": "trigger_job",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "every_deploy",
+              "action": "recreate"
+            },
+            {
+              "name": "file_change",
+              "action": "recreate"
+            },
+            {
+              "name": "one_off",
+              "action": "delete"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.trigger_job::main",
+          "resourceKey": "resources.jobs.trigger_job",
+          "label": "main",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='main'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='main'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 0,
+      "by_kind": {
+        "dag": 0,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 0
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": []
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 4,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 2,
+        "derived": 0,
+        "root": 2,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 1,
+        "unchanged": 3,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 3,
+      "total_effect_entries": 3,
+      "with_resource_state": 1,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "resources.jobs.trigger_job",
+          "resourceKey": "resources.jobs.trigger_job",
+          "label": "trigger_job",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "every_deploy",
+              "action": "recreate"
+            },
+            {
+              "name": "file_change",
+              "action": "recreate"
+            },
+            {
+              "name": "one_off",
+              "action": "delete"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.cleanup_schema",
+          "resourceKey": "resources.schemas.cleanup_schema",
+          "label": "cleanup_schema",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 2,
+      "by_kind": {
+        "dag": 2,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 2
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 2
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "uc-root",
+          "target": "resources.schemas.cleanup_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.trigger_job",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
+    },
+    "phantoms": []
+  }
+}

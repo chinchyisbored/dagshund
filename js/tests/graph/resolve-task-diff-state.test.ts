@@ -41,6 +41,10 @@ describe("resolveTaskDiffState", () => {
     expect(resolveTaskDiffState("extract", "delete", undefined)).toBe("removed");
   });
 
+  test("does not classify retained historical task as removed for cleanup", () => {
+    expect(resolveTaskDiffState("extract", "delete", undefined, true)).toBe("unchanged");
+  });
+
   test("returns 'unchanged' when no changes exist for task", () => {
     expect(resolveTaskDiffState("extract", "update", {})).toBe("unchanged");
   });

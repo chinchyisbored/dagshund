@@ -11,10 +11,12 @@ const EFFECT_BADGE_COLORS: Readonly<Record<JobRunEffectKind, string>> = {
   create: "text-action-create bg-action-create-soft",
   recreate: "text-action-recreate bg-action-recreate-soft",
   "every-deploy": "text-action-recreate bg-action-recreate-soft",
+  "file-change": "text-action-recreate bg-action-recreate-soft",
   "completed-success": "text-badge-text bg-badge-bg",
   "legacy-skip": "text-badge-text bg-badge-bg",
   "in-progress": "text-action-resize bg-action-resize-soft",
   "trigger-removed": "text-badge-text bg-badge-bg",
+  cleanup: "text-badge-text bg-badge-bg",
   delete: "text-action-delete bg-action-delete-soft",
   unknown: "text-badge-text bg-badge-bg",
 };
@@ -22,18 +24,25 @@ const EFFECT_BADGE_COLORS: Readonly<Record<JobRunEffectKind, string>> = {
 function RunEffectEntry({ effect }: { readonly effect: JobRunEffect }) {
   const semantics = classifyJobRunEffect(effect);
   const colors = EFFECT_BADGE_COLORS[semantics.kind];
-  const fieldChanges = Object.entries(filterJobRunChanges(effect.changes));
+  const fieldChanges = Object.entries(
+    filterJobRunChanges(effect.changes, semantics.kind === "cleanup"),
+  );
 
   return (
     <div className="rounded border border-outline-subtle bg-surface-raised/50 p-3">
       <div className="flex items-start gap-2">
         <span className="min-w-0 flex-1 break-words font-mono text-xs text-ink-secondary">
-          {"▶"} {effect.name}
+          {semantics.kind === "cleanup" ? "" : "▶"} {effect.name}
         </span>
         <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${colors}`}>
           {semantics.wording}
         </span>
       </div>
+      {semantics.watchedPatterns.map(({ pattern, status }) => (
+        <p key={pattern} className="mt-2 break-words text-xs text-ink-muted">
+          watched pattern {pattern}: {status}
+        </p>
+      ))}
       {semantics.stateMessage !== undefined && (
         <p className="mt-2 text-xs text-ink-muted">State: {semantics.stateMessage}</p>
       )}

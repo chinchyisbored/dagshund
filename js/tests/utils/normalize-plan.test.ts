@@ -52,6 +52,44 @@ describe("normalizePlan effect folding", () => {
     new_state: { value: { job_id: 100 } },
   };
 
+  test("retains cleanup flags and safe URLs for attached, numeric-orphan, and standalone runs", () => {
+    const url = "https://example.test/run/cleanup";
+    const raw = {
+      "resources.jobs.attached": skipJob,
+      "resources.job_runs.attached_cleanup": {
+        depends_on: [{ node: "resources.jobs.attached" }],
+        action: "delete",
+        state_only: true,
+        remote_state: { run_page_url: url },
+      },
+      "resources.job_runs.numeric_cleanup": {
+        action: "delete",
+        gone: true,
+        new_state: { value: { job_id: 987 } },
+        remote_state: { run_page_url: url },
+      },
+      "resources.job_runs.standalone_cleanup": {
+        action: "delete",
+        state_only: true,
+        remote_state: { run_page_url: url },
+      },
+    } satisfies Record<string, PlanEntry>;
+    const before = structuredClone(raw);
+    const { entries, orphanEffects } = normalizePlan(raw);
+    const attached = entries["resources.jobs.attached"]?.effects?.[0];
+    const numeric = orphanEffects.find((group) => group.targetId === 987)?.effects[0];
+
+    expect(attached?.stateOnly).toBe(true);
+    expect(attached?.runPageUrl).toBe(url);
+    expect(numeric?.gone).toBe(true);
+    expect(numeric?.runPageUrl).toBe(url);
+    expect(entries["resources.job_runs.standalone_cleanup"]?.state_only).toBe(true);
+    expect(entries["resources.job_runs.standalone_cleanup"]?.remote_state).toEqual({
+      run_page_url: url,
+    });
+    expect(raw).toEqual(before);
+  });
+
   test("target action, changes, and state stay untouched", () => {
     const { entries } = normalizePlan({
       "resources.jobs.etl": skipJob,
@@ -62,6 +100,31 @@ describe("normalizePlan effect folding", () => {
     expect(target?.action).toBe("skip");
     expect(target?.changes).toBeUndefined();
     expect(target?.remote_state).toEqual({ job_id: 100 });
+  });
+
+  test("modern trigger effects do not change the target action or state", () => {
+    const { entries } = normalizePlan({
+      "resources.jobs.etl": skipJob,
+      "resources.job_runs.file_change": {
+        depends_on: [{ node: "resources.jobs.etl" }],
+        action: "recreate",
+        changes: {
+          "lifecycle.triggers_state.on_file_change": {
+            action: "recreate",
+            old: { "configs/*.yaml": "hash-before" },
+            new: { "configs/*.yaml": "hash-after" },
+          },
+        },
+      },
+    });
+
+    const target = entries["resources.jobs.etl"];
+    expect(target?.action).toBe("skip");
+    expect(target?.changes).toBeUndefined();
+    expect(target?.effects?.[0]?.action).toBe("recreate");
+    expect(
+      target?.effects?.[0]?.changes?.["lifecycle.triggers_state.on_file_change"],
+    ).toBeDefined();
   });
 
   test("multiple effects on one job accumulate sorted by name", () => {

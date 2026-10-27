@@ -1,0 +1,194 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.20.0",
+  "lineage": "063841c2-6d34-48b2-aac6-55ae6bc4ec90",
+  "serial": 1,
+  "plan": {
+    "resources.job_runs.every_deploy": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.trigger_job",
+          "label": "${resources.jobs.trigger_job.id}"
+        }
+      ],
+      "action": "recreate",
+      "new_state": {
+        "value": {
+          "job_id": 971607388943390,
+          "lifecycle": {
+            "triggers_state": {
+              "on_bundle_deploy": "0d6601e0-4b2c-403a-ab75-286b3e09d411"
+            }
+          },
+          "result_state": "SUCCESS"
+        }
+      },
+      "remote_state": {
+        "job_id": 971607388943390,
+        "result_state": "SUCCESS",
+        "run_id": 803377418880214,
+        "run_name": "dagshund-cleanup-job-run-triggers-aqde",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/971607388943390/runs/803377418880214?o=7474654640708173",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS"
+        }
+      },
+      "changes": {
+        "lifecycle.triggers_state.on_bundle_deploy": {
+          "action": "recreate",
+          "reason": "immutable",
+          "old": "4229bd19-12df-4902-89b6-43ec27d72bbb",
+          "new": "0d6601e0-4b2c-403a-ab75-286b3e09d411"
+        },
+        "result_state": {
+          "action": "skip",
+          "reason": "remote_already_set",
+          "new": "SUCCESS",
+          "remote": "SUCCESS"
+        }
+      }
+    },
+    "resources.job_runs.file_change": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.trigger_job",
+          "label": "${resources.jobs.trigger_job.id}"
+        }
+      ],
+      "action": "recreate",
+      "new_state": {
+        "value": {
+          "job_id": 971607388943390,
+          "lifecycle": {
+            "triggers_state": {
+              "on_file_change": {
+                "watched.txt": "aaf1f68b93a079039e9fe002a2820320fd58d90e842b9c9e159e948a6e891e66"
+              }
+            }
+          },
+          "result_state": "SUCCESS"
+        }
+      },
+      "remote_state": {
+        "job_id": 971607388943390,
+        "result_state": "SUCCESS",
+        "run_id": 1041732527553192,
+        "run_name": "dagshund-cleanup-job-run-triggers-aqde",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/971607388943390/runs/1041732527553192?o=7474654640708173",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS"
+        }
+      },
+      "changes": {
+        "lifecycle.triggers_state.on_file_change['watched.txt']": {
+          "action": "recreate",
+          "reason": "immutable",
+          "old": "fd56e6cc35413a87d02188e1aa49e0c8018dccdabd3e49415488d76cee7f3ae4",
+          "new": "aaf1f68b93a079039e9fe002a2820320fd58d90e842b9c9e159e948a6e891e66"
+        },
+        "result_state": {
+          "action": "skip",
+          "reason": "remote_already_set",
+          "new": "SUCCESS",
+          "remote": "SUCCESS"
+        }
+      }
+    },
+    "resources.job_runs.one_off": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.trigger_job",
+          "label": "${resources.jobs.trigger_job.id}"
+        }
+      ],
+      "action": "delete",
+      "state_only": true
+    },
+    "resources.jobs.trigger_job": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1793107919620,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-cleanup-job-run-triggers-aqde/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 971607388943390,
+        "max_concurrent_runs": 1,
+        "name": "dagshund-cleanup-job-run-triggers-aqde",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-cleanup-job-run-triggers-aqde/default/files/run_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "main",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='main'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='main'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='main'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='main'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.schemas.cleanup_schema": {
+      "action": "delete",
+      "gone": true
+    }
+  }
+}

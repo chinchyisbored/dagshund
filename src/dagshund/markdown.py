@@ -21,6 +21,7 @@ from dagshund.job_run_effects import classify_job_run_effect
 from dagshund.model import ActionType, FieldChange, JobRunEffect, ResourceChange
 from dagshund.plan import (
     action_to_diff_state,
+    is_state_cleanup,
 )
 from dagshund.synced_table_outputs import (
     OutputRelationship,
@@ -100,17 +101,27 @@ def _render_synced_table_output(output: SyncedTableOutput, owner_action: ActionT
 def _render_effect_lines(effect: JobRunEffect, *, standalone: bool = False) -> Iterator[str]:
     """Render shared semantic details for attached or standalone runs."""
     semantics = classify_job_run_effect(effect)
-    cfg = action_config(effect.action)
+    cleanup = effect.action == ActionType.DELETE and (effect.gone is True or effect.state_only is True)
+    cfg = action_config(ActionType.UPDATE) if cleanup else action_config(effect.action)
+    wording = (
+        "already absent; removing stale bundle state"
+        if cleanup and effect.gone is True
+        else "run entry removed from bundle state; run history preserved"
+        if cleanup
+        else semantics.wording
+    )
     label = _code_span(effect.name)
     name = f"[{label}]({effect.run_page_url})" if effect.run_page_url else label
     if standalone:
         resource_name = _code_span(f"job_runs/{effect.name}")
         resource_link = f"[{resource_name}]({effect.run_page_url})" if effect.run_page_url else resource_name
-        yield f"- `{cfg.symbol}` {resource_link} — {_escape_plain_text(semantics.wording)}"
+        yield f"- `{cfg.symbol}` {resource_link} — {_escape_plain_text(wording)}"
         detail_indent = "  "
     else:
-        yield f"  - `{cfg.symbol}` run {name} ({_escape_plain_text(semantics.wording)})"
+        yield f"  - `{cfg.symbol}` run {name} ({_escape_plain_text(wording)})"
         detail_indent = "    "
+    for detail in semantics.watched_patterns:
+        yield f"{detail_indent}- {_escape_plain_text(f'watched pattern {detail.pattern}: {detail.status}')}"
     if semantics.state_message is not None:
         yield f"{detail_indent}- state: {_escape_plain_text(semantics.state_message)}"
     for field_name, change, ctx in iter_effect_field_changes(effect):
@@ -128,16 +139,34 @@ def _render_resource(
         yield from _render_effect_lines(standalone_run, standalone=True)
         return
 
-    cfg = action_config(entry.action)
+    cleanup = is_state_cleanup(entry)
+    cfg = action_config(ActionType.UPDATE) if cleanup else action_config(entry.action)
     resource_type, resource_name = parse_resource_key(key)
 
-    label = f" \u2014 {cfg.display}" if action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
-    note = resource_action_note(resource_type, entry.action)
+    action_label = "state cleanup" if cleanup else cfg.display
+    label = f" \u2014 {action_label}" if cleanup or action_to_diff_state(entry.action) != DiffState.UNCHANGED else ""
+    note = None if cleanup else resource_action_note(resource_type, entry.action)
     note_text = f"; {_escape_plain_text(note)}" if note is not None else ""
     yield f"- `{cfg.symbol}` {_code_span(f'{resource_type}/{resource_name}')}{label}{note_text}"
+    if cleanup:
+        explanation = (
+            "already absent; removing stale bundle state"
+            if entry.gone is True
+            else "removing from bundle state; backend resource is preserved"
+        )
+        yield f"  - {_escape_plain_text(explanation)}"
 
+    for annotation in entry.state_cleanups:
+        wording = (
+            "already absent; removing stale bundle state"
+            if annotation.gone is True
+            else "removing from bundle state; backend resource is preserved"
+        )
+        yield f"  - {_escape_plain_text(annotation.key)}: {_escape_plain_text(wording)}"
+
+    output_action = ActionType.EMPTY if cleanup else entry.action
     for output in extract_synced_table_outputs(key, entry):
-        yield _render_synced_table_output(output, entry.action)
+        yield _render_synced_table_output(output, output_action)
 
     # Effects remain visible even when the parent has no field details.
     for effect in entry.effects:

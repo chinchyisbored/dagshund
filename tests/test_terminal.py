@@ -469,6 +469,26 @@ def test_render_resource_synced_database_table_delete_shows_managed_outputs() ->
     ]
 
 
+def test_render_resource_delete_with_cleanup_annotation_keeps_managed_deletions() -> None:
+    key = "resources.synced_database_tables.customer_360"
+    entry = resources_from_dict(
+        {
+            key: {
+                "action": "delete",
+                "remote_state": {"name": "registered.analytics.customer_360"},
+            },
+            f"{key}.permissions": {"action": "delete", "state_only": True},
+        }
+    )[key]
+
+    lines = list(_render_resource(key, entry, use_color=False))
+
+    assert "  - synced_database_tables/customer_360  (delete)" in lines
+    assert any("- managed pipeline" in line for line in lines)
+    assert any("- managed PostgreSQL table" in line for line in lines)
+    assert any("- managed Unity Catalog registration" in line for line in lines)
+
+
 def test_render_resource_existing_pipeline_is_unchanged_reference() -> None:
     key = "resources.postgres_synced_tables.orders"
     entry = make_resource(
@@ -1712,6 +1732,34 @@ def test_render_text_effect_lines_render_for_skip_parent(capsys: pytest.CaptureF
     assert "job_runs/" not in out
 
 
+def test_render_text_preserves_malformed_modern_trigger_detail(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.modern": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "changes": {
+                        "lifecycle.triggers_state.on_bundle_deploy": {
+                            "action": "recreate",
+                            "old": "SENTINEL_UUID",
+                            "new": {"unexpected": 2},
+                        },
+                    },
+                },
+            }
+        }
+    )
+
+    render_text(normalize_plan(plan.resources))
+
+    output = capsys.readouterr().out
+    assert "re-runs on deploy" in output
+    assert "unexpected" in output
+    assert "SENTINEL_UUID" not in output
+
+
 def test_render_text_effect_field_changes_render_indented(capsys: pytest.CaptureFixture[str]) -> None:
     plan = plan_from_dict(
         {
@@ -2013,6 +2061,10 @@ def test_render_text_shared_job_run_vectors_attached_and_standalone(capsys: pyte
                 assert f"state: {expected['stateMessage']}" in out
             if "job_parameters['region']" in expected["visibleChangeKeys"]:
                 assert "job_parameters['region']" in out
+            for detail in expected.get("watchedPatterns", []):
+                assert f"watched pattern {detail['pattern']}: {detail['status']}" in out
+            assert "before" not in out
+            assert "fingerprint" not in out
 
 
 def test_render_text_basic_run_kinds_attached_and_standalone(capsys: pytest.CaptureFixture[str]) -> None:

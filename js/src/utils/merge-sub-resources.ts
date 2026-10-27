@@ -147,6 +147,16 @@ const mergeSingleSub = (
   const stateUpdate = injectState(parentEntry, suffix, subEntry);
   const mergedDeps = mergeExternalDeps(parentEntry.depends_on, subEntry.depends_on, parentKey);
 
+  if (subEntry.action === "delete" && (subEntry.gone === true || subEntry.state_only === true)) {
+    return {
+      ...parentEntry,
+      stateCleanups: [
+        ...(parentEntry.stateCleanups ?? []),
+        { key: `${parentKey}.${suffix}`, gone: subEntry.gone, stateOnly: subEntry.state_only },
+      ],
+    };
+  }
+
   return {
     ...parentEntry,
     action: promoteAction(parentEntry.action, subEntry.action),

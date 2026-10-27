@@ -6,10 +6,16 @@
       "plan": {
         "resources.jobs.completed": {
           "action": "skip",
-          "remote_state": { "job_id": 101 }
+          "remote_state": {
+            "job_id": 101
+          }
         },
         "resources.job_runs.completed": {
-          "depends_on": [{ "node": "resources.jobs.completed" }],
+          "depends_on": [
+            {
+              "node": "resources.jobs.completed"
+            }
+          ],
           "action": "skip",
           "remote_state": {
             "job_id": 101,
@@ -44,10 +50,16 @@
       "plan": {
         "resources.jobs.running": {
           "action": "skip",
-          "remote_state": { "job_id": 102 }
+          "remote_state": {
+            "job_id": 102
+          }
         },
         "resources.job_runs.running": {
-          "depends_on": [{ "node": "resources.jobs.running" }],
+          "depends_on": [
+            {
+              "node": "resources.jobs.running"
+            }
+          ],
           "action": "skip",
           "remote_state": {
             "job_id": 102,
@@ -79,14 +91,22 @@
       "plan": {
         "resources.jobs.removed_trigger": {
           "action": "skip",
-          "remote_state": { "job_id": 103 }
+          "remote_state": {
+            "job_id": 103
+          }
         },
         "resources.job_runs.removed_trigger": {
-          "depends_on": [{ "node": "resources.jobs.removed_trigger" }],
+          "depends_on": [
+            {
+              "node": "resources.jobs.removed_trigger"
+            }
+          ],
           "action": "skip",
           "remote_state": {
             "job_id": 103,
-            "state": { "life_cycle_state": "TERMINATED" }
+            "state": {
+              "life_cycle_state": "TERMINATED"
+            }
           },
           "changes": {
             "lifecycle.triggers.on_bundle_deploy": {
@@ -112,10 +132,16 @@
       "plan": {
         "resources.jobs.failed": {
           "action": "skip",
-          "remote_state": { "job_id": 104 }
+          "remote_state": {
+            "job_id": 104
+          }
         },
         "resources.job_runs.failed": {
-          "depends_on": [{ "node": "resources.jobs.failed" }],
+          "depends_on": [
+            {
+              "node": "resources.jobs.failed"
+            }
+          ],
           "action": "recreate",
           "remote_state": {
             "job_id": 104,
@@ -153,10 +179,16 @@
       "plan": {
         "resources.jobs.every_deploy": {
           "action": "skip",
-          "remote_state": { "job_id": 105 }
+          "remote_state": {
+            "job_id": 105
+          }
         },
         "resources.job_runs.every_deploy": {
-          "depends_on": [{ "node": "resources.jobs.every_deploy" }],
+          "depends_on": [
+            {
+              "node": "resources.jobs.every_deploy"
+            }
+          ],
           "action": "recreate",
           "remote_state": {
             "job_id": 105,
@@ -168,13 +200,25 @@
           "changes": {
             "lifecycle": {
               "action": "recreate",
-              "old": { "triggers": { "on_bundle_deploy": "fingerprint-before" } },
-              "new": { "triggers": { "on_bundle_deploy": "fingerprint-after" } }
+              "old": {
+                "triggers": {
+                  "on_bundle_deploy": "fingerprint-before"
+                }
+              },
+              "new": {
+                "triggers": {
+                  "on_bundle_deploy": "fingerprint-after"
+                }
+              }
             },
             "lifecycle.triggers": {
               "action": "recreate",
-              "old": { "on_bundle_deploy": "fingerprint-before" },
-              "new": { "on_bundle_deploy": "fingerprint-after" }
+              "old": {
+                "on_bundle_deploy": "fingerprint-before"
+              },
+              "new": {
+                "on_bundle_deploy": "fingerprint-after"
+              }
             },
             "lifecycle.triggers.on_bundle_deploy": {
               "action": "recreate",
@@ -199,10 +243,16 @@
       "plan": {
         "resources.jobs.every_deploy_with_parameter": {
           "action": "skip",
-          "remote_state": { "job_id": 106 }
+          "remote_state": {
+            "job_id": 106
+          }
         },
         "resources.job_runs.every_deploy_with_parameter": {
-          "depends_on": [{ "node": "resources.jobs.every_deploy_with_parameter" }],
+          "depends_on": [
+            {
+              "node": "resources.jobs.every_deploy_with_parameter"
+            }
+          ],
           "action": "recreate",
           "remote_state": {
             "job_id": 106,
@@ -214,13 +264,25 @@
           "changes": {
             "lifecycle": {
               "action": "recreate",
-              "old": { "triggers": { "on_bundle_deploy": "fingerprint-before" } },
-              "new": { "triggers": { "on_bundle_deploy": "fingerprint-after" } }
+              "old": {
+                "triggers": {
+                  "on_bundle_deploy": "fingerprint-before"
+                }
+              },
+              "new": {
+                "triggers": {
+                  "on_bundle_deploy": "fingerprint-after"
+                }
+              }
             },
             "lifecycle.triggers": {
               "action": "recreate",
-              "old": { "on_bundle_deploy": "fingerprint-before" },
-              "new": { "on_bundle_deploy": "fingerprint-after" }
+              "old": {
+                "on_bundle_deploy": "fingerprint-before"
+              },
+              "new": {
+                "on_bundle_deploy": "fingerprint-after"
+              }
             },
             "lifecycle.triggers.on_bundle_deploy": {
               "action": "recreate",
@@ -242,7 +304,82 @@
         "stateMessage": null,
         "firesOnDeploy": true,
         "badgeVisible": true,
-        "visibleChangeKeys": ["job_parameters['region']"]
+        "visibleChangeKeys": [
+          "job_parameters['region']"
+        ]
+      }
+    },
+    {
+      "name": "modern_file_trigger_patterns_added_and_changed",
+      "plan": {
+        "resources.jobs.modern_file": {
+          "action": "skip",
+          "remote_state": {
+            "job_id": 201
+          }
+        },
+        "resources.job_runs.modern_file": {
+          "depends_on": [
+            {
+              "node": "resources.jobs.modern_file"
+            }
+          ],
+          "action": "recreate",
+          "changes": {
+            "lifecycle.triggers_state": {
+              "action": "recreate",
+              "old": {
+                "on_file_change": {
+                  "configs/[prod].yaml": "before"
+                },
+                "pause_statuses": [
+                  "PAUSED"
+                ]
+              },
+              "new": {
+                "on_file_change": {
+                  "configs/[prod].yaml": "after",
+                  "*.json": "fingerprint"
+                },
+                "pause_statuses": [
+                  "UNPAUSED"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "effectKey": "resources.job_runs.modern_file",
+      "expected": {
+        "kind": "file-change",
+        "wording": "re-runs on deploy (file-change trigger)",
+        "stateMessage": null,
+        "firesOnDeploy": true,
+        "badgeVisible": true,
+        "visibleChangeKeys": [
+          "lifecycle.triggers_state"
+        ],
+        "watchedPatterns": [
+          {
+            "pattern": "*.json",
+            "status": "added"
+          },
+          {
+            "pattern": "configs/[prod].yaml",
+            "status": "changed"
+          }
+        ],
+        "visibleChanges": {
+          "lifecycle.triggers_state": {
+            "action": "recreate",
+            "old": {
+              "pause_statuses": ["PAUSED"]
+            },
+            "new": {
+              "pause_statuses": ["UNPAUSED"]
+            }
+          }
+        }
       }
     },
     {

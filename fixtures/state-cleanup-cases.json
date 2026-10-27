@@ -1,0 +1,12 @@
+[
+  {"name":"gone-true","action":"delete","gone":true,"state_only":false,"cleanup":true},
+  {"name":"state-only-true","action":"delete","gone":false,"state_only":true,"cleanup":true},
+  {"name":"both-true","action":"delete","gone":true,"state_only":true,"cleanup":true},
+  {"name":"flags-absent","action":"delete","cleanup":false},
+  {"name":"flags-false","action":"delete","gone":false,"state_only":false,"cleanup":false},
+  {"name":"flags-null","action":"delete","gone":null,"state_only":null,"cleanup":false},
+  {"name":"flags-string","action":"delete","gone":"true","state_only":"true","cleanup":false},
+  {"name":"flags-number","action":"delete","gone":1,"state_only":1,"cleanup":false},
+  {"name":"non-delete-gone","action":"update","gone":true,"cleanup":false},
+  {"name":"non-delete-state-only","action":"create","state_only":true,"cleanup":false}
+]

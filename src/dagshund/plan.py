@@ -20,7 +20,9 @@ __all__ = [
     "detect_changes",
     "detect_dangerous_actions",
     "detect_manual_edits",
+    "entry_to_diff_state",
     "has_drifted_field",
+    "is_state_cleanup",
     "is_topology_drift_change",
     "resource_has_shape_drift",
 ]
@@ -71,6 +73,16 @@ def classify_pipeline_cascade_risk(entry: ResourceChange) -> PipelineCascadeRisk
     return "unavailable"
 
 
+def is_state_cleanup(entry: ResourceChange) -> bool:
+    return entry.action == ActionType.DELETE and (entry.gone is True or entry.state_only is True)
+
+
+def entry_to_diff_state(entry: ResourceChange) -> DiffState:
+    if is_state_cleanup(entry) or (entry.state_cleanups and entry.action in (ActionType.EMPTY, ActionType.SKIP)):
+        return DiffState.MODIFIED
+    return action_to_diff_state(entry.action)
+
+
 def action_to_diff_state(action: ActionType) -> DiffState:
     match action:
         case ActionType.CREATE:
@@ -90,7 +102,14 @@ def detect_changes(resources: Mapping[ResourceKey, ResourceChange]) -> bool:
     erases a run — even though effects never touch their target's action."""
     inactive = (ActionType.SKIP, ActionType.EMPTY)
     return any(
-        entry.action not in inactive or any(effect.action not in inactive for effect in entry.effects)
+        entry.action not in inactive
+        or is_state_cleanup(entry)
+        or bool(entry.state_cleanups)
+        or any(
+            effect.action not in inactive
+            or (effect.action == ActionType.DELETE and (effect.gone is True or effect.state_only is True))
+            for effect in entry.effects
+        )
         for entry in resources.values()
     )
 
@@ -153,6 +172,8 @@ def is_topology_drift_change(change: FieldChange) -> bool:
 
 
 def classify_resource_drift(entry: ResourceChange) -> ResourceDrift:
+    if is_state_cleanup(entry):
+        return ResourceDrift(overwritten_fields=(), topology_readds=(), has_shape_drift=False)
     shape_drift = resource_has_shape_drift(entry)
     overwritten = tuple(
         key
@@ -176,7 +197,7 @@ def detect_manual_edits(resources: Mapping[ResourceKey, ResourceChange]) -> bool
 
 
 def classify_resource_loss_risk(resource_type: str, entry: ResourceChange) -> ResourceLossRisk | None:
-    if entry.action not in DANGEROUS_ACTIONS:
+    if entry.action not in DANGEROUS_ACTIONS or is_state_cleanup(entry):
         return None
     if resource_type in STATEFUL_RESOURCE_TYPES:
         return "stateful"

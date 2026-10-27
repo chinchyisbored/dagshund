@@ -25,6 +25,51 @@ from dagshund.merge import (
 )
 from dagshund.model import UNSET, ActionType, ResourceChange, parse_plan_data
 
+
+def test_merge_sub_resources_leaves_orphan_cleanup_standalone() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.schemas.missing.grants": {
+                "action": "delete",
+                "gone": True,
+                "remote_state": {"privileges": ["SELECT"]},
+            }
+        }
+    )
+
+    merged = merge_sub_resources(resources)
+
+    assert merged == resources
+
+
+def test_merge_sub_resources_cleanup_is_named_annotation_without_state_or_change_injection() -> None:
+    resources = resources_from_dict(
+        {
+            "resources.jobs.my_job": {
+                "action": "skip",
+                "new_state": {"value": {"name": "my_job"}},
+                "remote_state": {"name": "my_job"},
+            },
+            "resources.jobs.my_job.permissions": {
+                "action": "delete",
+                "gone": True,
+                "changes": {"acl": {"action": "delete", "old": ["secret"]}},
+                "remote_state": {"acl": ["secret"]},
+            },
+        }
+    )
+
+    parent = merge_sub_resources(resources)["resources.jobs.my_job"]
+
+    assert parent.action == ActionType.SKIP
+    assert parent.changes == {}
+    assert parent.new_state == {"value": {"name": "my_job"}}
+    assert parent.remote_state == {"name": "my_job"}
+    assert len(parent.state_cleanups) == 1
+    assert parent.state_cleanups[0].key == "resources.jobs.my_job.permissions"
+    assert parent.state_cleanups[0].gone is True
+
+
 # --- extract_parent_resource_key ---
 
 

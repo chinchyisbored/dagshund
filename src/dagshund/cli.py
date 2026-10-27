@@ -132,7 +132,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-m",
         "--modified",
         action="store_true",
-        help="Show only modified (updated/recreated/resized) resources",
+        help="Show only modified (updated/recreated/resized/state cleanup) resources",
     )
     filter_group.add_argument(
         "-r",

@@ -16,6 +16,84 @@ import {
 import { loadFixture } from "../helpers/load-fixture.ts";
 
 describe("extractResourceType", () => {
+  test("renders cleanup entries as modified and retains named subresource annotations", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.schemas.cleanup": { action: "delete", gone: true },
+        "resources.schemas.parent": { action: "skip" },
+        "resources.schemas.parent.grants": { action: "delete", state_only: true },
+        "resources.schemas.orphan.grants": { action: "delete", gone: true },
+      },
+    });
+    const cleanup = graph.nodes.find((node) => node.resourceKey === "resources.schemas.cleanup");
+    const parent = graph.nodes.find((node) => node.resourceKey === "resources.schemas.parent");
+    const orphan = graph.nodes.find(
+      (node) => node.resourceKey === "resources.schemas.orphan.grants",
+    );
+
+    expect(cleanup?.diffState).toBe("modified");
+    expect(cleanup?.isStateCleanup).toBe(true);
+    expect(cleanup?.stateCleanupGone).toBe(true);
+    expect(parent?.diffState).toBe("modified");
+    expect(parent?.stateCleanups).toEqual([
+      { key: "resources.schemas.parent.grants", gone: undefined, stateOnly: true },
+    ]);
+    expect(orphan?.diffState).toBe("modified");
+    expect(orphan?.isStateCleanup).toBe(true);
+  });
+  test("cleanup job keeps historical dependency edges without deletion projections", () => {
+    const extract = { task_key: "extract", notebook_task: { notebook_path: "/Extract" } };
+    const load = {
+      task_key: "load",
+      depends_on: [{ task_key: "extract" }],
+      notebook_task: { notebook_path: "/Load" },
+    };
+    const graph = buildPlanGraphFromPlan({
+      plan: {
+        "resources.jobs.cleanup": {
+          action: "delete",
+          state_only: true,
+          remote_state: { tasks: [extract, load] },
+          changes: {
+            "tasks[task_key='load']": { action: "delete", old: load },
+          },
+        },
+      },
+    });
+    const dependency = graph.edges.find(
+      (edge) => edge.source.endsWith("::extract") && edge.target.endsWith("::load"),
+    );
+
+    expect(dependency?.diffState).toBe("unchanged");
+  });
+
+  test("cleanup job keeps historical tasks without deletion or drift projections", () => {
+    const task = { task_key: "extract", notebook_task: { notebook_path: "/Notebook" } };
+    const graph = buildPlanGraphFromPlan({
+      plan: {
+        "resources.jobs.cleanup": {
+          action: "delete",
+          state_only: true,
+          remote_state: { tasks: [task] },
+          changes: {
+            "tasks[task_key='extract']": { action: "delete", old: task },
+            name: { action: "update", old: "a", new: "a", remote: "b" },
+          },
+        },
+      },
+    });
+    const retainedTask = graph.nodes.filter((node) => node.id.endsWith("::extract"));
+    const taskNode = retainedTask[0];
+    const job = graph.nodes.find((node) => node.nodeKind === "job");
+
+    expect(retainedTask).toHaveLength(1);
+    if (taskNode?.nodeKind !== "task") throw new Error("expected retained task node");
+    expect(taskNode.diffState).toBe("unchanged");
+    expect(taskNode.changes).toBeUndefined();
+    expect(taskNode.isDrift).toBe(false);
+    expect(job?.nodeKind === "job" ? job.isDrift : undefined).toBe(false);
+  });
+
   test("extracts type from standard resource key", () => {
     expect(extractResourceType("resources.schemas.analytics")).toBe("schemas");
   });

@@ -4,6 +4,31 @@ import { mergeSubResources } from "../../src/utils/merge-sub-resources.ts";
 import { filterJobLevelChanges } from "../../src/utils/task-key.ts";
 
 describe("mergeSubResources", () => {
+  test("retains cleanup subresources as annotations without injecting backend state", () => {
+    const entries: Record<string, PlanEntry> = {
+      "resources.jobs.my_job": {
+        action: "skip",
+        new_state: { value: { name: "my_job" } },
+        remote_state: { name: "my_job" },
+      },
+      "resources.jobs.my_job.permissions": {
+        action: "delete",
+        gone: true,
+        changes: { acl: { action: "delete", old: ["secret"] } },
+        remote_state: { acl: ["secret"] },
+      },
+    };
+
+    const parent = mergeSubResources(entries)["resources.jobs.my_job"];
+
+    expect(parent?.action).toBe("skip");
+    expect(parent?.changes).toBeUndefined();
+    expect(parent?.new_state).toEqual({ value: { name: "my_job" } });
+    expect(parent?.remote_state).toEqual({ name: "my_job" });
+    expect(parent?.stateCleanups).toEqual([
+      { key: "resources.jobs.my_job.permissions", gone: true, stateOnly: undefined },
+    ]);
+  });
   test("returns entries unchanged when no sub-resources present", () => {
     const entries: Record<string, PlanEntry> = {
       "resources.jobs.my_job": { action: "create" },

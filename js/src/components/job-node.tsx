@@ -30,6 +30,11 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
           {badge}
         </span>
         {jobName}
+        {data.isStateCleanup === true && (
+          <span className="ml-2 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-badge-text">
+            State cleanup
+          </span>
+        )}
         {effects !== undefined && <RunEffectBadge effects={effects} className="ml-2" />}
       </div>
       {hasOutgoing && <Handle type="source" position={Position.Right} className="!bg-handle" />}

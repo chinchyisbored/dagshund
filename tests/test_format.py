@@ -449,6 +449,25 @@ def test_count_by_action_mixed() -> None:
     }
 
 
+def test_count_by_action_counts_subresource_cleanup_separately_from_parent() -> None:
+    resources = normalize_plan(
+        resources_from_dict(
+            {
+                "resources.schemas.parent": {"action": "skip"},
+                "resources.schemas.parent.grants": {"action": "delete", "state_only": True},
+            }
+        )
+    )
+
+    counts = count_by_action(resources)
+
+    assert counts == {
+        action_config(ActionType.SKIP): 1,
+        ActionConfig("state cleanup", "~", show_field_changes=True): 1,
+    }
+    assert len(resources["resources.schemas.parent"].state_cleanups) == 1
+
+
 def test_count_by_action_skip_becomes_unchanged() -> None:
     entries = resources_from_dict({"a": {"action": "skip"}, "b": {"action": "skip"}})
     assert count_by_action(entries) == {action_config(ActionType.SKIP): 2}

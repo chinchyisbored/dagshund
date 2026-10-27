@@ -27,6 +27,7 @@ type ResourceData = {
   readonly resourceHasShapeDrift: boolean;
   readonly taskChangeSummary: undefined;
   readonly isDrift?: boolean;
+  readonly isStateCleanup?: boolean;
 };
 
 const makeData = (overrides: Partial<ResourceData> = {}): ResourceData => ({
@@ -74,6 +75,13 @@ beforeEach(() => {
 });
 
 describe("ResourceNode", () => {
+  test("labels cleanup resources without presenting them as removed", () => {
+    const { getByText } = renderResource({ diffState: "modified", isStateCleanup: true });
+
+    expect(getByText("State cleanup")).toBeDefined();
+    expect(getByText("my-resource")).toBeDefined();
+  });
+
   test("renders the label and resource-type badge", () => {
     const { getByText, container } = renderResource();
     expect(getByText("my-resource")).toBeDefined();

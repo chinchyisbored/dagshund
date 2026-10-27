@@ -9,6 +9,7 @@ from dagshund.model import (
     FieldChange,
     JobRunEffect,
     ResourceChange,
+    StateCleanupAnnotation,
 )
 from dagshund.state import extract_new_state, extract_remote_state
 from dagshund.types import ResourceKey, parse_resource_key
@@ -133,6 +134,7 @@ def _merge_single_sub(
     suffix: str,
     sub_entry: ResourceChange,
     parent_key: ResourceKey,
+    sub_key: ResourceKey,
 ) -> ResourceChange:
     """Merge a single sub-resource into its parent entry.
 
@@ -140,6 +142,10 @@ def _merge_single_sub(
     This matches the original `{**parent, **prefixed}` semantics and is encoded
     in the merge property tests.
     """
+    if sub_entry.action == ActionType.DELETE and (sub_entry.gone is True or sub_entry.state_only is True):
+        annotation = StateCleanupAnnotation(sub_key, sub_entry.gone, sub_entry.state_only)
+        return replace(parent_entry, state_cleanups=(*parent_entry.state_cleanups, annotation))
+
     prefixed = _prefix_changes(suffix, sub_entry.changes) or _synthesize_whole_field_change(suffix, sub_entry)
     merged_changes: Mapping[str, FieldChange] = (
         {**parent_entry.changes, **prefixed} if prefixed is not None else parent_entry.changes
@@ -234,6 +240,8 @@ def build_job_run_effect(name: str, entry: ResourceChange) -> JobRunEffect:
         run_page_url=_extract_run_page_url(entry.remote_state),
         new_state=entry.new_state,
         remote_state=entry.remote_state,
+        gone=entry.gone,
+        state_only=entry.state_only,
     )
 
 
@@ -316,7 +324,7 @@ def merge_sub_resources(
             merged = parents[parent_key]
             for sub_key, sub_entry in subs:
                 suffix = extract_sub_resource_suffix(sub_key)
-                merged = _merge_single_sub(merged, suffix, sub_entry, parent_key)
+                merged = _merge_single_sub(merged, suffix, sub_entry, parent_key, sub_key)
             parents[parent_key] = merged
         else:
             for sub_key, sub_entry in subs:

@@ -1,4 +1,4 @@
-import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import { isStateCleanup, mapEntryToDiffState } from "../parser/map-diff-state.ts";
 import type { PreparedJob, PreparedTask } from "../preparation/prepare-job.ts";
 import type { DerivedGraphNode, ResourceGraphNode } from "../types/graph-types.ts";
 import type { PlanEntry } from "../types/plan-schema.ts";
@@ -24,7 +24,7 @@ export const buildJobFields = (
   tasks: readonly PreparedTask[],
   preparedJob: PreparedJob,
 ) => {
-  const resourceHasShapeDrift = hasFieldDrift(entry.changes);
+  const resourceHasShapeDrift = !isStateCleanup(entry) && hasFieldDrift(entry.changes);
   const driftParent = {
     newState: entry.new_state,
     remoteState: entry.remote_state,
@@ -32,18 +32,27 @@ export const buildJobFields = (
   };
   return {
     label: extractResourceName(resourceKey),
-    diffState: mapActionToDiffState(entry.action),
+    isStateCleanup: isStateCleanup(entry),
+    stateCleanupGone: entry.gone === true,
+    stateCleanups: entry.stateCleanups,
+    diffState: mapEntryToDiffState(entry),
     changes: filterJobLevelChanges(entry.changes),
     resourceState:
       preparedJob.jobState.status === "supported" ? preparedJob.jobState.value : undefined,
     newState: entry.new_state,
     remoteState: entry.remote_state,
     resourceHasShapeDrift,
-    taskChangeSummary: buildTaskChangeSummary(tasks, entry.action, entry.changes, driftParent),
+    taskChangeSummary: buildTaskChangeSummary(
+      tasks,
+      entry.action,
+      entry.changes,
+      driftParent,
+      isStateCleanup(entry),
+    ),
     // Scanned against raw `entry.changes` — `filterJobLevelChanges` above strips
     // the `tasks[...]` entries that carry whole-task drift, so the scan must
     // happen here before the filter can hide the signal.
-    isDrift: hasAnyDriftWithContext(entry.changes, driftParent),
+    isDrift: !isStateCleanup(entry) && hasAnyDriftWithContext(entry.changes, driftParent),
   };
 };
 
@@ -73,12 +82,15 @@ export const buildResourceNode = (
       ...buildJobFields(key, entry, tasks, job),
     };
   }
-  const resourceHasShapeDrift = hasFieldDrift(entry.changes);
+  const resourceHasShapeDrift = !isStateCleanup(entry) && hasFieldDrift(entry.changes);
   return {
     id: hierarchy?.id ?? key,
     label: hierarchy?.label ?? extractResourceName(key),
     nodeKind: "resource",
-    diffState: mapActionToDiffState(entry.action),
+    isStateCleanup: isStateCleanup(entry),
+    stateCleanupGone: entry.gone === true,
+    stateCleanups: entry.stateCleanups,
+    diffState: mapEntryToDiffState(entry),
     resourceKey: key,
     changes: entry.changes,
     resourceState: currentState.status === "supported" ? currentState.value : undefined,
@@ -86,11 +98,13 @@ export const buildResourceNode = (
     remoteState: entry.remote_state,
     resourceHasShapeDrift,
     taskChangeSummary: undefined,
-    isDrift: hasAnyDriftWithContext(entry.changes, {
-      newState: entry.new_state,
-      remoteState: entry.remote_state,
-      resourceHasShapeDrift,
-    }),
+    isDrift:
+      !isStateCleanup(entry) &&
+      hasAnyDriftWithContext(entry.changes, {
+        newState: entry.new_state,
+        remoteState: entry.remote_state,
+        resourceHasShapeDrift,
+      }),
   };
 };
 
@@ -106,7 +120,7 @@ export const buildDerivedNode = (
     nodeKind: "derived",
     derivedKind: ref.derivedKind,
     ownerResourceKey,
-    diffState: mapActionToDiffState(ownerEntry.action),
+    diffState: mapEntryToDiffState(ownerEntry),
     resourceKey: id,
     changes: undefined,
     resourceState: undefined,

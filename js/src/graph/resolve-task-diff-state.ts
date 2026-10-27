@@ -35,7 +35,9 @@ export const resolveTaskDiffState = (
   taskKey: string,
   resourceAction: ActionType | undefined,
   changes: Readonly<Record<string, ChangeDesc>> | undefined,
+  isStateCleanup = false,
 ): DiffState => {
+  if (isStateCleanup) return "unchanged";
   const resourceDiff = mapActionToDiffState(resourceAction);
   if (resourceDiff === "added" || resourceDiff === "removed") {
     return resourceDiff;

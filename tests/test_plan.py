@@ -1,12 +1,14 @@
 """Tests for plan parsing, change detection, and drift predicates."""
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, replace
+from pathlib import Path
 
 import pytest
 from factories import make_change, make_resource, resources_from_dict
 
 from dagshund.merge import normalize_plan
-from dagshund.model import FieldChange, parse_plan
+from dagshund.model import FieldChange, parse_plan, parse_resource_change
 from dagshund.plan import (
     DANGEROUS_ACTIONS,
     STATEFUL_RESOURCE_TYPES,
@@ -17,6 +19,7 @@ from dagshund.plan import (
     detect_dangerous_actions,
     detect_manual_edits,
     has_drifted_field,
+    is_state_cleanup,
     is_topology_drift_change,
 )
 from dagshund.types import DagshundError
@@ -69,6 +72,46 @@ def test_parse_plan_deeply_nested_json_raises() -> None:
 def test_parse_plan_non_object_raises(raw: str, match: str) -> None:
     with pytest.raises(DagshundError, match=match):
         parse_plan(raw)
+
+
+@pytest.mark.parametrize(
+    ("action", "flags", "expected_cleanup"),
+    [
+        ("delete", {"gone": True}, True),
+        ("delete", {"state_only": True}, True),
+        ("delete", {"gone": True, "state_only": True}, True),
+        ("delete", {}, False),
+        ("delete", {"gone": False, "state_only": None}, False),
+        ("delete", {"gone": "true", "state_only": 1}, False),
+        ("update", {"gone": True}, False),
+    ],
+)
+def test_cleanup_flags_are_literal_true_and_require_delete(
+    action: str, flags: dict[str, object], expected_cleanup: bool
+) -> None:
+    from dagshund.plan import action_to_diff_state, entry_to_diff_state
+
+    entry = replace(make_resource(action=action), **flags)
+
+    assert is_state_cleanup(entry) is expected_cleanup
+    expected_state = "modified" if expected_cleanup else action_to_diff_state(entry.action).value
+    assert entry_to_diff_state(entry).value == expected_state
+
+
+def test_shared_cleanup_vectors_preserve_raw_flags_and_classify_literal_true() -> None:
+    vectors = json.loads((Path(__file__).parents[1] / "fixtures/state-cleanup-cases.json").read_text())
+
+    for vector in vectors:
+        raw = {key: value for key, value in vector.items() if key not in ("name", "cleanup")}
+        original = raw.copy()
+        entry = parse_resource_change("resources.test.cleanup", raw)
+
+        assert is_state_cleanup(entry) is vector["cleanup"], vector["name"]
+        assert entry.action.value == vector["action"]
+        assert raw == original
+        for flag in ("gone", "state_only"):
+            if flag in raw:
+                assert getattr(entry, flag) == raw[flag]
 
 
 # --- detect_changes ---

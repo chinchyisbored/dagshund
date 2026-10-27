@@ -1,4 +1,4 @@
-import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import { isStateCleanup, mapActionToDiffState } from "../parser/map-diff-state.ts";
 import {
   buildEdge,
   buildHierarchyGraphNode,
@@ -110,7 +110,7 @@ const buildFlatWorkspaceGraph = (
     buildEdge(
       resolveWorkspaceTypeParentId(extractResourceType(key), placement),
       key,
-      toEdgeDiffState(mapActionToDiffState(entry.action)),
+      toEdgeDiffState(isStateCleanup(entry) ? "modified" : mapActionToDiffState(entry.action)),
     ),
   );
   return {

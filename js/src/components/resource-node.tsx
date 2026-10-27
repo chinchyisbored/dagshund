@@ -55,6 +55,11 @@ export const ResourceNode = memo(function ResourceNode({ id, data }: NodeProps<R
           {diffBadge}
         </span>
         <span className="truncate">{data.label}</span>
+        {data.nodeKind === "resource" && data.isStateCleanup === true ? (
+          <span className="shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] text-badge-text">
+            State cleanup
+          </span>
+        ) : null}
         {isDrift ? <DriftPill /> : null}
       </span>
       <div className="flex items-center gap-1.5">

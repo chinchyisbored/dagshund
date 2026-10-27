@@ -11,11 +11,12 @@ from dagshund.merge import build_job_run_effect
 from dagshund.model import UNSET, ActionType, FieldChange, JobRunEffect, ResourceChange, compare_field_values
 from dagshund.plan import (
     ResourceLossRisk,
-    action_to_diff_state,
     classify_resource_drift,
     classify_resource_loss_risk,
     detect_changes,
+    entry_to_diff_state,
     has_drifted_field,
+    is_state_cleanup,
     is_topology_drift_change,
 )
 from dagshund.types import (
@@ -87,6 +88,7 @@ ACTIONS: dict[ActionType, ActionConfig] = {
 
 REMOTE_ONLY_ACTION = ActionConfig("remote", "=")
 DEFAULT_ACTION = ActionConfig("unknown", "?")
+STATE_CLEANUP_ACTION = ActionConfig("state cleanup", "~", show_field_changes=True)
 
 
 def action_config(action: ActionType) -> ActionConfig:
@@ -303,7 +305,7 @@ def iter_non_topology_field_changes(
 
 def select_resource_details(entry: ResourceChange) -> ResourceDetails:
     """Partition visible details without changing the resource's domain semantics."""
-    if not (entry.changes and action_config(entry.action).show_field_changes):
+    if is_state_cleanup(entry) or not (entry.changes and action_config(entry.action).show_field_changes):
         return ResourceDetails()
     drift = classify_resource_drift(entry)
     fields = iter_non_topology_field_changes(
@@ -328,6 +330,8 @@ def select_standalone_job_run_effect(key: ResourceKey, entry: ResourceChange) ->
 
 def iter_effect_field_changes(effect: JobRunEffect) -> Iterator[ContextualFieldChange]:
     """Run details use the same field partition but never resource wheel suppression."""
+    if effect.action == ActionType.DELETE and (effect.gone is True or effect.state_only is True):
+        return
     yield from iter_non_topology_field_changes(
         filter_job_run_changes(effect.changes),
         new_state=effect.new_state,
@@ -354,7 +358,7 @@ def iter_visible_resources(
     resource_filter: Callable[[ResourceKey, ResourceChange], bool] | None = None,
 ) -> Iterator[tuple[ResourceKey, ResourceChange]]:
     for key, entry in sorted(resources.items()):
-        if visible_states is not None and action_to_diff_state(entry.action) not in visible_states:
+        if visible_states is not None and entry_to_diff_state(entry) not in visible_states:
             continue
         if resource_filter is not None and not resource_filter(key, entry):
             continue
@@ -377,13 +381,29 @@ def filter_resources(
 
 
 def count_by_action(entries: Mapping[ResourceKey, ResourceChange]) -> dict[ActionConfig, int]:
-    return dict(Counter(action_config(entry.action) for entry in entries.values()))
+    configs = (
+        config
+        for entry in entries.values()
+        for config in (
+            [STATE_CLEANUP_ACTION] * (1 if is_state_cleanup(entry) else 0)
+            + [STATE_CLEANUP_ACTION] * len(entry.state_cleanups)
+            + ([] if is_state_cleanup(entry) else [action_config(entry.action)])
+        )
+    )
+    return dict(Counter(configs))
 
 
 def count_effects_by_action(entries: Mapping[ResourceKey, ResourceChange]) -> dict[ActionConfig, int]:
     """Tally deploy-triggered runs by action, separate from the resource tally —
     a job stays unchanged while its runs create/recreate/delete (dagshund-ocb1)."""
-    return dict(Counter(action_config(effect.action) for entry in entries.values() for effect in entry.effects))
+    configs = (
+        STATE_CLEANUP_ACTION
+        if effect.action == ActionType.DELETE and (effect.gone is True or effect.state_only is True)
+        else action_config(effect.action)
+        for entry in entries.values()
+        for effect in entry.effects
+    )
+    return dict(Counter(configs))
 
 
 def _select_resource_groups(

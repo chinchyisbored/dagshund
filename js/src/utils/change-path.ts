@@ -56,15 +56,26 @@ export const matchesAllFilters = (
 /** Parse a dict-key bracket like `['sample_size']` at the start of a path.
  *  Returns the key and the remaining path after `]`, or undefined if not a dict-key bracket.
  *  Does not match numeric indices (`[0]`) or named filters (`[field='value']`). */
-const DICT_KEY_PATTERN = /^\['([^']+)'\]/;
-
 export const parseDictKeyBracket = (
   path: string,
 ): { readonly key: string; readonly rest: string } | undefined => {
-  const match = DICT_KEY_PATTERN.exec(path);
-  if (match?.[1] === undefined) return undefined;
-  const rest = path.slice(match[0].length);
-  return { key: match[1], rest: rest.startsWith(".") ? rest.slice(1) : rest };
+  if (!path.startsWith("['")) return undefined;
+  let key = "";
+  for (let index = 2; index < path.length; index += 1) {
+    const character = path[index];
+    if (character === "\\") {
+      const escaped = path[index + 1];
+      if (escaped !== "'" && escaped !== "\\") return undefined;
+      key += escaped;
+      index += 1;
+    } else if (character === "'" && path[index + 1] === "]") {
+      const rest = path.slice(index + 2);
+      return { key, rest: rest.startsWith(".") ? rest.slice(1) : rest };
+    } else {
+      key += character;
+    }
+  }
+  return undefined;
 };
 
 /** Parse a numeric array index from the start of a path like `[0].task_key`. */

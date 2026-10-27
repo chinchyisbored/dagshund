@@ -1,4 +1,4 @@
-import { mapActionToDiffState } from "../parser/map-diff-state.ts";
+import { isStateCleanup, mapActionToDiffState } from "../parser/map-diff-state.ts";
 import type { PreparedJob, PreparedTask } from "../preparation/prepare-job.ts";
 import {
   buildGraphEdge,
@@ -64,10 +64,15 @@ const buildTaskNodes = (
       id: buildTaskNodeId(resourceKey, task.taskKey),
       label: task.taskKey,
       nodeKind: "task" as const,
-      diffState: resolveTaskDiffState(task.taskKey, entry.action, entry.changes),
+      diffState: resolveTaskDiffState(
+        task.taskKey,
+        entry.action,
+        entry.changes,
+        isStateCleanup(entry),
+      ),
       resourceKey,
       taskKey: task.taskKey,
-      changes: filterTaskChanges(task.taskKey, entry.changes),
+      changes: isStateCleanup(entry) ? undefined : filterTaskChanges(task.taskKey, entry.changes),
       resourceState,
       // Task nodes carry the parent job's raw pre-fuse state because their change
       // keys (`tasks[task_key='X'].depends_on[...]`) are rooted at the job level.
@@ -80,7 +85,8 @@ const buildTaskNodes = (
       // which computes `resource_has_shape_drift(entry)` at the job level and
       // threads it into every field's ctx (dagshund-1naj, dagshund-15yh).
       resourceHasShapeDrift,
-      isDrift: hasTaskDriftWithContext(task.taskKey, entry.changes, driftParent),
+      isDrift:
+        !isStateCleanup(entry) && hasTaskDriftWithContext(task.taskKey, entry.changes, driftParent),
     };
   });
 };
@@ -186,7 +192,9 @@ const buildDiffEdges = (
   historicalTasks: readonly PreparedTask[],
   entry: PlanEntry,
 ): readonly GraphEdge[] => {
-  const edgeDiffState = toEdgeDiffState(mapActionToDiffState(entry.action));
+  const edgeDiffState = toEdgeDiffState(
+    isStateCleanup(entry) ? "modified" : mapActionToDiffState(entry.action),
+  );
   const remoteDepsMap = buildRemoteDependsOnMap(historicalTasks);
   const emptySet: ReadonlySet<string> = new Set();
 
@@ -197,7 +205,7 @@ const buildDiffEdges = (
       task.dependencies,
       remoteDepsMap.get(task.taskKey) ?? emptySet,
       edgeDiffState,
-      entry.changes,
+      isStateCleanup(entry) ? undefined : entry.changes,
     ),
   );
 };
@@ -215,7 +223,9 @@ const buildEntryGraph = (
   const deletedTasks = job?.deletedTasks.status === "supported" ? job.deletedTasks.value : [];
   const historicalTasks =
     job?.historicalTasks.status === "supported" ? job.historicalTasks.value : [];
-  const allTasks = [...tasks, ...deletedTasks];
+  const allTasks = isStateCleanup(entry)
+    ? [...new Map([...tasks, ...historicalTasks].map((task) => [task.taskKey, task])).values()]
+    : [...tasks, ...deletedTasks];
 
   return {
     nodes: [
@@ -269,7 +279,7 @@ const buildRunJobEdges = (
       const targetResourceKey = target.resourceKey;
       const sourceNodeId = buildTaskNodeId(resourceKey, task.taskKey);
       const diffState = toEdgeDiffState(
-        resolveTaskDiffState(task.taskKey, entry.action, entry.changes),
+        resolveTaskDiffState(task.taskKey, entry.action, entry.changes, isStateCleanup(entry)),
       );
       return [buildGraphEdge(sourceNodeId, targetResourceKey, diffState)];
     });

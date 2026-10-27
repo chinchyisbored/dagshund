@@ -109,6 +109,7 @@ nix develop --command just regen                  # All unattended fixtures
 | Fixture | Regeneration path |
 |---|---|
 | `manual-drift` | Follow `fixtures/golden/manual-drift/README.md`. It requires workspace UI edits between deploy and plan. |
+| `cleanup-job-run-triggers` | Supervised live CLI 1.20 fixture. Requires user deletion of one empty fixture-owned schema between baseline deploy and plan; see its README. Never run through unattended regeneration. |
 | `wheel-bump` | Needs classic compute (job clusters with task libraries); the default fixture workspace is serverless-only. Regenerate ad hoc with `nix develop --command just regen wheel-bump` against a workspace that allows job clusters, then `nix develop --command just gen-expected wheel-bump`. |
 
 `lakebase-autoscaling` is part of the unattended `nix develop --command just regen` set. It requires the external `phantom-lineage-lakebase` project with a `production` branch, plus the UC source table listed above. Keep these prerequisites outside the fixture bundle lifecycle. If a Lakebase endpoint is left list-visible but not get/delete-addressable, clean up that endpoint before rerunning only the affected fixture.
@@ -117,9 +118,11 @@ nix develop --command just regen                  # All unattended fixtures
 is experimental) and its deploys really fire the runs they declare: eight tiny
 serverless notebook runs across the before/after deploys, one of which fires on the
 pre-existing `phantom_job` outside the bundle. Runs can queue on serverless capacity
-for a few minutes; `regen.sh` drains active runs before destructive bundle steps.
-The CLI 1.20 job-run adapter does not implement a backend run-record delete, so do
-not assume bundle cleanup removes the external job's run history; see `dagshund-n8zt.8`.
+for a few minutes; `regen.sh` drains active runs before bundle steps that may delete
+runs. With Databricks CLI 1.20, removing or recreating a `job_runs` entry does not call
+`jobs/runs/delete`, and dropping bundle state does not erase the external job's run
+history. The drain remains because older CLI versions and job-resource teardown may
+delete runs.
 
 After regeneration and explicit approval of the reviewed output changes, update expected dagshund output with `nix develop --command just gen-expected <fixture-name>`. Do not bless mismatches without reviewing their meaning.
 

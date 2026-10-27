@@ -43,13 +43,23 @@ const planEntrySchema = z
     id: z.string().optional(),
     depends_on: z.array(dependsOnEntrySchema).readonly().optional(),
     action: actionTypeSchema.optional(),
+    gone: z.unknown().optional(),
+    state_only: z.unknown().optional(),
     new_state: z.unknown().optional(),
     remote_state: z.unknown().optional(),
     changes: z.record(z.string(), changeDescSchema).optional(),
   })
   .readonly();
 
-export type PlanEntry = z.infer<typeof planEntrySchema>;
+export type StateCleanupAnnotation = {
+  readonly key: string;
+  readonly gone: unknown;
+  readonly stateOnly: unknown;
+};
+
+export type PlanEntry = z.infer<typeof planEntrySchema> & {
+  readonly stateCleanups?: readonly StateCleanupAnnotation[];
+};
 
 export const planSchema = z
   .looseObject({

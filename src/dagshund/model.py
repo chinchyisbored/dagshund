@@ -131,6 +131,15 @@ class JobRunEffect:
     run_page_url: str | None = None
     new_state: object | None = None
     remote_state: object | None = None
+    gone: object = None
+    state_only: object = None
+
+
+@dataclass(frozen=True, slots=True)
+class StateCleanupAnnotation:
+    key: str
+    gone: object = None
+    state_only: object = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +158,9 @@ class ResourceChange:
     new_state: object | None = None
     remote_state: object | None = None
     effects: tuple[JobRunEffect, ...] = ()
+    gone: object = None
+    state_only: object = None
+    state_cleanups: tuple[StateCleanupAnnotation, ...] = ()
 
 
 def parse_resource_change(key: ResourceKey, raw: object) -> ResourceChange:
@@ -171,6 +183,8 @@ def parse_resource_change(key: ResourceKey, raw: object) -> ResourceChange:
         changes=changes,
         new_state=raw_map.get("new_state"),
         remote_state=raw_map.get("remote_state"),
+        gone=raw_map.get("gone"),
+        state_only=raw_map.get("state_only"),
     )
 
 

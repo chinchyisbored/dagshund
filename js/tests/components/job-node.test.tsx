@@ -23,6 +23,7 @@ type JobData = {
   readonly newState: undefined;
   readonly remoteState: undefined;
   readonly resourceHasShapeDrift: boolean;
+  readonly isStateCleanup?: boolean;
   readonly taskChangeSummary: undefined;
 };
 
@@ -50,6 +51,13 @@ beforeEach(() => {
 describe("JobNode", () => {
   test("renders the job name in the header block", () => {
     const { getByText } = renderJob();
+    expect(getByText("etl_pipeline")).toBeDefined();
+  });
+
+  test("labels cleanup jobs without changing the modified badge", () => {
+    const { getByText } = renderJob({ diffState: "modified", isStateCleanup: true });
+
+    expect(getByText("State cleanup")).toBeDefined();
     expect(getByText("etl_pipeline")).toBeDefined();
   });
 

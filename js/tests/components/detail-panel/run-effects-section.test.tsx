@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
 import { RunEffectsSection } from "../../../src/components/detail-panel/run-effects-section.tsx";
 import type { JobRunEffect } from "../../../src/utils/normalize-plan.ts";
+import { buildResourceGraphFromPlan } from "../../helpers/build-graphs-from-plan.ts";
+import { loadFixture } from "../../helpers/load-fixture.ts";
 
 const makeEffect = (overrides: Partial<JobRunEffect> = {}): JobRunEffect => ({
   name: "nightly",
@@ -14,6 +16,23 @@ const makeEffect = (overrides: Partial<JobRunEffect> = {}): JobRunEffect => ({
 });
 
 describe("RunEffectsSection", () => {
+  test("renders effects from the live cleanup and trigger fixture", async () => {
+    const plan = await loadFixture("cleanup-job-run-triggers");
+    const graph = buildResourceGraphFromPlan(plan);
+    const job = graph.nodes.find((node) => node.id === "resources.jobs.trigger_job");
+    if (job === undefined || !("effects" in job)) throw new Error("fixture job not found");
+
+    const { container } = render(<RunEffectsSection effects={job.effects ?? []} />);
+
+    expect(container.textContent).toContain("every_deploy");
+    expect(container.textContent).toContain("runs on every deploy");
+    expect(container.textContent).toContain("file_change");
+    expect(container.textContent).toContain("watched pattern watched.txt: changed");
+    expect(container.textContent).toContain(
+      "run entry removed from bundle state; run history preserved",
+    );
+    expect(container.textContent).not.toContain("run record will be deleted");
+  });
   test("renders the section heading and each effect name with its wording", () => {
     const { container, getByText } = render(
       <RunEffectsSection
@@ -37,6 +56,30 @@ describe("RunEffectsSection", () => {
 
     expect(getByText("bundle run entry will be removed")).toBeDefined();
     expect(container.textContent).not.toContain("run record will be deleted");
+  });
+
+  test("cleanup effect preserves history without a play badge or destructive details", () => {
+    const { container } = render(
+      <RunEffectsSection
+        effects={[
+          makeEffect({
+            name: "audit_cleanup",
+            action: "delete",
+            stateOnly: true,
+            runPageUrl: "https://example.test/run/7",
+            changes: { state: { action: "delete", old: "TERMINATED" } },
+          }),
+        ]}
+      />,
+    );
+
+    expect(container.textContent).toContain(
+      "run entry removed from bundle state; run history preserved",
+    );
+    expect(container.textContent).not.toContain("▶");
+    expect(container.textContent).not.toContain("run record will be deleted");
+    expect(container.textContent).not.toContain("TERMINATED");
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("https://example.test/run/7");
   });
 
   test("run page url renders as an external link", () => {
@@ -130,6 +173,59 @@ describe("RunEffectsSection", () => {
     expect(container.textContent).toContain("eu");
     expect(container.textContent).not.toContain("fingerprint-before");
     expect(container.textContent).not.toContain("fingerprint-after");
+  });
+
+  test("renders watched patterns while hiding modern fingerprint hashes", () => {
+    const { container } = render(
+      <RunEffectsSection
+        effects={[
+          makeEffect({
+            name: "file_trigger",
+            action: "recreate",
+            changes: {
+              "lifecycle.triggers_state.on_file_change": {
+                action: "recreate",
+                old: { "configs/[prod].yaml": "hash-before", "obsolete/*.yaml": "removed-hash" },
+                new: { "configs/[prod].yaml": "hash-after", "new/*.json": "added-hash" },
+              },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    expect(container.textContent).toContain("re-runs on deploy (file-change trigger)");
+    expect(container.textContent).toContain("watched pattern configs/[prod].yaml: changed");
+    expect(container.textContent).toContain("watched pattern new/*.json: added");
+    expect(container.textContent).toContain("watched pattern obsolete/*.yaml: removed");
+    expect(container.textContent).not.toContain("hash-before");
+    expect(container.textContent).not.toContain("hash-after");
+    expect(container.textContent).not.toContain("removed-hash");
+  });
+
+  test("renders malformed modern bundle trigger values while hiding valid fingerprints", () => {
+    const { container } = render(
+      <RunEffectsSection
+        effects={[
+          makeEffect({
+            name: "malformed_trigger",
+            action: "recreate",
+            changes: {
+              "lifecycle.triggers_state.on_bundle_deploy": {
+                action: "recreate",
+                old: "SENTINEL_UUID",
+                new: { unexpected: 2 },
+              },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    expect(container.textContent).toContain("re-runs on deploy");
+    expect(container.textContent).toContain("unexpected");
+    expect(container.textContent).toContain("2");
+    expect(container.textContent).not.toContain("SENTINEL_UUID");
   });
 
   test("recreate effect renders its field changes through ChangeEntry", () => {

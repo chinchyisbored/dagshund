@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from dagshund.model import ResourceChange
-from dagshund.plan import action_to_diff_state
+from dagshund.plan import entry_to_diff_state
 from dagshund.types import ResourceKey, parse_resource_key
 
 
@@ -82,7 +82,7 @@ def _match_token(token: _SearchToken, key: ResourceKey, entry: ResourceChange) -
         case _TypeToken(value=value):
             return value in resource_type.lower()
         case _StatusToken(value=value):
-            return action_to_diff_state(entry.action).value == value
+            return entry_to_diff_state(entry).value == value
         case _FieldToken(value=value):
             return _has_matching_field_key(value, entry)
         case _ExactToken(value=value):

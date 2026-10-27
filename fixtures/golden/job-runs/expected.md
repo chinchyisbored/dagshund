@@ -15,8 +15,8 @@
 - `=` `jobs/seed_lookup_tables`
   - `+` run `initial_seed` (runs on deploy)
 - `=` `jobs/smoke_check`
-  - `-` run `one_off_audit` (bundle run entry will be removed)
+  - `~` run `one_off_audit` (run entry removed from bundle state; run history preserved)
 
 **+1** create, **=5** unchanged
 
-runs: **+2** create, **-1** delete, **~1** recreate, **=2** unchanged
+runs: **+2** create, **~1** recreate, **~1** state cleanup, **=2** unchanged

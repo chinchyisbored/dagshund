@@ -29,6 +29,30 @@ describe("RunEffectBadge", () => {
     expect(badge?.className).toContain("text-action-create");
   });
 
+  test("modern file-trigger recreates show a deploy badge with specific wording", () => {
+    const { container } = render(
+      <RunEffectBadge
+        effects={[
+          makeEffect({
+            action: "recreate",
+            changes: {
+              "lifecycle.triggers_state.on_file_change": {
+                action: "recreate",
+                old: { "configs/*.yaml": "hash-before" },
+                new: { "configs/*.yaml": "hash-after" },
+              },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    const badge = container.querySelector("span");
+    expect(badge?.textContent).toBe("▶");
+    expect(badge?.className).toContain("bg-action-create-soft");
+    expect(badge?.getAttribute("title")).toBe("nightly: re-runs on deploy (file-change trigger)");
+  });
+
   test("skip-only effects render a grey badge with 'already ran' tooltip", () => {
     const { container } = render(
       <RunEffectBadge effects={[makeEffect({ name: "seed_report", action: "skip" })]} />,

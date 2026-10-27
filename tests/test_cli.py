@@ -120,6 +120,29 @@ def test_main_text_mode_with_file_prints_output(fixtures_dir: Path) -> None:
     assert "create" in result.stdout
 
 
+def test_cleanup_job_run_triggers_fixture_preserves_cleanup_and_trigger_semantics(fixtures_dir: Path) -> None:
+    plan_file = fixtures_dir / "cleanup-job-run-triggers" / "plan.json"
+
+    terminal = _run_dagshund(str(plan_file))
+    markdown = _run_dagshund(str(plan_file), "--format", "md")
+    detailed = _run_dagshund(str(plan_file), "-e")
+
+    assert terminal.returncode == markdown.returncode == 0
+    assert detailed.returncode == 2
+    for output in (terminal.stdout, markdown.stdout):
+        assert "state cleanup" in output
+        assert "already absent; removing stale bundle state" in output
+        assert "run history preserved" in output
+        assert "runs on every deploy" in output
+        assert "re-runs on deploy" in output
+        assert "watched pattern watched.txt: changed" in output
+        assert "trigger_job" in output
+    assert "gone" not in terminal.stdout + markdown.stdout
+    assert "state_only" not in terminal.stdout + markdown.stdout
+    assert "0d6601e0" not in terminal.stdout + markdown.stdout
+    assert "aaf1f68b93a079039e9fe002a2820320" not in terminal.stdout + markdown.stdout
+
+
 @pytest.mark.parametrize(
     "arguments",
     [
@@ -724,6 +747,78 @@ def test_provider_credentials_are_redacted_from_text_and_markdown() -> None:
     for result in results:
         assert result.returncode == 0
         assert "PROVIDER_" not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("flag", ["gone", "state_only"])
+@pytest.mark.parametrize("output_format", ["term", "md"])
+def test_cli_schema_cleanup_is_safe_change_in_both_renderers(flag: str, output_format: str) -> None:
+    raw = json.dumps({"plan": {"resources.schemas.test": {"action": "delete", flag: True}}})
+
+    result = _run_dagshund("-e", "--format", output_format, stdin=raw)
+
+    assert result.returncode == 2
+    assert "schemas/test" in result.stdout
+    if output_format == "md":
+        assert "`~`" in result.stdout
+    else:
+        assert "~ schemas/test" in result.stdout
+    assert "state cleanup" in result.stdout
+    assert (
+        "already absent; removing stale bundle state" in result.stdout
+        if flag == "gone"
+        else ("backend resource is preserved" in result.stdout)
+    )
+    assert "Dangerous Actions" not in result.stdout
+    assert "data loss" not in result.stdout
+    assert "~1 state cleanup" in result.stdout if output_format == "term" else ("**~1** state cleanup" in result.stdout)
+
+
+def test_cli_cleanup_matches_modified_but_not_removed_filter() -> None:
+    raw = json.dumps({"plan": {"resources.schemas.cleanup": {"action": "delete", "gone": True}}})
+
+    modified = _run_dagshund("--modified", stdin=raw)
+    changes_only = _run_dagshund("--changes-only", stdin=raw)
+    removed = _run_dagshund("--removed", stdin=raw)
+
+    assert "schemas/cleanup" in modified.stdout
+    assert "schemas/cleanup" in changes_only.stdout
+    assert "schemas/cleanup" not in removed.stdout
+
+
+def test_cli_cleanup_filtered_out_does_not_hide_real_drift() -> None:
+    raw = json.dumps(
+        {
+            "plan": {
+                "resources.schemas.cleanup": {"action": "delete", "state_only": True},
+                "resources.jobs.drifted": {
+                    "action": "update",
+                    "changes": {"name": {"action": "update", "old": "same", "new": "same", "remote": "other"}},
+                },
+            }
+        }
+    )
+
+    result = _run_dagshund("-e", "-m", "-f", "status:added", stdin=raw)
+
+    assert result.returncode == 3
+    assert "Manual Edits Detected" not in result.stdout
+
+
+def test_cli_cleanup_filtered_out_does_not_hide_real_deletion_risk() -> None:
+    raw = json.dumps(
+        {
+            "plan": {
+                "resources.schemas.cleanup": {"action": "delete", "gone": True},
+                "resources.schemas.real": {"action": "delete"},
+            }
+        }
+    )
+
+    result = _run_dagshund("-e", "-m", stdin=raw)
+
+    assert result.returncode == 3
+    assert "schemas/cleanup" in result.stdout
+    assert "Dangerous Actions" not in result.stdout
 
 
 def test_detailed_exitcode_no_changes_exits_zero(fixtures_dir: Path) -> None:

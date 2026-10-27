@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
-from factories import make_change, make_plan, make_resource, plan_from_dict
+from factories import make_change, make_plan, make_resource, plan_from_dict, resources_from_dict
 
 from dagshund.format import DriftSummary, prepare_report
 from dagshund.markdown import (
@@ -215,6 +215,56 @@ def test_render_resource_synced_database_table_unchanged_inherits_owner_action()
         "  - `=` managed PostgreSQL table: `customer_360`",
         "  - `=` managed Unity Catalog registration: `registered.analytics.customer_360`",
     ]
+
+
+def test_render_resource_synced_table_cleanup_does_not_delete_managed_outputs() -> None:
+    key = "resources.synced_database_tables.customer_360"
+    entry = resources_from_dict(
+        {
+            key: {
+                "action": "delete",
+                "state_only": True,
+                "remote_state": {"name": "registered.analytics.customer_360"},
+            },
+        }
+    )[key]
+
+    lines = list(_render_resource(key, entry))
+
+    assert all("`-`" not in line for line in lines)
+    assert any("managed pipeline" in line and "`=`" in line for line in lines)
+    assert any("managed PostgreSQL table" in line and "`=`" in line for line in lines)
+    assert any("managed Unity Catalog registration" in line and "`=`" in line for line in lines)
+
+
+def test_render_resource_delete_with_cleanup_annotation_keeps_managed_deletions() -> None:
+    key = "resources.synced_database_tables.customer_360"
+    entry = resources_from_dict(
+        {
+            key: {
+                "action": "delete",
+                "remote_state": {"name": "registered.analytics.customer_360"},
+            },
+            f"{key}.permissions": {"action": "delete", "state_only": True},
+        }
+    )[key]
+
+    lines = list(_render_resource(key, entry))
+
+    assert lines[0] == "- `-` `synced_database_tables/customer_360` — delete"
+    assert any("`-` managed pipeline" in line for line in lines)
+    assert any("`-` managed PostgreSQL table" in line for line in lines)
+    assert any("`-` managed Unity Catalog registration" in line for line in lines)
+
+
+def test_render_resource_cleanup_header_precedes_its_explanation() -> None:
+    key = "resources.schemas.b"
+    entry = resources_from_dict({key: {"action": "delete", "gone": True}})[key]
+
+    lines = list(_render_resource(key, entry))
+
+    assert lines[0].startswith("- `~` `schemas/b`")
+    assert lines[1] == "  - already absent; removing stale bundle state"
 
 
 def test_render_resource_synced_database_table_delete_shows_managed_outputs() -> None:
@@ -747,6 +797,33 @@ def test_render_markdown_effect_lines_render_for_skip_parent() -> None:
     assert "job_runs/" not in out
 
 
+def test_render_markdown_preserves_malformed_modern_trigger_detail() -> None:
+    plan = plan_from_dict(
+        {
+            "plan": {
+                "resources.jobs.etl": {"action": "skip", "remote_state": {"job_id": 100}},
+                "resources.job_runs.modern": {
+                    "depends_on": [{"node": "resources.jobs.etl"}],
+                    "action": "recreate",
+                    "changes": {
+                        "lifecycle.triggers_state.on_bundle_deploy": {
+                            "action": "recreate",
+                            "old": "SENTINEL_UUID",
+                            "new": {"unexpected": 2},
+                        },
+                    },
+                },
+            }
+        }
+    )
+
+    output = render_markdown(normalize_plan(plan.resources))
+
+    assert "re-runs on deploy" in output
+    assert "unexpected" in output
+    assert "SENTINEL_UUID" not in output
+
+
 def test_render_markdown_effect_name_links_to_run_page() -> None:
     plan = plan_from_dict(
         {
@@ -913,13 +990,18 @@ def test_render_markdown_shared_job_run_vectors_attached_and_standalone() -> Non
             plan_resources = {key: value for key, value in resources.items() if not standalone or key != target_key}
             plan = plan_from_dict({"plan": plan_resources})
             out = render_markdown(normalize_plan(plan.resources))
-            assert expected["wording"] in out
+            markdown_wording = expected["wording"].replace("(", r"\(").replace(")", r"\)")
+            assert markdown_wording in out
             assert "fingerprint-before" not in out
             assert "result_state" not in out
             if expected["stateMessage"] is not None:
                 assert f"state: {expected['stateMessage']}" in out
             if "job_parameters['region']" in expected["visibleChangeKeys"]:
                 assert "job_parameters['region']" in out
+            for detail in expected.get("watchedPatterns", []):
+                visible_detail = _escape_plain_text(f"watched pattern {detail['pattern']}: {detail['status']}")
+                assert visible_detail in out
+            assert "fingerprint" not in out
             if "runPageUrl" in expected:
                 assert f"]({expected['runPageUrl']})" in out
 

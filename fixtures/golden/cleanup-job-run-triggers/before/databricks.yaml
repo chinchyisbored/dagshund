@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+bundle:
+  name: dagshund-golden-cleanup-job-run-triggers-aqde
+  databricks_cli_version: ">= 1.20.0, <= 1.20.0"
+  engine: direct
+
+workspace:
+  host: https://dbc-c1c0b013-636f.cloud.databricks.com
+  root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/default
+
+resources:
+  schemas:
+    cleanup_schema:
+      catalog_name: dagshund
+      name: cleanup_job_run_triggers_aqde
+
+  jobs:
+    trigger_job:
+      name: dagshund-cleanup-job-run-triggers-aqde
+      max_concurrent_runs: 1
+      queue:
+        enabled: true
+      tasks:
+        - task_key: main
+          notebook_task:
+            notebook_path: ./run_task.py
+
+  job_runs:
+    one_off:
+      job_id: ${resources.jobs.trigger_job.id}
+    file_change:
+      job_id: ${resources.jobs.trigger_job.id}
+      lifecycle:
+        triggers:
+          - on_file_change: watched.txt
+    every_deploy:
+      job_id: ${resources.jobs.trigger_job.id}
+      lifecycle:
+        triggers:
+          - on_bundle_deploy: true

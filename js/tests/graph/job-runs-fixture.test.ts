@@ -27,6 +27,29 @@ const findNode = (nodes: readonly GraphNode[], id: string): GraphNode | undefine
   nodes.find((node) => node.id === id);
 
 describe("job-runs fixture — effects as annotations", () => {
+  test("live cleanup and modern triggers preserve the target job and task", async () => {
+    const plan = await loadFixture("cleanup-job-run-triggers");
+    const graph = buildResourceGraphFromPlan(plan);
+    const planGraph = buildPlanGraphFromPlan(plan);
+    const job = findNode(graph.nodes, "resources.jobs.trigger_job");
+    const task = findNode(planGraph.nodes, "resources.jobs.trigger_job::main");
+    const effects = readEffects(job);
+
+    expect(job?.diffState).toBe("unchanged");
+    expect(task?.diffState).toBe("unchanged");
+    expect(effects?.map(({ name, action }) => `${name}:${action}`)).toEqual([
+      "every_deploy:recreate",
+      "file_change:recreate",
+      "one_off:delete",
+    ]);
+    expect(effects?.find(({ name }) => name === "one_off")?.stateOnly).toBe(true);
+    expect(
+      Object.keys(effects?.find(({ name }) => name === "file_change")?.changes ?? {}),
+    ).toContain("lifecycle.triggers_state.on_file_change['watched.txt']");
+    expect(
+      Object.keys(effects?.find(({ name }) => name === "every_deploy")?.changes ?? {}),
+    ).toContain("lifecycle.triggers_state.on_bundle_deploy");
+  });
   test("no standalone job_runs nodes appear in either graph", async () => {
     const plan = await loadFixture("job-runs");
 
@@ -47,6 +70,32 @@ describe("job-runs fixture — effects as annotations", () => {
     for (const job of jobs) {
       expect(job.diffState).toBe("unchanged");
     }
+  });
+
+  test("modern file-trigger effects remain annotations on an unchanged target", () => {
+    const plan = parsePlan({
+      "resources.jobs.owner": { action: "skip", remote_state: { job_id: 100 } },
+      "resources.job_runs.file_change": {
+        depends_on: [{ node: "resources.jobs.owner" }],
+        action: "recreate",
+        changes: {
+          "lifecycle.triggers_state.on_file_change": {
+            action: "recreate",
+            old: { "configs/*.yaml": "hash-before" },
+            new: { "configs/*.yaml": "hash-after" },
+          },
+        },
+      },
+    });
+
+    const graph = buildResourceGraphFromPlan(plan);
+    const owner = findNode(graph.nodes, "resources.jobs.owner");
+
+    expect(owner?.diffState).toBe("unchanged");
+    expect(readEffects(owner)?.[0]?.action).toBe("recreate");
+    expect(
+      readEffects(owner)?.[0]?.changes?.["lifecycle.triggers_state.on_file_change"],
+    ).toBeDefined();
   });
 
   test("jobs carry their effects in both graphs", async () => {

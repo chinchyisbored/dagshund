@@ -158,10 +158,10 @@ The search bar dims non-matching nodes so matches stand out.
 - Type a name to filter: `warehouse`, `analytics`
 - Wrap in quotes for exact match: `"analytics"` finds only that node, not `analytics_pipeline`
 - Prefix with `type:` to filter by badge: `type:wheel` highlights all wheel tasks
-- Prefix with `status:` to filter by diff status: `status:added`, `status:modified`, `status:removed`
+- Prefix with `status:` to filter by diff status: `status:added`, `status:modified`, `status:removed`. Modified includes bundle-state cleanup.
 - Press **Escape** to clear
 
-The diff filter buttons (**Added**, **Modified**, **Removed**) compose with search, when both are active, only nodes matching both criteria stay highlighted. When exactly one node matches, the viewport auto-centers on it.
+The diff filter buttons (**Added**, **Modified**, **Removed**) compose with search, when both are active, only nodes matching both criteria stay highlighted. Modified includes bundle-state cleanup, which removes an entry from bundle state without deleting the backend resource. When exactly one node matches, the viewport auto-centers on it.
 
 ## Manual Edit Detection
 
