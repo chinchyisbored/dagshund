@@ -242,6 +242,9 @@ describe("buildElkCompoundGraph", () => {
     );
 
     expect(elkGraph.children[0]?.layoutOptions["elk.direction"]).toBe("RIGHT");
+    expect(elkGraph.children[0]?.layoutOptions["elk.padding"]).toBe(
+      "[top=48,left=20,bottom=20,right=20]",
+    );
   });
 
   test("returns empty children for empty graph", async () => {
@@ -331,8 +334,8 @@ describe("assembleFlowNodes", () => {
 
     const positions = new Map([
       ["resources.jobs.etl", { x: 0, y: 0 }],
-      ["resources.jobs.etl::extract", { x: 20, y: 40 }],
-      ["resources.jobs.etl::transform", { x: 240, y: 40 }],
+      ["resources.jobs.etl::extract", { x: 20, y: 48 }],
+      ["resources.jobs.etl::transform", { x: 240, y: 48 }],
     ]);
     const dimensions = new Map([["resources.jobs.etl", { width: 500, height: 200 }]]);
 
@@ -343,6 +346,17 @@ describe("assembleFlowNodes", () => {
     const style = jobNode?.style as Record<string, unknown>;
     expect(style["width"]).toBe(500);
     expect(style["height"]).toBe(200);
+    expect(style["pointerEvents"]).toBe("none");
+    expect(jobNode?.position).toEqual({ x: 0, y: 0 });
+    expect(jobNode?.draggable).toBe(false);
+    expect(jobNode?.selectable).toBe(false);
+    expect(jobNode?.focusable).toBe(false);
+
+    const taskNode = nodes.find((node) => node.type === "task");
+    expect(taskNode?.position).toEqual({ x: 20, y: 48 });
+    expect(taskNode?.draggable).toBeUndefined();
+    expect(taskNode?.selectable).toBeUndefined();
+    expect(taskNode?.focusable).toBeUndefined();
   });
 });
 

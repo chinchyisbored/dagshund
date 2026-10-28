@@ -19,24 +19,28 @@ export const JobNode = memo(function JobNode({ id, data }: NodeProps<JobNodeType
 
   return (
     <div
-      className={`h-full w-full cursor-pointer rounded-xl border-2 ${styles.border} ${styles.borderStyle} ${opacityClass}`}
+      className={`job-node h-full w-full rounded-xl border-2 ${styles.border} ${styles.borderStyle} ${opacityClass}`}
       style={glowStyle}
     >
       {hasIncoming && <Handle type="target" position={Position.Left} className="!bg-handle" />}
-      <div
-        className={`rounded-t-[10px] px-4 py-2 text-xs font-semibold uppercase tracking-wide ${styles.background} ${styles.text}`}
+      <button
+        type="button"
+        className={`job-node-header flex h-9 w-full items-center overflow-hidden rounded-t-[10px] border-0 px-4 text-left text-xs font-semibold uppercase tracking-wide ${styles.background} ${styles.text} ${data.diffState === "unchanged" ? "job-node-header-unchanged" : ""} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-accent`}
+        aria-label={`Open job details for ${jobName}`}
+        title={jobName}
+        style={{ pointerEvents: "auto" }}
       >
-        <span className="mr-1" aria-hidden="true">
+        <span className="mr-1 shrink-0" aria-hidden="true">
           {badge}
         </span>
-        {jobName}
+        <span className="truncate">{jobName}</span>
         {data.isStateCleanup === true && (
-          <span className="ml-2 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-badge-text">
+          <span className="ml-2 shrink-0 rounded bg-badge-bg px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-badge-text">
             State cleanup
           </span>
         )}
-        {effects !== undefined && <RunEffectBadge effects={effects} className="ml-2" />}
-      </div>
+        {effects !== undefined && <RunEffectBadge effects={effects} className="ml-2 shrink-0" />}
+      </button>
       {hasOutgoing && <Handle type="source" position={Position.Right} className="!bg-handle" />}
     </div>
   );

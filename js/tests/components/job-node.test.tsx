@@ -49,9 +49,31 @@ beforeEach(() => {
 });
 
 describe("JobNode", () => {
-  test("renders the job name in the header block", () => {
-    const { getByText } = renderJob();
-    expect(getByText("etl_pipeline")).toBeDefined();
+  test("renders an accessible clickable header without advertising the whole container", () => {
+    const { container, getByRole } = renderJob();
+    const header = getByRole("button", { name: "Open job details for etl_pipeline" });
+    const outer = container.firstElementChild as HTMLElement;
+
+    expect(header.getAttribute("title")).toBe("etl_pipeline");
+    expect(header.className).toContain("job-node-header");
+    expect(header.className).toContain("job-node-header-unchanged");
+    expect(header.className).toContain("focus-visible:outline");
+    expect(header.style.pointerEvents).toBe("auto");
+    expect(outer.className).toContain("job-node");
+    expect(outer.className).not.toContain("cursor-pointer");
+    expect(header.textContent).toContain("etl_pipeline");
+  });
+
+  test("keeps the unknown diff badge and dashed job border", () => {
+    const { container, getByRole } = renderJob({ diffState: "unknown" });
+    const header = getByRole("button", { name: "Open job details for etl_pipeline" });
+    const outer = container.firstElementChild as HTMLElement;
+
+    expect(header.textContent).toContain("?");
+    expect(header.className).not.toContain("job-node-header-unchanged");
+    expect(header.className).toContain("bg-diff-unknown-soft");
+    expect(outer.className).toContain("border-diff-unknown");
+    expect(outer.className).toContain("border-dashed");
   });
 
   test("labels cleanup jobs without changing the modified badge", () => {

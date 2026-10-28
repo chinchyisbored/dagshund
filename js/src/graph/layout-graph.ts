@@ -39,7 +39,7 @@ const NODE_HEIGHT_TASK = 56;
 const NODE_HEIGHT_RESOURCE = 56;
 const NODE_HEIGHT_GROUP = 56;
 
-const JOB_PADDING_TOP = 40;
+const JOB_PADDING_TOP = 48;
 const JOB_PADDING_SIDE = 20;
 const JOB_PADDING_BOTTOM = 20;
 
@@ -248,7 +248,14 @@ const toJobFlowNode = (
   id: node.id,
   type: node.nodeKind,
   position: { x: position.x, y: position.y },
-  style: { width: dimension.width, height: dimension.height },
+  style: {
+    width: dimension.width,
+    height: dimension.height,
+    pointerEvents: "none",
+  },
+  draggable: false,
+  selectable: false,
+  focusable: false,
   data: toNodeData(node),
   ariaLabel: buildAriaLabel(node),
 });
