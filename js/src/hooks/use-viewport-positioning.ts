@@ -9,6 +9,8 @@ type ViewportPositioningOptions = {
   readonly onFocusComplete?: () => void;
   readonly isLayoutReady: boolean;
   readonly directMatchIds: ReadonlySet<string> | null;
+  readonly initialAnchor?: { readonly x: number; readonly y: number };
+  readonly canvasElement?: HTMLElement | null;
 };
 
 type ViewportPositioningResult = {
@@ -29,6 +31,8 @@ export function useViewportPositioning({
   onFocusComplete,
   isLayoutReady,
   directMatchIds,
+  initialAnchor,
+  canvasElement,
 }: ViewportPositioningOptions): ViewportPositioningResult {
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   // Never reset — safe because FlowCanvas remounts when the plan changes (keyed on plan identity).
@@ -56,7 +60,7 @@ export function useViewportPositioning({
     if (instance !== null) centerOnNode(instance, nodeId);
   }, []);
 
-  /** Fit the viewport exactly once after the layout produces nodes.
+  /** Position the first Jobs block once, or fit other canvases exactly once after layout.
    *  Skipped when focusNodeId is set — the focus effect handles viewport positioning instead.
    *  Deferred until isVisible is true so tabs rendered with display:none don't fitView
    *  against a zero-size container. Uses rAF + setTimeout so React Flow's ResizeObserver
@@ -73,7 +77,17 @@ export function useViewportPositioning({
       const frameId = requestAnimationFrame(() => {
         timerId = setTimeout(() => {
           hasFittedRef.current = true;
-          rfInstanceRef.current?.fitView({ maxZoom: 1, padding: 0.15 });
+          const instance = rfInstanceRef.current;
+          if (initialAnchor !== undefined && canvasElement != null) {
+            const zoom = 0.8;
+            instance?.setViewport({
+              x: canvasElement.clientWidth * 0.38 - initialAnchor.x * zoom,
+              y: canvasElement.clientHeight * 0.38 - initialAnchor.y * zoom,
+              zoom,
+            });
+          } else {
+            instance?.fitView({ maxZoom: 1, padding: 0.15 });
+          }
           setHasFitted(true);
         }, 50);
       });
@@ -82,7 +96,7 @@ export function useViewportPositioning({
         if (timerId !== undefined) clearTimeout(timerId);
       };
     }
-  }, [baseNodes, focusNodeId, isVisible]);
+  }, [baseNodes, canvasElement, focusNodeId, initialAnchor, isVisible]);
 
   /** Pan to a specific node when focusNodeId is set (cross-tab navigation).
    *  Waits for layout to be ready so the node exists in React Flow's internal store.

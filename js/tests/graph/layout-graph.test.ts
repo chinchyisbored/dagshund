@@ -280,6 +280,14 @@ describe("extractLayoutData", () => {
     expect(dimensions.get("resources.jobs.etl")).toEqual({ width: 500, height: 200 });
   });
 
+  test("keeps taskless job containers visible at the minimum dimensions", async () => {
+    const { extractLayoutData, NODE_WIDTH } = await loadModule();
+    const { dimensions } = extractLayoutData({
+      children: [{ id: "resources.jobs.empty", width: 0, height: 0, children: [] }],
+    });
+    expect(dimensions.get("resources.jobs.empty")).toEqual({ width: NODE_WIDTH, height: 56 });
+  });
+
   test("handles empty result", async () => {
     const { extractLayoutData } = await loadModule();
     const { positions, dimensions } = extractLayoutData({ children: [] });
@@ -351,6 +359,11 @@ describe("assembleFlowNodes", () => {
     expect(jobNode?.draggable).toBe(false);
     expect(jobNode?.selectable).toBe(false);
     expect(jobNode?.focusable).toBe(false);
+    expect(jobNode?.data).toMatchObject({
+      label: JOB_NODE.label,
+      diffState: JOB_NODE.diffState,
+      resourceKey: JOB_NODE.resourceKey,
+    });
 
     const taskNode = nodes.find((node) => node.type === "task");
     expect(taskNode?.position).toEqual({ x: 20, y: 48 });
@@ -418,6 +431,24 @@ describe("toFlowEdges", () => {
       { id: "e1", source: "a", target: "b", label: "depends_on", diffState: "unchanged" },
     ]);
     expect(edges[0]?.label).toBe("depends_on");
+  });
+
+  test("preserves original edge identities, endpoints, ordering, and diff state styles", async () => {
+    const { toFlowEdges } = await loadModule();
+    const input = [
+      buildGraphEdge("a::task", "b::task", "removed", "edge-old:"),
+      buildGraphEdge("b::task", "c::task", "added", "edge-new:"),
+    ];
+
+    const edges = toFlowEdges(input);
+
+    expect(edges.map(({ id, source, target }) => ({ id, source, target }))).toEqual(
+      input.map(({ id, source, target }) => ({ id, source, target })),
+    );
+    expect(edges.map(({ style }) => style?.stroke)).toEqual([
+      "var(--edge-removed)",
+      "var(--edge-added)",
+    ]);
   });
 
   test("applies edge style from diffState", async () => {

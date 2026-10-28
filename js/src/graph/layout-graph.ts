@@ -18,8 +18,9 @@ import {
   LATERAL_TOP,
   LATERAL_TOP_OUT,
 } from "../utils/diff-state-styles.ts";
-import { extractTaskNodeParentId } from "../utils/resource-key.ts";
+import { extractResourceName, extractTaskNodeParentId } from "../utils/resource-key.ts";
 import { extractDerivedRenderingConvention } from "./derived-node-specs.ts";
+import { stackJobDependencyBlocks } from "./job-dependency-blocks.ts";
 
 /** Lazily instantiate ELK — deferred to avoid Worker creation at import time (breaks Bun test runner).
  *  No crash recovery: if the Worker dies the layout call rejects and the UI shows an error state,
@@ -217,8 +218,11 @@ export const extractLayoutData = (
   for (const jobElk of elkResult.children ?? []) {
     positions.set(jobElk.id, { x: jobElk.x ?? 0, y: jobElk.y ?? 0 });
     dimensions.set(jobElk.id, {
-      width: jobElk.width ?? 0,
-      height: jobElk.height ?? 0,
+      width: Math.max(jobElk.width ?? 0, (jobElk.children?.length ?? 0) === 0 ? NODE_WIDTH : 0),
+      height: Math.max(
+        jobElk.height ?? 0,
+        (jobElk.children?.length ?? 0) === 0 ? NODE_HEIGHT_GROUP : 0,
+      ),
     });
 
     for (const taskElk of jobElk.children ?? []) {
@@ -324,9 +328,15 @@ export const toReactFlowElements = async (
   const elkGraph = buildElkCompoundGraph(groups, graph.edges);
   const elkResult = await getElk().layout(elkGraph);
   const { positions, dimensions } = extractLayoutData(elkResult);
+  const blockPositions = stackJobDependencyBlocks(
+    groups.map(({ job }) => ({ id: job.id, name: extractResourceName(job.resourceKey) })),
+    graph.edges,
+    positions,
+    dimensions,
+  );
 
   return {
-    nodes: assembleFlowNodes(groups, positions, dimensions),
+    nodes: assembleFlowNodes(groups, blockPositions, dimensions),
     edges: toFlowEdges(graph.edges),
   };
 };

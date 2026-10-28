@@ -5,6 +5,7 @@ import { useViewportPositioning } from "../../src/hooks/use-viewport-positioning
 
 type InstanceSpies = {
   readonly fitView: ReturnType<typeof mock>;
+  readonly setViewport: ReturnType<typeof mock>;
   readonly zoomIn: ReturnType<typeof mock>;
   readonly zoomOut: ReturnType<typeof mock>;
   readonly setCenter: ReturnType<typeof mock>;
@@ -24,6 +25,7 @@ const makeFakeInstance = (
 ): { readonly instance: ReactFlowInstance; readonly spies: InstanceSpies } => {
   const spies: InstanceSpies = {
     fitView: mock(() => true),
+    setViewport: mock(() => true),
     zoomIn: mock(() => {}),
     zoomOut: mock(() => {}),
     setCenter: mock(() => {}),
@@ -117,6 +119,32 @@ describe("useViewportPositioning", () => {
     act(() => result.current.centerOnNode("n1"));
     expect(spies.getInternalNode).toHaveBeenCalledWith("n1");
     expect(spies.setCenter).toHaveBeenCalledTimes(1);
+  });
+
+  test("anchors the initial job corner in the upper-left composition once", async () => {
+    const { instance, spies } = makeFakeInstance();
+    const canvasElement = { clientWidth: 1000, clientHeight: 800 } as HTMLElement;
+    const { result, rerender } = renderHook(
+      ({ nodes }: { readonly nodes: readonly Node[] }) =>
+        useViewportPositioning({
+          baseNodes: nodes,
+          isVisible: true,
+          isLayoutReady: true,
+          directMatchIds: null,
+          initialAnchor: { x: 10, y: 20 },
+          canvasElement,
+        }),
+      { initialProps: { nodes: [] as readonly Node[] } },
+    );
+    act(() => result.current.handleInit(instance));
+    rerender({ nodes: [makeNode("job")] });
+
+    await waitFor(() =>
+      expect(spies.setViewport).toHaveBeenCalledWith({ x: 372, y: 288, zoom: 0.8 }),
+    );
+    expect(spies.fitView).not.toHaveBeenCalled();
+    rerender({ nodes: [makeNode("job"), makeNode("task", "job")] });
+    expect(spies.setViewport).toHaveBeenCalledTimes(1);
   });
 
   test("auto-fits exactly once after nodes + visibility when no focus is set", async () => {

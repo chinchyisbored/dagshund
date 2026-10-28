@@ -59,6 +59,7 @@ type ReactFlowProps = {
   readonly onNodeClick?: (event: unknown, node: MockFlowNode) => void;
   readonly onInit?: (instance: {
     readonly fitView: () => void;
+    readonly setViewport: () => void;
     readonly zoomIn: () => void;
     readonly zoomOut: () => void;
     readonly setCenter: () => void;
@@ -71,6 +72,7 @@ const ReactFlow = ({ nodes = [], children, onInit, onNodeClick }: ReactFlowProps
   useEffect(() => {
     onInit?.({
       fitView: () => undefined,
+      setViewport: () => undefined,
       zoomIn: () => undefined,
       zoomOut: () => undefined,
       setCenter: () => undefined,

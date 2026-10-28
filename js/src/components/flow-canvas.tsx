@@ -1,5 +1,6 @@
 import type { NodeMouseHandler, NodeTypes } from "@xyflow/react";
 import { startTransition, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { getFirstJobBlockAnchor } from "../graph/job-dependency-blocks.ts";
 import {
   InteractionContext,
   LateralIsolationContext,
@@ -19,6 +20,7 @@ import {
   resolvePhantomContext,
 } from "../utils/connected-nodes.ts";
 import { getNodeData } from "../utils/node-data.ts";
+import { extractResourceName } from "../utils/resource-key.ts";
 import { DetailPanel } from "./detail-panel/index.ts";
 import { type FilterableDiffState, isFilterableDiffState } from "./diff-filter-toolbar.tsx";
 import { FlowCanvasLayout } from "./flow-canvas-layout.tsx";
@@ -103,6 +105,7 @@ export function FlowCanvas({
   wheelUpdateCount,
 }: FlowCanvasProps) {
   const isVisible = useTabVisibility();
+  const canvasElementRef = useRef<HTMLDivElement>(null);
   const [state, dispatch] = useReducer(canvasReducer, INITIAL_CANVAS_STATE);
   const { width: panelWidth, handlePointerDown: handleResizePointerDown } = useResizeHandle();
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -257,6 +260,19 @@ export function FlowCanvas({
     return withParents;
   }, [baseNodes, directMatchIds]);
 
+  const initialAnchor = useMemo(() => {
+    const jobs = baseNodes.flatMap((node) => {
+      if (node.type !== "job" || node.parentId !== undefined) return [];
+      return [{ id: node.id, name: extractResourceName(getNodeData(node).resourceKey) }];
+    });
+    const positions = new Map(
+      baseNodes
+        .filter((node) => node.type === "job" && node.parentId === undefined)
+        .map((node) => [node.id, node.position]),
+    );
+    return getFirstJobBlockAnchor(jobs, baseEdges, positions);
+  }, [baseEdges, baseNodes]);
+
   const {
     hasFitted,
     handleInit,
@@ -271,6 +287,8 @@ export function FlowCanvas({
     onFocusComplete,
     isLayoutReady: layoutState.status === "ready",
     directMatchIds,
+    initialAnchor,
+    canvasElement: canvasElementRef.current,
   });
 
   const handleNodeClick: NodeMouseHandler = useCallback(
@@ -377,7 +395,7 @@ export function FlowCanvas({
   }
 
   return (
-    <div className={`flex h-full${hasFitted ? "" : " opacity-0"}`}>
+    <div ref={canvasElementRef} className={`flex h-full${hasFitted ? "" : " opacity-0"}`}>
       <InteractionContext.Provider value={interactionState}>
         <LateralIsolationContext.Provider value={handleToggleLateralIsolation}>
           <FlowCanvasLayout
