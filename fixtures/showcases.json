@@ -1,0 +1,37 @@
+[
+  {
+    "fixture": "retail-de",
+    "title": "Retail data engineering",
+    "description": "Scheduled and file-arrival workflows across bronze, silver, and gold retail data layers"
+  },
+  {
+    "fixture": "sales-analytics",
+    "title": "Sales analytics",
+    "description": "Sales reporting with revenue, regional performance, and returns tasks, a dashboard, and a high-return-rate alert"
+  },
+  {
+    "fixture": "agent-app",
+    "title": "Agent App and RAG",
+    "description": "A retail assistant architecture with Lakebase session storage, AI Search retrieval, LLM serving, and MLflow tracking"
+  },
+  {
+    "fixture": "retail-serving",
+    "title": "Delta Lake to Lakebase",
+    "description": "Sync Delta Lake customer, product, and inventory tables into Lakebase for low-latency, high-QPS lookups"
+  },
+  {
+    "fixture": "ml-workflow",
+    "title": "ML validation and serving",
+    "description": "Model validation with parallel baseline and candidate branches, a promotion gate, and a serving endpoint"
+  },
+  {
+    "fixture": "manual-drift",
+    "title": "Manual drift",
+    "description": "A job DAG and Unity Catalog schemas with manual workspace edits that drift from their bundle configuration"
+  },
+  {
+    "fixture": "wheel-bump",
+    "title": "Wheel bump",
+    "description": "Python wheel dependencies across job task DAGs (historical CLI 1.6.0 capture)"
+  }
+]

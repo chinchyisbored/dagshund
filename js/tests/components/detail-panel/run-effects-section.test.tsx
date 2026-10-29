@@ -33,6 +33,21 @@ describe("RunEffectsSection", () => {
     );
     expect(container.textContent).not.toContain("run record will be deleted");
   });
+  test("renders the captured Agent App migration parameter change", async () => {
+    const plan = await loadFixture("agent-app");
+    const graph = buildResourceGraphFromPlan(plan);
+    const job = graph.nodes.find((node) => node.id === "resources.jobs.initialize_agent_storage");
+    if (job === undefined || !("effects" in job)) throw new Error("fixture job not found");
+
+    const { container } = render(<RunEffectsSection effects={job.effects ?? []} />);
+
+    expect(container.textContent).toContain("apply_session_migration");
+    expect(container.textContent).toContain("re-runs on deploy");
+    expect(container.textContent).toContain("job_parameters['schema_version']");
+    expect(container.textContent).toContain("v1");
+    expect(container.textContent).toContain("v2");
+  });
+
   test("renders the section heading and each effect name with its wording", () => {
     const { container, getByText } = render(
       <RunEffectsSection

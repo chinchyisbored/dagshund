@@ -1,0 +1,1683 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 27,
+      "by_kind": {
+        "job": 6,
+        "task": 21,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 2,
+        "removed": 0,
+        "modified": 6,
+        "unchanged": 19,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 3,
+          "unchanged": 3,
+          "unknown": 0
+        },
+        "task": {
+          "added": 2,
+          "removed": 0,
+          "modified": 3,
+          "unchanged": 16,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 115,
+      "total_effect_entries": 0,
+      "with_resource_state": 27,
+      "task_change_summary_total": 5,
+      "entries": [
+        {
+          "id": "resources.jobs.retail_bronze_batch",
+          "resourceKey": "resources.jobs.retail_bronze_batch",
+          "label": "retail_bronze_batch",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "ingest_tables",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.retail_bronze_batch::ingest_tables",
+          "resourceKey": "resources.jobs.retail_bronze_batch",
+          "label": "ingest_tables",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='ingest_tables'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].for_each_task.concurrency",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].for_each_task.inputs",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].for_each_task.task.disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].for_each_task.task.email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].for_each_task.task.notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].for_each_task.task.run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].for_each_task.task.timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_tables'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_bronze_file_arrival",
+          "resourceKey": "resources.jobs.retail_bronze_file_arrival",
+          "label": "retail_bronze_file_arrival",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_bronze_file_arrival::ingest_price_updates",
+          "resourceKey": "resources.jobs.retail_bronze_file_arrival",
+          "label": "ingest_price_updates",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='ingest_price_updates'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_price_updates'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_price_updates'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_price_updates'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_price_updates'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_bronze_file_arrival::ingest_supplier_updates",
+          "resourceKey": "resources.jobs.retail_bronze_file_arrival",
+          "label": "ingest_supplier_updates",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='ingest_supplier_updates'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_supplier_updates'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_supplier_updates'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_supplier_updates'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='ingest_supplier_updates'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_bronze_file_arrival::run_file_snapshot_history",
+          "resourceKey": "resources.jobs.retail_bronze_file_arrival",
+          "label": "run_file_snapshot_history",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_file_snapshot_history'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_file_snapshot_history'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_file_snapshot_history'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_file_snapshot_history'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_daily_orchestrator",
+          "resourceKey": "resources.jobs.retail_daily_orchestrator",
+          "label": "retail_daily_orchestrator",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_daily_orchestrator::run_bronze",
+          "resourceKey": "resources.jobs.retail_daily_orchestrator",
+          "label": "run_bronze",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_bronze'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_bronze'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_bronze'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_bronze'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_daily_orchestrator::run_historization",
+          "resourceKey": "resources.jobs.retail_daily_orchestrator",
+          "label": "run_historization",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_historization'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_historization'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_historization'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_historization'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_daily_orchestrator::run_silver",
+          "resourceKey": "resources.jobs.retail_daily_orchestrator",
+          "label": "run_silver",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='run_silver'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_silver'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_silver'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='run_silver'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_file_snapshot_history",
+          "resourceKey": "resources.jobs.retail_file_snapshot_history",
+          "label": "retail_file_snapshot_history",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_file_snapshot_history::price_history",
+          "resourceKey": "resources.jobs.retail_file_snapshot_history",
+          "label": "price_history",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='price_history'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='price_history'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='price_history'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='price_history'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_file_snapshot_history::supplier_history",
+          "resourceKey": "resources.jobs.retail_file_snapshot_history",
+          "label": "supplier_history",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='supplier_history'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='supplier_history'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='supplier_history'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='supplier_history'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "retail_silver",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "validate_stores",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "check_quality_results",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "publish_snapshots",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.retail_silver::check_quality_results",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "check_quality_results",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='check_quality_results'].depends_on[task_key='validate_stores']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='check_quality_results'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_quality_results'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_quality_results'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_quality_results'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_quality_results'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::enrich_orders",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "enrich_orders",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='enrich_orders'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='enrich_orders'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='enrich_orders'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='enrich_orders'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='enrich_orders'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::normalize_customers",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "normalize_customers",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='normalize_customers'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_customers'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_customers'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_customers'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_customers'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::normalize_products",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "normalize_products",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='normalize_products'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_products'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_products'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_products'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='normalize_products'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::publish_snapshots",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "publish_snapshots",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='publish_snapshots'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish_snapshots'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish_snapshots'].notebook_task.base_parameters['mode']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='publish_snapshots'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish_snapshots'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='publish_snapshots'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::validate_customers",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "validate_customers",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_customers'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_customers'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::validate_orders",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "validate_orders",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_orders'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_orders'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::validate_products",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "validate_products",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_products'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_products'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_products'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_products'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_products'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver::validate_stores",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "validate_stores",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_stores']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_snapshot_history",
+          "resourceKey": "resources.jobs.retail_snapshot_history",
+          "label": "retail_snapshot_history",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "store_history",
+              "diffState": "added",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.retail_snapshot_history::customer_history",
+          "resourceKey": "resources.jobs.retail_snapshot_history",
+          "label": "customer_history",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='customer_history'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='customer_history'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='customer_history'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='customer_history'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_snapshot_history::product_history",
+          "resourceKey": "resources.jobs.retail_snapshot_history",
+          "label": "product_history",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='product_history'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='product_history'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='product_history'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='product_history'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_snapshot_history::store_history",
+          "resourceKey": "resources.jobs.retail_snapshot_history",
+          "label": "store_history",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='store_history']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 16,
+      "by_kind": {
+        "dag": 16,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "unchanged": 15
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 15
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.retail_bronze_file_arrival::ingest_price_updates",
+          "target": "resources.jobs.retail_bronze_file_arrival::run_file_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_bronze_file_arrival::ingest_supplier_updates",
+          "target": "resources.jobs.retail_bronze_file_arrival::run_file_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_bronze_file_arrival::run_file_snapshot_history",
+          "target": "resources.jobs.retail_file_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator::run_bronze",
+          "target": "resources.jobs.retail_bronze_batch",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator::run_bronze",
+          "target": "resources.jobs.retail_daily_orchestrator::run_silver",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator::run_historization",
+          "target": "resources.jobs.retail_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator::run_silver",
+          "target": "resources.jobs.retail_daily_orchestrator::run_historization",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator::run_silver",
+          "target": "resources.jobs.retail_silver",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::check_quality_results",
+          "target": "resources.jobs.retail_silver::publish_snapshots",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::enrich_orders",
+          "target": "resources.jobs.retail_silver::check_quality_results",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::normalize_customers",
+          "target": "resources.jobs.retail_silver::check_quality_results",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::normalize_products",
+          "target": "resources.jobs.retail_silver::check_quality_results",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::validate_customers",
+          "target": "resources.jobs.retail_silver::normalize_customers",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::validate_orders",
+          "target": "resources.jobs.retail_silver::enrich_orders",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::validate_products",
+          "target": "resources.jobs.retail_silver::normalize_products",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_silver::validate_stores",
+          "target": "resources.jobs.retail_silver::check_quality_results",
+          "diffState": "added",
+          "kind": "dag"
+        }
+      ]
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 19,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 14,
+        "derived": 0,
+        "root": 4,
+        "phantom": 1
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "modified": 4,
+        "unchanged": 14,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 1,
+          "removed": 0,
+          "modified": 4,
+          "unchanged": 9,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 4,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 23,
+      "total_effect_entries": 0,
+      "with_resource_state": 14,
+      "task_change_summary_total": 5,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_bronze_batch",
+          "resourceKey": "resources.jobs.retail_bronze_batch",
+          "label": "retail_bronze_batch",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "ingest_tables",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.retail_bronze_file_arrival",
+          "resourceKey": "resources.jobs.retail_bronze_file_arrival",
+          "label": "retail_bronze_file_arrival",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_daily_orchestrator",
+          "resourceKey": "resources.jobs.retail_daily_orchestrator",
+          "label": "retail_daily_orchestrator",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_file_snapshot_history",
+          "resourceKey": "resources.jobs.retail_file_snapshot_history",
+          "label": "retail_file_snapshot_history",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.retail_silver",
+          "resourceKey": "resources.jobs.retail_silver",
+          "label": "retail_silver",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "validate_stores",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "check_quality_results",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "publish_snapshots",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.retail_snapshot_history",
+          "resourceKey": "resources.jobs.retail_snapshot_history",
+          "label": "retail_snapshot_history",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "store_history",
+              "diffState": "added",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.pipelines.customer_history",
+          "resourceKey": "resources.pipelines.customer_history",
+          "label": "customer_history",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "cascade_on_destroy",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.pipelines.price_history",
+          "resourceKey": "resources.pipelines.price_history",
+          "label": "price_history",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "cascade_on_destroy",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.pipelines.product_history",
+          "resourceKey": "resources.pipelines.product_history",
+          "label": "product_history",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "cascade_on_destroy",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.pipelines.store_history",
+          "resourceKey": "resources.pipelines.store_history",
+          "label": "store_history",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.pipelines.supplier_history",
+          "resourceKey": "resources.pipelines.supplier_history",
+          "label": "supplier_history",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "cascade_on_destroy",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.bronze",
+          "resourceKey": "resources.schemas.bronze",
+          "label": "bronze",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.gold",
+          "resourceKey": "resources.schemas.gold",
+          "label": "gold",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.silver",
+          "resourceKey": "resources.schemas.silver",
+          "label": "silver",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-category::pipelines",
+          "resourceKey": "workspace-category::pipelines",
+          "label": "Pipelines",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 26,
+      "by_kind": {
+        "dag": 17,
+        "lateral": 9
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "unchanged": 25
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 16
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 9
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.bronze",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.gold",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.silver",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.retail_bronze_batch",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.retail_bronze_file_arrival",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.retail_daily_orchestrator",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.retail_file_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.retail_silver",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.retail_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "resources.pipelines.customer_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "resources.pipelines.price_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "resources.pipelines.product_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "resources.pipelines.store_history",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "resources.pipelines.supplier_history",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::jobs",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::pipelines",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.retail_bronze_file_arrival",
+          "target": "resources.jobs.retail_file_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator",
+          "target": "resources.jobs.retail_bronze_batch",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator",
+          "target": "resources.jobs.retail_silver",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_daily_orchestrator",
+          "target": "resources.jobs.retail_snapshot_history",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_file_snapshot_history",
+          "target": "resources.pipelines.price_history",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_file_snapshot_history",
+          "target": "resources.pipelines.supplier_history",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_snapshot_history",
+          "target": "resources.pipelines.customer_history",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_snapshot_history",
+          "target": "resources.pipelines.product_history",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.retail_snapshot_history",
+          "target": "resources.pipelines.store_history",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      }
+    ]
+  }
+}

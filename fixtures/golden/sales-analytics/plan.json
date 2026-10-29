@@ -1,0 +1,702 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.20.0",
+  "lineage": "fc49ddae-c31d-44da-9969-05fe20c95eb0",
+  "serial": 1,
+  "plan": {
+    "resources.alerts.high_return_rate": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "display_name": "high_return_rate",
+          "evaluation": {
+            "comparison_operator": "GREATER_THAN",
+            "notification": {
+              "subscriptions": [
+                {
+                  "user_email": "user1@example.com"
+                }
+              ]
+            },
+            "source": {
+              "name": "return_rate"
+            },
+            "threshold": {
+              "value": {
+                "double_value": 0.03
+              }
+            }
+          },
+          "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/resources",
+          "query_text": "SELECT return_rate FROM dagshund.sales_reporting.daily_sales WHERE business_date >= date_sub(current_date(), 30)",
+          "schedule": {
+            "pause_status": "PAUSED",
+            "quartz_cron_schedule": "0 0 8 ? * MON-FRI",
+            "timezone_id": "UTC"
+          },
+          "warehouse_id": "9d0afa601cb95187"
+        }
+      },
+      "remote_state": {
+        "create_time": "2026-10-29T15:19:46Z",
+        "display_name": "high_return_rate",
+        "effective_run_as": {
+          "user_name": "user1@example.com"
+        },
+        "evaluation": {
+          "comparison_operator": "GREATER_THAN",
+          "source": {
+            "name": "return_rate"
+          },
+          "threshold": {
+            "value": {
+              "double_value": 0.05
+            }
+          }
+        },
+        "id": "1563840667367381",
+        "lifecycle_state": "ACTIVE",
+        "owner_user_name": "user1@example.com",
+        "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/resources",
+        "query_text": "SELECT return_rate FROM dagshund.sales_reporting.daily_sales WHERE business_date = current_date()",
+        "schedule": {
+          "pause_status": "PAUSED",
+          "quartz_cron_schedule": "0 0 8 ? * MON-FRI",
+          "timezone_id": "UTC"
+        },
+        "update_time": "2026-10-29T15:19:46Z",
+        "warehouse_id": "9d0afa601cb95187"
+      },
+      "changes": {
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-29T15:19:46Z"
+        },
+        "effective_run_as": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": {
+            "user_name": "user1@example.com"
+          }
+        },
+        "evaluation.notification": {
+          "action": "update",
+          "new": {
+            "subscriptions": [
+              {
+                "user_email": "user1@example.com"
+              }
+            ]
+          }
+        },
+        "evaluation.threshold.value.double_value": {
+          "action": "update",
+          "old": 0.05,
+          "new": 0.03,
+          "remote": 0.05
+        },
+        "id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "1563840667367381"
+        },
+        "lifecycle_state": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "ACTIVE"
+        },
+        "owner_user_name": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "query_text": {
+          "action": "update",
+          "old": "SELECT return_rate FROM dagshund.sales_reporting.daily_sales WHERE business_date = current_date()",
+          "new": "SELECT return_rate FROM dagshund.sales_reporting.daily_sales WHERE business_date >= date_sub(current_date(), 30)",
+          "remote": "SELECT return_rate FROM dagshund.sales_reporting.daily_sales WHERE business_date = current_date()"
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-29T15:19:46Z"
+        }
+      }
+    },
+    "resources.dashboards.sales_overview": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.reporting",
+          "label": "${resources.schemas.reporting.name}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "dataset_catalog": "dagshund",
+          "dataset_schema": "sales_reporting",
+          "display_name": "sales_overview",
+          "embed_credentials": false,
+          "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/resources",
+          "published": true,
+          "serialized_dashboard": "{\"pages\":[{\"name\":\"sales_page\",\"displayName\":\"Sales overview\",\"layout\":[]}],\"datasets\":[{\"name\":\"daily_sales\",\"displayName\":\"Daily sales\",\"query\":\"SELECT business_date, revenue, return_rate FROM daily_sales\"},{\"name\":\"daily_returns\",\"displayName\":\"Daily returns\",\"query\":\"SELECT business_date, returns FROM daily_returns\"}]}\n",
+          "warehouse_id": "9d0afa601cb95187"
+        }
+      },
+      "remote_state": {
+        "create_time": "2026-10-29T15:19:47.390Z",
+        "dashboard_id": "01f1d3ac2d521f129b1628a4ec2a5030",
+        "display_name": "sales_overview",
+        "embed_credentials": false,
+        "etag": "-1609285146",
+        "lifecycle_state": "ACTIVE",
+        "parent_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/resources",
+        "path": "/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/resources/sales_overview.lvdash.json",
+        "published": true,
+        "serialized_dashboard": "{\n  \"datasets\": [\n    {\n      \"name\": \"daily_sales\",\n      \"displayName\": \"Daily sales\",\n      \"queryLines\": [\n        \"SELECT business_date, revenue, return_rate FROM daily_sales\"\n      ],\n      \"catalog\": \"dagshund\",\n      \"schema\": \"sales_reporting\"\n    }\n  ],\n  \"pages\": [\n    {\n      \"name\": \"sales_page\",\n      \"displayName\": \"Sales overview\",\n      \"pageType\": \"PAGE_TYPE_CANVAS\"\n    }\n  ]\n}\n",
+        "update_time": "2026-10-29T15:19:47.432Z",
+        "warehouse_id": "9d0afa601cb95187"
+      },
+      "changes": {
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-29T15:19:47.390Z"
+        },
+        "dashboard_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "01f1d3ac2d521f129b1628a4ec2a5030"
+        },
+        "dataset_catalog": {
+          "action": "skip",
+          "reason": "input_only",
+          "old": "dagshund",
+          "new": "dagshund"
+        },
+        "dataset_schema": {
+          "action": "skip",
+          "reason": "input_only",
+          "old": "sales_reporting",
+          "new": "sales_reporting"
+        },
+        "etag": {
+          "action": "skip",
+          "reason": "custom",
+          "old": "-1609285146",
+          "remote": "-1609285146"
+        },
+        "lifecycle_state": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "ACTIVE"
+        },
+        "path": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/resources/sales_overview.lvdash.json"
+        },
+        "serialized_dashboard": {
+          "action": "update",
+          "old": "sha256:8718a277d2bcb5cd5ff0839171fa01c999d7f2e0c63601ed7c7c26747eb8799b",
+          "new": "sha256:dad9bb053710f8d7ba5f1840297a0751025c0ed0e7023202e4766b8699cbcce7",
+          "remote": "sha256:26fca27bc035ccf72a50fa0ce78ecd7de79cdb7c9b17e4a29b591ce7e7de6e17"
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-29T15:19:47.432Z"
+        }
+      }
+    },
+    "resources.dashboards.sales_overview.permissions": {
+      "depends_on": [
+        {
+          "node": "resources.dashboards.sales_overview",
+          "label": "${resources.dashboards.sales_overview.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "object_id": "/dashboards/01f1d3ac2d521f129b1628a4ec2a5030",
+          "__embed__": [
+            {
+              "level": "CAN_RUN",
+              "group_name": "data_analysts"
+            },
+            {
+              "level": "CAN_MANAGE",
+              "user_name": "user1@example.com"
+            }
+          ]
+        }
+      }
+    },
+    "resources.jobs.sales_reporting": {
+      "depends_on": [
+        {
+          "node": "resources.alerts.high_return_rate",
+          "label": "${resources.alerts.high_return_rate.id}"
+        },
+        {
+          "node": "resources.dashboards.sales_overview",
+          "label": "${resources.dashboards.sales_overview.id}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "sales_reporting",
+          "queue": {
+            "enabled": true
+          },
+          "schedule": {
+            "pause_status": "PAUSED",
+            "quartz_cron_expression": "0 0 8 ? * MON-FRI",
+            "timezone_id": "UTC"
+          },
+          "tasks": [
+            {
+              "depends_on": [
+                {
+                  "task_key": "validate_sales_inputs"
+                }
+              ],
+              "sql_task": {
+                "file": {
+                  "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/daily_revenue.sql"
+                },
+                "parameters": {
+                  "reporting_window_days": "30"
+                },
+                "warehouse_id": "9d0afa601cb95187"
+              },
+              "task_key": "calculate_daily_revenue"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "validate_sales_inputs"
+                }
+              ],
+              "sql_task": {
+                "file": {
+                  "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/regional_performance.sql"
+                },
+                "warehouse_id": "9d0afa601cb95187"
+              },
+              "task_key": "calculate_regional_performance"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "validate_sales_inputs"
+                }
+              ],
+              "sql_task": {
+                "file": {
+                  "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/returns.sql"
+                },
+                "warehouse_id": "9d0afa601cb95187"
+              },
+              "task_key": "calculate_returns"
+            },
+            {
+              "alert_task": {
+                "alert_id": "1563840667367381",
+                "warehouse_id": "9d0afa601cb95187"
+              },
+              "depends_on": [
+                {
+                  "task_key": "refresh_sales_dashboard"
+                }
+              ],
+              "task_key": "evaluate_return_rate"
+            },
+            {
+              "dashboard_task": {
+                "dashboard_id": "01f1d3ac2d521f129b1628a4ec2a5030",
+                "warehouse_id": "9d0afa601cb95187"
+              },
+              "depends_on": [
+                {
+                  "task_key": "calculate_daily_revenue"
+                },
+                {
+                  "task_key": "calculate_regional_performance"
+                },
+                {
+                  "task_key": "calculate_returns"
+                }
+              ],
+              "task_key": "refresh_sales_dashboard"
+            },
+            {
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/validate_sales_inputs"
+              },
+              "task_key": "validate_sales_inputs"
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "created_time": 1793287188193,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 50978471212936,
+        "max_concurrent_runs": 1,
+        "name": "sales_reporting",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "schedule": {
+          "pause_status": "PAUSED",
+          "quartz_cron_expression": "0 0 8 ? * MON-FRI",
+          "timezone_id": "UTC"
+        },
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_sales_inputs"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "run_if": "ALL_SUCCESS",
+            "sql_task": {
+              "file": {
+                "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/daily_revenue.sql",
+                "source": "WORKSPACE"
+              },
+              "parameters": {
+                "reporting_window_days": "7"
+              },
+              "warehouse_id": "9d0afa601cb95187"
+            },
+            "task_key": "calculate_daily_revenue",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "validate_sales_inputs"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "run_if": "ALL_SUCCESS",
+            "sql_task": {
+              "file": {
+                "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/regional_performance.sql",
+                "source": "WORKSPACE"
+              },
+              "warehouse_id": "9d0afa601cb95187"
+            },
+            "task_key": "calculate_regional_performance",
+            "timeout_seconds": 0
+          },
+          {
+            "dashboard_task": {
+              "dashboard_id": "01f1d3ac2d521f129b1628a4ec2a5030",
+              "warehouse_id": "9d0afa601cb95187"
+            },
+            "depends_on": [
+              {
+                "task_key": "calculate_daily_revenue"
+              },
+              {
+                "task_key": "calculate_regional_performance"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "run_if": "ALL_SUCCESS",
+            "task_key": "refresh_sales_dashboard",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/validate_sales_inputs",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "validate_sales_inputs",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='calculate_daily_revenue'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='calculate_daily_revenue'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='calculate_daily_revenue'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='calculate_daily_revenue'].sql_task.file.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='calculate_daily_revenue'].sql_task.parameters['reporting_window_days']": {
+          "action": "update",
+          "old": "7",
+          "new": "30",
+          "remote": "7"
+        },
+        "tasks[task_key='calculate_daily_revenue'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='calculate_regional_performance'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='calculate_regional_performance'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='calculate_regional_performance'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='calculate_regional_performance'].sql_task.file.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='calculate_regional_performance'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='calculate_returns']": {
+          "action": "update",
+          "new": {
+            "depends_on": [
+              {
+                "task_key": "validate_sales_inputs"
+              }
+            ],
+            "sql_task": {
+              "file": {
+                "path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-sales-analytics/default/files/returns.sql"
+              },
+              "warehouse_id": "9d0afa601cb95187"
+            },
+            "task_key": "calculate_returns"
+          }
+        },
+        "tasks[task_key='evaluate_return_rate']": {
+          "action": "update",
+          "new": {
+            "alert_task": {
+              "alert_id": "1563840667367381",
+              "warehouse_id": "9d0afa601cb95187"
+            },
+            "depends_on": [
+              {
+                "task_key": "refresh_sales_dashboard"
+              }
+            ],
+            "task_key": "evaluate_return_rate"
+          }
+        },
+        "tasks[task_key='refresh_sales_dashboard'].depends_on[task_key='calculate_returns']": {
+          "action": "update",
+          "new": {
+            "task_key": "calculate_returns"
+          }
+        },
+        "tasks[task_key='refresh_sales_dashboard'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='refresh_sales_dashboard'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='refresh_sales_dashboard'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='refresh_sales_dashboard'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='validate_sales_inputs'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='validate_sales_inputs'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='validate_sales_inputs'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='validate_sales_inputs'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='validate_sales_inputs'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.schemas.reporting": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1793287187085,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.sales_reporting",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "sales_reporting",
+        "owner": "user1@example.com",
+        "schema_id": "494dca70-4e3f-4fb3-89e8-46a70e4c82d7",
+        "updated_at": 1793287190014,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      }
+    },
+    "resources.schemas.reporting.grants": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.reporting",
+          "label": "${resources.schemas.reporting.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "schema",
+          "full_name": "dagshund.sales_reporting",
+          "__embed__": [
+            {
+              "principal": "data_analysts",
+              "privileges": [
+                "SELECT",
+                "USE_SCHEMA"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "resources.schemas.staging": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1793287187065,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.sales_staging",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "sales_staging",
+        "owner": "user1@example.com",
+        "schema_id": "2a410f79-bf5a-4b27-a81d-0e46b7bc238a",
+        "updated_at": 1793287189994,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      }
+    },
+    "resources.schemas.staging.grants": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.staging",
+          "label": "${resources.schemas.staging.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "schema",
+          "full_name": "dagshund.sales_staging",
+          "__embed__": [
+            {
+              "principal": "data_analysts",
+              "privileges": [
+                "SELECT",
+                "USE_SCHEMA"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

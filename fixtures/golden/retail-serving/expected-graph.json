@@ -1,0 +1,810 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 0,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 0,
+      "total_effect_entries": 0,
+      "with_resource_state": 0,
+      "task_change_summary_total": 0,
+      "entries": []
+    },
+    "edges": {
+      "total": 0,
+      "by_kind": {
+        "dag": 0,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 0
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": []
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 22,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 9,
+        "derived": 6,
+        "root": 4,
+        "phantom": 3
+      },
+      "by_diff_state": {
+        "added": 3,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 17,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 1,
+          "removed": 0,
+          "modified": 2,
+          "unchanged": 6,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 2,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 4,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 4,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 3,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 31,
+      "total_effect_entries": 0,
+      "with_resource_state": 9,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-project::retail-serving",
+          "resourceKey": "resources.postgres_projects.retail_serving",
+          "label": "retail_serving",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "default_branch",
+              "action": "skip"
+            },
+            {
+              "key": "display_name",
+              "action": "skip"
+            },
+            {
+              "key": "permissions",
+              "action": "create"
+            },
+            {
+              "key": "pg_version",
+              "action": "skip"
+            },
+            {
+              "key": "purge_on_delete",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-root",
+          "resourceKey": "postgres-root",
+          "label": "Lakebase",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-synced-pipeline::8422423f-ec0d-4233-bff1-d38ce512a456",
+          "resourceKey": "postgres-synced-pipeline::8422423f-ec0d-4233-bff1-d38ce512a456",
+          "label": "customer_lookup pipeline",
+          "kind": "derived",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": [],
+          "derivedKind": "postgresSyncedTablePipeline",
+          "ownerResourceKey": "resources.postgres_synced_tables.customer_lookup"
+        },
+        {
+          "id": "postgres-synced-pipeline::9e1f4fcb-4d79-48f7-92e9-8abde1ae536b",
+          "resourceKey": "postgres-synced-pipeline::9e1f4fcb-4d79-48f7-92e9-8abde1ae536b",
+          "label": "product_lookup pipeline",
+          "kind": "derived",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": [],
+          "derivedKind": "postgresSyncedTablePipeline",
+          "ownerResourceKey": "resources.postgres_synced_tables.product_lookup"
+        },
+        {
+          "id": "postgres-synced-pipeline::resources.postgres_synced_tables.inventory_lookup",
+          "resourceKey": "postgres-synced-pipeline::resources.postgres_synced_tables.inventory_lookup",
+          "label": "inventory_lookup pipeline",
+          "kind": "derived",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": [],
+          "derivedKind": "postgresSyncedTablePipeline",
+          "ownerResourceKey": "resources.postgres_synced_tables.inventory_lookup"
+        },
+        {
+          "id": "resources.postgres_branches.production",
+          "resourceKey": "resources.postgres_branches.production",
+          "label": "production",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "is_protected",
+              "action": "skip"
+            },
+            {
+              "key": "no_expiry",
+              "action": "skip"
+            },
+            {
+              "key": "replace_existing",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_databases.retail_lookup",
+          "resourceKey": "resources.postgres_databases.retail_lookup",
+          "label": "retail_lookup",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "postgres_database",
+              "action": "skip"
+            },
+            {
+              "key": "role",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_endpoints.primary",
+          "resourceKey": "resources.postgres_endpoints.primary",
+          "label": "primary",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "autoscaling_limit_max_cu",
+              "action": "update"
+            },
+            {
+              "key": "autoscaling_limit_min_cu",
+              "action": "skip"
+            },
+            {
+              "key": "endpoint_type",
+              "action": "skip"
+            },
+            {
+              "key": "replace_existing",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_roles.serving_reader",
+          "resourceKey": "resources.postgres_roles.serving_reader",
+          "label": "serving_reader",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "attributes",
+              "action": "skip"
+            },
+            {
+              "key": "identity_type",
+              "action": "skip"
+            },
+            {
+              "key": "postgres_role",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_synced_tables.customer_lookup",
+          "resourceKey": "resources.postgres_synced_tables.customer_lookup",
+          "label": "customer_lookup",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "branch",
+              "action": "skip"
+            },
+            {
+              "key": "create_database_objects_if_missing",
+              "action": "skip"
+            },
+            {
+              "key": "new_pipeline_spec",
+              "action": "skip"
+            },
+            {
+              "key": "postgres_database",
+              "action": "skip"
+            },
+            {
+              "key": "primary_key_columns",
+              "action": "skip"
+            },
+            {
+              "key": "scheduling_policy",
+              "action": "skip"
+            },
+            {
+              "key": "source_table_full_name",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_synced_tables.inventory_lookup",
+          "resourceKey": "resources.postgres_synced_tables.inventory_lookup",
+          "label": "inventory_lookup",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_synced_tables.product_lookup",
+          "resourceKey": "resources.postgres_synced_tables.product_lookup",
+          "label": "product_lookup",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "branch",
+              "action": "skip"
+            },
+            {
+              "key": "create_database_objects_if_missing",
+              "action": "skip"
+            },
+            {
+              "key": "new_pipeline_spec",
+              "action": "skip"
+            },
+            {
+              "key": "postgres_database",
+              "action": "skip"
+            },
+            {
+              "key": "primary_key_columns",
+              "action": "skip"
+            },
+            {
+              "key": "scheduling_policy",
+              "action": "skip"
+            },
+            {
+              "key": "source_table_full_name",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.retail_sync",
+          "resourceKey": "resources.schemas.retail_sync",
+          "label": "retail_sync",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::dagshund.retail_sources",
+          "resourceKey": "schema::dagshund.retail_sources",
+          "label": "retail_sources",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.retail_sources.inventory_delta",
+          "resourceKey": "source-table::dagshund.retail_sources.inventory_delta",
+          "label": "inventory_delta",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-synced-table::dagshund.retail_sync.customer_lookup",
+          "resourceKey": "uc-synced-table::dagshund.retail_sync.customer_lookup",
+          "label": "customer_lookup",
+          "kind": "derived",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": [],
+          "derivedKind": "ucSyncedTable",
+          "ownerResourceKey": "resources.postgres_synced_tables.customer_lookup"
+        },
+        {
+          "id": "uc-synced-table::dagshund.retail_sync.inventory_lookup",
+          "resourceKey": "uc-synced-table::dagshund.retail_sync.inventory_lookup",
+          "label": "inventory_lookup",
+          "kind": "derived",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": [],
+          "derivedKind": "ucSyncedTable",
+          "ownerResourceKey": "resources.postgres_synced_tables.inventory_lookup"
+        },
+        {
+          "id": "uc-synced-table::dagshund.retail_sync.product_lookup",
+          "resourceKey": "uc-synced-table::dagshund.retail_sync.product_lookup",
+          "label": "product_lookup",
+          "kind": "derived",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": [],
+          "derivedKind": "ucSyncedTable",
+          "ownerResourceKey": "resources.postgres_synced_tables.product_lookup"
+        },
+        {
+          "id": "workspace-category::pipelines",
+          "resourceKey": "workspace-category::pipelines",
+          "label": "Pipelines",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 27,
+      "by_kind": {
+        "dag": 20,
+        "lateral": 7
+      },
+      "by_diff_state": {
+        "added": 3,
+        "removed": 0,
+        "unchanged": 24
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 3,
+          "removed": 0,
+          "unchanged": 17
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 7
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.retail_sync",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.retail_sources",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-project::retail-serving",
+          "target": "resources.postgres_branches.production",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-root",
+          "target": "postgres-project::retail-serving",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-root",
+          "target": "resources.postgres_synced_tables.customer_lookup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-root",
+          "target": "resources.postgres_synced_tables.product_lookup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.production",
+          "target": "resources.postgres_databases.retail_lookup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.production",
+          "target": "resources.postgres_endpoints.primary",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.production",
+          "target": "resources.postgres_roles.serving_reader",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_databases.retail_lookup",
+          "target": "resources.postgres_synced_tables.inventory_lookup",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.retail_sync",
+          "target": "uc-synced-table::dagshund.retail_sync.customer_lookup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.retail_sync",
+          "target": "uc-synced-table::dagshund.retail_sync.inventory_lookup",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.retail_sync",
+          "target": "uc-synced-table::dagshund.retail_sync.product_lookup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.retail_sources",
+          "target": "source-table::dagshund.retail_sources.inventory_delta",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "postgres-synced-pipeline::8422423f-ec0d-4233-bff1-d38ce512a456",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "postgres-synced-pipeline::9e1f4fcb-4d79-48f7-92e9-8abde1ae536b",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::pipelines",
+          "target": "postgres-synced-pipeline::resources.postgres_synced_tables.inventory_lookup",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "postgres-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::pipelines",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-synced-pipeline::8422423f-ec0d-4233-bff1-d38ce512a456",
+          "target": "resources.postgres_synced_tables.customer_lookup",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "postgres-synced-pipeline::9e1f4fcb-4d79-48f7-92e9-8abde1ae536b",
+          "target": "resources.postgres_synced_tables.product_lookup",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "postgres-synced-pipeline::resources.postgres_synced_tables.inventory_lookup",
+          "target": "resources.postgres_synced_tables.inventory_lookup",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.postgres_synced_tables.inventory_lookup",
+          "target": "source-table::dagshund.retail_sources.inventory_delta",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "uc-synced-table::dagshund.retail_sync.customer_lookup",
+          "target": "resources.postgres_synced_tables.customer_lookup",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "uc-synced-table::dagshund.retail_sync.inventory_lookup",
+          "target": "resources.postgres_synced_tables.inventory_lookup",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "uc-synced-table::dagshund.retail_sync.product_lookup",
+          "target": "resources.postgres_synced_tables.product_lookup",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      },
+      {
+        "id": "schema::dagshund.retail_sources",
+        "label": "retail_sources",
+        "resourceKey": "schema::dagshund.retail_sources"
+      },
+      {
+        "id": "source-table::dagshund.retail_sources.inventory_delta",
+        "label": "inventory_delta",
+        "resourceKey": "source-table::dagshund.retail_sources.inventory_delta"
+      }
+    ]
+  }
+}

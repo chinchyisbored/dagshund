@@ -1,0 +1,38 @@
+dagshund plan (v2, cli 1.20.0)
+
+  experiments (2)
+  = experiments/training_experiment
+  = experiments/validation
+
+  jobs (2)
+  = jobs/seed_model_versions_job
+      = run seed_model_versions_run (already ran successfully)
+  ~ jobs/workflow  (update)
+      ~ parameters[name='learning_rate'].default: "0.1" -> "0.05"
+      + tasks[task_key='compare_models']: {3 fields}
+      + tasks[task_key='evaluate_baseline']: {3 fields}
+      + tasks[task_key='quality_gate']: {3 fields}
+      - tasks[task_key='register_promote'].depends_on[task_key='evaluate_candidate']: {task_key: "evaluate_candidate"}
+      + tasks[task_key='register_promote'].depends_on[task_key='quality_gate']: {outcome: "true", task_key: "quality_gate"}
+      + tasks[task_key='train_baseline']: {3 fields}
+
+  model_serving_endpoints (1)
+  ~ model_serving_endpoints/candidate_endpoint  (update)
+      ~ config.served_entities[0].entity_version: "1" -> "2"
+      + permissions: {2 fields}
+
+  registered_models (2)
+  = registered_models/baseline
+  ~ registered_models/candidate  (update)
+      + grants: {3 fields}
+
+  schemas (2)
+  ~ schemas/registry  (update)
+      + grants: {3 fields}
+  = schemas/training_schema
+
+  volumes (1)
+  = volumes/training_data
+
+  =6 unchanged, ~4 update
+  runs: =1 unchanged

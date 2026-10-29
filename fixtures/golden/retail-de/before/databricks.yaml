@@ -1,0 +1,159 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+bundle:
+  name: dagshund-golden-retail-de
+  databricks_cli_version: "1.20.0"
+  engine: direct
+
+presets:
+  trigger_pause_status: PAUSED
+
+include:
+  - ../../externals.yaml
+
+workspace:
+  host: https://dbc-c1c0b013-636f.cloud.databricks.com
+  root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/default
+
+resources:
+  schemas:
+    bronze:
+      catalog_name: ${var.catalog_name}
+      name: retail_bronze
+    silver:
+      catalog_name: ${var.catalog_name}
+      name: retail_silver
+    gold:
+      catalog_name: ${var.catalog_name}
+      name: retail_gold
+
+  pipelines:
+    customer_history:
+      name: retail_customer_history
+      catalog: ${var.catalog_name}
+      target: retail_gold
+      serverless: true
+      cascade_on_destroy: false
+      libraries:
+        - notebook:
+            path: ./history.py
+    product_history:
+      name: retail_product_history
+      catalog: ${var.catalog_name}
+      target: retail_gold
+      serverless: true
+      cascade_on_destroy: false
+      libraries:
+        - notebook:
+            path: ./history.py
+    supplier_history:
+      name: retail_supplier_history
+      catalog: ${var.catalog_name}
+      target: retail_gold
+      serverless: true
+      cascade_on_destroy: false
+      libraries:
+        - notebook:
+            path: ./history.py
+    price_history:
+      name: retail_price_history
+      catalog: ${var.catalog_name}
+      target: retail_gold
+      serverless: true
+      cascade_on_destroy: false
+      libraries:
+        - notebook:
+            path: ./history.py
+
+  jobs:
+    retail_daily_orchestrator:
+      name: retail_daily_orchestrator
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: UTC
+        pause_status: PAUSED
+      tasks:
+        - task_key: run_bronze
+          run_job_task:
+            job_id: ${resources.jobs.retail_bronze_batch.id}
+        - task_key: run_silver
+          depends_on: [{task_key: run_bronze}]
+          run_job_task:
+            job_id: ${resources.jobs.retail_silver.id}
+        - task_key: run_historization
+          depends_on: [{task_key: run_silver}]
+          run_job_task:
+            job_id: ${resources.jobs.retail_snapshot_history.id}
+    retail_bronze_batch:
+      name: retail_bronze_batch
+      tasks:
+        - task_key: ingest_tables
+          for_each_task:
+            inputs: '["customers", "products", "orders", "order_items"]'
+            concurrency: 2
+            task:
+              task_key: ingest_table
+              notebook_task:
+                notebook_path: ./ingest_table.py
+                base_parameters: {table: "{{input}}"}
+    retail_silver:
+      name: retail_silver
+      tasks:
+        - task_key: validate_customers
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: validate_products
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: validate_orders
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: normalize_customers
+          depends_on: [{task_key: validate_customers}]
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: normalize_products
+          depends_on: [{task_key: validate_products}]
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: enrich_orders
+          depends_on: [{task_key: validate_orders}]
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: check_quality_results
+          depends_on:
+            - {task_key: normalize_customers}
+            - {task_key: normalize_products}
+            - {task_key: enrich_orders}
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: publish_snapshots
+          depends_on: [{task_key: check_quality_results}]
+          notebook_task: {notebook_path: ./placeholder.py, base_parameters: {mode: baseline}}
+    retail_snapshot_history:
+      name: retail_snapshot_history
+      tasks:
+        - task_key: customer_history
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.customer_history.id}
+        - task_key: product_history
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.product_history.id}
+    retail_bronze_file_arrival:
+      name: retail_bronze_file_arrival
+      trigger:
+        file_arrival:
+          url: /Volumes/${var.catalog_name}/${var.models_schema}/${var.volume_name}/retail/
+        pause_status: PAUSED
+      tasks:
+        - task_key: ingest_supplier_updates
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: ingest_price_updates
+          notebook_task: {notebook_path: ./placeholder.py}
+        - task_key: run_file_snapshot_history
+          depends_on:
+            - {task_key: ingest_supplier_updates}
+            - {task_key: ingest_price_updates}
+          run_job_task:
+            job_id: ${resources.jobs.retail_file_snapshot_history.id}
+    retail_file_snapshot_history:
+      name: retail_file_snapshot_history
+      tasks:
+        - task_key: supplier_history
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.supplier_history.id}
+        - task_key: price_history
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.price_history.id}

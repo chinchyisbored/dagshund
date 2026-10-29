@@ -1,0 +1,146 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# ML validation and serving showcase after-state. The workflow is illustrative
+# and is not run by fixture regeneration; unchanged bootstrap run is skipped.
+# Its one identity artifact supplies two versions of the owned candidate model.
+bundle:
+  name: dagshund-golden-ml-workflow
+  databricks_cli_version: ">=1.20.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  schemas:
+    training_schema:
+      catalog_name: ${var.catalog_name}
+      name: ml_training
+    registry:
+      catalog_name: ${var.catalog_name}
+      name: ml_registry
+      grants:
+        - principal: data_analysts
+          privileges:
+            - USE_SCHEMA
+
+  volumes:
+    training_data:
+      catalog_name: ${var.catalog_name}
+      schema_name: ${resources.schemas.training_schema.name}
+      name: training_data
+      volume_type: MANAGED
+
+  registered_models:
+    baseline:
+      catalog_name: ${var.catalog_name}
+      schema_name: ${resources.schemas.registry.name}
+      name: ml_baseline
+    candidate:
+      catalog_name: ${var.catalog_name}
+      schema_name: ${resources.schemas.registry.name}
+      name: ml_candidate
+      grants:
+        - principal: data_analysts
+          privileges:
+            - EXECUTE
+
+  experiments:
+    training_experiment:
+      name: /Workspace/experiments/dagshund_ml_training
+    validation:
+      name: /Workspace/experiments/dagshund_ml_validation
+
+  jobs:
+    workflow:
+      name: dagshund_ml_workflow
+      tasks:
+        - task_key: load_validate
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: features
+          depends_on:
+            - task_key: load_validate
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: split_data
+          depends_on:
+            - task_key: features
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: train_candidate
+          depends_on:
+            - task_key: split_data
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: evaluate_candidate
+          depends_on:
+            - task_key: train_candidate
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: train_baseline
+          depends_on:
+            - task_key: split_data
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: evaluate_baseline
+          depends_on:
+            - task_key: train_baseline
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: compare_models
+          depends_on:
+            - task_key: evaluate_candidate
+            - task_key: evaluate_baseline
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: quality_gate
+          depends_on:
+            - task_key: compare_models
+          condition_task:
+            op: GREATER_THAN
+            left: "1"
+            right: "0"
+        - task_key: register_promote
+          depends_on:
+            - task_key: quality_gate
+              outcome: "true"
+          notebook_task:
+            notebook_path: ./workflow_task.py
+        - task_key: serving_checks
+          depends_on:
+            - task_key: register_promote
+          notebook_task:
+            notebook_path: ./workflow_task.py
+      parameters:
+        - name: learning_rate
+          default: "0.05"
+
+    seed_model_versions_job:
+      name: dagshund_ml_seed_model_versions
+      tasks:
+        - task_key: seed
+          notebook_task:
+            notebook_path: ./bootstrap_model.py
+            base_parameters:
+              model_name: ${resources.registered_models.candidate.full_name}
+              experiment_id: ${resources.experiments.training_experiment.id}
+
+  job_runs:
+    seed_model_versions_run:
+      job_id: ${resources.jobs.seed_model_versions_job.id}
+
+  model_serving_endpoints:
+    candidate_endpoint:
+      name: dagshund_ml_candidate
+      config:
+        served_entities:
+          - entity_name: ${resources.registered_models.candidate.full_name}
+            entity_version: "2"
+            workload_size: Small
+            scale_to_zero_enabled: true
+      tags:
+        - key: fixture_bootstrap
+          value: ${resources.job_runs.seed_model_versions_run.state.result_state}
+      permissions:
+        - group_name: data_analysts
+          level: CAN_QUERY

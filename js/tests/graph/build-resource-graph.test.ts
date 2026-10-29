@@ -15,6 +15,50 @@ import {
 } from "../helpers/build-graphs-from-plan.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
+describe("generic resource fallback", () => {
+  const resourceTypes = ["cluster_policies", "models"] as const;
+  const actions = ["create", "update", "delete", "unknown"] as const;
+
+  for (const resourceType of resourceTypes) {
+    for (const action of actions) {
+      test(`${resourceType} ${action} preserves opaque workspace state without inferred edges`, () => {
+        const resourceKey = `resources.${resourceType}.opaque`;
+        const state = {
+          name: "opaque",
+          nested: { policy_definition: { "spark_conf.spark.executor.memory": "4g" } },
+          warehouse_id: "not-a-supported-reference",
+          catalog_name: "not-a-supported-reference",
+        };
+        const entry =
+          action === "delete"
+            ? { action, remote_state: state }
+            : { action, new_state: { value: state } };
+
+        const graph = buildResourceGraphFromPlan({ plan: { [resourceKey]: entry } });
+        const node = graph.nodes.find((candidate) => candidate.resourceKey === resourceKey);
+
+        const expectedDiffState = {
+          create: "added",
+          update: "modified",
+          delete: "removed",
+          unknown: "unknown",
+        }[action];
+        expect(node).toMatchObject({
+          id: resourceKey,
+          nodeKind: "resource",
+          resourceKey,
+          resourceState: state,
+          diffState: expectedDiffState,
+        });
+        expect(graph.edges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+          `workspace-root→${resourceKey}`,
+        );
+        expect(graph.lateralEdges).toEqual([]);
+      });
+    }
+  }
+});
+
 describe("extractResourceType", () => {
   test("renders cleanup entries as modified and retains named subresource annotations", () => {
     const graph = buildResourceGraphFromPlan({

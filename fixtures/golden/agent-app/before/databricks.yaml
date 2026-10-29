@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+# Baseline Agent App with owned session storage and harmless storage checks.
+bundle:
+  name: dagshund-golden-agent-app
+  databricks_cli_version: ">=1.0.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  apps:
+    retail_assistant:
+      name: retail-assistant
+      description: Retail assistant with session storage
+      source_code_path: ./app
+      resources:
+        - name: session_database
+          postgres:
+            branch: ${resources.postgres_branches.production.id}
+            database: ${resources.postgres_databases.agent_sessions.id}
+            permission: CAN_CONNECT_AND_CREATE
+        - name: trace_experiment
+          experiment:
+            experiment_id: ${resources.experiments.retail_agent_traces.id}
+            permission: CAN_EDIT
+        - name: knowledge_volume
+          uc_securable:
+            securable_full_name: ${resources.volumes.agent_knowledge_volume.id}
+            securable_type: VOLUME
+            permission: READ_VOLUME
+
+  schemas:
+    agent_knowledge_schema:
+      name: agent_knowledge
+      catalog_name: ${var.catalog_name}
+
+  volumes:
+    agent_knowledge_volume:
+      name: agent_knowledge_volume
+      catalog_name: ${var.catalog_name}
+      schema_name: ${resources.schemas.agent_knowledge_schema.name}
+      volume_type: MANAGED
+
+  vector_search_endpoints:
+    agent_knowledge_endpoint:
+      name: dagshund-agent-knowledge-search
+      endpoint_type: STANDARD
+
+  experiments:
+    retail_agent_traces:
+      name: /Workspace/experiments/retail_agent_traces
+
+  postgres_projects:
+    retail_agent:
+      project_id: retail-agent
+      display_name: Retail Agent
+      pg_version: 17
+      purge_on_delete: true
+      default_branch: projects/retail-agent/branches/production
+
+  postgres_branches:
+    production:
+      parent: ${resources.postgres_projects.retail_agent.id}
+      branch_id: production
+      is_protected: false
+      no_expiry: true
+      replace_existing: true
+
+  postgres_roles:
+    agent_app:
+      parent: ${resources.postgres_branches.production.id}
+      role_id: data-analysts
+      postgres_role: data_analysts
+      identity_type: GROUP
+      auth_method: LAKEBASE_OAUTH_V1
+
+  postgres_databases:
+    agent_sessions:
+      parent: ${resources.postgres_branches.production.id}
+      database_id: agent-sessions
+      postgres_database: agent_sessions
+      role: ${resources.postgres_roles.agent_app.id}
+
+  postgres_endpoints:
+    production_endpoint:
+      parent: ${resources.postgres_branches.production.id}
+      endpoint_id: primary
+      endpoint_type: ENDPOINT_TYPE_READ_WRITE
+      autoscaling_limit_min_cu: 0.5
+      autoscaling_limit_max_cu: 0.5
+      replace_existing: true
+
+  jobs:
+    prepare_agent_knowledge:
+      name: prepare_agent_knowledge
+      tasks:
+        - task_key: inspect_source
+          notebook_task:
+            notebook_path: ./task.py
+        - task_key: prepare_documents
+          depends_on:
+            - task_key: inspect_source
+          notebook_task:
+            notebook_path: ./task.py
+        - task_key: verify_preparation
+          depends_on:
+            - task_key: prepare_documents
+          notebook_task:
+            notebook_path: ./task.py
+    initialize_agent_storage:
+      name: initialize_agent_storage
+      tasks:
+        - task_key: check_database
+          notebook_task:
+            notebook_path: ./task.py
+        - task_key: apply_session_schema
+          depends_on:
+            - task_key: check_database
+          notebook_task:
+            notebook_path: ./task.py
+        - task_key: verify_session_storage
+          depends_on:
+            - task_key: apply_session_schema
+          notebook_task:
+            notebook_path: ./task.py
+
+  job_runs:
+    apply_session_migration:
+      job_id: ${resources.jobs.initialize_agent_storage.id}
+      job_parameters:
+        schema_version: v1

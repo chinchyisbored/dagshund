@@ -1,0 +1,1137 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.20.0",
+  "lineage": "46e09978-1785-4a9e-a5c8-81c7062c6d7e",
+  "serial": 1,
+  "plan": {
+    "resources.apps.retail_assistant": {
+      "depends_on": [
+        {
+          "node": "resources.experiments.retail_agent_traces",
+          "label": "${resources.experiments.retail_agent_traces.id}"
+        },
+        {
+          "node": "resources.postgres_branches.production",
+          "label": "${resources.postgres_branches.production.id}"
+        },
+        {
+          "node": "resources.postgres_databases.agent_sessions",
+          "label": "${resources.postgres_databases.agent_sessions.id}"
+        },
+        {
+          "node": "resources.vector_search_indexes.agent_knowledge_index",
+          "label": "${resources.vector_search_indexes.agent_knowledge_index.name}"
+        },
+        {
+          "node": "resources.volumes.agent_knowledge_volume",
+          "label": "${resources.volumes.agent_knowledge_volume.id}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "description": "Retail assistant with session storage",
+          "name": "retail-assistant",
+          "resources": [
+            {
+              "name": "session_database",
+              "postgres": {
+                "branch": "projects/retail-agent/branches/production",
+                "database": "projects/retail-agent/branches/production/databases/agent-sessions",
+                "permission": "CAN_CONNECT_AND_CREATE"
+              }
+            },
+            {
+              "experiment": {
+                "experiment_id": "10668152518462",
+                "permission": "CAN_EDIT"
+              },
+              "name": "trace_experiment"
+            },
+            {
+              "name": "chat_endpoint",
+              "serving_endpoint": {
+                "name": "databricks-gpt-oss-20b",
+                "permission": "CAN_QUERY"
+              }
+            },
+            {
+              "name": "knowledge_volume",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.agent_knowledge.agent_knowledge_volume",
+                "securable_type": "VOLUME"
+              }
+            },
+            {
+              "name": "knowledge_index",
+              "uc_securable": {
+                "permission": "SELECT",
+                "securable_full_name": "dagshund.agent_knowledge.agent_knowledge_index",
+                "securable_type": "TABLE"
+              }
+            }
+          ],
+          "source_code_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/app"
+        }
+      },
+      "remote_state": {
+        "app_status": {
+          "message": "App status is unavailable.",
+          "state": "UNAVAILABLE"
+        },
+        "compute_size": "MEDIUM",
+        "compute_status": {
+          "message": "Start the app compute to deploy the app.",
+          "state": "STOPPED"
+        },
+        "create_time": "2026-10-29T18:49:00Z",
+        "creator": "user1@example.com",
+        "description": "Retail assistant with session storage",
+        "effective_user_api_scopes": [
+          "iam.access-control:read",
+          "iam.current-user:read"
+        ],
+        "id": "18760772-7f7e-4db1-baa5-a79881ba9e72",
+        "lifecycle": {
+          "started": false
+        },
+        "name": "retail-assistant",
+        "oauth2_app_client_id": "62cb1a6b-fd3b-459d-9659-323c68decc28",
+        "oauth2_app_integration_id": "62cb1a6b-fd3b-459d-9659-323c68decc28",
+        "resources": [
+          {
+            "name": "session_database",
+            "postgres": {
+              "branch": "projects/retail-agent/branches/production",
+              "database": "projects/retail-agent/branches/production/databases/agent-sessions",
+              "permission": "CAN_CONNECT_AND_CREATE"
+            }
+          },
+          {
+            "experiment": {
+              "experiment_id": "10668152518462",
+              "permission": "CAN_EDIT"
+            },
+            "name": "trace_experiment"
+          },
+          {
+            "name": "knowledge_volume",
+            "uc_securable": {
+              "permission": "READ_VOLUME",
+              "securable_full_name": "dagshund.agent_knowledge.agent_knowledge_volume",
+              "securable_type": "VOLUME"
+            }
+          }
+        ],
+        "service_principal_client_id": "18760772-7f7e-4db1-baa5-a79881ba9e72",
+        "service_principal_id": 71729267410964,
+        "service_principal_name": "app-4u0gcs retail-assistant",
+        "thumbnail_url": "",
+        "update_time": "2026-10-29T18:49:21Z",
+        "updater": "user1@example.com",
+        "url": "https://retail-assistant-7474654640708173.aws.databricksapps.com"
+      },
+      "changes": {
+        "app_status": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": {
+            "message": "App status is unavailable.",
+            "state": "UNAVAILABLE"
+          }
+        },
+        "compute_size": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "MEDIUM"
+        },
+        "compute_status": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": {
+            "message": "Start the app compute to deploy the app.",
+            "state": "STOPPED"
+          }
+        },
+        "create_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-29T18:49:00Z"
+        },
+        "creator": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "effective_user_api_scopes": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": [
+            "iam.access-control:read",
+            "iam.current-user:read"
+          ]
+        },
+        "id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "18760772-7f7e-4db1-baa5-a79881ba9e72"
+        },
+        "lifecycle": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": {
+            "started": false
+          }
+        },
+        "oauth2_app_client_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "62cb1a6b-fd3b-459d-9659-323c68decc28"
+        },
+        "oauth2_app_integration_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "62cb1a6b-fd3b-459d-9659-323c68decc28"
+        },
+        "resources": {
+          "action": "update",
+          "old": [
+            {
+              "name": "session_database",
+              "postgres": {
+                "branch": "projects/retail-agent/branches/production",
+                "database": "projects/retail-agent/branches/production/databases/agent-sessions",
+                "permission": "CAN_CONNECT_AND_CREATE"
+              }
+            },
+            {
+              "experiment": {
+                "experiment_id": "10668152518462",
+                "permission": "CAN_EDIT"
+              },
+              "name": "trace_experiment"
+            },
+            {
+              "name": "knowledge_volume",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.agent_knowledge.agent_knowledge_volume",
+                "securable_type": "VOLUME"
+              }
+            }
+          ],
+          "new": [
+            {
+              "name": "session_database",
+              "postgres": {
+                "branch": "projects/retail-agent/branches/production",
+                "database": "projects/retail-agent/branches/production/databases/agent-sessions",
+                "permission": "CAN_CONNECT_AND_CREATE"
+              }
+            },
+            {
+              "experiment": {
+                "experiment_id": "10668152518462",
+                "permission": "CAN_EDIT"
+              },
+              "name": "trace_experiment"
+            },
+            {
+              "name": "chat_endpoint",
+              "serving_endpoint": {
+                "name": "databricks-gpt-oss-20b",
+                "permission": "CAN_QUERY"
+              }
+            },
+            {
+              "name": "knowledge_volume",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.agent_knowledge.agent_knowledge_volume",
+                "securable_type": "VOLUME"
+              }
+            },
+            {
+              "name": "knowledge_index",
+              "uc_securable": {
+                "permission": "SELECT",
+                "securable_full_name": "dagshund.agent_knowledge.agent_knowledge_index",
+                "securable_type": "TABLE"
+              }
+            }
+          ],
+          "remote": [
+            {
+              "name": "session_database",
+              "postgres": {
+                "branch": "projects/retail-agent/branches/production",
+                "database": "projects/retail-agent/branches/production/databases/agent-sessions",
+                "permission": "CAN_CONNECT_AND_CREATE"
+              }
+            },
+            {
+              "experiment": {
+                "experiment_id": "10668152518462",
+                "permission": "CAN_EDIT"
+              },
+              "name": "trace_experiment"
+            },
+            {
+              "name": "knowledge_volume",
+              "uc_securable": {
+                "permission": "READ_VOLUME",
+                "securable_full_name": "dagshund.agent_knowledge.agent_knowledge_volume",
+                "securable_type": "VOLUME"
+              }
+            }
+          ]
+        },
+        "service_principal_client_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "18760772-7f7e-4db1-baa5-a79881ba9e72"
+        },
+        "service_principal_id": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": 71729267410964
+        },
+        "service_principal_name": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "app-4u0gcs retail-assistant"
+        },
+        "source_code_path": {
+          "action": "skip",
+          "reason": "no active deployment",
+          "old": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/app",
+          "new": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/app"
+        },
+        "thumbnail_url": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": ""
+        },
+        "update_time": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "2026-10-29T18:49:21Z"
+        },
+        "updater": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "user1@example.com"
+        },
+        "url": {
+          "action": "skip",
+          "reason": "spec:output_only",
+          "remote": "https://retail-assistant-7474654640708173.aws.databricksapps.com"
+        }
+      }
+    },
+    "resources.experiments.retail_agent_traces": {
+      "action": "skip",
+      "remote_state": {
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/10668152518462",
+        "creation_time": 1793299728744,
+        "experiment_id": "10668152518462",
+        "last_update_time": 1793299728744,
+        "lifecycle_stage": "active",
+        "name": "/experiments/retail_agent_traces",
+        "tags": [
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.experiment.sourceName",
+            "value": "/experiments/retail_agent_traces"
+          },
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.ownerEmail",
+            "value": "user1@example.com"
+          },
+          {
+            "key": "mlflow.experimentType",
+            "value": "MLFLOW_EXPERIMENT"
+          }
+        ]
+      },
+      "changes": {
+        "artifact_location": {
+          "action": "skip",
+          "reason": "immutable_backend_value",
+          "remote": "dbfs:/databricks/mlflow-tracking/10668152518462"
+        },
+        "name": {
+          "action": "skip",
+          "reason": "alias",
+          "old": "/Workspace/experiments/retail_agent_traces",
+          "new": "/Workspace/experiments/retail_agent_traces",
+          "remote": "/experiments/retail_agent_traces"
+        },
+        "tags": {
+          "action": "skip",
+          "reason": "terraform_compat",
+          "remote": [
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.experiment.sourceName",
+              "value": "/experiments/retail_agent_traces"
+            },
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.ownerEmail",
+              "value": "user1@example.com"
+            },
+            {
+              "key": "mlflow.experimentType",
+              "value": "MLFLOW_EXPERIMENT"
+            }
+          ]
+        }
+      }
+    },
+    "resources.job_runs.apply_session_migration": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.initialize_agent_storage",
+          "label": "${resources.jobs.initialize_agent_storage.id}"
+        }
+      ],
+      "action": "recreate",
+      "new_state": {
+        "value": {
+          "job_id": 588366231426072,
+          "job_parameters": {
+            "schema_version": "v2"
+          },
+          "result_state": "SUCCESS"
+        }
+      },
+      "remote_state": {
+        "job_id": 588366231426072,
+        "job_parameters": {
+          "schema_version": "v1"
+        },
+        "result_state": "SUCCESS",
+        "run_id": 885521012460117,
+        "run_name": "initialize_agent_storage",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/588366231426072/runs/885521012460117?o=7474654640708173",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS"
+        }
+      },
+      "changes": {
+        "job_parameters['schema_version']": {
+          "action": "recreate",
+          "reason": "immutable",
+          "old": "v1",
+          "new": "v2",
+          "remote": "v1"
+        },
+        "result_state": {
+          "action": "skip",
+          "reason": "remote_already_set",
+          "new": "SUCCESS",
+          "remote": "SUCCESS"
+        }
+      }
+    },
+    "resources.jobs.initialize_agent_storage": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1793299728910,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 588366231426072,
+        "max_concurrent_runs": 1,
+        "name": "initialize_agent_storage",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "check_database"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "apply_session_schema",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "check_database",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "apply_session_schema"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "verify_session_storage",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='apply_session_schema'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='apply_session_schema'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='apply_session_schema'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='apply_session_schema'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='apply_session_schema'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='check_database'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='check_database'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='check_database'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='check_database'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='check_database'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='verify_session_storage'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='verify_session_storage'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='verify_session_storage'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='verify_session_storage'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='verify_session_storage'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.jobs.prepare_agent_knowledge": {
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1793299728891,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 692490556350611,
+        "max_concurrent_runs": 1,
+        "name": "prepare_agent_knowledge",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "inspect_source",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "inspect_source"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "prepare_documents",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "prepare_documents"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-agent-app/default/files/task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "verify_preparation",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='inspect_source'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='inspect_source'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='inspect_source'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='inspect_source'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='inspect_source'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='prepare_documents'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='prepare_documents'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='prepare_documents'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='prepare_documents'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='prepare_documents'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='verify_preparation'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='verify_preparation'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='verify_preparation'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='verify_preparation'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='verify_preparation'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.postgres_branches.production": {
+      "depends_on": [
+        {
+          "node": "resources.postgres_projects.retail_agent",
+          "label": "${resources.postgres_projects.retail_agent.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "branch_id": "production",
+        "create_time": "2026-10-29T18:48:48Z",
+        "name": "projects/retail-agent/branches/production",
+        "parent": "projects/retail-agent",
+        "status": {
+          "branch_id": "production",
+          "current_state": "READY",
+          "default": true,
+          "is_protected": false,
+          "logical_size_bytes": 0,
+          "state_change_time": "2026-10-29T18:48:50Z"
+        },
+        "uid": "br-long-bird-d8get3n5",
+        "update_time": "2026-10-29T18:48:54Z"
+      },
+      "changes": {
+        "is_protected": {
+          "action": "skip",
+          "reason": "empty",
+          "old": false,
+          "new": false
+        },
+        "no_expiry": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": true,
+          "new": true
+        },
+        "replace_existing": {
+          "action": "skip",
+          "reason": "missing_in_remote",
+          "old": true,
+          "new": true
+        }
+      }
+    },
+    "resources.postgres_databases.agent_sessions": {
+      "depends_on": [
+        {
+          "node": "resources.postgres_branches.production",
+          "label": "${resources.postgres_branches.production.id}"
+        },
+        {
+          "node": "resources.postgres_roles.agent_app",
+          "label": "${resources.postgres_roles.agent_app.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "create_time": "2026-10-29T18:48:56Z",
+        "database_id": "agent-sessions",
+        "name": "projects/retail-agent/branches/production/databases/agent-sessions",
+        "parent": "projects/retail-agent/branches/production",
+        "role": "",
+        "status": {
+          "database_id": "agent-sessions",
+          "postgres_database": "agent_sessions",
+          "role": "projects/retail-agent/branches/production/roles/data-analysts"
+        },
+        "update_time": "2026-10-29T18:48:57Z"
+      },
+      "changes": {
+        "postgres_database": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "agent_sessions",
+          "new": "agent_sessions"
+        },
+        "role": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "projects/retail-agent/branches/production/roles/data-analysts",
+          "new": "projects/retail-agent/branches/production/roles/data-analysts",
+          "remote": ""
+        }
+      }
+    },
+    "resources.postgres_endpoints.production_endpoint": {
+      "depends_on": [
+        {
+          "node": "resources.postgres_branches.production",
+          "label": "${resources.postgres_branches.production.id}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "autoscaling_limit_max_cu": 1,
+          "autoscaling_limit_min_cu": 0.5,
+          "endpoint_id": "primary",
+          "endpoint_type": "ENDPOINT_TYPE_READ_WRITE",
+          "parent": "projects/retail-agent/branches/production",
+          "replace_existing": true
+        }
+      },
+      "remote_state": {
+        "create_time": "2026-10-29T18:48:48Z",
+        "endpoint_id": "primary",
+        "endpoint_type": "",
+        "name": "projects/retail-agent/branches/production/endpoints/primary",
+        "parent": "projects/retail-agent/branches/production",
+        "status": {
+          "autoscaling_limit_max_cu": 0.5,
+          "autoscaling_limit_min_cu": 0.5,
+          "current_state": "ACTIVE",
+          "disabled": false,
+          "endpoint_id": "primary",
+          "endpoint_type": "ENDPOINT_TYPE_READ_WRITE",
+          "group": {
+            "enable_readable_secondaries": false,
+            "max": 1,
+            "min": 1
+          },
+          "hosts": {
+            "host": "ep-cold-voice-d8006j64.database.us-east-2.cloud.databricks.com",
+            "read_write_pooled_host": "ep-cold-voice-d8006j64-pooler.database.us-east-2.cloud.databricks.com"
+          },
+          "last_active_time": "2000-01-01T00:00:00Z",
+          "settings": {},
+          "suspend_timeout_duration": "86400s"
+        },
+        "uid": "ep-cold-voice-d8006j64",
+        "update_time": "2026-10-29T18:49:03Z"
+      },
+      "changes": {
+        "autoscaling_limit_max_cu": {
+          "action": "update",
+          "old": 0.5,
+          "new": 1
+        },
+        "autoscaling_limit_min_cu": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": 0.5,
+          "new": 0.5
+        },
+        "endpoint_type": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "ENDPOINT_TYPE_READ_WRITE",
+          "new": "ENDPOINT_TYPE_READ_WRITE",
+          "remote": ""
+        },
+        "replace_existing": {
+          "action": "skip",
+          "reason": "missing_in_remote",
+          "old": true,
+          "new": true
+        }
+      }
+    },
+    "resources.postgres_projects.retail_agent": {
+      "action": "skip",
+      "remote_state": {
+        "create_time": "2026-10-29T18:48:48Z",
+        "name": "projects/retail-agent",
+        "project_id": "retail-agent",
+        "status": {
+          "branch_logical_size_limit_bytes": 536870912,
+          "default_branch": "projects/retail-agent/branches/production",
+          "default_endpoint_settings": {
+            "autoscaling_limit_max_cu": 1,
+            "autoscaling_limit_min_cu": 1,
+            "suspend_timeout_duration": "86400s"
+          },
+          "display_name": "Retail Agent",
+          "enable_pg_native_login": false,
+          "history_retention_duration": "604800s",
+          "owner": "user1@example.com",
+          "pg_version": 17,
+          "project_id": "retail-agent",
+          "synthetic_storage_size_bytes": 0
+        },
+        "uid": "102f0a7f-d0f6-4dec-aad9-e50dd767faf4",
+        "update_time": "2026-10-29T18:48:50Z"
+      },
+      "changes": {
+        "default_branch": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "projects/retail-agent/branches/production",
+          "new": "projects/retail-agent/branches/production"
+        },
+        "display_name": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "Retail Agent",
+          "new": "Retail Agent"
+        },
+        "pg_version": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": 17,
+          "new": 17
+        },
+        "purge_on_delete": {
+          "action": "skip",
+          "reason": "missing_in_remote",
+          "old": true,
+          "new": true
+        }
+      }
+    },
+    "resources.postgres_roles.agent_app": {
+      "depends_on": [
+        {
+          "node": "resources.postgres_branches.production",
+          "label": "${resources.postgres_branches.production.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "create_time": "2026-10-29T18:48:54Z",
+        "name": "projects/retail-agent/branches/production/roles/data-analysts",
+        "parent": "projects/retail-agent/branches/production",
+        "role_id": "data-analysts",
+        "status": {
+          "attributes": {
+            "bypassrls": false,
+            "createdb": false,
+            "createrole": false
+          },
+          "auth_method": "LAKEBASE_OAUTH_V1",
+          "identity_type": "GROUP",
+          "postgres_role": "data_analysts",
+          "role_id": "data-analysts"
+        },
+        "update_time": "2026-10-29T18:48:55Z"
+      },
+      "changes": {
+        "auth_method": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "LAKEBASE_OAUTH_V1",
+          "new": "LAKEBASE_OAUTH_V1"
+        },
+        "identity_type": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "GROUP",
+          "new": "GROUP"
+        },
+        "postgres_role": {
+          "action": "skip",
+          "reason": "spec:input_only",
+          "old": "data_analysts",
+          "new": "data_analysts"
+        }
+      }
+    },
+    "resources.schemas.agent_knowledge_schema": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1793299728722,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.agent_knowledge",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "agent_knowledge",
+        "owner": "user1@example.com",
+        "schema_id": "5611f0ef-3de1-4ad9-9ead-43889c4d44ab",
+        "updated_at": 1793299730641,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      }
+    },
+    "resources.vector_search_endpoints.agent_knowledge_endpoint": {
+      "action": "skip",
+      "remote_state": {
+        "creation_timestamp": 1793299729066,
+        "creator": "user1@example.com",
+        "endpoint_status": {
+          "state": "ONLINE"
+        },
+        "endpoint_type": "STANDARD",
+        "endpoint_uuid": "ee325914-6a71-44aa-8555-9ef75e1a6317",
+        "id": "ee325914-6a71-44aa-8555-9ef75e1a6317",
+        "last_updated_timestamp": 1793299729066,
+        "last_updated_user": "user1@example.com",
+        "name": "dagshund-agent-knowledge-search",
+        "num_indexes": 0
+      }
+    },
+    "resources.vector_search_indexes.agent_knowledge_index": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.agent_knowledge_schema",
+          "label": "${resources.schemas.agent_knowledge_schema.name}"
+        },
+        {
+          "node": "resources.vector_search_endpoints.agent_knowledge_endpoint",
+          "label": "${resources.vector_search_endpoints.agent_knowledge_endpoint.name}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "delta_sync_index_spec": {
+            "embedding_source_columns": [
+              {
+                "embedding_model_endpoint_name": "databricks-gte-large-en",
+                "name": "content"
+              }
+            ],
+            "pipeline_type": "TRIGGERED",
+            "source_table": "dagshund.retail_sources.knowledge_source"
+          },
+          "endpoint_name": "dagshund-agent-knowledge-search",
+          "index_type": "DELTA_SYNC",
+          "name": "dagshund.agent_knowledge.agent_knowledge_index",
+          "primary_key": "document_id"
+        }
+      }
+    },
+    "resources.volumes.agent_knowledge_volume": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.agent_knowledge_schema",
+          "label": "${resources.schemas.agent_knowledge_schema.name}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "created_at": 1793299729320,
+        "created_by": "user1@example.com",
+        "encryption_details": {},
+        "full_name": "dagshund.agent_knowledge.agent_knowledge_volume",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "agent_knowledge_volume",
+        "owner": "user1@example.com",
+        "schema_name": "agent_knowledge",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/eed7a35e-efc9-4ecc-8eea-113d1b0f2f7a",
+        "updated_at": 1793299729320,
+        "updated_by": "user1@example.com",
+        "volume_id": "eed7a35e-efc9-4ecc-8eea-113d1b0f2f7a",
+        "volume_type": "MANAGED"
+      },
+      "changes": {
+        "storage_location": {
+          "action": "skip",
+          "reason": "immutable_backend_value",
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/eed7a35e-efc9-4ecc-8eea-113d1b0f2f7a"
+        }
+      }
+    }
+  }
+}

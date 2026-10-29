@@ -1,0 +1,30 @@
+### dagshund plan (v2, cli 1.20.0)
+
+#### jobs (6)
+- `~` `jobs/retail_bronze_batch` — update
+  - `~` `tasks[task_key='ingest_tables'].for_each_task.concurrency`: 2 -&gt; 5
+  - `~` `tasks[task_key='ingest_tables'].for_each_task.inputs`: ... -&gt; ...
+- `=` `jobs/retail_bronze_file_arrival`
+- `=` `jobs/retail_daily_orchestrator`
+- `=` `jobs/retail_file_snapshot_history`
+- `~` `jobs/retail_silver` — update
+  - `+` `tasks[task_key='check_quality_results'].depends_on[task_key='validate_stores']`: \{task\_key: "validate\_stores"\}
+  - `~` `tasks[task_key='publish_snapshots'].notebook_task.base_parameters['mode']`: "baseline" -&gt; "after"
+  - `+` `tasks[task_key='validate_stores']`: \{2 fields\}
+- `~` `jobs/retail_snapshot_history` — update
+  - `+` `tasks[task_key='store_history']`: \{2 fields\}
+
+#### pipelines (5)
+- `=` `pipelines/customer_history`
+- `=` `pipelines/price_history`
+- `=` `pipelines/product_history`
+- `+` `pipelines/store_history` — create
+- `=` `pipelines/supplier_history`
+
+#### schemas (3)
+- `=` `schemas/bronze`
+- `~` `schemas/gold` — update
+  - `+` `grants`: \{3 fields\}
+- `=` `schemas/silver`
+
+**+1** create, **=9** unchanged, **~4** update

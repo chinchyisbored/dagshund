@@ -372,26 +372,21 @@ pages:
     # Only re-deploy when something that affects the rendered site changed.
     # js/**          → bun-built template
     # src/dagshund/** → Python CLI that embeds the template + writes HTML
-    # fixtures/golden/** → plans rendered into public/*.html
+    # fixtures/showcases.json and selected plans → generated gallery
+    # fixtures/tooling/build_showcases.py → gallery generator
     # docs/pages/**  → static landing page
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
       changes:
         paths:
           - 'js/**/*'
           - 'src/dagshund/**/*'
+          - 'fixtures/showcases.json'
+          - 'fixtures/tooling/build_showcases.py'
           - 'fixtures/golden/**/*'
           - 'docs/pages/**/*'
   script:
     - bun run --cwd js build:template
-    - mkdir -p public
-    - cp docs/pages/index.html public/index.html
-    - |
-      for dir in fixtures/golden/*/; do
-        name=$(basename "$dir")
-        if [[ -f "$dir/plan.json" ]]; then
-          uv run dagshund -q "$dir/plan.json" -o "public/$name.html"
-        fi
-      done
+    - uv run python fixtures/tooling/build_showcases.py public
   artifacts:
     paths:
       - public

@@ -1,0 +1,1 @@
+{"pages":[{"name":"sales_page","displayName":"Sales overview","layout":[]}],"datasets":[{"name":"daily_sales","displayName":"Daily sales","query":"SELECT business_date, revenue, return_rate FROM daily_sales"},{"name":"daily_returns","displayName":"Daily returns","query":"SELECT business_date, returns FROM daily_returns"}]}

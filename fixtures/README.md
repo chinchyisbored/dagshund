@@ -1,6 +1,6 @@
 # Fixtures
 
-Most deployable golden fixtures are sanitized captures of `databricks bundle plan -o json` from a real Databricks workspace. `synthetic-ai-gateway` is a constructed, plan-only input for unavailable services; it is not a workspace capture or deployment config. Both fixture classes use the existing JS and Python plan consumers, but synthetic `cli_version` values identify a targeted contract, not a generating CLI run.
+Most deployable golden fixtures are sanitized captures of `databricks bundle plan -o json` from a real Databricks workspace. `synthetic-ai-gateway` is a constructed, plan-only input for unavailable services; it is not a workspace capture or deployment config. Both fixture classes use the existing JS and Python plan consumers, but synthetic `cli_version` values identify a targeted contract, not a generating CLI run. See [COVERAGE.md](COVERAGE.md) for the pinned CLI 1.20 resource and behavior evidence matrix, limits, and pending feature-gap handoff. The ordered `showcases.json` manifest selects the examples published in the Pages gallery. It does not limit regression coverage: Python and JavaScript tests and `just test-golden` continue to discover every plan under `golden/`.
 
 Run every fixture maintenance command through the repository's Nix development shell.
 
@@ -128,11 +128,7 @@ After regeneration and explicit approval of the reviewed output changes, update 
 
 ## CLI compatibility limits
 
-A live fixture refresh checks only the captured plans; it does not establish general CLI compatibility. These separately tracked findings remain open:
-
-- `dagshund-n8zt.7`: `gone` and `state_only` delete entries can be misreported as backend deletion and trigger a false data-loss warning.
-- `dagshund-n8zt.8`: CLI 1.20 file-change trigger fingerprints, trigger-removal reasons, and preserved job-run history need follow-up. The `job-runs` plan is a live capture, but it does not by itself resolve these semantics.
-- `dagshund-n8zt.9`: managed-cluster wheel changes, `run_as.group_name`, dashboard/Genie serialized-content hashes, and Lakebase duration/timestamp/zero/false rendering still need assessment.
+A live fixture refresh checks only the captured plans; it does not establish general CLI compatibility. The original `dagshund-92hu` compatibility assessment remains open; accepted cleanup and trigger evidence supersedes the stale `n8zt.7/.8` fixture bullets, but does not establish blanket CLI compatibility. See [COVERAGE.md](COVERAGE.md) for the precise evidence boundary and the remaining relationship gaps. Do not infer that all compatibility is verified.
 
 `wheel-bump` remains a historical CLI 1.6.0 plan because the default serverless workspace cannot regenerate its classic-compute fixture. Do not relabel or refresh it as CLI 1.20 without the separately scoped workspace and review.
 

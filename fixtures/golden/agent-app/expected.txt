@@ -1,0 +1,45 @@
+dagshund plan (v2, cli 1.20.0)
+
+  apps (1)
+  ~ apps/retail_assistant  (update)
+      ~ resources: [3 items] -> [5 items]
+
+  experiments (1)
+  = experiments/retail_agent_traces
+
+  jobs (2)
+  = jobs/initialize_agent_storage
+      ~ run apply_session_migration (re-runs on deploy)
+          ~ job_parameters['schema_version']: "v1" -> "v2"
+  = jobs/prepare_agent_knowledge
+
+  postgres_branches (1)
+  = postgres_branches/production
+
+  postgres_databases (1)
+  = postgres_databases/agent_sessions
+
+  postgres_endpoints (1)
+  ~ postgres_endpoints/production_endpoint  (update)
+      ~ autoscaling_limit_max_cu: 0.5 -> 1
+
+  postgres_projects (1)
+  = postgres_projects/retail_agent
+
+  postgres_roles (1)
+  = postgres_roles/agent_app
+
+  schemas (1)
+  = schemas/agent_knowledge_schema
+
+  vector_search_endpoints (1)
+  = vector_search_endpoints/agent_knowledge_endpoint
+
+  vector_search_indexes (1)
+  + vector_search_indexes/agent_knowledge_index  (create)
+
+  volumes (1)
+  = volumes/agent_knowledge_volume
+
+  +1 create, =10 unchanged, ~2 update
+  runs: ~1 recreate

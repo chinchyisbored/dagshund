@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+bundle:
+  name: dagshund-golden-sales-analytics
+  databricks_cli_version: "1.20.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+resources:
+  schemas:
+    staging:
+      catalog_name: ${var.catalog_name}
+      name: sales_staging
+    reporting:
+      catalog_name: ${var.catalog_name}
+      name: sales_reporting
+
+  dashboards:
+    sales_overview:
+      display_name: sales_overview
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog_name}
+      dataset_schema: ${resources.schemas.reporting.name}
+      file_path: ./sales_overview.lvdash.json
+
+  alerts:
+    high_return_rate:
+      display_name: high_return_rate
+      warehouse_id: ${var.warehouse_id}
+      query_text: >-
+        SELECT return_rate FROM ${var.catalog_name}.sales_reporting.daily_sales
+        WHERE business_date = current_date()
+      schedule:
+        quartz_cron_schedule: "0 0 8 ? * MON-FRI"
+        timezone_id: UTC
+        pause_status: PAUSED
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: return_rate
+        threshold:
+          value:
+            double_value: 0.05
+
+  jobs:
+    sales_reporting:
+      name: sales_reporting
+      schedule:
+        quartz_cron_expression: "0 0 8 ? * MON-FRI"
+        timezone_id: UTC
+        pause_status: PAUSED
+      tasks:
+        - task_key: validate_sales_inputs
+          notebook_task:
+            notebook_path: ./validate_sales_inputs.py
+        - task_key: calculate_daily_revenue
+          depends_on:
+            - task_key: validate_sales_inputs
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            parameters:
+              reporting_window_days: "7"
+            file:
+              path: ./daily_revenue.sql
+        - task_key: calculate_regional_performance
+          depends_on:
+            - task_key: validate_sales_inputs
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ./regional_performance.sql
+        - task_key: refresh_sales_dashboard
+          depends_on:
+            - task_key: calculate_daily_revenue
+            - task_key: calculate_regional_performance
+          dashboard_task:
+            dashboard_id: ${resources.dashboards.sales_overview.id}
+            warehouse_id: ${var.warehouse_id}

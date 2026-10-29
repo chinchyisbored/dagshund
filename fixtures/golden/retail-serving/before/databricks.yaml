@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=../../bundle_config_schema.json
+bundle:
+  name: dagshund-golden-retail-serving
+  databricks_cli_version: "1.20.0"
+  engine: direct
+
+include:
+  - ../../externals.yaml
+
+workspace:
+  host: https://dbc-c1c0b013-636f.cloud.databricks.com
+  root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/default
+
+resources:
+  schemas:
+    retail_sync:
+      catalog_name: ${var.catalog_name}
+      name: retail_sync
+
+  postgres_projects:
+    retail_serving:
+      project_id: retail-serving
+      display_name: Dagshund Retail Serving
+      pg_version: 17
+      purge_on_delete: true
+      default_branch: projects/retail-serving/branches/production
+
+  postgres_branches:
+    production:
+      parent: ${resources.postgres_projects.retail_serving.id}
+      branch_id: production
+      is_protected: false
+      no_expiry: true
+      replace_existing: true
+
+  postgres_endpoints:
+    primary:
+      parent: ${resources.postgres_branches.production.id}
+      endpoint_id: primary
+      endpoint_type: ENDPOINT_TYPE_READ_WRITE
+      autoscaling_limit_min_cu: 0.5
+      autoscaling_limit_max_cu: 0.5
+      replace_existing: true
+
+  postgres_roles:
+    serving_reader:
+      parent: ${resources.postgres_branches.production.id}
+      role_id: data-analysts
+      postgres_role: data_analysts
+      identity_type: GROUP
+      attributes: {}
+
+  postgres_databases:
+    retail_lookup:
+      parent: ${resources.postgres_branches.production.id}
+      database_id: retail-lookup
+      postgres_database: retail_lookup
+      role: ${resources.postgres_roles.serving_reader.id}
+
+  postgres_synced_tables:
+    customer_lookup:
+      synced_table_id: ${resources.schemas.retail_sync.catalog_name}.${resources.schemas.retail_sync.name}.customer_lookup
+      source_table_full_name: ${var.customer_snapshot_full_name}
+      primary_key_columns: [customer_id]
+      scheduling_policy: CONTINUOUS
+      postgres_database: ${resources.postgres_databases.retail_lookup.postgres_database}
+      branch: ${resources.postgres_branches.production.id}
+      create_database_objects_if_missing: true
+      new_pipeline_spec:
+        storage_catalog: ${resources.schemas.retail_sync.catalog_name}
+        storage_schema: ${resources.schemas.retail_sync.name}
+
+    product_lookup:
+      synced_table_id: ${resources.schemas.retail_sync.catalog_name}.${resources.schemas.retail_sync.name}.product_lookup
+      source_table_full_name: ${var.product_snapshot_full_name}
+      primary_key_columns: [product_id]
+      scheduling_policy: CONTINUOUS
+      postgres_database: ${resources.postgres_databases.retail_lookup.postgres_database}
+      branch: ${resources.postgres_branches.production.id}
+      create_database_objects_if_missing: true
+      new_pipeline_spec:
+        storage_catalog: ${resources.schemas.retail_sync.catalog_name}
+        storage_schema: ${resources.schemas.retail_sync.name}

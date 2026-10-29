@@ -1,0 +1,1208 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 14,
+      "by_kind": {
+        "job": 2,
+        "task": 12,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 4,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 8,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "task": {
+          "added": 4,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 7,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 53,
+      "total_effect_entries": 1,
+      "with_resource_state": 14,
+      "task_change_summary_total": 5,
+      "entries": [
+        {
+          "id": "resources.jobs.seed_model_versions_job",
+          "resourceKey": "resources.jobs.seed_model_versions_job",
+          "label": "seed_model_versions_job",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "seed_model_versions_run",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.seed_model_versions_job::seed",
+          "resourceKey": "resources.jobs.seed_model_versions_job",
+          "label": "seed",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='seed'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='seed'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='seed'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='seed'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='seed'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "workflow",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "parameters[name='learning_rate'].default",
+              "action": "update"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "compare_models",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "evaluate_baseline",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "quality_gate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "train_baseline",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "register_promote",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.workflow::compare_models",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "compare_models",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='compare_models']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::evaluate_baseline",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "evaluate_baseline",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='evaluate_baseline']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::evaluate_candidate",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "evaluate_candidate",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='evaluate_candidate'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='evaluate_candidate'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='evaluate_candidate'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='evaluate_candidate'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='evaluate_candidate'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::features",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "features",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='features'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='features'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='features'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='features'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='features'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::load_validate",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "load_validate",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='load_validate'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load_validate'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load_validate'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load_validate'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='load_validate'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::quality_gate",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "quality_gate",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='quality_gate']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::register_promote",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "register_promote",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='register_promote'].depends_on[task_key='evaluate_candidate']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='register_promote'].depends_on[task_key='quality_gate']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='register_promote'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='register_promote'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='register_promote'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='register_promote'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='register_promote'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::serving_checks",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "serving_checks",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='serving_checks'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='serving_checks'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='serving_checks'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='serving_checks'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='serving_checks'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::split_data",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "split_data",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='split_data'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='split_data'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='split_data'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='split_data'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='split_data'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::train_baseline",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "train_baseline",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='train_baseline']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow::train_candidate",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "train_candidate",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='train_candidate'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='train_candidate'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='train_candidate'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='train_candidate'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='train_candidate'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 12,
+      "by_kind": {
+        "dag": 12,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 6,
+        "removed": 1,
+        "unchanged": 5
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 6,
+          "removed": 1,
+          "unchanged": 5
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.workflow::compare_models",
+          "target": "resources.jobs.workflow::quality_gate",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::evaluate_baseline",
+          "target": "resources.jobs.workflow::compare_models",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::evaluate_candidate",
+          "target": "resources.jobs.workflow::compare_models",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::evaluate_candidate",
+          "target": "resources.jobs.workflow::register_promote",
+          "diffState": "removed",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::features",
+          "target": "resources.jobs.workflow::split_data",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::load_validate",
+          "target": "resources.jobs.workflow::features",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::quality_gate",
+          "target": "resources.jobs.workflow::register_promote",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::register_promote",
+          "target": "resources.jobs.workflow::serving_checks",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::split_data",
+          "target": "resources.jobs.workflow::train_baseline",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::split_data",
+          "target": "resources.jobs.workflow::train_candidate",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::train_baseline",
+          "target": "resources.jobs.workflow::evaluate_baseline",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.workflow::train_candidate",
+          "target": "resources.jobs.workflow::evaluate_candidate",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 16,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 10,
+        "derived": 0,
+        "root": 5,
+        "phantom": 1
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 4,
+        "unchanged": 12,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 4,
+          "unchanged": 6,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 5,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 1,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 39,
+      "total_effect_entries": 1,
+      "with_resource_state": 10,
+      "task_change_summary_total": 5,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "other-resources-root",
+          "resourceKey": "other-resources-root",
+          "label": "Other Resources",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.training_experiment",
+          "resourceKey": "resources.experiments.training_experiment",
+          "label": "training_experiment",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "artifact_location",
+              "action": "skip"
+            },
+            {
+              "key": "name",
+              "action": "skip"
+            },
+            {
+              "key": "tags",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.validation",
+          "resourceKey": "resources.experiments.validation",
+          "label": "validation",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "artifact_location",
+              "action": "skip"
+            },
+            {
+              "key": "name",
+              "action": "skip"
+            },
+            {
+              "key": "tags",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.seed_model_versions_job",
+          "resourceKey": "resources.jobs.seed_model_versions_job",
+          "label": "seed_model_versions_job",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "seed_model_versions_run",
+              "action": "skip"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.workflow",
+          "resourceKey": "resources.jobs.workflow",
+          "label": "workflow",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "parameters[name='learning_rate'].default",
+              "action": "update"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "compare_models",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "evaluate_baseline",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "quality_gate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "train_baseline",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "register_promote",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.model_serving_endpoints.candidate_endpoint",
+          "resourceKey": "resources.model_serving_endpoints.candidate_endpoint",
+          "label": "candidate_endpoint",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "config.served_entities[0].entity_version",
+              "action": "update"
+            },
+            {
+              "key": "config.served_entities[0].name",
+              "action": "skip"
+            },
+            {
+              "key": "config.served_entities[0].workload_type",
+              "action": "skip"
+            },
+            {
+              "key": "config.traffic_config",
+              "action": "skip"
+            },
+            {
+              "key": "description",
+              "action": "skip"
+            },
+            {
+              "key": "permissions",
+              "action": "create"
+            },
+            {
+              "key": "route_optimized",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.registered_models.baseline",
+          "resourceKey": "resources.registered_models.baseline",
+          "label": "baseline",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "created_at",
+              "action": "skip"
+            },
+            {
+              "key": "created_by",
+              "action": "skip"
+            },
+            {
+              "key": "full_name",
+              "action": "skip"
+            },
+            {
+              "key": "metastore_id",
+              "action": "skip"
+            },
+            {
+              "key": "owner",
+              "action": "skip"
+            },
+            {
+              "key": "storage_location",
+              "action": "skip"
+            },
+            {
+              "key": "updated_at",
+              "action": "skip"
+            },
+            {
+              "key": "updated_by",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.registered_models.candidate",
+          "resourceKey": "resources.registered_models.candidate",
+          "label": "candidate",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "created_at",
+              "action": "skip"
+            },
+            {
+              "key": "created_by",
+              "action": "skip"
+            },
+            {
+              "key": "full_name",
+              "action": "skip"
+            },
+            {
+              "key": "grants",
+              "action": "create"
+            },
+            {
+              "key": "metastore_id",
+              "action": "skip"
+            },
+            {
+              "key": "owner",
+              "action": "skip"
+            },
+            {
+              "key": "storage_location",
+              "action": "skip"
+            },
+            {
+              "key": "updated_at",
+              "action": "skip"
+            },
+            {
+              "key": "updated_by",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.registry",
+          "resourceKey": "resources.schemas.registry",
+          "label": "registry",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.training_schema",
+          "resourceKey": "resources.schemas.training_schema",
+          "label": "training_schema",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.training_data",
+          "resourceKey": "resources.volumes.training_data",
+          "label": "training_data",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "storage_location",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-category::experiments",
+          "resourceKey": "workspace-category::experiments",
+          "label": "Experiments",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 15,
+      "by_kind": {
+        "dag": 14,
+        "lateral": 1
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 15
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 14
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 1
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.registry",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.training_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.model_serving_endpoints.candidate_endpoint",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.registry",
+          "target": "resources.registered_models.baseline",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.registry",
+          "target": "resources.registered_models.candidate",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.training_schema",
+          "target": "resources.volumes.training_data",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::experiments",
+          "target": "resources.experiments.training_experiment",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::experiments",
+          "target": "resources.experiments.validation",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.seed_model_versions_job",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.workflow",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "other-resources-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::experiments",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::jobs",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.model_serving_endpoints.candidate_endpoint",
+          "target": "resources.registered_models.candidate",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      }
+    ]
+  }
+}

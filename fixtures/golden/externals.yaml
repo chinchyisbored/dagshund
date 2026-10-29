@@ -26,6 +26,15 @@ variables:
   external_dashboard_id:
     description: Pre-existing Lakeview dashboard ID for phantom dashboard_task references
     default: "01f10382fb111e3e9d8132f891c5b179"
+  agent_chat_endpoint:
+    description: Optional existing chat serving endpoint for the Agent App fixture
+    default: databricks-gpt-oss-20b
+  agent_knowledge_source_full_name:
+    description: Independent managed Delta source table for the Agent App vector index
+    default: dagshund.retail_sources.knowledge_source
+  agent_knowledge_embedding_endpoint:
+    description: Embedding model endpoint used by the Agent App vector index
+    default: databricks-gte-large-en
   external_job_id:
     description: Pre-existing job outside any bundle for phantom job_runs references
     default: 705178521553609
@@ -46,3 +55,12 @@ variables:
     default: m5.large
   secondary_user:
     description: Second user for ownership/run_as fixture scenarios (no default — set via BUNDLE_VAR_secondary_user)
+  customer_snapshot_full_name:
+    description: Pre-existing empty retail source table for customer snapshot sync
+    default: dagshund.retail_sources.customer_snapshot
+  product_snapshot_full_name:
+    description: Pre-existing empty retail source table for product snapshot sync
+    default: dagshund.retail_sources.product_snapshot
+  inventory_delta_full_name:
+    description: Pre-existing empty retail source table for inventory change sync
+    default: dagshund.retail_sources.inventory_delta

@@ -1,0 +1,792 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 7,
+      "by_kind": {
+        "job": 1,
+        "task": 6,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 2,
+        "removed": 0,
+        "modified": 3,
+        "unchanged": 2,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 1,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 2,
+          "removed": 0,
+          "modified": 2,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 26,
+      "total_effect_entries": 0,
+      "with_resource_state": 7,
+      "task_change_summary_total": 4,
+      "entries": [
+        {
+          "id": "resources.jobs.sales_reporting",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "sales_reporting",
+          "kind": "job",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "calculate_returns",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "evaluate_return_rate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "calculate_daily_revenue",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "refresh_sales_dashboard",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.jobs.sales_reporting::calculate_daily_revenue",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "calculate_daily_revenue",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='calculate_daily_revenue'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_daily_revenue'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_daily_revenue'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_daily_revenue'].sql_task.file.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_daily_revenue'].sql_task.parameters['reporting_window_days']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='calculate_daily_revenue'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.sales_reporting::calculate_regional_performance",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "calculate_regional_performance",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='calculate_regional_performance'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_regional_performance'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_regional_performance'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_regional_performance'].sql_task.file.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='calculate_regional_performance'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.sales_reporting::calculate_returns",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "calculate_returns",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='calculate_returns']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.sales_reporting::evaluate_return_rate",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "evaluate_return_rate",
+          "kind": "task",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='evaluate_return_rate']",
+              "action": "update"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.sales_reporting::refresh_sales_dashboard",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "refresh_sales_dashboard",
+          "kind": "task",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='refresh_sales_dashboard'].depends_on[task_key='calculate_returns']",
+              "action": "update"
+            },
+            {
+              "key": "tasks[task_key='refresh_sales_dashboard'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='refresh_sales_dashboard'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='refresh_sales_dashboard'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='refresh_sales_dashboard'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.sales_reporting::validate_sales_inputs",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "validate_sales_inputs",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='validate_sales_inputs'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_sales_inputs'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_sales_inputs'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_sales_inputs'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='validate_sales_inputs'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 7,
+      "by_kind": {
+        "dag": 7,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 3,
+        "removed": 0,
+        "unchanged": 4
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 3,
+          "removed": 0,
+          "unchanged": 4
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.sales_reporting::calculate_daily_revenue",
+          "target": "resources.jobs.sales_reporting::refresh_sales_dashboard",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.sales_reporting::calculate_regional_performance",
+          "target": "resources.jobs.sales_reporting::refresh_sales_dashboard",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.sales_reporting::calculate_returns",
+          "target": "resources.jobs.sales_reporting::refresh_sales_dashboard",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.sales_reporting::refresh_sales_dashboard",
+          "target": "resources.jobs.sales_reporting::evaluate_return_rate",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.sales_reporting::validate_sales_inputs",
+          "target": "resources.jobs.sales_reporting::calculate_daily_revenue",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.sales_reporting::validate_sales_inputs",
+          "target": "resources.jobs.sales_reporting::calculate_regional_performance",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.sales_reporting::validate_sales_inputs",
+          "target": "resources.jobs.sales_reporting::calculate_returns",
+          "diffState": "added",
+          "kind": "dag"
+        }
+      ]
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 9,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 5,
+        "derived": 0,
+        "root": 2,
+        "phantom": 2
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 5,
+        "unchanged": 4,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 5,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 24,
+      "total_effect_entries": 0,
+      "with_resource_state": 5,
+      "task_change_summary_total": 4,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.alerts.high_return_rate",
+          "resourceKey": "resources.alerts.high_return_rate",
+          "label": "high_return_rate",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "effective_run_as",
+              "action": "skip"
+            },
+            {
+              "key": "evaluation.notification",
+              "action": "update"
+            },
+            {
+              "key": "evaluation.threshold.value.double_value",
+              "action": "update"
+            },
+            {
+              "key": "id",
+              "action": "skip"
+            },
+            {
+              "key": "lifecycle_state",
+              "action": "skip"
+            },
+            {
+              "key": "owner_user_name",
+              "action": "skip"
+            },
+            {
+              "key": "query_text",
+              "action": "update"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.dashboards.sales_overview",
+          "resourceKey": "resources.dashboards.sales_overview",
+          "label": "sales_overview",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "dashboard_id",
+              "action": "skip"
+            },
+            {
+              "key": "dataset_catalog",
+              "action": "skip"
+            },
+            {
+              "key": "dataset_schema",
+              "action": "skip"
+            },
+            {
+              "key": "etag",
+              "action": "skip"
+            },
+            {
+              "key": "lifecycle_state",
+              "action": "skip"
+            },
+            {
+              "key": "path",
+              "action": "skip"
+            },
+            {
+              "key": "permissions",
+              "action": "create"
+            },
+            {
+              "key": "serialized_dashboard",
+              "action": "update"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.sales_reporting",
+          "resourceKey": "resources.jobs.sales_reporting",
+          "label": "sales_reporting",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": [
+            {
+              "taskKey": "calculate_returns",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "evaluate_return_rate",
+              "diffState": "added",
+              "isDrift": false
+            },
+            {
+              "taskKey": "calculate_daily_revenue",
+              "diffState": "modified",
+              "isDrift": false
+            },
+            {
+              "taskKey": "refresh_sales_dashboard",
+              "diffState": "modified",
+              "isDrift": false
+            }
+          ]
+        },
+        {
+          "id": "resources.schemas.reporting",
+          "resourceKey": "resources.schemas.reporting",
+          "label": "reporting",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.staging",
+          "resourceKey": "resources.schemas.staging",
+          "label": "staging",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "grants",
+              "action": "create"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "sql-warehouse::9d0afa601cb95187",
+          "resourceKey": "sql-warehouse::9d0afa601cb95187",
+          "label": "9d0afa601cb95187",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 11,
+      "by_kind": {
+        "dag": 7,
+        "lateral": 4
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 11
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 7
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 4
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.reporting",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.staging",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.alerts.high_return_rate",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.dashboards.sales_overview",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "resources.jobs.sales_reporting",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.alerts.high_return_rate",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.dashboards.sales_overview",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.sales_reporting",
+          "target": "resources.dashboards.sales_overview",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.sales_reporting",
+          "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      },
+      {
+        "id": "sql-warehouse::9d0afa601cb95187",
+        "label": "9d0afa601cb95187",
+        "resourceKey": "sql-warehouse::9d0afa601cb95187"
+      }
+    ]
+  }
+}

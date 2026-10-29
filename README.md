@@ -6,7 +6,7 @@ Requires the [direct deployment engine](https://docs.databricks.com/aws/en/dev-t
 
 ![Dagshund resource graph](docs/pictures/resources.png)
 
-Try it live: [here](https://dagshund-806de7.gitlab.io). Renders the HTML report for each golden fixture.
+Try it live: [here](https://dagshund-806de7.gitlab.io).
 
 ## Where it fits
 

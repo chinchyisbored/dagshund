@@ -1,0 +1,1284 @@
+{
+  "plan_version": 2,
+  "cli_version": "1.20.0",
+  "lineage": "eae0515a-f0f7-4261-ae58-d171ff7f6a96",
+  "serial": 1,
+  "plan": {
+    "resources.experiments.training_experiment": {
+      "action": "skip",
+      "remote_state": {
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/2534458203288501",
+        "creation_time": 1793303568830,
+        "experiment_id": "2534458203288501",
+        "last_update_time": 1793303600652,
+        "lifecycle_stage": "active",
+        "name": "/experiments/dagshund_ml_training",
+        "tags": [
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.experiment.sourceName",
+            "value": "/experiments/dagshund_ml_training"
+          },
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.ownerEmail",
+            "value": "user1@example.com"
+          },
+          {
+            "key": "mlflow.experimentType",
+            "value": "MLFLOW_EXPERIMENT"
+          }
+        ]
+      },
+      "changes": {
+        "artifact_location": {
+          "action": "skip",
+          "reason": "immutable_backend_value",
+          "remote": "dbfs:/databricks/mlflow-tracking/2534458203288501"
+        },
+        "name": {
+          "action": "skip",
+          "reason": "alias",
+          "old": "/Workspace/experiments/dagshund_ml_training",
+          "new": "/Workspace/experiments/dagshund_ml_training",
+          "remote": "/experiments/dagshund_ml_training"
+        },
+        "tags": {
+          "action": "skip",
+          "reason": "terraform_compat",
+          "remote": [
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.experiment.sourceName",
+              "value": "/experiments/dagshund_ml_training"
+            },
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.ownerEmail",
+              "value": "user1@example.com"
+            },
+            {
+              "key": "mlflow.experimentType",
+              "value": "MLFLOW_EXPERIMENT"
+            }
+          ]
+        }
+      }
+    },
+    "resources.experiments.validation": {
+      "action": "skip",
+      "remote_state": {
+        "artifact_location": "dbfs:/databricks/mlflow-tracking/2534458203288500",
+        "creation_time": 1793303568830,
+        "experiment_id": "2534458203288500",
+        "last_update_time": 1793303568830,
+        "lifecycle_stage": "active",
+        "name": "/experiments/dagshund_ml_validation",
+        "tags": [
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.experiment.sourceName",
+            "value": "/experiments/dagshund_ml_validation"
+          },
+          {
+            "key": "mlflow.ownerId",
+            "value": "77446497524755"
+          },
+          {
+            "key": "mlflow.ownerEmail",
+            "value": "user1@example.com"
+          },
+          {
+            "key": "mlflow.experimentType",
+            "value": "MLFLOW_EXPERIMENT"
+          }
+        ]
+      },
+      "changes": {
+        "artifact_location": {
+          "action": "skip",
+          "reason": "immutable_backend_value",
+          "remote": "dbfs:/databricks/mlflow-tracking/2534458203288500"
+        },
+        "name": {
+          "action": "skip",
+          "reason": "alias",
+          "old": "/Workspace/experiments/dagshund_ml_validation",
+          "new": "/Workspace/experiments/dagshund_ml_validation",
+          "remote": "/experiments/dagshund_ml_validation"
+        },
+        "tags": {
+          "action": "skip",
+          "reason": "terraform_compat",
+          "remote": [
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.experiment.sourceName",
+              "value": "/experiments/dagshund_ml_validation"
+            },
+            {
+              "key": "mlflow.ownerId",
+              "value": "77446497524755"
+            },
+            {
+              "key": "mlflow.ownerEmail",
+              "value": "user1@example.com"
+            },
+            {
+              "key": "mlflow.experimentType",
+              "value": "MLFLOW_EXPERIMENT"
+            }
+          ]
+        }
+      }
+    },
+    "resources.job_runs.seed_model_versions_run": {
+      "depends_on": [
+        {
+          "node": "resources.jobs.seed_model_versions_job",
+          "label": "${resources.jobs.seed_model_versions_job.id}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "job_id": 800016352435954,
+        "result_state": "SUCCESS",
+        "run_id": 683357471103259,
+        "run_name": "dagshund_ml_seed_model_versions",
+        "run_page_url": "https://dbc-c1c0b013-636f.cloud.databricks.com/jobs/800016352435954/runs/683357471103259?o=7474654640708173",
+        "run_type": "JOB_RUN",
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS"
+        }
+      },
+      "changes": {
+        "result_state": {
+          "action": "skip",
+          "reason": "remote_already_set",
+          "new": "SUCCESS",
+          "remote": "SUCCESS"
+        }
+      }
+    },
+    "resources.jobs.seed_model_versions_job": {
+      "depends_on": [
+        {
+          "node": "resources.experiments.training_experiment",
+          "label": "${resources.experiments.training_experiment.id}"
+        },
+        {
+          "node": "resources.registered_models.candidate",
+          "label": "${resources.registered_models.candidate.full_name}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "created_time": 1793303569862,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 800016352435954,
+        "max_concurrent_runs": 1,
+        "name": "dagshund_ml_seed_model_versions",
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "base_parameters": {
+                "experiment_id": "2534458203288501",
+                "model_name": "dagshund.ml_registry.ml_candidate"
+              },
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/bootstrap_model",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "seed",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='seed'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='seed'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='seed'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='seed'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='seed'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.jobs.workflow": {
+      "action": "update",
+      "new_state": {
+        "value": {
+          "deployment": {
+            "kind": "BUNDLE",
+            "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/state/metadata.json"
+          },
+          "edit_mode": "UI_LOCKED",
+          "format": "MULTI_TASK",
+          "max_concurrent_runs": 1,
+          "name": "dagshund_ml_workflow",
+          "parameters": [
+            {
+              "default": "0.05",
+              "name": "learning_rate"
+            }
+          ],
+          "queue": {
+            "enabled": true
+          },
+          "tasks": [
+            {
+              "depends_on": [
+                {
+                  "task_key": "evaluate_candidate"
+                },
+                {
+                  "task_key": "evaluate_baseline"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "compare_models"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "train_baseline"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "evaluate_baseline"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "train_candidate"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "evaluate_candidate"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "load_validate"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "features"
+            },
+            {
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "load_validate"
+            },
+            {
+              "condition_task": {
+                "left": "1",
+                "op": "GREATER_THAN",
+                "right": "0"
+              },
+              "depends_on": [
+                {
+                  "task_key": "compare_models"
+                }
+              ],
+              "task_key": "quality_gate"
+            },
+            {
+              "depends_on": [
+                {
+                  "outcome": "true",
+                  "task_key": "quality_gate"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "register_promote"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "register_promote"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "serving_checks"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "features"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "split_data"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "split_data"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "train_baseline"
+            },
+            {
+              "depends_on": [
+                {
+                  "task_key": "split_data"
+                }
+              ],
+              "notebook_task": {
+                "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+              },
+              "task_key": "train_candidate"
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "created_time": 1793303569129,
+        "creator_user_name": "user1@example.com",
+        "deployment": {
+          "kind": "BUNDLE",
+          "metadata_file_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/state/metadata.json"
+        },
+        "edit_mode": "UI_LOCKED",
+        "email_notifications": {},
+        "format": "MULTI_TASK",
+        "job_id": 294797676419907,
+        "max_concurrent_runs": 1,
+        "name": "dagshund_ml_workflow",
+        "parameters": [
+          {
+            "default": "0.1",
+            "name": "learning_rate"
+          }
+        ],
+        "queue": {
+          "enabled": true
+        },
+        "run_as_user_name": "user1@example.com",
+        "tasks": [
+          {
+            "depends_on": [
+              {
+                "task_key": "train_candidate"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "evaluate_candidate",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "load_validate"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "features",
+            "timeout_seconds": 0
+          },
+          {
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "load_validate",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "evaluate_candidate"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "register_promote",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "register_promote"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "serving_checks",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "features"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "split_data",
+            "timeout_seconds": 0
+          },
+          {
+            "depends_on": [
+              {
+                "task_key": "split_data"
+              }
+            ],
+            "disabled": false,
+            "email_notifications": {},
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task",
+              "source": "WORKSPACE"
+            },
+            "run_if": "ALL_SUCCESS",
+            "task_key": "train_candidate",
+            "timeout_seconds": 0
+          }
+        ],
+        "timeout_seconds": 0,
+        "webhook_notifications": {}
+      },
+      "changes": {
+        "email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "parameters[name='learning_rate'].default": {
+          "action": "update",
+          "old": "0.1",
+          "new": "0.05",
+          "remote": "0.1"
+        },
+        "tasks[task_key='compare_models']": {
+          "action": "update",
+          "new": {
+            "depends_on": [
+              {
+                "task_key": "evaluate_candidate"
+              },
+              {
+                "task_key": "evaluate_baseline"
+              }
+            ],
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+            },
+            "task_key": "compare_models"
+          }
+        },
+        "tasks[task_key='evaluate_baseline']": {
+          "action": "update",
+          "new": {
+            "depends_on": [
+              {
+                "task_key": "train_baseline"
+              }
+            ],
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+            },
+            "task_key": "evaluate_baseline"
+          }
+        },
+        "tasks[task_key='evaluate_candidate'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='evaluate_candidate'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='evaluate_candidate'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='evaluate_candidate'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='evaluate_candidate'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='features'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='features'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='features'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='features'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='features'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='load_validate'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='load_validate'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='load_validate'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='load_validate'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='load_validate'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='quality_gate']": {
+          "action": "update",
+          "new": {
+            "condition_task": {
+              "left": "1",
+              "op": "GREATER_THAN",
+              "right": "0"
+            },
+            "depends_on": [
+              {
+                "task_key": "compare_models"
+              }
+            ],
+            "task_key": "quality_gate"
+          }
+        },
+        "tasks[task_key='register_promote'].depends_on[task_key='evaluate_candidate']": {
+          "action": "update",
+          "old": {
+            "task_key": "evaluate_candidate"
+          },
+          "remote": {
+            "task_key": "evaluate_candidate"
+          }
+        },
+        "tasks[task_key='register_promote'].depends_on[task_key='quality_gate']": {
+          "action": "update",
+          "new": {
+            "outcome": "true",
+            "task_key": "quality_gate"
+          }
+        },
+        "tasks[task_key='register_promote'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='register_promote'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='register_promote'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='register_promote'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='register_promote'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='serving_checks'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='serving_checks'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='serving_checks'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='serving_checks'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='serving_checks'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='split_data'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='split_data'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='split_data'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='split_data'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='split_data'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "tasks[task_key='train_baseline']": {
+          "action": "update",
+          "new": {
+            "depends_on": [
+              {
+                "task_key": "split_data"
+              }
+            ],
+            "notebook_task": {
+              "notebook_path": "/Workspace/Users/user1@example.com/.bundle/dagshund-golden-ml-workflow/default/files/workflow_task"
+            },
+            "task_key": "train_baseline"
+          }
+        },
+        "tasks[task_key='train_candidate'].disabled": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        },
+        "tasks[task_key='train_candidate'].email_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        },
+        "tasks[task_key='train_candidate'].notebook_task.source": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "WORKSPACE"
+        },
+        "tasks[task_key='train_candidate'].run_if": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ALL_SUCCESS"
+        },
+        "tasks[task_key='train_candidate'].timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "timeout_seconds": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": 0
+        },
+        "webhook_notifications": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": {}
+        }
+      }
+    },
+    "resources.model_serving_endpoints.candidate_endpoint": {
+      "depends_on": [
+        {
+          "node": "resources.job_runs.seed_model_versions_run",
+          "label": "${resources.job_runs.seed_model_versions_run.state.result_state}"
+        },
+        {
+          "node": "resources.registered_models.candidate",
+          "label": "${resources.registered_models.candidate.full_name}"
+        }
+      ],
+      "action": "update",
+      "new_state": {
+        "value": {
+          "config": {
+            "served_entities": [
+              {
+                "entity_name": "dagshund.ml_registry.ml_candidate",
+                "entity_version": "2",
+                "scale_to_zero_enabled": true,
+                "workload_size": "Small"
+              }
+            ]
+          },
+          "name": "dagshund_ml_candidate",
+          "tags": [
+            {
+              "key": "fixture_bootstrap",
+              "value": "SUCCESS"
+            }
+          ]
+        }
+      },
+      "remote_state": {
+        "config": {
+          "served_entities": [
+            {
+              "entity_name": "dagshund.ml_registry.ml_candidate",
+              "entity_version": "1",
+              "name": "ml_candidate-1",
+              "scale_to_zero_enabled": true,
+              "workload_size": "Small",
+              "workload_type": "CPU"
+            }
+          ],
+          "traffic_config": {
+            "routes": [
+              {
+                "served_entity_name": "ml_candidate-1",
+                "served_model_name": "ml_candidate-1",
+                "traffic_percentage": 100
+              }
+            ]
+          }
+        },
+        "description": "",
+        "endpoint_details": {
+          "config": {
+            "config_version": 1,
+            "served_entities": [
+              {
+                "creation_timestamp": 1793303632000,
+                "creator": "user1@example.com",
+                "entity_name": "dagshund.ml_registry.ml_candidate",
+                "entity_version": "1",
+                "name": "ml_candidate-1",
+                "scale_to_zero_enabled": true,
+                "state": {
+                  "deployment": "DEPLOYMENT_READY",
+                  "deployment_state_message": ""
+                },
+                "workload_size": "Small",
+                "workload_type": "CPU"
+              }
+            ],
+            "served_models": [
+              {
+                "creation_timestamp": 1793303632000,
+                "creator": "user1@example.com",
+                "model_name": "dagshund.ml_registry.ml_candidate",
+                "model_version": "1",
+                "name": "ml_candidate-1",
+                "scale_to_zero_enabled": true,
+                "state": {
+                  "deployment": "DEPLOYMENT_READY",
+                  "deployment_state_message": ""
+                },
+                "workload_size": "Small",
+                "workload_type": "CPU"
+              }
+            ],
+            "traffic_config": {
+              "routes": [
+                {
+                  "served_entity_name": "ml_candidate-1",
+                  "served_model_name": "ml_candidate-1",
+                  "traffic_percentage": 100
+                }
+              ]
+            }
+          },
+          "creation_timestamp": 1793303632000,
+          "creator": "user1@example.com",
+          "description": "",
+          "id": "e5721a684e59411d93ec7e4c8c67f364",
+          "last_updated_timestamp": 1793303632000,
+          "name": "dagshund_ml_candidate",
+          "permission_level": "CAN_MANAGE",
+          "route_optimized": false,
+          "state": {
+            "config_update": "NOT_UPDATING",
+            "ready": "READY"
+          },
+          "tags": [
+            {
+              "key": "fixture_bootstrap",
+              "value": "SUCCESS"
+            }
+          ]
+        },
+        "endpoint_id": "e5721a684e59411d93ec7e4c8c67f364",
+        "name": "dagshund_ml_candidate",
+        "route_optimized": false,
+        "tags": [
+          {
+            "key": "fixture_bootstrap",
+            "value": "SUCCESS"
+          }
+        ]
+      },
+      "changes": {
+        "config.served_entities[0].entity_version": {
+          "action": "update",
+          "old": "1",
+          "new": "2",
+          "remote": "1"
+        },
+        "config.served_entities[0].name": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "ml_candidate-1"
+        },
+        "config.served_entities[0].workload_type": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "CPU"
+        },
+        "config.traffic_config": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": {
+            "routes": [
+              {
+                "served_entity_name": "ml_candidate-1",
+                "served_model_name": "ml_candidate-1",
+                "traffic_percentage": 100
+              }
+            ]
+          }
+        },
+        "description": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": ""
+        },
+        "route_optimized": {
+          "action": "skip",
+          "reason": "empty",
+          "remote": false
+        }
+      }
+    },
+    "resources.model_serving_endpoints.candidate_endpoint.permissions": {
+      "depends_on": [
+        {
+          "node": "resources.model_serving_endpoints.candidate_endpoint",
+          "label": "${resources.model_serving_endpoints.candidate_endpoint.endpoint_id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "object_id": "",
+          "__embed__": [
+            {
+              "level": "CAN_QUERY",
+              "group_name": "data_analysts"
+            },
+            {
+              "level": "CAN_MANAGE",
+              "user_name": "user1@example.com"
+            }
+          ]
+        },
+        "vars": {
+          "object_id": "/serving-endpoints/${resources.model_serving_endpoints.candidate_endpoint.endpoint_id}"
+        }
+      }
+    },
+    "resources.registered_models.baseline": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.registry",
+          "label": "${resources.schemas.registry.name}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "created_at": 1793303569254,
+        "created_by": "user1@example.com",
+        "full_name": "dagshund.ml_registry.ml_baseline",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "ml_baseline",
+        "owner": "user1@example.com",
+        "schema_name": "ml_registry",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/f0eb3d12-235d-47e0-99b0-d4de8bd4bac1",
+        "updated_at": 1793303569254,
+        "updated_by": "user1@example.com"
+      },
+      "changes": {
+        "created_at": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": 1793303569254
+        },
+        "created_by": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": "user1@example.com"
+        },
+        "full_name": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "dagshund.ml_registry.ml_baseline"
+        },
+        "metastore_id": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84"
+        },
+        "owner": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "user1@example.com"
+        },
+        "storage_location": {
+          "action": "skip",
+          "reason": "immutable_backend_value",
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/f0eb3d12-235d-47e0-99b0-d4de8bd4bac1"
+        },
+        "updated_at": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": 1793303569254
+        },
+        "updated_by": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": "user1@example.com"
+        }
+      }
+    },
+    "resources.registered_models.candidate": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.registry",
+          "label": "${resources.schemas.registry.name}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "created_at": 1793303569379,
+        "created_by": "user1@example.com",
+        "full_name": "dagshund.ml_registry.ml_candidate",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "ml_candidate",
+        "owner": "user1@example.com",
+        "schema_name": "ml_registry",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/8ef60df4-ef22-4d81-af85-bea199afeeb8",
+        "updated_at": 1793303615298,
+        "updated_by": "user1@example.com"
+      },
+      "changes": {
+        "created_at": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": 1793303569379
+        },
+        "created_by": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": "user1@example.com"
+        },
+        "full_name": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "dagshund.ml_registry.ml_candidate"
+        },
+        "metastore_id": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84"
+        },
+        "owner": {
+          "action": "skip",
+          "reason": "backend_default",
+          "remote": "user1@example.com"
+        },
+        "storage_location": {
+          "action": "skip",
+          "reason": "immutable_backend_value",
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/models/8ef60df4-ef22-4d81-af85-bea199afeeb8"
+        },
+        "updated_at": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": 1793303615298
+        },
+        "updated_by": {
+          "action": "skip",
+          "reason": "output_only",
+          "remote": "user1@example.com"
+        }
+      }
+    },
+    "resources.registered_models.candidate.grants": {
+      "depends_on": [
+        {
+          "node": "resources.registered_models.candidate",
+          "label": "${resources.registered_models.candidate.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "function",
+          "full_name": "dagshund.ml_registry.ml_candidate",
+          "__embed__": [
+            {
+              "principal": "data_analysts",
+              "privileges": [
+                "EXECUTE"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "resources.schemas.registry": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1793303568965,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.ml_registry",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "ml_registry",
+        "owner": "user1@example.com",
+        "schema_id": "98260f77-4879-41fa-afb8-510b5bf28c1f",
+        "updated_at": 1793303571148,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      }
+    },
+    "resources.schemas.registry.grants": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.registry",
+          "label": "${resources.schemas.registry.id}"
+        }
+      ],
+      "action": "create",
+      "new_state": {
+        "value": {
+          "securable_type": "schema",
+          "full_name": "dagshund.ml_registry",
+          "__embed__": [
+            {
+              "principal": "data_analysts",
+              "privileges": [
+                "USE_SCHEMA"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "resources.schemas.training_schema": {
+      "action": "skip",
+      "remote_state": {
+        "browse_only": false,
+        "catalog_name": "dagshund",
+        "catalog_type": "MANAGED_CATALOG",
+        "created_at": 1793303568994,
+        "created_by": "user1@example.com",
+        "effective_predictive_optimization_flag": {
+          "inherited_from_name": "metastore_aws_us_east_2",
+          "inherited_from_type": "METASTORE",
+          "value": "ENABLE"
+        },
+        "enable_predictive_optimization": "INHERIT",
+        "full_name": "dagshund.ml_training",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "ml_training",
+        "owner": "user1@example.com",
+        "schema_id": "7573e2e8-9b80-46bc-ba49-1dc5558a1553",
+        "updated_at": 1793303572082,
+        "updated_by": "01d61c74-41b5-4ea1-8b0b-72f387c613a8"
+      }
+    },
+    "resources.volumes.training_data": {
+      "depends_on": [
+        {
+          "node": "resources.schemas.training_schema",
+          "label": "${resources.schemas.training_schema.name}"
+        }
+      ],
+      "action": "skip",
+      "remote_state": {
+        "catalog_name": "dagshund",
+        "created_at": 1793303569818,
+        "created_by": "user1@example.com",
+        "encryption_details": {},
+        "full_name": "dagshund.ml_training.training_data",
+        "metastore_id": "c9a8f5a7-1474-4bcd-af23-2a30daeccd84",
+        "name": "training_data",
+        "owner": "user1@example.com",
+        "schema_name": "ml_training",
+        "storage_location": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/6839b074-4537-486b-82af-a6748e14c58b",
+        "updated_at": 1793303569818,
+        "updated_by": "user1@example.com",
+        "volume_id": "6839b074-4537-486b-82af-a6748e14c58b",
+        "volume_type": "MANAGED"
+      },
+      "changes": {
+        "storage_location": {
+          "action": "skip",
+          "reason": "immutable_backend_value",
+          "remote": "s3://dbstorage-prod-xkkgg/uc/4b43968c-1ba3-4e86-a2cd-a40c53f7bcc9/c9a8f5a7-1474-4bcd-af23-2a30daeccd84/__unitystorage/catalogs/477eead7-2bd7-4af9-a5f2-257eb2f67b4a/volumes/6839b074-4537-486b-82af-a6748e14c58b"
+        }
+      }
+    }
+  }
+}

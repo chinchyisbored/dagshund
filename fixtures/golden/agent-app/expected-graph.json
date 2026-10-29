@@ -1,0 +1,1192 @@
+{
+  "plan_graph": {
+    "nodes": {
+      "total": 8,
+      "by_kind": {
+        "job": 2,
+        "task": 6,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 8,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 2,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 6,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 36,
+      "total_effect_entries": 1,
+      "with_resource_state": 8,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "resources.jobs.initialize_agent_storage",
+          "resourceKey": "resources.jobs.initialize_agent_storage",
+          "label": "initialize_agent_storage",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "apply_session_migration",
+              "action": "recreate"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.initialize_agent_storage::apply_session_schema",
+          "resourceKey": "resources.jobs.initialize_agent_storage",
+          "label": "apply_session_schema",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='apply_session_schema'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='apply_session_schema'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='apply_session_schema'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='apply_session_schema'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='apply_session_schema'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.initialize_agent_storage::check_database",
+          "resourceKey": "resources.jobs.initialize_agent_storage",
+          "label": "check_database",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='check_database'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_database'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_database'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_database'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='check_database'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.initialize_agent_storage::verify_session_storage",
+          "resourceKey": "resources.jobs.initialize_agent_storage",
+          "label": "verify_session_storage",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='verify_session_storage'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_session_storage'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_session_storage'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_session_storage'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_session_storage'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.prepare_agent_knowledge",
+          "resourceKey": "resources.jobs.prepare_agent_knowledge",
+          "label": "prepare_agent_knowledge",
+          "kind": "job",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.prepare_agent_knowledge::inspect_source",
+          "resourceKey": "resources.jobs.prepare_agent_knowledge",
+          "label": "inspect_source",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='inspect_source'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='inspect_source'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='inspect_source'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='inspect_source'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='inspect_source'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.prepare_agent_knowledge::prepare_documents",
+          "resourceKey": "resources.jobs.prepare_agent_knowledge",
+          "label": "prepare_documents",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='prepare_documents'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='prepare_documents'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='prepare_documents'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='prepare_documents'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='prepare_documents'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.prepare_agent_knowledge::verify_preparation",
+          "resourceKey": "resources.jobs.prepare_agent_knowledge",
+          "label": "verify_preparation",
+          "kind": "task",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "tasks[task_key='verify_preparation'].disabled",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_preparation'].email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_preparation'].notebook_task.source",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_preparation'].run_if",
+              "action": "skip"
+            },
+            {
+              "key": "tasks[task_key='verify_preparation'].timeout_seconds",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 4,
+      "by_kind": {
+        "dag": 4,
+        "lateral": 0
+      },
+      "by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "unchanged": 4
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 4
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 0
+        }
+      },
+      "entries": [
+        {
+          "source": "resources.jobs.initialize_agent_storage::apply_session_schema",
+          "target": "resources.jobs.initialize_agent_storage::verify_session_storage",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.initialize_agent_storage::check_database",
+          "target": "resources.jobs.initialize_agent_storage::apply_session_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.prepare_agent_knowledge::inspect_source",
+          "target": "resources.jobs.prepare_agent_knowledge::prepare_documents",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.jobs.prepare_agent_knowledge::prepare_documents",
+          "target": "resources.jobs.prepare_agent_knowledge::verify_preparation",
+          "diffState": "unchanged",
+          "kind": "dag"
+        }
+      ]
+    }
+  },
+  "resource_graph": {
+    "nodes": {
+      "total": 24,
+      "by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 13,
+        "derived": 0,
+        "root": 5,
+        "phantom": 6
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "modified": 2,
+        "unchanged": 21,
+        "unknown": 0
+      },
+      "by_kind_and_diff_state": {
+        "job": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "task": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "resource": {
+          "added": 1,
+          "removed": 0,
+          "modified": 2,
+          "unchanged": 10,
+          "unknown": 0
+        },
+        "derived": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 0,
+          "unknown": 0
+        },
+        "root": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 5,
+          "unknown": 0
+        },
+        "phantom": {
+          "added": 0,
+          "removed": 0,
+          "modified": 0,
+          "unchanged": 6,
+          "unknown": 0
+        }
+      },
+      "drift_count": 0,
+      "drift_by_kind": {
+        "job": 0,
+        "task": 0,
+        "resource": 0,
+        "derived": 0,
+        "root": 0,
+        "phantom": 0
+      },
+      "drift_by_diff_state": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "unchanged": 0,
+        "unknown": 0
+      },
+      "total_change_entries": 45,
+      "total_effect_entries": 1,
+      "with_resource_state": 13,
+      "task_change_summary_total": 0,
+      "entries": [
+        {
+          "id": "catalog::dagshund",
+          "resourceKey": "catalog::dagshund",
+          "label": "dagshund",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "other-resources-root",
+          "resourceKey": "other-resources-root",
+          "label": "Other Resources",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-project::retail-agent",
+          "resourceKey": "resources.postgres_projects.retail_agent",
+          "label": "retail_agent",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "default_branch",
+              "action": "skip"
+            },
+            {
+              "key": "display_name",
+              "action": "skip"
+            },
+            {
+              "key": "pg_version",
+              "action": "skip"
+            },
+            {
+              "key": "purge_on_delete",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "postgres-root",
+          "resourceKey": "postgres-root",
+          "label": "Lakebase",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.apps.retail_assistant",
+          "resourceKey": "resources.apps.retail_assistant",
+          "label": "retail_assistant",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "app_status",
+              "action": "skip"
+            },
+            {
+              "key": "compute_size",
+              "action": "skip"
+            },
+            {
+              "key": "compute_status",
+              "action": "skip"
+            },
+            {
+              "key": "create_time",
+              "action": "skip"
+            },
+            {
+              "key": "creator",
+              "action": "skip"
+            },
+            {
+              "key": "effective_user_api_scopes",
+              "action": "skip"
+            },
+            {
+              "key": "id",
+              "action": "skip"
+            },
+            {
+              "key": "lifecycle",
+              "action": "skip"
+            },
+            {
+              "key": "oauth2_app_client_id",
+              "action": "skip"
+            },
+            {
+              "key": "oauth2_app_integration_id",
+              "action": "skip"
+            },
+            {
+              "key": "resources",
+              "action": "update"
+            },
+            {
+              "key": "service_principal_client_id",
+              "action": "skip"
+            },
+            {
+              "key": "service_principal_id",
+              "action": "skip"
+            },
+            {
+              "key": "service_principal_name",
+              "action": "skip"
+            },
+            {
+              "key": "source_code_path",
+              "action": "skip"
+            },
+            {
+              "key": "thumbnail_url",
+              "action": "skip"
+            },
+            {
+              "key": "update_time",
+              "action": "skip"
+            },
+            {
+              "key": "updater",
+              "action": "skip"
+            },
+            {
+              "key": "url",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.experiments.retail_agent_traces",
+          "resourceKey": "resources.experiments.retail_agent_traces",
+          "label": "retail_agent_traces",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "artifact_location",
+              "action": "skip"
+            },
+            {
+              "key": "name",
+              "action": "skip"
+            },
+            {
+              "key": "tags",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.initialize_agent_storage",
+          "resourceKey": "resources.jobs.initialize_agent_storage",
+          "label": "initialize_agent_storage",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [
+            {
+              "name": "apply_session_migration",
+              "action": "recreate"
+            }
+          ],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.jobs.prepare_agent_knowledge",
+          "resourceKey": "resources.jobs.prepare_agent_knowledge",
+          "label": "prepare_agent_knowledge",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "email_notifications",
+              "action": "skip"
+            },
+            {
+              "key": "timeout_seconds",
+              "action": "skip"
+            },
+            {
+              "key": "webhook_notifications",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_branches.production",
+          "resourceKey": "resources.postgres_branches.production",
+          "label": "production",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "is_protected",
+              "action": "skip"
+            },
+            {
+              "key": "no_expiry",
+              "action": "skip"
+            },
+            {
+              "key": "replace_existing",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_databases.agent_sessions",
+          "resourceKey": "resources.postgres_databases.agent_sessions",
+          "label": "agent_sessions",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "postgres_database",
+              "action": "skip"
+            },
+            {
+              "key": "role",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_endpoints.production_endpoint",
+          "resourceKey": "resources.postgres_endpoints.production_endpoint",
+          "label": "production_endpoint",
+          "kind": "resource",
+          "diffState": "modified",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "autoscaling_limit_max_cu",
+              "action": "update"
+            },
+            {
+              "key": "autoscaling_limit_min_cu",
+              "action": "skip"
+            },
+            {
+              "key": "endpoint_type",
+              "action": "skip"
+            },
+            {
+              "key": "replace_existing",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.postgres_roles.agent_app",
+          "resourceKey": "resources.postgres_roles.agent_app",
+          "label": "agent_app",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "auth_method",
+              "action": "skip"
+            },
+            {
+              "key": "identity_type",
+              "action": "skip"
+            },
+            {
+              "key": "postgres_role",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.schemas.agent_knowledge_schema",
+          "resourceKey": "resources.schemas.agent_knowledge_schema",
+          "label": "agent_knowledge_schema",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.vector_search_endpoints.agent_knowledge_endpoint",
+          "resourceKey": "resources.vector_search_endpoints.agent_knowledge_endpoint",
+          "label": "agent_knowledge_endpoint",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.vector_search_indexes.agent_knowledge_index",
+          "resourceKey": "resources.vector_search_indexes.agent_knowledge_index",
+          "label": "agent_knowledge_index",
+          "kind": "resource",
+          "diffState": "added",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "resources.volumes.agent_knowledge_volume",
+          "resourceKey": "resources.volumes.agent_knowledge_volume",
+          "label": "agent_knowledge_volume",
+          "kind": "resource",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [
+            {
+              "key": "storage_location",
+              "action": "skip"
+            }
+          ],
+          "effects": [],
+          "hasResourceState": true,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "schema::dagshund.retail_sources",
+          "resourceKey": "schema::dagshund.retail_sources",
+          "label": "retail_sources",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "serving-endpoint::databricks-gpt-oss-20b",
+          "resourceKey": "resources.model_serving_endpoints.databricks-gpt-oss-20b",
+          "label": "databricks-gpt-oss-20b",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "serving-endpoint::databricks-gte-large-en",
+          "resourceKey": "serving-endpoint::databricks-gte-large-en",
+          "label": "databricks-gte-large-en",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
+          "resourceKey": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
+          "label": "agent_knowledge_index",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.retail_sources.knowledge_source",
+          "resourceKey": "source-table::dagshund.retail_sources.knowledge_source",
+          "label": "knowledge_source",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "uc-root",
+          "resourceKey": "uc-root",
+          "label": "Unity Catalog",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-category::jobs",
+          "resourceKey": "workspace-category::jobs",
+          "label": "Jobs",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "workspace-root",
+          "resourceKey": "workspace-root",
+          "label": "Workspace",
+          "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        }
+      ]
+    },
+    "edges": {
+      "total": 29,
+      "by_kind": {
+        "dag": 22,
+        "lateral": 7
+      },
+      "by_diff_state": {
+        "added": 1,
+        "removed": 0,
+        "unchanged": 28
+      },
+      "by_kind_and_diff_state": {
+        "dag": {
+          "added": 1,
+          "removed": 0,
+          "unchanged": 21
+        },
+        "lateral": {
+          "added": 0,
+          "removed": 0,
+          "unchanged": 7
+        }
+      },
+      "entries": [
+        {
+          "source": "catalog::dagshund",
+          "target": "resources.schemas.agent_knowledge_schema",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.retail_sources",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.apps.retail_assistant",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.experiments.retail_agent_traces",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "resources.vector_search_endpoints.agent_knowledge_endpoint",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "serving-endpoint::databricks-gpt-oss-20b",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "other-resources-root",
+          "target": "serving-endpoint::databricks-gte-large-en",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-project::retail-agent",
+          "target": "resources.postgres_branches.production",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "postgres-root",
+          "target": "postgres-project::retail-agent",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.production",
+          "target": "resources.postgres_databases.agent_sessions",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.production",
+          "target": "resources.postgres_endpoints.production_endpoint",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_branches.production",
+          "target": "resources.postgres_roles.agent_app",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.agent_knowledge_schema",
+          "target": "resources.vector_search_indexes.agent_knowledge_index",
+          "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.agent_knowledge_schema",
+          "target": "resources.volumes.agent_knowledge_volume",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.schemas.agent_knowledge_schema",
+          "target": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.retail_sources",
+          "target": "source-table::dagshund.retail_sources.knowledge_source",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "uc-root",
+          "target": "catalog::dagshund",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.initialize_agent_storage",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-category::jobs",
+          "target": "resources.jobs.prepare_agent_knowledge",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "other-resources-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "postgres-root",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "workspace-root",
+          "target": "workspace-category::jobs",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.apps.retail_assistant",
+          "target": "resources.experiments.retail_agent_traces",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.retail_assistant",
+          "target": "resources.volumes.agent_knowledge_volume",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.retail_assistant",
+          "target": "serving-endpoint::databricks-gpt-oss-20b",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.retail_assistant",
+          "target": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.vector_search_indexes.agent_knowledge_index",
+          "target": "resources.vector_search_endpoints.agent_knowledge_endpoint",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.vector_search_indexes.agent_knowledge_index",
+          "target": "serving-endpoint::databricks-gte-large-en",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.vector_search_indexes.agent_knowledge_index",
+          "target": "source-table::dagshund.retail_sources.knowledge_source",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        }
+      ]
+    },
+    "phantoms": [
+      {
+        "id": "catalog::dagshund",
+        "label": "dagshund",
+        "resourceKey": "catalog::dagshund"
+      },
+      {
+        "id": "schema::dagshund.retail_sources",
+        "label": "retail_sources",
+        "resourceKey": "schema::dagshund.retail_sources"
+      },
+      {
+        "id": "serving-endpoint::databricks-gpt-oss-20b",
+        "label": "databricks-gpt-oss-20b",
+        "resourceKey": "resources.model_serving_endpoints.databricks-gpt-oss-20b"
+      },
+      {
+        "id": "serving-endpoint::databricks-gte-large-en",
+        "label": "databricks-gte-large-en",
+        "resourceKey": "serving-endpoint::databricks-gte-large-en"
+      },
+      {
+        "id": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
+        "label": "agent_knowledge_index",
+        "resourceKey": "source-table::dagshund.agent_knowledge.agent_knowledge_index"
+      },
+      {
+        "id": "source-table::dagshund.retail_sources.knowledge_source",
+        "label": "knowledge_source",
+        "resourceKey": "source-table::dagshund.retail_sources.knowledge_source"
+      }
+    ]
+  }
+}
