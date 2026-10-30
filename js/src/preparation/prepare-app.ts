@@ -8,6 +8,7 @@ export type AppResourceRef =
   | { readonly kind: "secret_scope"; readonly name: string }
   | { readonly kind: "serving_endpoint"; readonly name: string }
   | { readonly kind: "experiment"; readonly id: string }
+  | { readonly kind: "postgres"; readonly branch: string; readonly database: string }
   | {
       readonly kind: "uc_securable";
       readonly fullName: string;
@@ -21,6 +22,7 @@ const APP_VARIANTS = [
   "secret",
   "serving_endpoint",
   "experiment",
+  "postgres",
   "uc_securable",
 ] as const;
 
@@ -32,6 +34,11 @@ const projectRef = (resource: Readonly<Record<string, unknown>>): AppResourceRef
     if (variant === "job" || variant === "sql_warehouse" || variant === "experiment") {
       const field = variant === "experiment" ? "experiment_id" : "id";
       return typeof value[field] === "string" ? { kind: variant, id: value[field] } : undefined;
+    }
+    if (variant === "postgres") {
+      return typeof value["branch"] === "string" && typeof value["database"] === "string"
+        ? { kind: variant, branch: value["branch"], database: value["database"] }
+        : undefined;
     }
     if (variant === "genie_space") {
       return typeof value["space_id"] === "string" && typeof value["name"] === "string"

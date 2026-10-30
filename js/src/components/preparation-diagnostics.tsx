@@ -6,6 +6,7 @@ const CAPABILITY_MESSAGES = {
   "serving-endpoint-models": "Serving endpoint model references could not be interpreted.",
   "job-tasks": "Job task data could not be interpreted.",
   "job-clusters": "Job cluster references could not be interpreted.",
+  "job-file-arrival": "Job file-arrival references could not be interpreted.",
   "warehouse-reference": "Warehouse reference could not be interpreted.",
   "instance-pool-reference": "Instance pool references could not be interpreted.",
   "source-table-reference": "Source table references could not be interpreted.",
@@ -17,6 +18,8 @@ const CAPABILITY_MESSAGES = {
   "postgres-identity": "Lakebase resource identity or relationship could not be interpreted.",
   "external-location-credential":
     "External location storage credential reference could not be interpreted.",
+  "postgres-synced-table-configured-inputs":
+    "Configured Postgres sync input references could not be interpreted.",
   "ai-gateway-references": "AI Gateway references could not be interpreted.",
 } as const;
 

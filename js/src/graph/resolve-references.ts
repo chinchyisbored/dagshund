@@ -6,6 +6,7 @@ import { resolveAiGatewayReferences } from "./resolve-ai-gateway-references.ts";
 import { resolveAppReferences } from "./resolve-app-references.ts";
 import { resolveConventionalReference } from "./resolve-conventional-references.ts";
 import { resolveExternalLocationReferences } from "./resolve-external-location-references.ts";
+import { resolveJobTriggerReferences } from "./resolve-job-trigger-references.ts";
 import {
   resolveDatabaseInstanceReference,
   resolveExistingPipelineReference,
@@ -45,6 +46,7 @@ export const resolveReferences = (
     ...resolveAiGatewayReferences(sourceResourceKey, context),
     ...resolveAppReferences(sourceResourceKey, context),
     ...resolveExternalLocationReferences(sourceResourceKey, context),
+    ...resolveJobTriggerReferences(sourceResourceKey, context),
     ...resolvePreparedTaskReferences(sourceResourceKey, context, finalRunJobTargets),
     ...resolveDatabaseInstanceReference(sourceResourceKey, context),
     ...resolveExistingPipelineReference(sourceResourceKey, context),

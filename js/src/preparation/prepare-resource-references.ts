@@ -3,6 +3,7 @@ import type { PlanEntry } from "../types/plan-schema.ts";
 import type { PreparationDiagnostic, Projection } from "../types/prepared-plan.ts";
 import { extractResourceType } from "../utils/resource-key.ts";
 import { getUnknownProp, isUnknownRecord } from "../utils/unknown-record.ts";
+import { preparePostgresSyncedTableInputs } from "./prepare-postgres-synced-table-inputs.ts";
 
 type PreparedReferences = {
   readonly sourceTableFullName: Projection<string>;
@@ -54,7 +55,8 @@ export const prepareResourceReferences = (
 ): PreparedReferences => {
   const resourceType = extractResourceType(resourceKey);
   const state = extractResourceState(entry);
-  const diagnostics: PreparationDiagnostic[] = [];
+  const configuredInputs = preparePostgresSyncedTableInputs(resourceKey, entry);
+  const diagnostics: PreparationDiagnostic[] = [...configuredInputs.diagnostics];
   let sourceTableFullName: Projection<string> = absent;
   let qualityMonitorTableName: Projection<string> = absent;
   let qualityMonitorBaselineTableName: Projection<string> = absent;
@@ -298,6 +300,31 @@ export const prepareResourceReferences = (
     postgres = invalid ? unsupported(resourceKey, "postgres-identity") : supported(values);
   }
 
+  const sourceSpec = state?.["spec"];
+  const hasCurrentSourceField =
+    state !== undefined &&
+    (Object.hasOwn(state, "source_table_full_name") ||
+      (isUnknownRecord(sourceSpec) && Object.hasOwn(sourceSpec, "source_table_full_name")));
+  if (
+    sourceTableFullName.status === "absent" &&
+    !hasCurrentSourceField &&
+    configuredInputs.sourceTableFullName.status !== "absent"
+  ) {
+    sourceTableFullName = configuredInputs.sourceTableFullName;
+  }
+  if (configuredInputs.postgres.status === "supported" && postgres.status === "supported") {
+    const configuredPostgres = configuredInputs.postgres.value;
+    const currentPostgres = postgres.value;
+    postgres = supported({
+      ...Object.fromEntries(
+        Object.entries(configuredPostgres).filter(
+          ([field]) => !Object.hasOwn(currentPostgres, field),
+        ),
+      ),
+      ...currentPostgres,
+    });
+  }
+
   for (const projection of [
     sourceTableFullName,
     qualityMonitorTableName,
@@ -324,6 +351,13 @@ export const prepareResourceReferences = (
     syncedTableId,
     postgres,
     externalLocationCredentialName,
-    diagnostics,
+    diagnostics: [
+      ...new Map(
+        diagnostics.map((diagnostic) => [
+          `${diagnostic.resourceKey}:${diagnostic.capability}`,
+          diagnostic,
+        ]),
+      ).values(),
+    ],
   };
 };

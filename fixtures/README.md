@@ -128,7 +128,7 @@ After regeneration and explicit approval of the reviewed output changes, update 
 
 ## CLI compatibility limits
 
-A live fixture refresh checks only the captured plans; it does not establish general CLI compatibility. The original `dagshund-92hu` compatibility assessment remains open; accepted cleanup and trigger evidence supersedes the stale `n8zt.7/.8` fixture bullets, but does not establish blanket CLI compatibility. See [COVERAGE.md](COVERAGE.md) for the precise evidence boundary and the remaining relationship gaps. Do not infer that all compatibility is verified.
+A live fixture refresh checks only the captured plans; it does not establish general CLI compatibility. The user dropped the speculative compatibility audit under `dagshund-92hu` without an established defect, not as fixed or verified. That issue now covers five reproduced graph bugs and their fixes. Accepted cleanup and trigger evidence supersedes the stale `n8zt.7/.8` fixture bullets. See [COVERAGE.md](COVERAGE.md) for exact graph evidence and remaining service limits; none of these decisions establishes blanket CLI compatibility.
 
 `wheel-bump` remains a historical CLI 1.6.0 plan because the default serverless workspace cannot regenerate its classic-compute fixture. Do not relabel or refresh it as CLI 1.20 without the separately scoped workspace and review.
 

@@ -152,6 +152,168 @@ describe("external Unity Catalog references", () => {
     );
   });
 
+  test("resolves file-arrival URLs with managed and phantom volume identity", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.volumes.managed": {
+          action: "create",
+          new_state: { value: { full_name: "main.analytics.shared" } },
+        },
+        "resources.apps.app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  uc_securable: {
+                    securable_type: "VOLUME",
+                    securable_full_name: "main.analytics.shared",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.jobs.arrival": {
+          action: "create",
+          new_state: {
+            value: {
+              trigger: { file_arrival: { url: "/Volumes/main/analytics/shared/subdir/" } },
+            },
+          },
+        },
+        "resources.jobs.repeated": {
+          action: "create",
+          new_state: {
+            value: { trigger: { file_arrival: { url: "/Volumes/main/analytics/shared/" } } },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.arrival",
+        target: "resources.volumes.managed",
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.apps.app",
+        target: "resources.volumes.managed",
+      }),
+    );
+    expect(graph.nodes.filter((node) => node.id === "volume::main.analytics.shared")).toHaveLength(
+      0,
+    );
+
+    const phantomGraph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.jobs.arrival": {
+          action: "create",
+          new_state: {
+            value: { trigger: { file_arrival: { url: "/Volumes/main/analytics/shared/subdir" } } },
+          },
+        },
+        "resources.jobs.repeated": {
+          action: "create",
+          new_state: {
+            value: { trigger: { file_arrival: { url: "/Volumes/main/analytics/shared/" } } },
+          },
+        },
+        "resources.apps.app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  uc_securable: {
+                    securable_type: "VOLUME",
+                    securable_full_name: "main.analytics.shared",
+                  },
+                },
+                {
+                  uc_securable: {
+                    securable_type: "VOLUME",
+                    securable_full_name: "main.analytics.shared",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+    expect(
+      phantomGraph.nodes.filter((node) => node.id === "volume::main.analytics.shared"),
+    ).toHaveLength(1);
+    expect(phantomGraph.nodes.filter((node) => node.id === "schema::main.analytics")).toHaveLength(
+      1,
+    );
+    expect(phantomGraph.nodes.map((node) => node.id)).not.toContain(
+      "volume::main.analytics.shared.subdir",
+    );
+    for (const source of [
+      "resources.jobs.arrival",
+      "resources.jobs.repeated",
+      "resources.apps.app",
+    ]) {
+      expect(
+        phantomGraph.lateralEdges.filter(
+          (edge) => edge.source === source && edge.target === "volume::main.analytics.shared",
+        ),
+      ).toHaveLength(1);
+    }
+    expect(
+      phantomGraph.edges.filter(
+        (edge) =>
+          edge.source === "schema::main.analytics" &&
+          edge.target === "volume::main.analytics.shared",
+      ),
+    ).toHaveLength(1);
+    expect(
+      phantomGraph.edges.filter(
+        (edge) => edge.source === "catalog::main" && edge.target === "schema::main.analytics",
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("does not resolve historical volumes for invalid selected file-arrival state", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.jobs.invalid-snapshot": {
+          action: "update",
+          new_state: { value: "PRIVATE" },
+          remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/stale" } } },
+        },
+        "resources.jobs.invalid-url": {
+          action: "update",
+          new_state: { value: { trigger: { file_arrival: { url: 42 } } } },
+          remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/stale" } } },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.filter((edge) => edge.target.startsWith("volume::"))).toHaveLength(0);
+    expect(graph.nodes.filter((node) => node.id.startsWith("volume::"))).toHaveLength(0);
+  });
+
+  test("ignores unsupported file-arrival URL roots and incomplete volume identities", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: Object.fromEntries(
+        ["/mnt/main/analytics/shared", "/Volumes/main/analytics", "/Volumes//analytics/shared"].map(
+          (url, index) => [
+            `resources.jobs.job${index}`,
+            { action: "create", new_state: { value: { trigger: { file_arrival: { url } } } } },
+          ],
+        ),
+      ),
+    });
+
+    expect(graph.lateralEdges.filter((edge) => edge.target.startsWith("volume::"))).toHaveLength(0);
+    expect(graph.nodes.filter((node) => node.id.startsWith("volume::"))).toHaveLength(0);
+  });
+
   test("uses volume full_name to place under a real schema when only catalog_name is present", () => {
     const graph = buildResourceGraphFromPlan({
       plan: {

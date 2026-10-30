@@ -18,7 +18,7 @@ const edgePair = (source: string, target: string): string => `${source}->${targe
 describe("retail serving fixture", () => {
   test("shows source, sync, pipeline, and Lakebase semantic details", async () => {
     const plan = await loadFixture("retail-serving");
-    const { nodes, lateralEdges } = buildResourceGraphFromPlan(plan);
+    const { nodes, edges: graphEdges, lateralEdges } = buildResourceGraphFromPlan(plan);
     const byId = new Map(nodes.map((node) => [node.id, node]));
     const edges = new Set(lateralEdges.map((edge) => edgePair(edge.source, edge.target)));
 
@@ -87,6 +87,12 @@ describe("retail serving fixture", () => {
         ownerResourceKey: key,
       });
       expect(edges.has(edgePair(`uc-synced-table::dagshund.retail_sync.${name}`, key))).toBe(true);
+      expect(edges.has(edgePair(key, `source-table::${source}`))).toBe(true);
+      expect(
+        lateralEdges.filter(
+          (edge) => edge.source === key && edge.target === `source-table::${source}`,
+        ),
+      ).toHaveLength(1);
     }
 
     expect(
@@ -121,6 +127,28 @@ describe("retail serving fixture", () => {
         ownerResourceKey: owner,
       });
       expect(edges.has(edgePair(id, owner))).toBe(true);
+    }
+    expect(
+      graphEdges.some(
+        (edge) =>
+          edge.source === "resources.postgres_branches.production" &&
+          edge.target === "resources.postgres_databases.retail_lookup",
+      ),
+    ).toBe(true);
+    for (const key of [
+      "resources.postgres_synced_tables.customer_lookup",
+      "resources.postgres_synced_tables.product_lookup",
+      "resources.postgres_synced_tables.inventory_lookup",
+    ]) {
+      expect(
+        graphEdges.some(
+          (edge) =>
+            edge.source === "resources.postgres_databases.retail_lookup" && edge.target === key,
+        ),
+      ).toBe(true);
+      expect(
+        graphEdges.some((edge) => edge.source === "postgres-root" && edge.target === key),
+      ).toBe(false);
     }
     expect(
       byId.get("postgres-synced-pipeline::resources.postgres_synced_tables.inventory_lookup"),

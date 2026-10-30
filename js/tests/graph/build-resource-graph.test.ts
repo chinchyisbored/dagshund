@@ -15,6 +15,373 @@ import {
 } from "../helpers/build-graphs-from-plan.ts";
 import { loadFixture } from "../helpers/load-fixture.ts";
 
+describe("App Postgres bindings", () => {
+  test("uses only the selected App state for Postgres bindings", () => {
+    const binding = {
+      postgres: {
+        branch: "projects/demo/branches/main",
+        database: "projects/demo/branches/main/databases/session",
+      },
+    };
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.empty": {
+          action: "update",
+          new_state: { value: { resources: [] } },
+          remote_state: { resources: [binding] },
+        },
+        "resources.apps.absent": { action: "create" },
+        "resources.apps.deleted": { action: "delete", remote_state: { resources: [binding] } },
+        "resources.apps.remote_only": { action: "skip", remote_state: { resources: [binding] } },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.filter((edge) => edge.source.startsWith("resources.apps.")),
+    ).toMatchObject([
+      { source: "resources.apps.deleted", target: "postgres-database::demo/main/session" },
+      { source: "resources.apps.remote_only", target: "postgres-database::demo/main/session" },
+    ]);
+    expect(graph.lateralEdges.some((edge) => edge.source === "resources.apps.empty")).toBe(false);
+    expect(graph.lateralEdges.some((edge) => edge.source === "resources.apps.absent")).toBe(false);
+  });
+
+  test("resolves a matching managed database without a concrete database identity", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.main": {
+          action: "create",
+          new_state: { value: { parent: "projects/demo", branch_id: "main" } },
+        },
+        "resources.postgres_databases.session": {
+          action: "create",
+          new_state: { value: { parent: "${resources.postgres_branches.main.id}" } },
+        },
+        "resources.apps.app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "${resources.postgres_branches.main.id}",
+                    database: "${resources.postgres_databases.session.id}",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.filter((edge) => edge.source === "resources.apps.app")).toMatchObject(
+      [{ source: "resources.apps.app", target: "resources.postgres_databases.session" }],
+    );
+  });
+
+  test("normalizes concrete paths, keeps branch identities distinct, and deduplicates repeats", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.first": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "projects/one/branches/main",
+                    database: "projects/one/branches/main/databases/session",
+                  },
+                },
+                {
+                  postgres: {
+                    branch: "projects/one/branches/main",
+                    database: "projects/one/branches/main/databases/session",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.apps.second": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "projects/two/branches/main",
+                    database: "projects/two/branches/main/databases/session",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.apps.third": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "projects/one/branches/secondary",
+                    database: "projects/one/branches/secondary/databases/session",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.filter((edge) => edge.source === "resources.apps.first"),
+    ).toHaveLength(1);
+    expect(
+      graph.lateralEdges.filter((edge) => edge.source === "resources.apps.second"),
+    ).toHaveLength(1);
+    expect(
+      graph.lateralEdges.filter((edge) => edge.source === "resources.apps.third"),
+    ).toHaveLength(1);
+    expect(graph.nodes.some((node) => node.id === "postgres-branch::one/main")).toBe(true);
+    expect(graph.nodes.some((node) => node.id === "postgres-project::one")).toBe(true);
+    expect(graph.lateralEdges.map((edge) => edge.target)).toContain(
+      "postgres-database::one/main/session",
+    );
+    expect(graph.lateralEdges.map((edge) => edge.target)).toContain(
+      "postgres-database::two/main/session",
+    );
+    expect(graph.lateralEdges.map((edge) => edge.target)).toContain(
+      "postgres-database::one/secondary/session",
+    );
+    expect(graph.nodes.filter((node) => node.id === "postgres-branch::one/main")).toHaveLength(1);
+    expect(graph.nodes.filter((node) => node.id === "postgres-project::one")).toHaveLength(1);
+    expect(graph.nodes.filter((node) => node.id === "postgres-project::two")).toHaveLength(1);
+  });
+
+  test("matches symbolic name references and concrete branch paths to managed databases", () => {
+    const symbolic = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.main": {
+          action: "create",
+          new_state: { value: { parent: "projects/demo", branch_id: "main" } },
+        },
+        "resources.postgres_databases.session": {
+          action: "create",
+          new_state: { value: { parent: "${resources.postgres_branches.main.id}" } },
+        },
+        "resources.apps.symbolic": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "${resources.postgres_branches.main.name}",
+                    database: "${resources.postgres_databases.session.name}",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.apps.concrete": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "projects/demo/branches/main",
+                    database: "${resources.postgres_databases.session.id}",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(
+      symbolic.lateralEdges.filter((edge) => edge.source === "resources.apps.symbolic"),
+    ).toMatchObject([{ target: "resources.postgres_databases.session" }]);
+    expect(
+      symbolic.lateralEdges.filter((edge) => edge.source === "resources.apps.concrete"),
+    ).toMatchObject([{ target: "resources.postgres_databases.session" }]);
+  });
+
+  test("resolves a symbolic branch with a concrete database path", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.main": {
+          action: "create",
+          new_state: { value: { parent: "projects/demo", branch_id: "main" } },
+        },
+        "resources.apps.app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "${resources.postgres_branches.main.id}",
+                    database: "projects/demo/branches/main/databases/session",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.filter((edge) => edge.source === "resources.apps.app")).toMatchObject(
+      [{ target: "postgres-database::demo/main/session" }],
+    );
+  });
+
+  test("rejects mismatched or malformed concrete database paths", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "projects/demo/branches/main",
+                    database: "projects/other/branches/main/databases/session",
+                  },
+                },
+                {
+                  postgres: {
+                    branch: "projects/demo/branches/main",
+                    database: "projects/demo/branches/main/databases/session/extra",
+                  },
+                },
+                {
+                  postgres: {
+                    branch: "projects/demo/branches/main",
+                    database:
+                      "projects/${resources.postgres_projects.missing.id}/branches/main/databases/session",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges).toEqual([]);
+    expect(graph.nodes.filter((node) => node.nodeKind === "phantom")).toEqual([]);
+  });
+
+  test("rejects symbolic database bindings with a wrong-type or unresolved branch", () => {
+    const cases = ["${resources.jobs.main.id}", "${resources.postgres_branches.missing.id}"];
+
+    for (const branch of cases) {
+      const graph = buildResourceGraphFromPlan({
+        plan: {
+          "resources.jobs.main": {
+            action: "create",
+            new_state: { value: { name: "job" } },
+          },
+          "resources.postgres_databases.session": {
+            action: "create",
+            new_state: { value: { parent: branch } },
+          },
+          "resources.apps.app": {
+            action: "create",
+            new_state: {
+              value: {
+                resources: [
+                  { postgres: { branch, database: "${resources.postgres_databases.session.id}" } },
+                ],
+              },
+            },
+          },
+        },
+      });
+
+      expect(graph.lateralEdges.filter((edge) => edge.source === "resources.apps.app")).toEqual([]);
+      expect(graph.nodes.filter((node) => node.nodeKind === "phantom")).toEqual([]);
+    }
+  });
+
+  test("rejects a symbolic database binding when its managed parent differs", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.postgres_branches.main": {
+          action: "create",
+          new_state: { value: { parent: "projects/demo", branch_id: "main" } },
+        },
+        "resources.postgres_branches.other": {
+          action: "create",
+          new_state: { value: { parent: "projects/demo", branch_id: "other" } },
+        },
+        "resources.postgres_databases.session": {
+          action: "create",
+          new_state: { value: { parent: "${resources.postgres_branches.other.id}" } },
+        },
+        "resources.apps.app": {
+          action: "create",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  postgres: {
+                    branch: "${resources.postgres_branches.main.id}",
+                    database: "${resources.postgres_databases.session.id}",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.filter((edge) => edge.source === "resources.apps.app")).toEqual([]);
+  });
+
+  for (const branch of [
+    "projects/demo/branches/main/databases/wrong",
+    "projects/demo/branches/main/extra",
+    "projects/${resources.postgres_projects.missing.id}/branches/main",
+  ]) {
+    test(`does not create a phantom from invalid branch ${branch}`, () => {
+      const graph = buildResourceGraphFromPlan({
+        plan: {
+          "resources.apps.app": {
+            action: "create",
+            new_state: {
+              value: {
+                resources: [
+                  {
+                    postgres: {
+                      branch,
+                      database: "projects/demo/branches/main/databases/session",
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      });
+
+      expect(graph.lateralEdges).toEqual([]);
+      expect(graph.nodes.filter((node) => node.nodeKind === "phantom")).toEqual([]);
+    });
+  }
+});
+
 describe("generic resource fallback", () => {
   const resourceTypes = ["cluster_policies", "models"] as const;
   const actions = ["create", "update", "delete", "unknown"] as const;
@@ -2078,6 +2445,51 @@ describe("effective-state relationship regressions", () => {
     expect(
       graph.lateralEdges.some((edge) => edge.target === "sql-warehouse::stale-warehouse"),
     ).toBe(false);
+  });
+
+  test("alert task links follow effective current, skip, and delete snapshots", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.jobs.omitted": {
+          action: "update",
+          new_state: { value: { tasks: [] } },
+          remote_state: {
+            tasks: [{ task_key: "old", alert_task: { alert_id: "alert-1" } }],
+          },
+        },
+        "resources.jobs.skipped": {
+          action: "skip",
+          new_state: {},
+          remote_state: {
+            tasks: [{ task_key: "retained", alert_task: { alert_id: "alert-1" } }],
+          },
+        },
+        "resources.jobs.deleted": {
+          action: "delete",
+          remote_state: {
+            tasks: [{ task_key: "removed", alert_task: { alert_id: "alert-1" } }],
+          },
+        },
+        "resources.alerts.target": {
+          new_state: { value: { display_name: "Target" } },
+          remote_state: { id: "alert-1" },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.skipped",
+        target: "resources.alerts.target",
+      }),
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.deleted",
+        target: "resources.alerts.target",
+      }),
+    );
+    expect(graph.lateralEdges.some((edge) => edge.source === "resources.jobs.omitted")).toBe(false);
   });
 
   test("does not restore a remote synced-table output omitted from current state", () => {
@@ -4221,6 +4633,505 @@ describe("schema-supported workspace resource relationships", () => {
 
     expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
       "resources.jobs.foreach→resources.instance_pools.workers",
+    );
+  });
+});
+
+describe("App TABLE references to managed vector search indexes", () => {
+  test("resolves the effective managed index name instead of creating a table phantom", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.my_app": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "index",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "main.docs.search_index",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.vector_search_indexes.search": {
+          action: "create",
+          new_state: { value: { name: "main.docs.search_index" } },
+        },
+      },
+    });
+
+    const pairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(pairs).toContain("resources.apps.my_app→resources.vector_search_indexes.search");
+    expect(graph.nodes.map((node) => node.id)).not.toContain(
+      "source-table::main.docs.search_index",
+    );
+  });
+
+  test("resolves whole-string symbolic name references to materialized indexes", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.my_app": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "index_name",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "$" + "{resources.vector_search_indexes.search.name}",
+                  },
+                },
+                {
+                  name: "index_id",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "$" + "{resources.vector_search_indexes.search.id}",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.vector_search_indexes.search": {
+          action: "create",
+          new_state: { value: { name: "main.docs.search_index" } },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      "resources.apps.my_app→resources.vector_search_indexes.search",
+    );
+    expect(graph.nodes.some((node) => node.id.startsWith("source-table::"))).toBe(false);
+  });
+
+  test("keeps each symbolic attribute independent and deduplicates repeated bindings", () => {
+    const symbolicName = "$" + "{resources.vector_search_indexes.search.name}";
+    const symbolicId = "$" + "{resources.vector_search_indexes.search.id}";
+    const appResources = [symbolicName, symbolicId, "main.docs.search_index", symbolicName].map(
+      (fullName, index) => ({
+        name: `binding_${index}`,
+        uc_securable: { securable_type: "TABLE", securable_full_name: fullName },
+      }),
+    );
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.my_app": {
+          action: "update",
+          new_state: { value: { resources: appResources } },
+        },
+        "resources.vector_search_indexes.search": {
+          action: "create",
+          new_state: { value: { name: "main.docs.search_index" } },
+        },
+      },
+    });
+
+    expect(
+      graph.lateralEdges.filter(
+        (edge) =>
+          edge.source === "resources.apps.my_app" &&
+          edge.target === "resources.vector_search_indexes.search",
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("rejects unresolved symbolic references without guessing a table phantom", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.my_app": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "missing",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "$" + "{resources.vector_search_indexes.missing.name}",
+                  },
+                },
+                {
+                  name: "wrong_type",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "$" + "{resources.jobs.job.name}",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.filter((edge) => edge.source === "resources.apps.my_app")).toEqual(
+      [],
+    );
+    expect(graph.nodes.some((node) => node.id.startsWith("source-table::"))).toBe(false);
+  });
+
+  test("does not index missing or malformed managed names", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.my_app": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "missing",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "main.docs.missing",
+                  },
+                },
+                {
+                  name: "malformed",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "docs.malformed",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.vector_search_indexes.missing": {
+          action: "create",
+          new_state: { value: {} },
+        },
+        "resources.vector_search_indexes.malformed": {
+          action: "create",
+          new_state: { value: { name: "docs.malformed" } },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toEqual([
+      "resources.apps.my_app→source-table::main.docs.missing",
+    ]);
+    expect(graph.nodes.map((node) => node.id)).not.toContain("source-table::docs.malformed");
+  });
+
+  test("uses selected managed names and does not restore stale remote aliases", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.current": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "current",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "main.docs.current",
+                  },
+                },
+                {
+                  name: "old",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "main.docs.old",
+                  },
+                },
+              ],
+            },
+          },
+        },
+        "resources.vector_search_indexes.current": {
+          action: "update",
+          new_state: { value: { name: "main.docs.current" } },
+          remote_state: { name: "main.docs.old" },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual([
+      "resources.apps.current→resources.vector_search_indexes.current",
+      "resources.apps.current→source-table::main.docs.old",
+    ]);
+  });
+
+  test("selects current App bindings and index snapshots instead of stale remote values", () => {
+    const staleBinding = {
+      name: "stale",
+      uc_securable: { securable_type: "TABLE", securable_full_name: "main.docs.old" },
+    };
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.empty": {
+          action: "update",
+          new_state: { value: { resources: [] } },
+          remote_state: { resources: [staleBinding] },
+        },
+        "resources.apps.unsupported": {
+          action: "update",
+          new_state: { value: { resources: "unsupported" } },
+          remote_state: { resources: [staleBinding] },
+        },
+        "resources.apps.consumer": {
+          action: "update",
+          new_state: { value: { resources: [staleBinding] } },
+        },
+        "resources.vector_search_indexes.old": {
+          action: "update",
+          new_state: { value: {} },
+          remote_state: { name: "main.docs.old" },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toEqual([
+      "resources.apps.consumer→source-table::main.docs.old",
+    ]);
+    expect(graph.nodes.map((node) => node.id)).toContain("source-table::main.docs.old");
+    expect(graph.nodes.map((node) => node.id)).toContain("resources.vector_search_indexes.old");
+  });
+
+  test("does not infer index aliases from absent or unsupported selected snapshots", () => {
+    const binding = (fullName: string) => ({
+      name: fullName,
+      uc_securable: { securable_type: "TABLE", securable_full_name: fullName },
+    });
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.reader": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [binding("main.docs.absent"), binding("main.docs.unsupported")],
+            },
+          },
+        },
+        "resources.vector_search_indexes.absent": {
+          action: "update",
+        },
+        "resources.vector_search_indexes.unsupported": {
+          action: "update",
+          new_state: ["unsupported"],
+          remote_state: { name: "main.docs.unsupported" },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`).toSorted()).toEqual([
+      "resources.apps.reader→source-table::main.docs.absent",
+      "resources.apps.reader→source-table::main.docs.unsupported",
+    ]);
+  });
+
+  test("uses remote-only and delete index identities from their selected snapshots", () => {
+    const appBinding = {
+      name: "table",
+      uc_securable: { securable_type: "TABLE", securable_full_name: "main.docs.remote" },
+    };
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.reader": {
+          action: "update",
+          new_state: { value: { resources: [appBinding] } },
+        },
+        "resources.vector_search_indexes.remote": {
+          action: "skip",
+          remote_state: { name: "main.docs.remote" },
+        },
+        "resources.vector_search_indexes.deleted": {
+          action: "delete",
+          new_state: { value: { name: "main.docs.conflicting_current" } },
+          remote_state: { name: "main.docs.deleted" },
+        },
+      },
+    });
+
+    const pairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(pairs).toContain("resources.apps.reader→resources.vector_search_indexes.remote");
+    expect(graph.nodes.map((node) => node.id)).toContain("resources.vector_search_indexes.deleted");
+    expect(graph.nodes.map((node) => node.id)).not.toContain("source-table::main.docs.deleted");
+  });
+
+  test("selects absent, new-over-remote, remote-only, and delete App bindings", () => {
+    const binding = (name: string) => ({
+      name,
+      uc_securable: { securable_type: "TABLE", securable_full_name: name },
+    });
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.absent": {
+          action: "update",
+          remote_state: { resources: [binding("main.docs.absent_remote")] },
+        },
+        "resources.apps.new": {
+          action: "update",
+          new_state: { value: { resources: [binding("main.docs.new_current")] } },
+          remote_state: { resources: [binding("main.docs.new_remote")] },
+        },
+        "resources.apps.remote": {
+          action: "skip",
+          remote_state: { resources: [binding("main.docs.remote_only")] },
+        },
+        "resources.apps.deleted": {
+          action: "delete",
+          remote_state: { resources: [binding("main.docs.deleted_remote")] },
+        },
+        "resources.vector_search_indexes.current": {
+          action: "create",
+          new_state: { value: { name: "main.docs.new_current" } },
+        },
+        "resources.vector_search_indexes.remote": {
+          action: "skip",
+          remote_state: { name: "main.docs.remote_only" },
+        },
+        "resources.vector_search_indexes.deleted": {
+          action: "delete",
+          new_state: { value: { name: "main.docs.conflicting_current" } },
+          remote_state: { name: "main.docs.deleted_remote" },
+        },
+      },
+    });
+
+    const pairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(pairs).toContain("resources.apps.new→resources.vector_search_indexes.current");
+    expect(pairs).toContain("resources.apps.remote→resources.vector_search_indexes.remote");
+    expect(pairs).toContain("resources.apps.deleted→resources.vector_search_indexes.deleted");
+    expect(pairs).toContain("resources.apps.absent→source-table::main.docs.absent_remote");
+    expect(pairs).not.toContain("resources.apps.new→source-table::main.docs.new_remote");
+    expect(pairs).not.toContain("resources.apps.new→resources.vector_search_indexes.remote");
+  });
+
+  test("preserves derived table precedence and confines index aliases to App bindings", () => {
+    const sharedName = "main.docs.shared";
+    const indexName = "main.docs.other_index";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.reader": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "derived",
+                  uc_securable: { securable_type: "TABLE", securable_full_name: sharedName },
+                },
+              ],
+            },
+          },
+        },
+        "resources.pipelines.producer": {
+          action: "create",
+          new_state: { value: { event_log: { catalog: "main", schema: "docs", name: "shared" } } },
+        },
+        "resources.quality_monitors.monitor": {
+          action: "create",
+          new_state: { value: { table_name: indexName } },
+        },
+        "resources.vector_search_indexes.shared": {
+          action: "create",
+          new_state: {
+            value: {
+              name: sharedName,
+              delta_sync_index_spec: { source_table: sharedName },
+            },
+          },
+        },
+        "resources.vector_search_indexes.other": {
+          action: "create",
+          new_state: {
+            value: {
+              name: indexName,
+              delta_sync_index_spec: { source_table: indexName },
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      `resources.apps.reader→pipeline-event-log::${sharedName}`,
+    );
+    expect(
+      graph.lateralEdges.some(
+        (edge) =>
+          edge.source === "resources.vector_search_indexes.other" &&
+          edge.target === "resources.vector_search_indexes.other",
+      ),
+    ).toBe(false);
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      `resources.quality_monitors.monitor→source-table::${indexName}`,
+    );
+    expect(
+      graph.lateralEdges.some(
+        (edge) =>
+          edge.source === "resources.vector_search_indexes.shared" &&
+          edge.target === "resources.vector_search_indexes.shared",
+      ),
+    ).toBe(false);
+  });
+
+  test("preserves synced-table precedence over a same-name managed index", () => {
+    const sharedName = "main.docs.shared";
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.reader": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "table",
+                  uc_securable: { securable_type: "TABLE", securable_full_name: sharedName },
+                },
+              ],
+            },
+          },
+        },
+        "resources.synced_database_tables.shared": {
+          action: "create",
+          new_state: { value: { name: sharedName } },
+        },
+        "resources.vector_search_indexes.shared": {
+          action: "create",
+          new_state: { value: { name: sharedName } },
+        },
+      },
+    });
+
+    const pairs = graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`);
+    expect(pairs).toContain("resources.apps.reader→resources.synced_database_tables.shared");
+    expect(pairs).not.toContain("resources.apps.reader→resources.vector_search_indexes.shared");
+    expect(graph.nodes.map((node) => node.id)).not.toContain(`source-table::${sharedName}`);
+  });
+
+  test("keeps unmatched concrete TABLE names as phantom references", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.apps.my_app": {
+          action: "update",
+          new_state: {
+            value: {
+              resources: [
+                {
+                  name: "table",
+                  uc_securable: {
+                    securable_type: "TABLE",
+                    securable_full_name: "main.docs.external_table",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.lateralEdges.map((edge) => `${edge.source}→${edge.target}`)).toContain(
+      "resources.apps.my_app→source-table::main.docs.external_table",
     );
   });
 });

@@ -27,6 +27,7 @@ export type LateralEdgeContext = {
 export type ReferenceIndexes = {
   readonly warehouseIndex: ReadonlyMap<string, string>;
   readonly dashboardIndex: ReadonlyMap<string, string>;
+  readonly alertIndex: ReadonlyMap<string, string>;
   readonly pipelineIndex: ReadonlyMap<string, string>;
   readonly genieSpaceIndex: ReadonlyMap<string, string>;
   readonly jobIndex: ReadonlyMap<string, string>;
@@ -140,7 +141,7 @@ export const CONVENTIONAL_REFERENCE_SPECS = {
   },
 } as const satisfies Readonly<Record<string, ConventionalReferenceSpec>>;
 export type TaskRefSpec = {
-  readonly referenceName: "warehouse_id" | "dashboard_id" | "pipeline_id";
+  readonly referenceName: "warehouse_id" | "alert_id" | "dashboard_id" | "pipeline_id";
   readonly selectIndex: (indexes: ReferenceIndexes) => ReadonlyMap<string, string>;
   readonly targetResourceType: string;
   readonly phantomKind: PhantomKind;
@@ -150,6 +151,12 @@ export const TASK_REF_SPECS: readonly TaskRefSpec[] = [
   {
     referenceName: "warehouse_id",
     ...WAREHOUSE_TASK_REFERENCE,
+  },
+  {
+    referenceName: "alert_id",
+    selectIndex: (indexes) => indexes.alertIndex,
+    targetResourceType: "alerts",
+    phantomKind: "alert",
   },
   {
     referenceName: "dashboard_id",

@@ -72,6 +72,7 @@ export const buildResourceNode = (
       historicalTasks: { status: "absent" },
       deletedTasks: { status: "absent" },
       clusters: { status: "absent" },
+      fileArrivalUrl: { status: "absent" },
     };
     const tasks = job.currentTasks.status === "supported" ? job.currentTasks.value : [];
     return {

@@ -32,6 +32,10 @@ describe("Agent App captured fixture", () => {
       graph.nodes,
       "source-table::dagshund.retail_sources.knowledge_source",
     );
+    const duplicateIndexTable = findNode(
+      graph.nodes,
+      "source-table::dagshund.agent_knowledge.agent_knowledge_index",
+    );
     const embeddingEndpoint = findNode(graph.nodes, "serving-endpoint::databricks-gte-large-en");
     const searchEndpoint = findNode(
       graph.nodes,
@@ -44,6 +48,7 @@ describe("Agent App captured fixture", () => {
     expect(knowledgeIndex?.diffState).toBe("added");
     expect(searchEndpoint?.nodeKind).toBe("resource");
     expect(sourceTable?.nodeKind).toBe("phantom");
+    expect(duplicateIndexTable).toBeUndefined();
     expect(embeddingEndpoint?.nodeKind).toBe("phantom");
     expect(knowledgeSchema?.resourceState).toMatchObject({
       full_name: "dagshund.agent_knowledge",
@@ -149,6 +154,15 @@ describe("Agent App captured fixture", () => {
 
     const lateralPairs = graph.lateralEdges.map(({ source, target }) => `${source}->${target}`);
     expect(lateralPairs).toContain(
+      "resources.apps.retail_assistant->resources.postgres_databases.agent_sessions",
+    );
+    expect(
+      lateralPairs.filter(
+        (pair) =>
+          pair === "resources.apps.retail_assistant->resources.postgres_databases.agent_sessions",
+      ),
+    ).toHaveLength(1);
+    expect(lateralPairs).toContain(
       "resources.apps.retail_assistant->resources.volumes.agent_knowledge_volume",
     );
     expect(lateralPairs).toContain(
@@ -158,7 +172,7 @@ describe("Agent App captured fixture", () => {
       "resources.apps.retail_assistant->serving-endpoint::databricks-gpt-oss-20b",
     );
     expect(lateralPairs).toContain(
-      "resources.apps.retail_assistant->source-table::dagshund.agent_knowledge.agent_knowledge_index",
+      "resources.apps.retail_assistant->resources.vector_search_indexes.agent_knowledge_index",
     );
     expect(lateralPairs).toContain(
       "resources.vector_search_indexes.agent_knowledge_index->resources.vector_search_endpoints.agent_knowledge_endpoint",

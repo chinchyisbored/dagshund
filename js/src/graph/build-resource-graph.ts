@@ -207,6 +207,9 @@ export const buildResourceGraph = (
   const dashboardIndex = buildApiIdIndex(entries, "dashboards", (e) =>
     extractHistoricalStateField(e, "dashboard_id"),
   );
+  const alertIndex = buildApiIdIndex(entries, "alerts", (e) =>
+    extractHistoricalStateField(e, "id"),
+  );
   const pipelineIndex = new Map([
     ...buildDerivedReferenceIndex("pipelines", ownedDerivedRefs, plan.byResourceKey),
     ...buildApiIdIndex(entries, "pipelines", (e) => extractHistoricalStateField(e, "pipeline_id")),
@@ -220,6 +223,7 @@ export const buildResourceGraph = (
   const referenceIndexes: ReferenceIndexes = {
     warehouseIndex,
     dashboardIndex,
+    alertIndex,
     pipelineIndex,
     genieSpaceIndex,
     jobIndex,

@@ -3,6 +3,7 @@ import { buildResourceGraph } from "../../src/graph/build-resource-graph.ts";
 import { parsePlanJson } from "../../src/parser/parse-plan.ts";
 import { preparePlan } from "../../src/preparation/prepare-plan.ts";
 import { normalizePlan } from "../../src/utils/normalize-plan.ts";
+import { buildResourceGraphFromPlan } from "../helpers/build-graphs-from-plan.ts";
 
 const prepareEntries = (entries: Readonly<Record<string, unknown>>) => {
   const parsed = parsePlanJson({ plan: entries });
@@ -10,6 +11,35 @@ const prepareEntries = (entries: Readonly<Record<string, unknown>>) => {
   if (!parsed.ok) throw new Error("test plan must parse");
   return preparePlan(normalizePlan(parsed.data.plan ?? {}));
 };
+
+describe("preparePlan job file-arrival references", () => {
+  test("collects safe diagnostics for malformed selected trigger containers", () => {
+    const prepared = prepareEntries({
+      "resources.jobs.valid": {
+        action: "create",
+        new_state: {
+          value: { trigger: { file_arrival: { url: "/Volumes/main/analytics/shared" } } },
+        },
+      },
+      "resources.jobs.malformed": {
+        action: "create",
+        new_state: { value: { trigger: { file_arrival: "PRIVATE" } } },
+      },
+    });
+
+    expect(prepared.byResourceKey.get("resources.jobs.valid")?.job).toMatchObject({
+      value: { fileArrivalUrl: { status: "supported", value: "/Volumes/main/analytics/shared" } },
+    });
+    expect(prepared.diagnostics).toEqual([
+      {
+        resourceKey: "resources.jobs.malformed",
+        capability: "job-file-arrival",
+        reason: "invalid-shape",
+      },
+    ]);
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("PRIVATE");
+  });
+});
 
 describe("preparePlan app resource projections", () => {
   test("prepares known variants while leaving unknown variants opaque", () => {
@@ -21,6 +51,13 @@ describe("preparePlan app resource projections", () => {
             resources: [
               { job: { id: "job-1", permission: "CAN_RUN" } },
               { secret: { scope: "scope-1", key: "token" } },
+              {
+                postgres: {
+                  branch: "projects/demo/branches/main",
+                  database: "projects/demo/branches/main/databases/session",
+                  permission: "CAN_CONNECT_AND_CREATE",
+                },
+              },
               { future_variant: { credential: "PRIVATE" } },
             ],
           },
@@ -37,6 +74,11 @@ describe("preparePlan app resource projections", () => {
       value: [
         { kind: "job", id: "job-1" },
         { kind: "secret_scope", name: "scope-1" },
+        {
+          kind: "postgres",
+          branch: "projects/demo/branches/main",
+          database: "projects/demo/branches/main/databases/session",
+        },
       ],
     });
     expect(prepared.byResourceKey.get("resources.apps.unknown")?.appResources).toEqual({
@@ -44,6 +86,27 @@ describe("preparePlan app resource projections", () => {
       value: [],
     });
     expect(prepared.diagnostics).toEqual([]);
+  });
+
+  test("diagnoses malformed Postgres variants without exposing their values", () => {
+    const prepared = prepareEntries({
+      "resources.apps.malformed": {
+        action: "create",
+        new_state: { value: { resources: [{ postgres: { branch: "valid", database: 42 } }] } },
+      },
+    });
+
+    expect(prepared.byResourceKey.get("resources.apps.malformed")?.appResources.status).toBe(
+      "unsupported",
+    );
+    expect(prepared.diagnostics).toEqual([
+      {
+        resourceKey: "resources.apps.malformed",
+        capability: "app-resources",
+        reason: "invalid-shape",
+      },
+    ]);
+    expect(buildResourceGraph(prepared).lateralEdges).toEqual([]);
   });
 
   test("diagnoses malformed recognized variants without exposing their values", () => {
@@ -252,6 +315,597 @@ describe("preparePlan specialized reference projections", () => {
     prepareEntries(entries);
 
     expect(entries).toEqual(original);
+  });
+});
+
+describe("preparePlan skipped Postgres configured references", () => {
+  test("recovers only equal input-only facts for skipped entries without new state", () => {
+    const prepared = prepareEntries({
+      "resources.postgres_synced_tables.lookup": {
+        action: "skip",
+        remote_state: { id: "remote-id", status: { state: "ACTIVE" } },
+        changes: {
+          source_table_full_name: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "dagshund.sources.lookup",
+            new: "dagshund.sources.lookup",
+          },
+          branch: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "projects/demo/branches/main",
+            new: "projects/demo/branches/main",
+          },
+          postgres_database: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "lookup",
+            new: "lookup",
+          },
+        },
+      },
+      "resources.postgres_synced_tables.changed": {
+        action: "skip",
+        remote_state: { id: "remote-id" },
+        new_state: { value: {} },
+        changes: {
+          source_table_full_name: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "dagshund.sources.stale",
+            new: "dagshund.sources.stale",
+          },
+        },
+      },
+    });
+
+    expect(
+      prepared.byResourceKey.get("resources.postgres_synced_tables.lookup")?.sourceTableFullName,
+    ).toEqual({ status: "supported", value: "dagshund.sources.lookup" });
+    expect(prepared.byResourceKey.get("resources.postgres_synced_tables.lookup")?.postgres).toEqual(
+      {
+        status: "supported",
+        value: {
+          branch: "projects/demo/branches/main",
+          postgres_database: "lookup",
+        },
+      },
+    );
+    expect(
+      prepared.byResourceKey.get("resources.postgres_synced_tables.changed")?.sourceTableFullName,
+    ).toEqual({ status: "absent" });
+  });
+
+  test("preserves unsupported current projections and explicit source-field presence", () => {
+    const entry = {
+      action: "skip",
+      remote_state: {
+        id: "remote-id",
+        source_table_full_name: null,
+        branch: 42,
+        postgres_database: "current_db",
+        status: { postgres_database: null },
+      },
+      changes: {
+        source_table_full_name: {
+          action: "skip",
+          reason: "spec:input_only",
+          old: "dagshund.sources.stale",
+          new: "dagshund.sources.stale",
+        },
+        branch: {
+          action: "skip",
+          reason: "spec:input_only",
+          old: "projects/demo/branches/main",
+          new: "projects/demo/branches/main",
+        },
+        postgres_database: {
+          action: "skip",
+          reason: "spec:input_only",
+          old: "old_db",
+          new: "old_db",
+        },
+      },
+    } as const;
+    const prepared = prepareEntries({ "resources.postgres_synced_tables.lookup": entry });
+    const resource = prepared.byResourceKey.get("resources.postgres_synced_tables.lookup");
+    expect(resource?.sourceTableFullName.status).toBe("absent");
+    expect(resource?.postgres.status).toBe("unsupported");
+    expect(prepared.diagnostics).toContainEqual({
+      resourceKey: "resources.postgres_synced_tables.lookup",
+      capability: "postgres-identity",
+      reason: "invalid-shape",
+    });
+
+    const graph = buildResourceGraphFromPlan({
+      plan: { "resources.postgres_synced_tables.lookup": entry },
+    });
+    expect(
+      graph.lateralEdges.some((edge) => edge.target === "source-table::dagshund.sources.stale"),
+    ).toBe(false);
+    expect(
+      graph.edges.some(
+        (edge) =>
+          edge.source === "postgres-root" &&
+          edge.target === "resources.postgres_synced_tables.lookup",
+      ),
+    ).toBe(true);
+  });
+
+  test("current source values and explicit spec overrides take precedence over history", () => {
+    for (const [name, current, expectedStatus] of [
+      ["supported", "cat.current.table", "supported"],
+      ["empty", "", "supported"],
+      ["invalid", 42, "unsupported"],
+      ["null", null, "absent"],
+    ] as const) {
+      const prepared = prepareEntries({
+        [`resources.postgres_synced_tables.${name}`]: {
+          action: "skip",
+          remote_state: { id: "remote-id", source_table_full_name: current },
+          changes: {
+            source_table_full_name: {
+              action: "skip",
+              reason: "spec:input_only",
+              old: "cat.history.table",
+              new: "cat.history.table",
+            },
+          },
+        },
+      });
+      expect(
+        prepared.byResourceKey.get(`resources.postgres_synced_tables.${name}`)?.sourceTableFullName
+          .status,
+      ).toBe(expectedStatus);
+    }
+
+    const specOverride = prepareEntries({
+      "resources.postgres_synced_tables.spec_override": {
+        action: "skip",
+        remote_state: {
+          id: "remote-id",
+          spec: { source_table_full_name: "cat.current.table" },
+        },
+        changes: {
+          source_table_full_name: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "cat.history.table",
+            new: "cat.history.table",
+          },
+        },
+      },
+    });
+    expect(
+      specOverride.byResourceKey.get("resources.postgres_synced_tables.spec_override")
+        ?.sourceTableFullName,
+    ).toEqual({ status: "supported", value: "cat.current.table" });
+
+    const nullishDirectWithSpec = prepareEntries({
+      "resources.postgres_synced_tables.nullish_direct": {
+        action: "create",
+        new_state: {
+          value: {
+            source_table_full_name: null,
+            spec: { source_table_full_name: "cat.raw.current" },
+          },
+        },
+      },
+    });
+    expect(
+      nullishDirectWithSpec.byResourceKey.get("resources.postgres_synced_tables.nullish_direct")
+        ?.sourceTableFullName,
+    ).toEqual({ status: "supported", value: "cat.raw.current" });
+  });
+
+  test("current Postgres branch and database values take precedence over configured history", () => {
+    const prepared = prepareEntries({
+      "resources.postgres_synced_tables.current": {
+        action: "skip",
+        remote_state: {
+          id: "remote-id",
+          branch: "projects/current/branches/branch",
+          postgres_database: "current_db",
+        },
+        changes: {
+          branch: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "projects/history/branches/branch",
+            new: "projects/history/branches/branch",
+          },
+          postgres_database: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "history_db",
+            new: "history_db",
+          },
+        },
+      },
+    });
+
+    expect(
+      prepared.byResourceKey.get("resources.postgres_synced_tables.current")?.postgres,
+    ).toEqual({
+      status: "supported",
+      value: {
+        branch: "projects/current/branches/branch",
+        postgres_database: "current_db",
+      },
+    });
+  });
+
+  test("does not repair empty or invalid current branch and database overrides", () => {
+    const cases = [
+      {
+        remote_state: { id: "remote-id", branch: "", postgres_database: "current_db" },
+        expectedStatus: "supported",
+        expectedValue: { branch: "", postgres_database: "current_db" },
+      },
+      {
+        remote_state: {
+          id: "remote-id",
+          branch: "projects/current/branches/main",
+          postgres_database: "",
+        },
+        expectedStatus: "supported",
+        expectedValue: { branch: "projects/current/branches/main", postgres_database: "" },
+      },
+      {
+        remote_state: {
+          id: "remote-id",
+          branch: "projects/current/branches/main",
+          postgres_database: 42,
+        },
+        expectedStatus: "unsupported",
+      },
+      {
+        remote_state: {
+          id: "remote-id",
+          branch: "projects/current/branches/main",
+          status: { postgres_database: null },
+        },
+        expectedStatus: "unsupported",
+      },
+    ] as const;
+
+    for (const [index, testCase] of cases.entries()) {
+      const entry = {
+        action: "skip",
+        remote_state: testCase.remote_state,
+        changes: {
+          branch: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "projects/history/branches/main",
+            new: "projects/history/branches/main",
+          },
+          postgres_database: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "history_db",
+            new: "history_db",
+          },
+        },
+      } as const;
+      const key = `resources.postgres_synced_tables.override_${index}`;
+      const prepared = prepareEntries({ [key]: entry });
+      const postgres = prepared.byResourceKey.get(key)?.postgres;
+      expect(postgres?.status).toBe(testCase.expectedStatus);
+      if (testCase.expectedStatus === "supported") {
+        expect(postgres).toEqual({ status: "supported", value: testCase.expectedValue });
+      }
+
+      const graph = buildResourceGraphFromPlan({ plan: { [key]: entry } });
+      expect(graph.nodes.some((node) => node.id.includes("history_db"))).toBe(false);
+      expect(graph.nodes.some((node) => node.id.includes("history/branches/main"))).toBe(false);
+      expect(graph.lateralEdges.some((edge) => edge.target.includes("history_db"))).toBe(false);
+      expect(graph.edges.some((edge) => edge.target.includes("history/branches/main"))).toBe(false);
+    }
+  });
+
+  test("reports malformed equal configured values without exposing them or discarding current fields", () => {
+    const malformedRecord = { private: "PRIVATE" };
+    const malformedArray = ["PRIVATE"];
+    const prepared = prepareEntries({
+      "resources.postgres_synced_tables.lookup": {
+        action: "skip",
+        remote_state: { id: "remote-id", branch: "projects/current/branches/main" },
+        changes: {
+          source_table_full_name: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: malformedArray,
+            new: ["PRIVATE"],
+          },
+          branch: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "",
+            new: "",
+          },
+          postgres_database: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: malformedRecord,
+            new: { private: "PRIVATE" },
+          },
+        },
+      },
+    });
+    const resource = prepared.byResourceKey.get("resources.postgres_synced_tables.lookup");
+    expect(resource?.sourceTableFullName.status).toBe("unsupported");
+    expect(resource?.postgres).toEqual({
+      status: "supported",
+      value: { branch: "projects/current/branches/main" },
+    });
+    expect(prepared.diagnostics).toContainEqual({
+      resourceKey: "resources.postgres_synced_tables.lookup",
+      capability: "postgres-synced-table-configured-inputs",
+      reason: "invalid-shape",
+    });
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("42");
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("projects/current");
+  });
+
+  test("rejects ineligible and malformed history facts while accepting only exact equal input-only values", () => {
+    const remote = { id: "remote-id" };
+    const fact = {
+      action: "skip",
+      reason: "spec:input_only",
+      old: "cat.schema.table",
+      new: "cat.schema.table",
+    };
+    const prepared = prepareEntries({
+      "resources.postgres_synced_tables.accepted": {
+        action: "skip",
+        remote_state: remote,
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.wrong_reason": {
+        action: "skip",
+        remote_state: remote,
+        changes: { source_table_full_name: { ...fact, reason: "other" } },
+      },
+      "resources.postgres_synced_tables.wrong_action": {
+        action: "skip",
+        remote_state: remote,
+        changes: { source_table_full_name: { ...fact, action: "update" } },
+      },
+      "resources.postgres_synced_tables.unequal": {
+        action: "skip",
+        remote_state: remote,
+        changes: { source_table_full_name: { ...fact, new: "cat.schema.new" } },
+      },
+      "resources.postgres_synced_tables.absent_remote": {
+        action: "skip",
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.delete": {
+        action: "delete",
+        remote_state: remote,
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.explicit_empty": {
+        action: "skip",
+        remote_state: remote,
+        new_state: { value: {} },
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.empty_remote": {
+        action: "skip",
+        remote_state: {},
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.non_record_remote": {
+        action: "skip",
+        remote_state: "invalid",
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.malformed_new": {
+        action: "skip",
+        remote_state: remote,
+        new_state: { value: "invalid" },
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.null_new": {
+        action: "skip",
+        remote_state: remote,
+        new_state: null,
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.create": {
+        action: "create",
+        remote_state: remote,
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.update": {
+        action: "update",
+        remote_state: remote,
+        changes: { source_table_full_name: fact },
+      },
+      "resources.postgres_synced_tables.recreate": {
+        action: "recreate",
+        remote_state: remote,
+        changes: { source_table_full_name: fact },
+      },
+    });
+    expect(
+      prepared.byResourceKey.get("resources.postgres_synced_tables.accepted")?.sourceTableFullName,
+    ).toEqual({
+      status: "supported",
+      value: "cat.schema.table",
+    });
+    for (const key of [
+      "wrong_reason",
+      "wrong_action",
+      "unequal",
+      "absent_remote",
+      "empty_remote",
+      "non_record_remote",
+      "delete",
+      "explicit_empty",
+      "malformed_new",
+      "null_new",
+      "create",
+      "update",
+      "recreate",
+    ]) {
+      expect(
+        prepared.byResourceKey.get(`resources.postgres_synced_tables.${key}`)?.sourceTableFullName,
+      ).toEqual({ status: "absent" });
+    }
+  });
+
+  test("resolves shared configured source identity independently across project hierarchies", () => {
+    const fact = (value: string) =>
+      ({
+        action: "skip",
+        reason: "spec:input_only",
+        old: value,
+        new: value,
+      }) as const;
+    const plan = {
+      "resources.postgres_synced_tables.first": {
+        action: "skip",
+        remote_state: { id: "first-id" },
+        changes: {
+          source_table_full_name: fact("cat.schema.shared"),
+          branch: fact("projects/first/branches/main"),
+          postgres_database: fact("first_db"),
+        },
+      },
+      "resources.postgres_synced_tables.second": {
+        action: "skip",
+        remote_state: { id: "second-id" },
+        changes: {
+          source_table_full_name: fact("cat.schema.shared"),
+          branch: fact("projects/second/branches/main"),
+          postgres_database: fact("second_db"),
+        },
+      },
+    } as const;
+    const graph = buildResourceGraphFromPlan({ plan });
+    const sharedSource = graph.nodes.filter(
+      (node) => node.id === "source-table::cat.schema.shared",
+    );
+    expect(sharedSource).toHaveLength(1);
+    expect(
+      graph.lateralEdges.filter((edge) => edge.target === "source-table::cat.schema.shared"),
+    ).toHaveLength(2);
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "postgres-database::first/main/first_db",
+        target: "resources.postgres_synced_tables.first",
+      }),
+    );
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "postgres-database::second/main/second_db",
+        target: "resources.postgres_synced_tables.second",
+      }),
+    );
+  });
+
+  test("configured source references reuse an existing managed table identity", () => {
+    const graph = buildResourceGraphFromPlan({
+      plan: {
+        "resources.synced_database_tables.existing": {
+          action: "create",
+          new_state: { value: { name: "cat.sch.existing_table" } },
+        },
+        "resources.postgres_synced_tables.lookup": {
+          action: "skip",
+          remote_state: { id: "remote-id" },
+          changes: {
+            source_table_full_name: {
+              action: "skip",
+              reason: "spec:input_only",
+              old: "cat.sch.existing_table",
+              new: "cat.sch.existing_table",
+            },
+          },
+        },
+      },
+    });
+
+    expect(graph.nodes.some((node) => node.id === "source-table::cat.sch.existing_table")).toBe(
+      false,
+    );
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_synced_tables.lookup",
+        target: "resources.synced_database_tables.existing",
+      }),
+    );
+  });
+
+  test("configured recovery does not mutate eligible entry or selected remote state", () => {
+    const plan = {
+      "resources.postgres_synced_tables.lookup": {
+        action: "skip",
+        remote_state: { id: "remote-id" },
+        changes: {
+          source_table_full_name: {
+            action: "skip",
+            reason: "spec:input_only",
+            old: "cat.schema.source",
+            new: "cat.schema.source",
+          },
+        },
+      },
+    } as const;
+    const before = structuredClone(plan);
+
+    const prepared = prepareEntries(plan);
+
+    expect(
+      prepared.byResourceKey.get("resources.postgres_synced_tables.lookup")?.sourceTableFullName,
+    ).toEqual({ status: "supported", value: "cat.schema.source" });
+    expect(plan).toEqual(before);
+    expect(plan["resources.postgres_synced_tables.lookup"].remote_state).toEqual({
+      id: "remote-id",
+    });
+  });
+
+  test("new selected source values supersede configured history without mutating the plan", () => {
+    const plan = {
+      "resources.postgres_synced_tables.changed": {
+        action: "update",
+        remote_state: { id: "remote-id", source_table_full_name: "cat.schema.old" },
+        new_state: { value: { source_table_full_name: "cat.schema.current" } },
+        changes: {
+          source_table_full_name: {
+            action: "update",
+            reason: "spec:input_only",
+            old: "cat.schema.old",
+            new: "cat.schema.current",
+          },
+        },
+      },
+    } as const;
+    const before = structuredClone(plan);
+    const prepared = prepareEntries(plan);
+    expect(
+      prepared.byResourceKey.get("resources.postgres_synced_tables.changed")?.sourceTableFullName,
+    ).toEqual({
+      status: "supported",
+      value: "cat.schema.current",
+    });
+    expect(buildResourceGraphFromPlan({ plan }).lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_synced_tables.changed",
+        target: "source-table::cat.schema.current",
+      }),
+    );
+    expect(buildResourceGraphFromPlan({ plan }).lateralEdges).not.toContainEqual(
+      expect.objectContaining({
+        source: "resources.postgres_synced_tables.changed",
+        target: "source-table::cat.schema.old",
+      }),
+    );
+    expect(plan).toEqual(before);
   });
 });
 

@@ -41,6 +41,93 @@ describe("job preparation", () => {
     });
   }
 
+  test("projects selected file-arrival URLs and rejects malformed current shapes", () => {
+    const prepared = prepareEntries({
+      [jobKey]: job({
+        trigger: { file_arrival: { url: "/Volumes/main/analytics/shared/retail/" } },
+      }),
+      "resources.jobs.bad-trigger": job({ trigger: "PRIVATE" }),
+      "resources.jobs.empty-trigger": job({ trigger: {} }),
+    });
+
+    expect(prepared.byResourceKey.get(jobKey)?.job).toMatchObject({
+      status: "supported",
+      value: {
+        fileArrivalUrl: { status: "supported", value: "/Volumes/main/analytics/shared/retail/" },
+      },
+    });
+    expect(prepared.byResourceKey.get("resources.jobs.empty-trigger")?.job).toMatchObject({
+      value: { fileArrivalUrl: { status: "absent" } },
+    });
+    expect(prepared.byResourceKey.get("resources.jobs.bad-trigger")?.job).toMatchObject({
+      value: { fileArrivalUrl: { status: "unsupported" } },
+    });
+    expect(prepared.diagnostics).toContainEqual({
+      resourceKey: "resources.jobs.bad-trigger",
+      capability: "job-file-arrival",
+      reason: "invalid-shape",
+    });
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("PRIVATE");
+  });
+
+  test("keeps file-arrival URL selection atomic with the effective snapshot", () => {
+    const prepared = prepareEntries({
+      "resources.jobs.remote-only": {
+        action: "skip",
+        remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/old" } } },
+      },
+      "resources.jobs.empty-new": {
+        action: "update",
+        new_state: { value: {} },
+        remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/old" } } },
+      },
+      "resources.jobs.new-wins": {
+        action: "update",
+        new_state: { value: { trigger: { file_arrival: { url: "/Volumes/main/analytics/new" } } } },
+        remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/old" } } },
+      },
+      "resources.jobs.delete": {
+        action: "delete",
+        new_state: { value: { trigger: { file_arrival: { url: "/Volumes/main/analytics/new" } } } },
+        remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/old" } } },
+      },
+      "resources.jobs.invalid-snapshot": {
+        action: "update",
+        new_state: { value: "PRIVATE" },
+        remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/old" } } },
+      },
+      "resources.jobs.invalid-url": {
+        action: "update",
+        new_state: { value: { trigger: { file_arrival: { url: 42 } } } },
+        remote_state: { trigger: { file_arrival: { url: "/Volumes/main/analytics/old" } } },
+      },
+    });
+
+    expect(prepared.byResourceKey.get("resources.jobs.remote-only")?.job).toMatchObject({
+      value: { fileArrivalUrl: { status: "supported", value: "/Volumes/main/analytics/old" } },
+    });
+    expect(prepared.byResourceKey.get("resources.jobs.empty-new")?.job).toMatchObject({
+      value: { fileArrivalUrl: { status: "absent" } },
+    });
+    expect(prepared.byResourceKey.get("resources.jobs.new-wins")?.job).toMatchObject({
+      value: { fileArrivalUrl: { status: "supported", value: "/Volumes/main/analytics/new" } },
+    });
+    expect(prepared.byResourceKey.get("resources.jobs.delete")?.job).toMatchObject({
+      value: { fileArrivalUrl: { status: "supported", value: "/Volumes/main/analytics/old" } },
+    });
+    for (const resourceKey of ["resources.jobs.invalid-snapshot", "resources.jobs.invalid-url"]) {
+      expect(prepared.byResourceKey.get(resourceKey)?.job).toMatchObject({
+        value: { fileArrivalUrl: { status: "unsupported" } },
+      });
+      expect(prepared.diagnostics).toContainEqual({
+        resourceKey,
+        capability: "job-file-arrival",
+        reason: "invalid-shape",
+      });
+    }
+    expect(JSON.stringify(prepared.diagnostics)).not.toContain("PRIVATE");
+  });
+
   test("keeps absent task projection distinct", () => {
     const prepared = prepareEntries({
       "resources.jobs.absent": job({ name: "no tasks" }),
@@ -79,6 +166,7 @@ describe("job preparation", () => {
               task_key: "run",
               run_job_task: { job_id: 0 },
               sql_task: { warehouse_id: "warehouse" },
+              alert_task: { alert_id: "alert" },
               dashboard_task: { dashboard_id: "dashboard" },
               pipeline_task: { pipeline_id: "pipeline" },
               new_cluster: { spark_version: "1" },
@@ -101,6 +189,7 @@ describe("job preparation", () => {
                 task_key: "run",
                 run_job_task: { job_id: 0 },
                 sql_task: { warehouse_id: "warehouse" },
+                alert_task: { alert_id: "alert" },
                 dashboard_task: { dashboard_id: "dashboard" },
                 pipeline_task: { pipeline_id: "pipeline" },
                 new_cluster: { spark_version: "1" },
@@ -124,6 +213,7 @@ describe("job preparation", () => {
       runJobTarget: { status: "supported", value: bundleRef("resources.jobs.target.id") },
       references: {
         warehouse_id: { status: "supported", value: "warehouse" },
+        alert_id: { status: "supported", value: "alert" },
         dashboard_id: { status: "supported", value: "dashboard" },
         pipeline_id: { status: "supported", value: "pipeline" },
       },
@@ -143,6 +233,43 @@ describe("job preparation", () => {
     });
     expect(prepared.normalized.entries[jobKey]?.new_state).toMatchObject({
       value: { tasks: [{ extra: opaque }] },
+    });
+  });
+
+  test("projects alert task IDs from effective current state and diagnoses malformed values", () => {
+    const prepared = prepareEntries({
+      [jobKey]: {
+        ...job({ tasks: [{ task_key: "current", alert_task: { alert_id: "current-alert" } }] }),
+        remote_state: {
+          tasks: [{ task_key: "historical", alert_task: { alert_id: "historical-alert" } }],
+        },
+      },
+      "resources.jobs.malformed": job({
+        tasks: [{ task_key: "bad", alert_task: { alert_id: 42 } }],
+      }),
+    });
+    const projection = prepared.byResourceKey.get(jobKey)?.job;
+    expect(projection?.status).toBe("supported");
+    if (projection?.status !== "supported") throw new Error("job should be prepared");
+    expect(projection.value.currentTasks).toMatchObject({
+      status: "supported",
+      value: [{ references: { alert_id: { status: "supported", value: "current-alert" } } }],
+    });
+    expect(projection.value.historicalTasks).toMatchObject({
+      status: "supported",
+      value: [{ references: { alert_id: { status: "supported", value: "historical-alert" } } }],
+    });
+    expect(prepared.byResourceKey.get("resources.jobs.malformed")?.job).toMatchObject({
+      value: {
+        currentTasks: {
+          value: [{ references: { alert_id: { status: "unsupported" } } }],
+        },
+      },
+    });
+    expect(prepared.diagnostics).toContainEqual({
+      resourceKey: "resources.jobs.malformed",
+      capability: "job-tasks",
+      reason: "invalid-shape",
     });
   });
 

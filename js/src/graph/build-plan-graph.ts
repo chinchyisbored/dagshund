@@ -242,6 +242,7 @@ const EMPTY_PREPARED_JOB: PreparedJob = {
   historicalTasks: { status: "absent" },
   deletedTasks: { status: "absent" },
   clusters: { status: "absent" },
+  fileArrivalUrl: { status: "absent" },
 };
 
 /** Replace run_job_task.job_id with an annotated string showing the resolved target name. */

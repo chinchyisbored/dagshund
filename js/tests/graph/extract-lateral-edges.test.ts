@@ -5,7 +5,10 @@ import {
   collectOwnedDerivedNodeRefs,
 } from "../../src/graph/derived-node-specs.ts";
 import { extractLateralEdges as extractLateralEdgesRaw } from "../../src/graph/extract-lateral-edges.ts";
-import { extractStateField } from "../../src/graph/extract-resource-state.ts";
+import {
+  extractHistoricalStateField,
+  extractStateField,
+} from "../../src/graph/extract-resource-state.ts";
 import {
   buildApiIdIndex,
   extractGenieSpaceApiId,
@@ -48,6 +51,7 @@ const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]) => {
     dashboardIndex: buildApiIdIndex(entries, "dashboards", (e) =>
       extractStateField(e, "dashboard_id"),
     ),
+    alertIndex: buildApiIdIndex(entries, "alerts", (e) => extractHistoricalStateField(e, "id")),
     pipelineIndex: new Map([
       ...buildDerivedReferenceIndex("pipelines", ownedDerivedRefs, preparedPlan.byResourceKey),
       ...buildApiIdIndex(entries, "pipelines", (e) => extractStateField(e, "pipeline_id")),
@@ -664,6 +668,81 @@ describe("extractJobTaskRefsEdges", () => {
     });
   });
 
+  test("alert_task.alert_id resolves historical API IDs to managed alerts", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.monitor",
+        makeEntry({ tasks: [{ task_key: "t1", alert_task: { alert_id: "alert-1" } }] }),
+      ],
+      [
+        "resources.alerts.latency",
+        { new_state: { value: { display_name: "Latency" } }, remote_state: { id: "alert-1" } },
+      ],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.jobs.monitor",
+      target: "resources.alerts.latency",
+    });
+  });
+
+  test("alert task resolves symbolic alert resource references", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.monitor",
+        makeEntry({
+          tasks: [
+            {
+              task_key: "t1",
+              alert_task: { alert_id: "$" + "{resources.alerts.latency.id}" },
+            },
+          ],
+        }),
+      ],
+      ["resources.alerts.latency", makeEntry({ display_name: "Latency" })],
+    ];
+
+    const edges = extractLateralEdges(makeContext(entries));
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.jobs.monitor",
+      target: "resources.alerts.latency",
+    });
+  });
+
+  test("unknown alert API IDs use a deduplicated standard phantom target", () => {
+    const entries: [string, PlanEntry][] = [
+      [
+        "resources.jobs.monitor",
+        makeEntry({
+          tasks: [
+            { task_key: "t1", alert_task: { alert_id: "external-alert" } },
+            { task_key: "t2", alert_task: { alert_id: "external-alert" } },
+          ],
+        }),
+      ],
+    ];
+    const nodeIdByResourceKey = new Map([
+      ["resources.jobs.monitor", "resources.jobs.monitor"],
+      ["alert::external-alert", "alert::external-alert"],
+    ]);
+
+    const edges = extractLateralEdges(
+      { entries, nodeIdByResourceKey, nodeIds: new Set(nodeIdByResourceKey.values()) },
+      buildIndexes(entries),
+    );
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({
+      source: "resources.jobs.monitor",
+      target: "alert::external-alert",
+    });
+  });
+
   test("task sub-object exists but has no warehouse_id — no edge", () => {
     const entries: [string, PlanEntry][] = [
       [
@@ -774,6 +853,43 @@ describe("extractJobTaskRefsEdges", () => {
       );
     });
   }
+
+  test("App TABLE bindings deduplicate managed index endpoint pairs", () => {
+    const indexName = "main.docs.search_index";
+    const entries = {
+      "resources.apps.reader": {
+        action: "update",
+        new_state: {
+          value: {
+            resources: [
+              ...[
+                indexName,
+                "$" + "{resources.vector_search_indexes.search.name}",
+                "$" + "{resources.vector_search_indexes.search.id}",
+                indexName,
+              ].map((fullName, position) => ({
+                name: `binding_${position}`,
+                uc_securable: { securable_type: "TABLE", securable_full_name: fullName },
+              })),
+            ],
+          },
+        },
+      },
+      "resources.vector_search_indexes.search": {
+        action: "create",
+        new_state: { value: { name: indexName } },
+      },
+    } as const satisfies Plan;
+    const edges = buildResourceGraphFromPlan({ plan: entries }).lateralEdges;
+
+    expect(
+      edges.filter(
+        (edge) =>
+          edge.source === "resources.apps.reader" &&
+          edge.target === "resources.vector_search_indexes.search",
+      ),
+    ).toHaveLength(1);
+  });
 
   test("symbolic and concrete aliases deduplicate to one final target per kind", () => {
     const entries: [string, PlanEntry][] = [
@@ -2526,7 +2642,13 @@ describe("lateral-deps integration", () => {
     const plan = await loadFixture("lateral-deps");
     const graph = buildResourceGraphFromPlan(plan);
 
-    expect(graph.lateralEdges).toHaveLength(14);
+    expect(graph.lateralEdges).toHaveLength(15);
+    expect(graph.lateralEdges).toContainEqual(
+      expect.objectContaining({
+        source: "resources.jobs.worker_b",
+        target: "resources.alerts.data_freshness",
+      }),
+    );
   });
 
   test("produces expected phantom node count", async () => {

@@ -990,15 +990,15 @@
       ]
     },
     "edges": {
-      "total": 33,
+      "total": 34,
       "by_kind": {
         "dag": 19,
-        "lateral": 14
+        "lateral": 15
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
-        "unchanged": 32
+        "unchanged": 33
       },
       "by_kind_and_diff_state": {
         "dag": {
@@ -1009,7 +1009,7 @@
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 14
+          "unchanged": 15
         }
       },
       "entries": [
@@ -1184,6 +1184,12 @@
         {
           "source": "resources.jobs.worker_a",
           "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.worker_b",
+          "target": "resources.alerts.data_freshness",
           "diffState": "unchanged",
           "kind": "lateral"
         },

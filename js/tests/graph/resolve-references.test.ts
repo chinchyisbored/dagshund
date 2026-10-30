@@ -22,6 +22,9 @@ const buildIndexes = (entries: readonly (readonly [string, PlanEntry])[]): Refer
     extractHistoricalStateField(entry, "id"),
   ),
   dashboardIndex: new Map(),
+  alertIndex: buildApiIdIndex(entries, "alerts", (entry) =>
+    extractHistoricalStateField(entry, "id"),
+  ),
   pipelineIndex: new Map(),
   genieSpaceIndex: buildApiIdIndex(entries, "genie_spaces", extractGenieSpaceApiId),
   jobIndex: new Map(),
@@ -78,6 +81,85 @@ describe("resolveReferences", () => {
       "resources.sql_warehouses.compute",
       "resources.sql_warehouses.compute",
     ]);
+  });
+
+  test("resolves App TABLE name and ID references only to materialized managed indexes", () => {
+    const symbolicName = "$" + "{resources.vector_search_indexes.search.name}";
+    const symbolicId = "$" + "{resources.vector_search_indexes.search.id}";
+    const entries = entriesFor({
+      "resources.apps.reader": {
+        action: "update",
+        new_state: {
+          value: {
+            resources: [symbolicName, symbolicId].map((fullName, position) => ({
+              name: `binding_${position}`,
+              uc_securable: { securable_type: "TABLE", securable_full_name: fullName },
+            })),
+          },
+        },
+      },
+      "resources.apps.invalid": {
+        action: "update",
+        new_state: {
+          value: {
+            resources: [
+              "$" + "{resources.vector_search_indexes.missing.name}",
+              "$" + "{resources.jobs.job.name}",
+            ].map((fullName, position) => ({
+              name: `binding_${position}`,
+              uc_securable: { securable_type: "TABLE", securable_full_name: fullName },
+            })),
+          },
+        },
+      },
+      "resources.vector_search_indexes.search": {
+        action: "create",
+        new_state: { value: { name: "main.docs.search_index" } },
+      },
+    });
+    const indexes = buildIndexes(entries);
+    const preparedPlan = preparePlan(normalizePlan(Object.fromEntries(entries)));
+    const identityCatalog = buildReferenceIdentityCatalog(entries, indexes, preparedPlan);
+    const ownedDerivedRefs = collectOwnedDerivedNodeRefs(preparedPlan.byResourceKey);
+
+    const resolutions = resolveReferences({
+      entries,
+      indexes,
+      preparedPlan,
+      identityCatalog,
+      ownedDerivedRefs,
+    });
+
+    expect(
+      resolutions.filter(
+        (reference) =>
+          reference.sourceResourceKey === "resources.apps.reader" && reference.kind === "resolved",
+      ),
+    ).toEqual([
+      {
+        kind: "resolved",
+        sourceResourceKey: "resources.apps.reader",
+        targetNodeId: "resources.vector_search_indexes.search",
+        targetResourceKey: "resources.vector_search_indexes.search",
+        provenance: "real",
+        direction: "entry-to-target",
+      },
+      {
+        kind: "resolved",
+        sourceResourceKey: "resources.apps.reader",
+        targetNodeId: "resources.vector_search_indexes.search",
+        targetResourceKey: "resources.vector_search_indexes.search",
+        provenance: "real",
+        direction: "entry-to-target",
+      },
+    ]);
+    expect(
+      resolutions.filter(
+        (reference) =>
+          reference.sourceResourceKey === "resources.apps.invalid" &&
+          (reference.kind === "resolved" || reference.kind === "phantom"),
+      ),
+    ).toEqual([]);
   });
 
   test("resolves table references to derived outputs before node materialization", () => {

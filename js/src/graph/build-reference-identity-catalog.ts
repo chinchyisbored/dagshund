@@ -158,6 +158,14 @@ export const buildReferenceIdentityCatalog = (
     }
   }
   for (const [resourceKey, entry] of entries) {
+    if (extractResourceType(resourceKey) === "vector_search_indexes") {
+      const name = extractStateField(entry, "name");
+      if (name !== undefined && parseThreePartName(name) !== undefined) {
+        const alias = `vectorSearchIndex:${name}`;
+        resourceKeyByAlias.set(alias, resourceKey);
+        nodeIdByAlias.set(alias, nodeIdByResourceKey.get(resourceKey) ?? resourceKey);
+      }
+    }
     if (extractResourceType(resourceKey) === "schemas") {
       const catalog = extractStateField(entry, "catalog_name");
       const name = extractStateField(entry, "name");

@@ -91,6 +91,7 @@ const PHANTOM_PREFIX_SPECS = {
     leaf: true,
     resourceType: "dashboards",
   },
+  alert: { prefix: "alert::", badge: "alert", leaf: true, resourceType: "alerts" },
   experiment: {
     prefix: "experiment::",
     badge: "experiment",

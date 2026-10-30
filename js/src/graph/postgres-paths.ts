@@ -7,6 +7,10 @@ export type PostgresRolePath = PostgresBranchPath & {
   readonly roleId: string;
 };
 
+export type PostgresDatabasePath = PostgresBranchPath & {
+  readonly databaseId: string;
+};
+
 export const parsePostgresProjectPath = (resourcePath: string): string | undefined => {
   const segments = resourcePath.split("/");
   const projectId = segments[1];
@@ -31,6 +35,28 @@ export const parsePostgresBranchPath = (resourcePath: string): PostgresBranchPat
     return undefined;
   }
   return { projectId, branchId };
+};
+
+export const parsePostgresDatabasePath = (
+  resourcePath: string,
+): PostgresDatabasePath | undefined => {
+  const segments = resourcePath.split("/");
+  const [project, projectId, branches, branchId, databases, databaseId] = segments;
+  if (
+    segments.length !== 6 ||
+    project !== "projects" ||
+    projectId === undefined ||
+    projectId === "" ||
+    branches !== "branches" ||
+    branchId === undefined ||
+    branchId === "" ||
+    databases !== "databases" ||
+    databaseId === undefined ||
+    databaseId === ""
+  ) {
+    return undefined;
+  }
+  return { projectId, branchId, databaseId };
 };
 
 export const formatPostgresBranchIdentity = (path: PostgresBranchPath): string =>

@@ -9,7 +9,7 @@ import {
 } from "./postgres-paths.ts";
 import type { ReferenceResolutionContext } from "./reference-resolution-context.ts";
 
-const resolvePostgresCatalogDatabaseReference = (
+export const resolvePostgresCatalogDatabaseReference = (
   sourceResourceKey: string,
   branchRef: string | undefined,
   database: string | undefined,

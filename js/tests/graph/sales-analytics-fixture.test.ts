@@ -82,6 +82,7 @@ describe("sales analytics fixture", () => {
       "modified",
     );
     expect(pairCounts.get(`${JOB}->resources.dashboards.sales_overview`)).toBe(1);
+    expect(pairCounts.get(`${JOB}->resources.alerts.high_return_rate`)).toBe(1);
     for (const source of [
       JOB,
       "resources.alerts.high_return_rate",

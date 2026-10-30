@@ -36,6 +36,7 @@ export type PreparedJob = {
   readonly historicalTasks: Projection<readonly PreparedTask[]>;
   readonly deletedTasks: Projection<readonly PreparedTask[]>;
   readonly clusters: Projection<readonly PreparedCluster[]>;
+  readonly fileArrivalUrl: Projection<string>;
 };
 
 type Result<T> = {
@@ -136,6 +137,7 @@ const parseTask = (
         TASK_WAREHOUSE_KEYS.map((parent) =>
           projectReference(resourceKey, task, parent, "warehouse_id"),
         ).find((value) => value.status !== "absent") ?? absent(),
+      alert_id: projectReference(resourceKey, task, "alert_task", "alert_id"),
       dashboard_id: projectReference(resourceKey, task, "dashboard_task", "dashboard_id"),
       pipeline_id: projectReference(resourceKey, task, "pipeline_task", "pipeline_id"),
     },
@@ -152,6 +154,23 @@ const parseTasks = (
   const parsed = tasksSchema.safeParse(value);
   if (!parsed.success) return unsupported(resourceKey, capability);
   return supported(parsed.data.map((task, index) => parseTask(resourceKey, task, index, vars)));
+};
+
+const projectFileArrivalUrl = (resourceKey: string, snapshot: unknown): Projection<string> => {
+  if (snapshot === undefined) return absent<string>();
+  const state = recordSchema.safeParse(snapshot);
+  if (!state.success) return unsupported<string>(resourceKey, "job-file-arrival").projection;
+  if (!("trigger" in state.data)) return absent<string>();
+  const trigger = recordSchema.safeParse(state.data["trigger"]);
+  if (!trigger.success) return unsupported<string>(resourceKey, "job-file-arrival").projection;
+  if (!("file_arrival" in trigger.data)) return absent<string>();
+  const fileArrival = recordSchema.safeParse(trigger.data["file_arrival"]);
+  if (!fileArrival.success) return unsupported<string>(resourceKey, "job-file-arrival").projection;
+  const url = fileArrival.data["url"];
+  if (url === undefined) return absent<string>();
+  return typeof url === "string"
+    ? { status: "supported", value: url }
+    : unsupported<string>(resourceKey, "job-file-arrival").projection;
 };
 
 const currentTaskSnapshot = (entry: PlanEntry): unknown => {
@@ -295,6 +314,11 @@ export const prepareJob = (
       ? ({ status: "supported", value: jobStateValue } as const)
       : absent<Readonly<Record<string, unknown>>>();
   const clusters = clusterProjection(resourceKey, jobState, current.projection);
+  const fileArrivalUrl = projectFileArrivalUrl(
+    resourceKey,
+    selected.origin === "absent" ? undefined : selected.snapshot,
+  );
+  if (fileArrivalUrl.status === "unsupported") diagnostics.push(fileArrivalUrl.diagnostic);
   for (const result of [current, historical, deleted, clusters])
     if (result.diagnostic) diagnostics.push(result.diagnostic);
   diagnostics.push(...taskDiagnostics(current.projection));
@@ -312,6 +336,7 @@ export const prepareJob = (
       historicalTasks: historical.projection,
       deletedTasks: deleted.projection,
       clusters: clusters.projection,
+      fileArrivalUrl,
     },
     diagnostics: uniqueDiagnostics,
   };

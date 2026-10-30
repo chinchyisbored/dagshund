@@ -390,20 +390,20 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 24,
+      "total": 23,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 13,
         "derived": 0,
         "root": 5,
-        "phantom": 6
+        "phantom": 5
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
         "modified": 2,
-        "unchanged": 21,
+        "unchanged": 20,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -446,7 +446,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 6,
+          "unchanged": 5,
           "unknown": 0
         }
       },
@@ -895,18 +895,6 @@
           "taskChangeSummary": []
         },
         {
-          "id": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
-          "resourceKey": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
-          "label": "agent_knowledge_index",
-          "kind": "phantom",
-          "diffState": "unchanged",
-          "isDrift": false,
-          "changes": [],
-          "effects": [],
-          "hasResourceState": false,
-          "taskChangeSummary": []
-        },
-        {
           "id": "source-table::dagshund.retail_sources.knowledge_source",
           "resourceKey": "source-table::dagshund.retail_sources.knowledge_source",
           "label": "knowledge_source",
@@ -959,8 +947,8 @@
     "edges": {
       "total": 29,
       "by_kind": {
-        "dag": 22,
-        "lateral": 7
+        "dag": 21,
+        "lateral": 8
       },
       "by_diff_state": {
         "added": 1,
@@ -971,12 +959,12 @@
         "dag": {
           "added": 1,
           "removed": 0,
-          "unchanged": 21
+          "unchanged": 20
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 7
+          "unchanged": 8
         }
       },
       "entries": [
@@ -1065,12 +1053,6 @@
           "kind": "dag"
         },
         {
-          "source": "resources.schemas.agent_knowledge_schema",
-          "target": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
           "source": "schema::dagshund.retail_sources",
           "target": "source-table::dagshund.retail_sources.knowledge_source",
           "diffState": "unchanged",
@@ -1120,6 +1102,18 @@
         },
         {
           "source": "resources.apps.retail_assistant",
+          "target": "resources.postgres_databases.agent_sessions",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.retail_assistant",
+          "target": "resources.vector_search_indexes.agent_knowledge_index",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.apps.retail_assistant",
           "target": "resources.volumes.agent_knowledge_volume",
           "diffState": "unchanged",
           "kind": "lateral"
@@ -1127,12 +1121,6 @@
         {
           "source": "resources.apps.retail_assistant",
           "target": "serving-endpoint::databricks-gpt-oss-20b",
-          "diffState": "unchanged",
-          "kind": "lateral"
-        },
-        {
-          "source": "resources.apps.retail_assistant",
-          "target": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
           "diffState": "unchanged",
           "kind": "lateral"
         },
@@ -1176,11 +1164,6 @@
         "id": "serving-endpoint::databricks-gte-large-en",
         "label": "databricks-gte-large-en",
         "resourceKey": "serving-endpoint::databricks-gte-large-en"
-      },
-      {
-        "id": "source-table::dagshund.agent_knowledge.agent_knowledge_index",
-        "label": "agent_knowledge_index",
-        "resourceKey": "source-table::dagshund.agent_knowledge.agent_knowledge_index"
       },
       {
         "id": "source-table::dagshund.retail_sources.knowledge_source",

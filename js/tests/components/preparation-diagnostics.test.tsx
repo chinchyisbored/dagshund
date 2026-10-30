@@ -46,6 +46,46 @@ describe("preparation diagnostic disclosure", () => {
     expect(container.textContent).not.toContain("PRIVATE");
   });
 
+  test("renders a safe configured Postgres input warning", () => {
+    const { getByText, container } = render(
+      <PreparationDiagnostics
+        diagnostics={[
+          {
+            resourceKey: "resources.postgres_synced_tables.lookup",
+            capability: "postgres-synced-table-configured-inputs",
+            reason: "invalid-shape",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(getByText("1 plan warning"));
+    expect(container.querySelector("li")?.textContent).toContain(
+      "Configured Postgres sync input references could not be interpreted.",
+    );
+    expect(container.textContent).not.toContain("PRIVATE");
+  });
+
+  test("renders a safe file-arrival warning without malformed values", () => {
+    const { getByText, container } = render(
+      <PreparationDiagnostics
+        diagnostics={[
+          {
+            resourceKey: "resources.jobs.private",
+            capability: "job-file-arrival",
+            reason: "invalid-shape",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(getByText("1 plan warning"));
+    expect(container.querySelector("li")?.textContent).toContain(
+      "Job file-arrival references could not be interpreted.",
+    );
+    expect(container.textContent).not.toContain("PRIVATE");
+  });
+
   test("renders nothing when there are no diagnostics", () => {
     const { container } = render(<PreparationDiagnostics diagnostics={[]} />);
     expect(container.firstChild).toBeNull();

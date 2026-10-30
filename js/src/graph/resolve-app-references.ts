@@ -7,9 +7,16 @@ import {
 } from "../utils/resource-key.ts";
 import { buildDerivedNodeId } from "./derived-node-specs.ts";
 import { extractStateField, parseThreePartName } from "./extract-resource-state.ts";
-import { extractBundleResourceIdRef } from "./postgres-paths.ts";
+import {
+  extractBundleResourceIdRef,
+  formatPostgresBranchIdentity,
+  parsePostgresBranchPath,
+  parsePostgresDatabasePath,
+} from "./postgres-paths.ts";
 import type { ReferenceResolutionContext } from "./reference-resolution-context.ts";
+import { resolvePostgresCatalogDatabaseReference } from "./resolve-postgres-references.ts";
 import { findPromotedSourceTable } from "./resolve-uc-table-references.ts";
+import { resolveVolumeReference } from "./resolve-volume-reference.ts";
 
 export const resolveAppReferences = (
   sourceResourceKey: string,
@@ -20,14 +27,37 @@ export const resolveAppReferences = (
   const existingResourceKeys = new Set(context.entries.map(([key]) => key));
   return projection.value.flatMap<ReferenceResolution>((ref) => {
     if (ref.kind === "uc_securable") {
-      if (ref.securableType === "TABLE" && parseThreePartName(ref.fullName) !== undefined) {
+      if (ref.securableType === "TABLE") {
+        const symbolicKey = extractBundleResourceIdRef(ref.fullName);
+        if (symbolicKey !== undefined) {
+          if (
+            extractResourceType(symbolicKey) !== "vector_search_indexes" ||
+            !context.identityCatalog.nodeIdByResourceKey.has(symbolicKey)
+          )
+            return [];
+          const targetNodeId = context.identityCatalog.nodeIdByResourceKey.get(symbolicKey);
+          return targetNodeId === undefined
+            ? []
+            : [
+                {
+                  kind: "resolved",
+                  sourceResourceKey,
+                  targetNodeId,
+                  targetResourceKey: symbolicKey,
+                  provenance: "real",
+                  direction: "entry-to-target",
+                },
+              ];
+        }
+        if (parseThreePartName(ref.fullName) === undefined) return [];
         const promoted = findPromotedSourceTable(ref.fullName, context);
         const alias = `sourceTable:${ref.fullName}`;
         const targetNodeId =
           (promoted === undefined
             ? undefined
             : buildDerivedNodeId(promoted.derivedKind, promoted.identity)) ??
-          context.identityCatalog.nodeIdByAlias.get(alias);
+          context.identityCatalog.nodeIdByAlias.get(alias) ??
+          context.identityCatalog.nodeIdByAlias.get(`vectorSearchIndex:${ref.fullName}`);
         if (targetNodeId !== undefined) {
           return [
             {
@@ -57,33 +87,9 @@ export const resolveAppReferences = (
       if (ref.securableType === "VOLUME" || ref.securableType === "FUNCTION") {
         const parsed = parseThreePartName(ref.fullName);
         if (parsed === undefined) return [];
-        if (ref.securableType === "VOLUME") {
-          const volumeKey = context.entries.find(
-            ([key, entry]) =>
-              extractResourceType(key) === "volumes" &&
-              (extractStateField(entry, "full_name") === ref.fullName ||
-                (extractStateField(entry, "catalog_name") === parsed.catalog &&
-                  extractStateField(entry, "schema_name") === parsed.schema &&
-                  extractStateField(entry, "name") === parsed.table)),
-          )?.[0];
-          const nodeId =
-            volumeKey === undefined
-              ? undefined
-              : context.identityCatalog.nodeIdByResourceKey.get(volumeKey);
-          if (volumeKey !== undefined && nodeId !== undefined) {
-            return [
-              {
-                kind: "resolved",
-                sourceResourceKey,
-                targetNodeId: nodeId,
-                targetResourceKey: volumeKey,
-                provenance: "real",
-                direction: "entry-to-target",
-              },
-            ];
-          }
-        }
-        const phantomKind = ref.securableType === "VOLUME" ? "volume" : "function";
+        if (ref.securableType === "VOLUME")
+          return [resolveVolumeReference(sourceResourceKey, ref.fullName, context)];
+        const phantomKind = "function";
         const nodeId = buildPrefixedNodeId(phantomKind, ref.fullName);
         return [
           {
@@ -168,6 +174,115 @@ export const resolveAppReferences = (
           ref.id,
           "experiments",
         );
+      case "postgres": {
+        const branchKey = extractBundleResourceIdRef(ref.branch);
+        const databaseKey = extractBundleResourceIdRef(ref.database);
+        const branchIdentity =
+          branchKey === undefined
+            ? (() => {
+                const segments = ref.branch.split("/");
+                const path =
+                  segments.length === 4 && !ref.branch.includes("${")
+                    ? parsePostgresBranchPath(ref.branch)
+                    : undefined;
+                return path === undefined ? undefined : formatPostgresBranchIdentity(path);
+              })()
+            : extractResourceType(branchKey) === "postgres_branches"
+              ? context.identityCatalog.postgresBranchIdentityByResourceKey.get(branchKey)
+              : undefined;
+        if (
+          databaseKey !== undefined &&
+          extractResourceType(databaseKey) === "postgres_databases" &&
+          existingResourceKeys.has(databaseKey)
+        ) {
+          const databaseFields = context.preparedPlan.byResourceKey.get(databaseKey)?.postgres;
+          const databaseBranch =
+            databaseFields?.status === "supported"
+              ? (databaseFields.value["parent"] ?? databaseFields.value["branch"])
+              : undefined;
+          const databaseBranchKey =
+            databaseBranch === undefined ? undefined : extractBundleResourceIdRef(databaseBranch);
+          const databaseBranchIdentity =
+            databaseBranch === undefined
+              ? undefined
+              : databaseBranchKey === undefined
+                ? (() => {
+                    const path = parsePostgresBranchPath(databaseBranch);
+                    return path === undefined ? undefined : formatPostgresBranchIdentity(path);
+                  })()
+                : context.identityCatalog.postgresBranchIdentityByResourceKey.get(
+                    databaseBranchKey,
+                  );
+          if (
+            (branchKey !== undefined &&
+              extractResourceType(branchKey) === "postgres_branches" &&
+              existingResourceKeys.has(branchKey) &&
+              databaseBranchKey === branchKey) ||
+            (branchIdentity !== undefined && databaseBranchIdentity === branchIdentity)
+          ) {
+            return [
+              {
+                kind: "resolved",
+                sourceResourceKey,
+                targetNodeId:
+                  context.identityCatalog.nodeIdByResourceKey.get(databaseKey) ?? databaseKey,
+                targetResourceKey: databaseKey,
+                provenance: "real",
+                direction: "entry-to-target",
+              },
+            ];
+          }
+        }
+        if (branchIdentity === undefined) return [];
+        if (databaseKey !== undefined) {
+          if (extractResourceType(databaseKey) !== "postgres_databases") return [];
+          const identity =
+            context.identityCatalog.postgresDatabaseIdentityByResourceKey.get(databaseKey);
+          return identity?.startsWith(`${branchIdentity}/`) === true
+            ? resolvePostgresCatalogDatabaseReference(
+                sourceResourceKey,
+                ref.branch,
+                identity.slice(branchIdentity.length + 1),
+                context,
+              )
+            : [];
+        }
+        const databasePath = parsePostgresDatabasePath(ref.database);
+        if (
+          databasePath === undefined ||
+          ref.database.includes("${") ||
+          formatPostgresBranchIdentity(databasePath) !== branchIdentity
+        )
+          return [];
+        const managedDatabaseKey = context.entries.find(([key, entry]) => {
+          if (extractResourceType(key) !== "postgres_databases") return false;
+          const identity = context.identityCatalog.postgresDatabaseIdentityByResourceKey.get(key);
+          return (
+            identity?.startsWith(`${branchIdentity}/`) === true &&
+            extractStateField(entry, "name") === ref.database
+          );
+        })?.[0];
+        if (managedDatabaseKey !== undefined) {
+          return [
+            {
+              kind: "resolved",
+              sourceResourceKey,
+              targetNodeId:
+                context.identityCatalog.nodeIdByResourceKey.get(managedDatabaseKey) ??
+                managedDatabaseKey,
+              targetResourceKey: managedDatabaseKey,
+              provenance: "real",
+              direction: "entry-to-target",
+            },
+          ];
+        }
+        return resolvePostgresCatalogDatabaseReference(
+          sourceResourceKey,
+          ref.branch,
+          databasePath.databaseId,
+          context,
+        );
+      }
       case "secret_scope":
         return resolveNamedTarget(
           buildResourceKey("secret_scopes", ref.name),

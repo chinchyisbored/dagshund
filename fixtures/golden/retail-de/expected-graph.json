@@ -1048,20 +1048,20 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 19,
+      "total": 21,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 14,
         "derived": 0,
         "root": 4,
-        "phantom": 1
+        "phantom": 3
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
         "modified": 4,
-        "unchanged": 14,
+        "unchanged": 16,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -1104,7 +1104,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 1,
+          "unchanged": 3,
           "unknown": 0
         }
       },
@@ -1441,10 +1441,34 @@
           "taskChangeSummary": []
         },
         {
+          "id": "schema::dagshund.models",
+          "resourceKey": "schema::dagshund.models",
+          "label": "models",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "uc-root",
           "resourceKey": "uc-root",
           "label": "Unity Catalog",
           "kind": "root",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "volume::dagshund.models.a_volume",
+          "resourceKey": "volume::dagshund.models.a_volume",
+          "label": "a_volume",
+          "kind": "phantom",
           "diffState": "unchanged",
           "isDrift": false,
           "changes": [],
@@ -1491,26 +1515,26 @@
       ]
     },
     "edges": {
-      "total": 26,
+      "total": 29,
       "by_kind": {
-        "dag": 17,
-        "lateral": 9
+        "dag": 19,
+        "lateral": 10
       },
       "by_diff_state": {
         "added": 1,
         "removed": 0,
-        "unchanged": 25
+        "unchanged": 28
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 1,
           "removed": 0,
-          "unchanged": 16
+          "unchanged": 18
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 9
+          "unchanged": 10
         }
       },
       "entries": [
@@ -1529,6 +1553,18 @@
         {
           "source": "catalog::dagshund",
           "target": "resources.schemas.silver",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "catalog::dagshund",
+          "target": "schema::dagshund.models",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.models",
+          "target": "volume::dagshund.models.a_volume",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -1623,6 +1659,12 @@
           "kind": "lateral"
         },
         {
+          "source": "resources.jobs.retail_bronze_file_arrival",
+          "target": "volume::dagshund.models.a_volume",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
           "source": "resources.jobs.retail_daily_orchestrator",
           "target": "resources.jobs.retail_bronze_batch",
           "diffState": "unchanged",
@@ -1677,6 +1719,16 @@
         "id": "catalog::dagshund",
         "label": "dagshund",
         "resourceKey": "catalog::dagshund"
+      },
+      {
+        "id": "schema::dagshund.models",
+        "label": "models",
+        "resourceKey": "schema::dagshund.models"
+      },
+      {
+        "id": "volume::dagshund.models.a_volume",
+        "label": "a_volume",
+        "resourceKey": "volume::dagshund.models.a_volume"
       }
     ]
   }

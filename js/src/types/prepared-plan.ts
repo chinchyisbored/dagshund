@@ -7,6 +7,7 @@ export type PreparationDiagnostic = {
     | "serving-endpoint-models"
     | "job-tasks"
     | "job-clusters"
+    | "job-file-arrival"
     | "warehouse-reference"
     | "instance-pool-reference"
     | "app-resources"
@@ -18,6 +19,7 @@ export type PreparationDiagnostic = {
     | "existing-pipeline-reference"
     | "postgres-identity"
     | "external-location-credential"
+    | "postgres-synced-table-configured-inputs"
     | "ai-gateway-references";
   readonly reason: "invalid-shape";
 };

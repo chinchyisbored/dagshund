@@ -111,20 +111,20 @@
   },
   "resource_graph": {
     "nodes": {
-      "total": 22,
+      "total": 24,
       "by_kind": {
         "job": 0,
         "task": 0,
         "resource": 9,
         "derived": 6,
         "root": 4,
-        "phantom": 3
+        "phantom": 5
       },
       "by_diff_state": {
         "added": 3,
         "removed": 0,
         "modified": 2,
-        "unchanged": 17,
+        "unchanged": 19,
         "unknown": 0
       },
       "by_kind_and_diff_state": {
@@ -167,7 +167,7 @@
           "added": 0,
           "removed": 0,
           "modified": 0,
-          "unchanged": 3,
+          "unchanged": 5,
           "unknown": 0
         }
       },
@@ -510,9 +510,33 @@
           "taskChangeSummary": []
         },
         {
+          "id": "source-table::dagshund.retail_sources.customer_snapshot",
+          "resourceKey": "source-table::dagshund.retail_sources.customer_snapshot",
+          "label": "customer_snapshot",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
           "id": "source-table::dagshund.retail_sources.inventory_delta",
           "resourceKey": "source-table::dagshund.retail_sources.inventory_delta",
           "label": "inventory_delta",
+          "kind": "phantom",
+          "diffState": "unchanged",
+          "isDrift": false,
+          "changes": [],
+          "effects": [],
+          "hasResourceState": false,
+          "taskChangeSummary": []
+        },
+        {
+          "id": "source-table::dagshund.retail_sources.product_snapshot",
+          "resourceKey": "source-table::dagshund.retail_sources.product_snapshot",
+          "label": "product_snapshot",
           "kind": "phantom",
           "diffState": "unchanged",
           "isDrift": false,
@@ -602,26 +626,26 @@
       ]
     },
     "edges": {
-      "total": 27,
+      "total": 31,
       "by_kind": {
-        "dag": 20,
-        "lateral": 7
+        "dag": 22,
+        "lateral": 9
       },
       "by_diff_state": {
         "added": 3,
         "removed": 0,
-        "unchanged": 24
+        "unchanged": 28
       },
       "by_kind_and_diff_state": {
         "dag": {
           "added": 3,
           "removed": 0,
-          "unchanged": 17
+          "unchanged": 19
         },
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 7
+          "unchanged": 9
         }
       },
       "entries": [
@@ -650,18 +674,6 @@
           "kind": "dag"
         },
         {
-          "source": "postgres-root",
-          "target": "resources.postgres_synced_tables.customer_lookup",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
-          "source": "postgres-root",
-          "target": "resources.postgres_synced_tables.product_lookup",
-          "diffState": "unchanged",
-          "kind": "dag"
-        },
-        {
           "source": "resources.postgres_branches.production",
           "target": "resources.postgres_databases.retail_lookup",
           "diffState": "unchanged",
@@ -681,8 +693,20 @@
         },
         {
           "source": "resources.postgres_databases.retail_lookup",
+          "target": "resources.postgres_synced_tables.customer_lookup",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_databases.retail_lookup",
           "target": "resources.postgres_synced_tables.inventory_lookup",
           "diffState": "added",
+          "kind": "dag"
+        },
+        {
+          "source": "resources.postgres_databases.retail_lookup",
+          "target": "resources.postgres_synced_tables.product_lookup",
+          "diffState": "unchanged",
           "kind": "dag"
         },
         {
@@ -705,7 +729,19 @@
         },
         {
           "source": "schema::dagshund.retail_sources",
+          "target": "source-table::dagshund.retail_sources.customer_snapshot",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.retail_sources",
           "target": "source-table::dagshund.retail_sources.inventory_delta",
+          "diffState": "unchanged",
+          "kind": "dag"
+        },
+        {
+          "source": "schema::dagshund.retail_sources",
+          "target": "source-table::dagshund.retail_sources.product_snapshot",
           "diffState": "unchanged",
           "kind": "dag"
         },
@@ -764,8 +800,20 @@
           "kind": "lateral"
         },
         {
+          "source": "resources.postgres_synced_tables.customer_lookup",
+          "target": "source-table::dagshund.retail_sources.customer_snapshot",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
           "source": "resources.postgres_synced_tables.inventory_lookup",
           "target": "source-table::dagshund.retail_sources.inventory_delta",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.postgres_synced_tables.product_lookup",
+          "target": "source-table::dagshund.retail_sources.product_snapshot",
           "diffState": "unchanged",
           "kind": "lateral"
         },
@@ -801,9 +849,19 @@
         "resourceKey": "schema::dagshund.retail_sources"
       },
       {
+        "id": "source-table::dagshund.retail_sources.customer_snapshot",
+        "label": "customer_snapshot",
+        "resourceKey": "source-table::dagshund.retail_sources.customer_snapshot"
+      },
+      {
         "id": "source-table::dagshund.retail_sources.inventory_delta",
         "label": "inventory_delta",
         "resourceKey": "source-table::dagshund.retail_sources.inventory_delta"
+      },
+      {
+        "id": "source-table::dagshund.retail_sources.product_snapshot",
+        "label": "product_snapshot",
+        "resourceKey": "source-table::dagshund.retail_sources.product_snapshot"
       }
     ]
   }

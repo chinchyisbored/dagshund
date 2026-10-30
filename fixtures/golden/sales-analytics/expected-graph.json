@@ -685,15 +685,15 @@
       ]
     },
     "edges": {
-      "total": 11,
+      "total": 12,
       "by_kind": {
         "dag": 7,
-        "lateral": 4
+        "lateral": 5
       },
       "by_diff_state": {
         "added": 0,
         "removed": 0,
-        "unchanged": 11
+        "unchanged": 12
       },
       "by_kind_and_diff_state": {
         "dag": {
@@ -704,7 +704,7 @@
         "lateral": {
           "added": 0,
           "removed": 0,
-          "unchanged": 4
+          "unchanged": 5
         }
       },
       "entries": [
@@ -759,6 +759,12 @@
         {
           "source": "resources.dashboards.sales_overview",
           "target": "sql-warehouse::9d0afa601cb95187",
+          "diffState": "unchanged",
+          "kind": "lateral"
+        },
+        {
+          "source": "resources.jobs.sales_reporting",
+          "target": "resources.alerts.high_return_rate",
           "diffState": "unchanged",
           "kind": "lateral"
         },

@@ -46,6 +46,35 @@ describe("retail-de fixture task topology and resource details", () => {
     );
   });
 
+  test("file-arrival trigger resolves to its captured volume and inferred ancestry", async () => {
+    const plan = await loadFixture("retail-de");
+    const graph = buildResourceGraphFromPlan(plan);
+    const edgePairs = graph.lateralEdges.map((edge) => `${edge.source}->${edge.target}`);
+    const nodeIds = graph.nodes.map((node) => node.id);
+
+    expect(
+      edgePairs.filter(
+        (pair) =>
+          pair === "resources.jobs.retail_bronze_file_arrival->volume::dagshund.models.a_volume",
+      ),
+    ).toHaveLength(1);
+    expect(nodeIds).toContain("schema::dagshund.models");
+    expect(nodeIds).toContain("volume::dagshund.models.a_volume");
+    expect(nodeIds).not.toContain("volume::dagshund.models.a_volume.retail");
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "catalog::dagshund",
+        target: "schema::dagshund.models",
+      }),
+    );
+    expect(graph.edges).toContainEqual(
+      expect.objectContaining({
+        source: "schema::dagshund.models",
+        target: "volume::dagshund.models.a_volume",
+      }),
+    );
+  });
+
   test("For Each task exposes its input and concurrency changes", async () => {
     const plan = await loadFixture("retail-de");
     const { nodes } = buildPlanGraphFromPlan(plan);
