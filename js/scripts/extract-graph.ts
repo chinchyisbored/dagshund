@@ -11,9 +11,10 @@
  */
 
 import { buildPlanGraph } from "../src/graph/build-plan-graph.ts";
-import type { DerivedKind } from "../src/graph/derived-node-specs.ts";
 import { buildResourceGraph } from "../src/graph/build-resource-graph.ts";
+import type { DerivedKind } from "../src/graph/derived-node-specs.ts";
 import { parsePlanJson } from "../src/parser/parse-plan.ts";
+import { preparePlan } from "../src/preparation/prepare-plan.ts";
 import type { DiffState } from "../src/types/diff-state.ts";
 import type {
   EdgeDiffState,
@@ -23,9 +24,8 @@ import type {
   TaskChangeSummary,
 } from "../src/types/graph-types.ts";
 import type { ActionType } from "../src/types/plan-schema.ts";
-import { LATERAL_EDGE_PREFIX } from "../src/utils/resource-key.ts";
-import { preparePlan } from "../src/preparation/prepare-plan.ts";
 import { normalizePlan } from "../src/utils/normalize-plan.ts";
+import { LATERAL_EDGE_PREFIX } from "../src/utils/resource-key.ts";
 
 type EdgeKind = "dag" | "lateral";
 
@@ -138,8 +138,7 @@ const emptyEdgeKindAndDiffStateCounts = (): Record<EdgeKind, Record<EdgeDiffStat
 const compareStrings = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 // isDrift only exists on job/task/resource node kinds; derived/root/phantom never drift.
-const nodeHasDrift = (node: GraphNode): boolean =>
-  "isDrift" in node && node.isDrift === true;
+const nodeHasDrift = (node: GraphNode): boolean => "isDrift" in node && node.isDrift === true;
 
 const edgeKind = (edge: GraphEdge): EdgeKind =>
   edge.id.startsWith(LATERAL_EDGE_PREFIX) ? "lateral" : "dag";
@@ -156,9 +155,7 @@ const summarizeNodeEffects = (node: GraphNode): readonly NodeEffectSummary[] =>
     : [];
 
 const extractTaskChangeSummary = (node: GraphNode): TaskChangeSummary =>
-  "taskChangeSummary" in node && node.taskChangeSummary !== undefined
-    ? node.taskChangeSummary
-    : [];
+  "taskChangeSummary" in node && node.taskChangeSummary !== undefined ? node.taskChangeSummary : [];
 
 const summarizeNode = (node: GraphNode): NodeEntry => ({
   id: node.id,

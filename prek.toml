@@ -20,4 +20,9 @@ hooks = [
   { id = "biome-format", name = "biome format", entry = "bun run --cwd js format:check", language = "system", pass_filenames = false },
   { id = "tsc", name = "tsc --noEmit", entry = "bun run --cwd js typecheck", language = "system", pass_filenames = false, require_serial = true },
   { id = "uv-lock", name = "uv lock", entry = "uv lock", language = "system", files = "^(uv\\.lock|pyproject\\.toml|uv\\.toml)$", pass_filenames = false },
+  # Build generated browser assets before the test hooks below.
+  { id = "build-template", name = "build browser template", entry = "bun run --cwd js build:template", language = "system", pass_filenames = false, always_run = true, fail_fast = true },
+  { id = "test-js", name = "JS unit tests", entry = "bun test --cwd js --only-failures --coverage --coverage-reporter=lcov --coverage-dir ../.cache/coverage-js", language = "system", pass_filenames = false, always_run = true, env = { AGENT = "1" } },
+  { id = "test-py", name = "Python unit tests", entry = "uv run pytest -q --cov=dagshund --cov-report=", language = "system", pass_filenames = false, always_run = true, env = { COVERAGE_FILE = ".cache/coverage/.coverage" } },
+  { id = "test-golden", name = "golden checks", entry = "bash fixtures/tooling/generate_expected.sh --check", language = "system", pass_filenames = false, always_run = true },
 ]

@@ -28,10 +28,6 @@ uv tool install dagshund
 uvx dagshund plan.json
 ```
 
-## Development
-
-Enter the Nix development shell, then run `just test-py-supported` to test with Python 3.12, 3.13, and 3.14. Each interpreter uses a separate environment under `.cache/venv-py*`; dependencies are installed from the locked `uv.lock`. The regular `just test-py` and `just check` commands continue to use the primary Python 3.14 interpreter.
-
 ## Local usage
 
 By default, dagshund reads a plan file (or stdin) and prints a colored diff to the terminal:
@@ -99,7 +95,7 @@ dagshund plan.json
 #       - run one_off_audit (bundle run entry will be removed)
 ```
 
-Deleting a `job_runs` entry removes it from bundle state; `bundle run entry will be removed` does not claim that Databricks deletes the remote run history. The CLI 1.20 adapter does not issue a backend run-record delete. Trigger fingerprints, trigger-removal semantics, and preserved-history compatibility remain open (`dagshund-n8zt.8`). Removing only `lifecycle.triggers.on_bundle_deploy` removes the deploy trigger, starts no run, and shows no play badge. With `--detailed-exitcode`, a plan whose only changes are deploy-triggered runs exits 2.
+Deleting a `job_runs` entry removes it from bundle state; `bundle run entry will be removed` does not claim that Databricks deletes the remote run history. The CLI 1.20 adapter does not issue a backend run-record delete. This rendering does not establish general compatibility for trigger fingerprints, trigger-removal semantics, or preserved run history. Removing only `lifecycle.triggers.on_bundle_deploy` removes the deploy trigger, starts no run, and shows no play badge. With `--detailed-exitcode`, a plan whose only changes are deploy-triggered runs exits 2.
 
 Export the HTML report with `-o` for detailed inspection in a browser:
 

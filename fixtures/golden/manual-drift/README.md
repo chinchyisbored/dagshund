@@ -1,7 +1,7 @@
 # manual-drift
 
 This fixture requires manual intervention — it cannot be regenerated with `regen.sh`.
-Run every maintenance command through the repository's Nix development shell.
+Run every maintenance command from the repository root through `direnv exec .`.
 
 Drift means the remote resource was edited in the Databricks UI after bundle deployment, so the plan detects differences even though the bundle config hasn't changed.
 
@@ -10,7 +10,7 @@ Drift means the remote resource was edited in the Databricks UI after bundle dep
 ### 1. Deploy the bundle
 
 ```bash
-nix develop --command bash -c \
+direnv exec . bash -c \
   'source fixtures/golden/.env && cd fixtures/golden/manual-drift/before && databricks bundle deploy'
 ```
 
@@ -40,7 +40,7 @@ Open the workspace and make these changes.
 ### 3. Capture the plan
 
 ```bash
-nix develop --command bash -c '
+direnv exec . bash -c '
 cd fixtures/golden/manual-drift/after
 rm -rf .databricks
 databricks bundle plan -o json \
@@ -51,14 +51,14 @@ databricks bundle plan -o json \
 ### 4. Destroy
 
 ```bash
-nix develop --command bash -c \
+direnv exec . bash -c \
   'cd fixtures/golden/manual-drift/after && databricks bundle destroy --auto-approve'
 ```
 
 ### 5. Generate expected output
 
 ```bash
-nix develop --command just gen-expected manual-drift
+direnv exec . just gen-expected manual-drift
 ```
 
 ## Scope limitation: whole-resource drift (`drift_doomed`)

@@ -14,10 +14,14 @@
 ### Running Tests
 
 ```bash
-nix develop --command just test          # All tests (JS + Python)
-nix develop --command just test-py       # Python only
-nix develop --command just check         # lint + typecheck + all tests
+direnv exec . just test          # All tests (JS + Python)
+direnv exec . just test-py       # Python only
+direnv exec . just test-py-supported  # Python 3.12, 3.13, and 3.14
+direnv exec . just check         # all hooks, unit suites, and golden checks
+direnv exec . uv run prek run --all-files  # equivalent direct command
 ```
+
+Run these commands from the repository root through direnv. Every change must pass `just check`; the focused commands are for diagnosis, not alternative validation routes. `prek.toml` defines the full suite for both `just check` and normal commits. It rebuilds the browser template before unit tests. Missing templates fail the HTML tests rather than skipping them; the focused Python helpers also build the template. Unit and golden hooks run in full even when no filenames match. Stage intended additions first; `--all-files` includes tracked files and their on-disk edits, not untracked files. If a hook fixes files, inspect and restage those changes before rerunning. Review the final diff after success. Prek reports hook results and failure diagnostics; add `--verbose` when capturing successful hook output to a log. Native size checking applies to staged additions, and JavaScript lint/format hooks cover `js/src`, `js/tests`, and `js/scripts` with their existing generated/vendor/style exclusions.
 
 ### Conventions
 
@@ -30,7 +34,7 @@ nix develop --command just check         # lint + typecheck + all tests
 - **Mocking**: `monkeypatch` over `unittest.mock.patch`. Use mock only for method chains, with a comment explaining why.
 - **Assertions**: no redundant messages — pytest shows expected vs actual. Add messages only for parametrized or multi-step assertions.
 - **Side effects**: `try/finally` when monkeypatch can't handle cleanup (e.g., reassigning `__file__`).
-- **Fixtures**: built-in (`tmp_path`, `capsys`, `monkeypatch`). Golden plan fixtures live in `fixtures/golden/<name>/` (shared with JS). See [fixtures/README.md](../../fixtures/README.md) for layout, regen tooling, and the `--check` mode used by `nix develop --command just test-golden`.
+- **Fixtures**: built-in (`tmp_path`, `capsys`, `monkeypatch`). Golden plan fixtures live in `fixtures/golden/<name>/` (shared with JS). See [fixtures/README.md](../../fixtures/README.md) for layout, regen tooling, and the `--check` mode used by `direnv exec . just test-golden`.
 
 ---
 
@@ -39,7 +43,7 @@ nix develop --command just check         # lint + typecheck + all tests
 ### Running Tests
 
 ```bash
-nix develop --command just test-js       # All JS tests
+direnv exec . just test-js       # All JS tests
 ```
 
 ### Conventions

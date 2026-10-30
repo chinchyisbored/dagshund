@@ -40,7 +40,7 @@ variables:
 
 # --- Top-level workflow rules ---
 # Four-lane pipeline model:
-#   1. Merge request  → full CI (quality, golden, security, dependency-scan)
+#   1. Merge request  → full CI (quality, wheel build/smoke, security, dependency-scan)
 #   2. Push to main   → quality (for coverage badge) → pages deploy
 #   3. Tag push       → release (version-check, build, smoke-wheel, publish)
 #                       plus dependency-scan rerun for fresh CVE disclosures
@@ -181,18 +181,25 @@ quality:
     # Main push: feeds the coverage badge and gates `pages` below.
     - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
   script:
-    - bun run --cwd js biome check src/ tests/
-    - uv run ruff check src/ tests/ fixtures/tooling/
-    - bun run --cwd js tsc --noEmit
-    - uv run ty check src/ tests/ fixtures/tooling/
-    - bun test --cwd js --coverage --coverage-reporter=text
-    - uv run pytest --cov=dagshund --cov-report=term-missing
+    - uv run prek run --all-files
+    - git diff --exit-code
+    - COVERAGE_FILE=.cache/coverage/.coverage uv run --locked coverage report --show-missing
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - .cache/coverage/
+      - .cache/coverage-js/
+      - src/dagshund/_assets/template.html
 
 # --- Lower-minor Python compatibility (Python-only, every quality lane) ---
 
 python:
   stage: quality
+  needs:
+    - job: quality
+      artifacts: true
   parallel:
     matrix:
       - PYTHON_IMAGE:
@@ -240,19 +247,17 @@ version-check:
         exit 1
       fi
 
-# --- Build wheel (tag push only) ---
-# Release job: interruptible: false, never cancel an in-flight build.
+# --- Build wheel (MR and tag) ---
+# Keep tag builds non-interruptible; both lanes use the same build.
 
 build:
   extends: .release-setup
   stage: build
   interruptible: false
+  # Stage ordering requires all quality jobs, including tag-only version-check.
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-  needs:
-    - quality
-    - python
-    - version-check  # cheapest possible gate against publishing a mismatched wheel — never make optional
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - bun run --cwd js build:template
     - cp skills/dagshund/SKILL.md src/dagshund/_assets/SKILL.md
@@ -263,27 +268,7 @@ build:
       - dist/
     expire_in: 1 hour
 
-# --- Golden fixture checks (MR only) ---
-# Diffs text + markdown + exit codes + graph structure against stored expected
-# files. The graph extractor runs under Bun, so this job needs the full setup.
-# On tag pipelines `smoke-wheel` re-runs the golden check against the installed
-# wheel, so `golden` itself is MR-only.
-
-golden:
-  extends: .release-setup
-  stage: smoke
-  variables:
-    NO_COLOR: "1"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  needs:
-    - quality
-    - python
-  allow_failure: false
-  script:
-    - ./fixtures/tooling/generate_expected.sh --check
-
-# --- Wheel smoke (tag push only) ---
+# --- Wheel smoke (MR and tag) ---
 # Installs the built wheel into a fresh venv, runs the golden checks against
 # the installed binary, and verifies HTML output baked into the wheel.
 # Extends .release-setup because the graph extractor needs bun + js deps.
@@ -296,6 +281,7 @@ smoke-wheel:
     NO_COLOR: "1"
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   needs:
     - quality
     - build

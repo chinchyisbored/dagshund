@@ -2,7 +2,7 @@
 
 Most deployable golden fixtures are sanitized captures of `databricks bundle plan -o json` from a real Databricks workspace. `synthetic-ai-gateway` is a constructed, plan-only input for unavailable services; it is not a workspace capture or deployment config. Both fixture classes use the existing JS and Python plan consumers, but synthetic `cli_version` values identify a targeted contract, not a generating CLI run. See [COVERAGE.md](COVERAGE.md) for the pinned CLI 1.20 resource and behavior evidence matrix, limits, and pending feature-gap handoff. The ordered `showcases.json` manifest selects the examples published in the Pages gallery. It does not limit regression coverage: Python and JavaScript tests and `just test-golden` continue to discover every plan under `golden/`.
 
-Run every fixture maintenance command through the repository's Nix development shell.
+Run every fixture maintenance command from the repository root through `direnv exec .`; `.envrc` loads the declared toolchain.
 
 ## Directory structure
 
@@ -63,7 +63,7 @@ pipeline and relationship semantics.
 All `databricks.yaml` files reference a local bundle schema for editor validation. Generate it once:
 
 ```bash
-nix develop --command bash -c \
+direnv exec . bash -c \
   'databricks bundle schema > fixtures/golden/bundle_config_schema.json'
 ```
 
@@ -100,19 +100,19 @@ Starter SQL warehouse (`9d0afa601cb95187`) is used by the app-dependencies fixtu
 Regeneration runs a full deploy/plan/capture/destroy cycle against a real workspace. Local only, never runs in CI.
 
 ```bash
-nix develop --command just regen <fixture-name>   # One fixture
-nix develop --command just regen                  # All unattended fixtures
+direnv exec . just regen <fixture-name>   # One fixture
+direnv exec . just regen                  # All unattended fixtures
 ```
 
-`nix develop --command just regen` skips fixtures that cannot regenerate unattended against the default workspace:
+`direnv exec . just regen` skips fixtures that cannot regenerate unattended against the default workspace:
 
 | Fixture | Regeneration path |
 |---|---|
 | `manual-drift` | Follow `fixtures/golden/manual-drift/README.md`. It requires workspace UI edits between deploy and plan. |
 | `cleanup-job-run-triggers` | Supervised live CLI 1.20 fixture. Requires user deletion of one empty fixture-owned schema between baseline deploy and plan; see its README. Never run through unattended regeneration. |
-| `wheel-bump` | Needs classic compute (job clusters with task libraries); the default fixture workspace is serverless-only. Regenerate ad hoc with `nix develop --command just regen wheel-bump` against a workspace that allows job clusters, then `nix develop --command just gen-expected wheel-bump`. |
+| `wheel-bump` | Needs classic compute (job clusters with task libraries); the default fixture workspace is serverless-only. Regenerate ad hoc with `direnv exec . just regen wheel-bump` against a workspace that allows job clusters, then `direnv exec . just gen-expected wheel-bump`. |
 
-`lakebase-autoscaling` is part of the unattended `nix develop --command just regen` set. It requires the external `phantom-lineage-lakebase` project with a `production` branch, plus the UC source table listed above. Keep these prerequisites outside the fixture bundle lifecycle. If a Lakebase endpoint is left list-visible but not get/delete-addressable, clean up that endpoint before rerunning only the affected fixture.
+`lakebase-autoscaling` is part of the unattended `direnv exec . just regen` set. It requires the external `phantom-lineage-lakebase` project with a `production` branch, plus the UC source table listed above. Keep these prerequisites outside the fixture bundle lifecycle. If a Lakebase endpoint is left list-visible but not get/delete-addressable, clean up that endpoint before rerunning only the affected fixture.
 
 `job-runs` regenerates unattended but needs Databricks CLI 1.7.0+ (`resources.job_runs`
 is experimental) and its deploys really fire the runs they declare: eight tiny
@@ -124,20 +124,22 @@ runs. With Databricks CLI 1.20, removing or recreating a `job_runs` entry does n
 history. The drain remains because older CLI versions and job-resource teardown may
 delete runs.
 
-After regeneration and explicit approval of the reviewed output changes, update expected dagshund output with `nix develop --command just gen-expected <fixture-name>`. Do not bless mismatches without reviewing their meaning.
+After regeneration and explicit approval of the reviewed output changes, update expected dagshund output with `direnv exec . just gen-expected <fixture-name>`. Do not bless mismatches without reviewing their meaning.
 
 ## CLI compatibility limits
 
-A live fixture refresh checks only the captured plans; it does not establish general CLI compatibility. The user dropped the speculative compatibility audit under `dagshund-92hu` without an established defect, not as fixed or verified. That issue now covers five reproduced graph bugs and their fixes. Accepted cleanup and trigger evidence supersedes the stale `n8zt.7/.8` fixture bullets. See [COVERAGE.md](COVERAGE.md) for exact graph evidence and remaining service limits; none of these decisions establishes blanket CLI compatibility.
+A live fixture refresh checks only the captured plans; it does not establish general CLI compatibility. See [COVERAGE.md](COVERAGE.md) for captured provenance, offline graph contracts, and remaining service limits. Offline test success does not establish backend availability or runtime readiness.
 
 `wheel-bump` remains a historical CLI 1.6.0 plan because the default serverless workspace cannot regenerate its classic-compute fixture. Do not relabel or refresh it as CLI 1.20 without the separately scoped workspace and review.
 
 ## Checking expected output
 
-`nix develop --command just test-golden` (also part of `nix develop --command just check`) diffs current CLI output against the stored `expected.txt` / `expected.md` for every fixture. It also runs `--suppress-wheel-updates` in both formats: fixtures with a stored `expected-suppressed.txt` / `expected-suppressed.md` are diffed against those, and all others are diffed against the plain expected files, asserting that suppression is a no-op there.
+`direnv exec . just test-golden` (also part of `direnv exec . just check`) diffs current CLI output against the stored `expected.txt` / `expected.md` for every fixture. This check is also a normal commit hook, alongside both unit suites and the existing lint/format/typecheck hooks. It also runs `--suppress-wheel-updates` in both formats: fixtures with a stored `expected-suppressed.txt` / `expected-suppressed.md` are diffed against those, and all others are diffed against the plain expected files, asserting that suppression is a no-op there.
+
+Every change must pass `just check`, which runs all hooks defined in `prek.toml` using `uv run prek run --all-files`. The fixture-specific commands here are maintenance or diagnostic tools, not substitutes for that gate. Stage intended additions first so they are included. If hooks fix files, inspect and restage the changes before rerunning. Review the final diff after success. Prek prints failures directly; use `--verbose` when retaining successful hook output in a log. Golden checks never regenerate expectations.
 
 ```bash
-nix develop --command just test-golden
+direnv exec . just test-golden
 ```
 
 Exits 0 on match and 1 on any mismatch or missing file.
@@ -147,7 +149,7 @@ Exits 0 on match and 1 on any mismatch or missing file.
 `sanitize.py` replaces email addresses with deterministic fakes (`user1@example.com`, `user2@example.com`, ...). UUIDs, numeric IDs, and timestamps pass through untouched. Same input always produces the same output.
 
 ```bash
-nix develop --command bash -c \
+direnv exec . bash -c \
   'python3 fixtures/tooling/sanitize.py < raw-plan.json > sanitized-plan.json'
 ```
 

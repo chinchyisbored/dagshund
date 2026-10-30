@@ -8,18 +8,20 @@ description: >
 
 Follow these steps in order. Stop and report if any step fails. `main` is
 MR-only and linear — never commit or push to it directly. Run every command
-through `nix develop --command`; use `nix develop --command bash -c` when a
-step needs shell syntax. Never use tools inherited from the host environment.
+from the repository root through `direnv exec .`; use `direnv exec . bash -c`
+when a step needs shell syntax. Never use tools inherited from the host
+environment. If direnv requires approval, ask the user to inspect and allow
+`.envrc`; never approve it automatically.
 
 ## Step 1: Guards
 
 Verify all preconditions before proceeding:
 
-1. Run `nix develop --command git status` — working tree must be clean (no uncommitted changes)
-2. Verify current branch is `main` with `nix develop --command git branch --show-current`
-3. Run `nix develop --command git pull --ff-only` — must be up to date with origin
-4. Run `nix develop --command just check` — lint, typecheck, and all tests must pass
-5. Run `nix develop --command just build` — production build must succeed
+1. Run `direnv exec . git status` — working tree must be clean (no uncommitted changes)
+2. Verify current branch is `main` with `direnv exec . git branch --show-current`
+3. Run `direnv exec . git pull --ff-only` — must be up to date with origin
+4. Run `direnv exec . just check` — lint, typecheck, and all tests must pass
+5. Run `direnv exec . just build` — production build must succeed
 
 If any guard fails, stop and explain what failed. Do not proceed.
 
@@ -32,7 +34,7 @@ If any guard fails, stop and explain what failed. Do not proceed.
 
 ## Step 3: Create release branch
 
-1. `nix develop --command git checkout -b release/vX.Y.Z`
+1. `direnv exec . git checkout -b release/vX.Y.Z`
 
 ## Step 4: Bump version
 
@@ -42,13 +44,13 @@ Update the version in 1 location:
 
 ## Step 5: Commit version bump
 
-1. `nix develop --command git add src/dagshund/__init__.py`
-2. Verify with `nix develop --command git status`
-3. Commit with `nix develop --command bash -c 'source .venv/bin/activate && git commit -m "chore: bump version to X.Y.Z"'`
+1. `direnv exec . git add src/dagshund/__init__.py`
+2. Verify with `direnv exec . git status`
+3. Commit with `direnv exec . git commit -m "chore: bump version to X.Y.Z"`
 
 ## Step 6: Draft tag message
 
-1. Get commits since last tag: `nix develop --command bash -c 'git log "$(git describe --tags --abbrev=0)"..HEAD --oneline'`
+1. Get commits since last tag: `direnv exec . bash -c 'git log "$(git describe --tags --abbrev=0)"..HEAD --oneline'`
 2. Draft a **short flat bullet list** of key changes — no section headers, just bullets
 3. Match the style of existing tags (e.g. v0.6.0 has 4 concise bullets)
 4. Present the draft to the user for approval or editing
@@ -56,11 +58,11 @@ Update the version in 1 location:
 
 ## Step 7: Push release branch
 
-1. `nix develop --command git push -u origin release/vX.Y.Z`
+1. `direnv exec . git push -u origin release/vX.Y.Z`
 
 ## Step 8: Open merge request
 
-1. `nix develop --command glab mr create --source-branch release/vX.Y.Z --target-branch main --title "chore: release vX.Y.Z" --description "<tag bullets>" --remove-source-branch --squash-before-merge --yes`
+1. `direnv exec . glab mr create --source-branch release/vX.Y.Z --target-branch main --title "chore: release vX.Y.Z" --description "<tag bullets>" --remove-source-branch --squash-before-merge --yes`
 2. Capture the MR IID from the output for later state and SHA lookup.
 3. Verify the MR title remains the conventional subject `chore: release vX.Y.Z`.
 
@@ -76,7 +78,7 @@ Update the version in 1 location:
 After the user says the MR is merged, verify its state once:
 
 ```bash
-nix develop --command bash -c '
+direnv exec . bash -c '
 state=$(glab mr view <mr-iid> --output json | jq -r '\''.state'\'')
 if [ "$state" != "merged" ]; then
   echo "release MR is not merged"
@@ -93,7 +95,7 @@ Ask GitLab for the exact SHA of the squashed commit on main. Do not guess
 from git — this is race-proof against concurrent merges.
 
 ```bash
-nix develop --command bash -c '
+direnv exec . bash -c '
 set -euo pipefail
 release_sha=$(glab mr view <mr-iid> --output json \
   | jq -r '\''.squash_commit_sha'\'')
@@ -107,8 +109,8 @@ printf "%s\n" "$release_sha" > /tmp/dagshund-release-sha
 
 ## Step 12: Switch to main and fast-forward pull
 
-1. `nix develop --command git checkout main`
-2. `nix develop --command git pull --ff-only origin main`
+1. `direnv exec . git checkout main`
+2. `direnv exec . git pull --ff-only origin main`
 
 If `--ff-only` refuses, bail out and tell the user that main diverged in
 an unexpected way. Do not proceed.
@@ -116,7 +118,7 @@ an unexpected way. Do not proceed.
 ## Step 13: Verify the resolved SHA is on main
 
 ```bash
-nix develop --command bash -c '
+direnv exec . bash -c '
 git merge-base --is-ancestor "$(cat /tmp/dagshund-release-sha)" origin/main
 '
 ```
@@ -126,13 +128,13 @@ the SHA resolution.
 
 ## Step 14: Create annotated tag on the resolved SHA
 
-1. `nix develop --command bash -c 'git tag -a "vX.Y.Z" "$(cat /tmp/dagshund-release-sha)" -m "<approved tag message>"'`
+1. `direnv exec . bash -c 'git tag -a "vX.Y.Z" "$(cat /tmp/dagshund-release-sha)" -m "<approved tag message>"'`
 2. Tag must use `v` prefix + semver format and point at the exact squashed
    release commit, not `HEAD`.
 
 ## Step 15: Push tag
 
-1. `nix develop --command git push origin "vX.Y.Z"`
+1. `direnv exec . git push origin "vX.Y.Z"`
 
 This triggers the tag pipeline: `version-check` → `build` → `smoke-wheel` →
 manual `publish-test` → manual `publish`.
@@ -157,7 +159,7 @@ manual `publish-test` → manual `publish`.
 
 ## Step 17: Create GitLab release
 
-1. `nix develop --command glab release create "vX.Y.Z" --notes-file "/tmp/dagshund-vX.Y.Z-release-notes.md"`
+1. `direnv exec . glab release create "vX.Y.Z" --notes-file "/tmp/dagshund-vX.Y.Z-release-notes.md"`
 
 ## Step 18: Create GitHub mirror release
 
@@ -168,16 +170,16 @@ release in the configured mirror repository.
 1. Verify GitHub CLI authentication:
 
    ```bash
-   nix develop --command gh auth status
+   direnv exec . gh auth status
    ```
 
    If authentication is missing, stop and ask the user to run the interactive
-   `nix develop --command gh auth login`. Never attempt to bypass the prompt.
+   `direnv exec . gh auth login`. Never attempt to bypass the prompt.
 
 2. Resolve the enabled GitHub mirror repo and save it for later steps:
 
    ```bash
-   nix develop --command bash -c '
+   direnv exec . bash -c '
    set -euo pipefail
    project_id=$(glab repo view --output json | jq -r '\''.id'\'')
    mirror_url=$(glab api "projects/${project_id}/remote_mirrors" \
@@ -197,20 +199,20 @@ release in the configured mirror repository.
 3. Verify the mirrored tag exists before creating the release:
 
    ```bash
-   nix develop --command bash -c '
+   direnv exec . bash -c '
    github_repo=$(cat /tmp/dagshund-github-repo)
    gh api "repos/${github_repo}/git/refs/tags/vX.Y.Z" >/dev/null
    '
    ```
 
    If the tag is missing, inspect the remote mirror status with
-   `nix develop --command bash -c 'project_id=$(cat /tmp/dagshund-gitlab-project-id); glab api "projects/${project_id}/remote_mirrors"'`
+   `direnv exec . bash -c 'project_id=$(cat /tmp/dagshund-gitlab-project-id); glab api "projects/${project_id}/remote_mirrors"'`
    and wait for the mirror to finish. Do not create the tag manually in GitHub.
 
 4. Create the GitHub release from the existing mirrored tag:
 
    ```bash
-   nix develop --command bash -c '
+   direnv exec . bash -c '
    github_repo=$(cat /tmp/dagshund-github-repo)
    gh release create "vX.Y.Z" \
      --repo "$github_repo" \
@@ -222,7 +224,7 @@ release in the configured mirror repository.
    ```
 
 5. Verify it exists:
-   `nix develop --command bash -c 'github_repo=$(cat /tmp/dagshund-github-repo); gh release view "vX.Y.Z" --repo "$github_repo"'`
+   `direnv exec . bash -c 'github_repo=$(cat /tmp/dagshund-github-repo); gh release view "vX.Y.Z" --repo "$github_repo"'`
 
 ## Step 19: Done
 

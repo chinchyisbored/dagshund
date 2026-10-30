@@ -5,18 +5,26 @@ All agents working in this repository MUST follow this file and the referenced g
 ## Development Tools
 
 - `flake.nix` defines the development toolchain.
-- `.envrc` loads the Nix environment through direnv for interactive shells.
+- `.envrc` loads the Nix environment through direnv.
 - `justfile` provides development commands.
 - `process-compose.yaml` manages the CSS watcher and development server, started with `just dev [plan_file]`.
 
 ### Agent command execution
 
-Agent tool calls may not inherit direnv, even when the user's terminal has loaded it. Always wrap commands explicitly; do not assume the environment is active.
+Agent tool calls may not inherit direnv, even when the user's terminal has loaded it. Always wrap commands explicitly and run from the intended checkout. For example: `direnv exec <checkout> bash -c 'cd <checkout> && just check'`.
 
-All repository development and maintenance commands MUST run inside the repository's Nix development shell. This includes Git, `br`, `just`, language tooling, Databricks CLI, GitLab CLI, GitHub CLI, shell utilities, and every command in agent guidelines and skills.
+`just check` runs `uv run prek run --all-files`; `prek.toml` owns formatting, lint, typechecks, hygiene, browser-template generation, both unit suites, and golden checks. Normal commit hooks run the same suites. Stage intended additions before checking because untracked files are not included. Hooks read current on-disk content and may fix it; inspect and restage fixes, then rerun. Do not commit merely to validate. After success, review the final diff before handoff.
 
-- For one-off commands, use `nix develop --command <command> ...`.
-- For pipelines, redirection, command substitution, activation, or multiple commands, use `nix develop --command bash -c '<commands>'`.
+Every change must pass `just check` before handoff. The navigation map below does not select checks: do not substitute focused tools or test subsets for the full gate. Keep prek's native hook summaries; expand successful test output only for diagnosis. Focused helpers are private (hidden from `just --list`) but remain callable. Normal commit hooks enforce the full suite again; do not skip them.
+
+Prek reports hook results and failure diagnostics. When retaining a complete local log, run `direnv exec . bash -c 'mkdir -p .cache && uv run prek run --all-files --verbose > .cache/prek.log 2>&1'` from the intended checkout. Preserve its exit status and inspect the log on failure. Native size checking remains scoped to staged additions; JavaScript lint/format hooks cover `js/src`, `js/tests`, and `js/scripts`, with generated/vendor/style exclusions preserved.
+
+All local repository development and maintenance commands MUST use the repository's direnv environment. This includes Git, `br`, `just`, language tooling, Databricks CLI, GitLab CLI, GitHub CLI, shell utilities, and every command in agent guidelines and skills.
+
+- From the repository root, use `direnv exec . <command> ...`.
+- For pipelines, redirection, command substitution, or multiple commands, use `direnv exec . bash -c '<commands>'`.
+- `direnv exec` loads the environment but does not change directory. Outside the checkout, use the explicit `cd` pattern above.
+- If direnv requires approval, stop and ask the user to inspect and allow `.envrc`; never approve it automatically.
 - Never rely on tools inherited from the host environment. Verify required tools are declared in `flake.nix`.
 
 ## Project
@@ -31,6 +39,29 @@ Python CLI + interactive web visualizer for `databricks bundle plan -o json` out
 - **Python** (>=3.12) — CLI, text rendering, zero runtime dependencies
 - **TypeScript** (strict) + React 19 + Bun — browser visualization (`js/`)
 - React Flow, ELK (elkjs), Tailwind CSS, Zod
+
+## Source navigation
+
+This map locates code; it does not change the required `just check` gate.
+
+| Area | Source |
+|---|---|
+| CLI, plan parsing, text/HTML output | `src/dagshund/` |
+| Browser parsing, preparation, graphs, UI | `js/src/` |
+| Build and graph-extraction tooling | `js/scripts/`, `pyproject.toml` |
+| Fixture capture and expectation generators | `fixtures/tooling/` |
+| Test implementations | `tests/`, `js/tests/` |
+
+### Generated outputs
+
+Edit sources, not generated outputs. These maintenance operations do not replace `just check`; live fixture regeneration and expectation updates still require explicit approval.
+
+| Source | Generated output | Maintenance command |
+|---|---|---|
+| `js/src/`, `js/scripts/build-template.ts` | `src/dagshund/_assets/template.html` | `just build` |
+| `js/src/styles/index.css` | `js/src/styles/output.css` | `just build` |
+| `skills/dagshund/SKILL.md` | `src/dagshund/_assets/SKILL.md` | `just build` |
+| `fixtures/golden/<name>/plan.json` | `fixtures/golden/<name>/expected*` | `just gen-expected <name>` |
 
 ## Code Philosophy (non-negotiable)
 

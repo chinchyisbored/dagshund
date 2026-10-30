@@ -16,11 +16,7 @@ def real_plan_json() -> str:
     return (FIXTURES_DIR / "mixed-changes" / "plan.json").read_text()
 
 
-def skip_without_template() -> None:
-    if not TEMPLATE_PATH.exists():
-        pytest.skip("template.html not built; run 'just build' first")
-
-
 @pytest.fixture
 def require_template() -> None:
-    skip_without_template()
+    if not TEMPLATE_PATH.is_file():
+        pytest.fail("template.html not built; run 'just check' first", pytrace=False)

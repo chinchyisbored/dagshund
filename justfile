@@ -26,24 +26,29 @@ build:
     uv build
 
 # Run JS tests
+[private]
 test-js:
-    AGENT=1 bun test --cwd {{ js_dir }} --coverage --coverage-reporter=lcov --coverage-dir {{ root }}/.cache/coverage-js
+    uv run prek run test-js --all-files
 
 # Lint JS with biome (applies safe fixes)
+[private]
 lint-js:
-    bun run --cwd {{ js_dir }} biome check --fix src/ tests/
+    bun run --cwd {{ js_dir }} biome check --fix src/ tests/ scripts/
 
 # Format JS with biome
+[private]
 format-js:
-    bun run --cwd {{ js_dir }} biome format --write src/ tests/
+    bun run --cwd {{ js_dir }} biome format --write src/ tests/ scripts/
 
 # Typecheck JS with tsc
+[private]
 typecheck-js:
     bun run --cwd {{ js_dir }} tsc --noEmit
 
 # Run Python tests
+[private]
 test-py:
-    uv run pytest -q --cov=dagshund --cov-report=
+    uv run prek run build-template test-py --all-files
 
 # Run Python tests with an explicit interpreter and isolated environment
 _test-py-with-python python env:
@@ -51,40 +56,49 @@ _test-py-with-python python env:
 
 # Run Python tests on every supported minor
 test-py-supported:
+    uv run prek run build-template --all-files
     just _test-py-with-python "{{ env_var('DAGSHUND_PYTHON312') }}" .cache/venv-py312
     just _test-py-with-python "{{ env_var('DAGSHUND_PYTHON313') }}" .cache/venv-py313
     just _test-py-with-python "{{ env_var('DAGSHUND_PYTHON314') }}" .cache/venv-py314
 
 # Lint Python with ruff
+[private]
 lint-py:
     uv run ruff check --fix {{ py_src }} {{ py_tests }} {{ py_tooling }}
 
 # Format Python with ruff
+[private]
 format-py:
     uv run ruff format {{ py_src }} {{ py_tests }} {{ py_tooling }}
 
 # Typecheck Python with ty
+[private]
 typecheck-py:
     uv run ty check {{ py_src }} {{ py_tests }} {{ py_tooling }}
 
 # Run all tests
+[private]
 test: test-js test-py
 
 # Run all linters
+[private]
 lint: lint-js lint-py
 
 # Format all code
+[private]
 format: format-js format-py
 
 # Run all typecheckers
+[private]
 typecheck: typecheck-js typecheck-py
 
 # Check golden files against current output
+[private]
 test-golden:
-    {{ py_tooling }}/generate_expected.sh --check
+    uv run prek run test-golden --all-files
 
-# Run all quality gates (lint + typecheck + test + golden)
-check: lint typecheck test test-golden
+# Run every configured hook and test suite on all tracked files
+check: hooks-run
 
 # Regenerate golden fixture(s) from Databricks (local only, requires auth)
 regen name="--all":
@@ -94,6 +108,7 @@ regen name="--all":
 gen-expected name="--all":
     {{ py_tooling }}/generate_expected.sh "{{ name }}"
 
-# Run pre-commit hooks on all files
+# Run all pre-commit hooks, including unit tests and golden checks
+[private]
 hooks-run:
     uv run prek run --all-files
