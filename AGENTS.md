@@ -9,6 +9,21 @@ All agents working in this repository MUST follow this file and the referenced g
 - `justfile` provides development commands.
 - `process-compose.yaml` manages the CSS watcher and development server, started with `just dev [plan_file]`.
 
+### Fresh checkout
+
+1. Have the user inspect `.envrc` and `flake.nix` and approve `.envrc` with `direnv allow`.
+2. Run `direnv exec . just install` to install locked Python and JavaScript dependencies and normal commit hooks.
+3. Run `direnv exec . just check` to generate browser assets and verify the checkout. Use `direnv exec . just build` when preparing a wheel, including its bundled skill.
+
+If a command requires authentication or signing, stop and ask the user to handle the prompt. Never approve direnv or change Git/signing settings on the user's behalf.
+
+### Delivery
+
+- Start a feature branch from updated `main`; never commit or push directly to `main`.
+- Use Conventional Commits. Pass `just check` before committing and keep normal commit hooks enabled.
+- Push the feature branch and open a merge request targeting `main`. The user reviews the pipeline and handles the squash merge; do not merge or monitor CI unless explicitly asked.
+- For version bumps, tags, and publication, follow the [release skill](.agents/skills/release/SKILL.md).
+
 ### Agent command execution
 
 Agent tool calls may not inherit direnv, even when the user's terminal has loaded it. Always wrap commands explicitly and run from the intended checkout. For example: `direnv exec <checkout> bash -c 'cd <checkout> && just check'`.

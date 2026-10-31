@@ -39,7 +39,10 @@
           packages = [
             beadsRust
             mv.versions.bun."1.4.2"
+            pkgs.gh
+            pkgs.git
             pkgs.glab
+            pkgs.jq
             pkgs.just
             pkgs.process-compose
             mv.versions.databricks-cli."1.20.0"

@@ -7,6 +7,25 @@
 - **Happy and sad paths** — every function with failure modes gets both.
 - **Don't test frameworks** — no testing pytest, Bun, Zod, or React Flow themselves.
 
+## Regression contracts
+
+- Define observable acceptance before changing code. For bugs, reproduce the failure through the relevant CLI, renderer, graph consumer, or interaction before fixing it. Prefer public behavior over private call counts or implementation structure.
+- Cover relevant failure, boundary, and forbidden cases alongside success. Assert outputs, exit codes, state transitions, redaction, and absence of prohibited side effects as appropriate.
+- Each regression assertion must distinguish the broken behavior from the correct behavior. Do not derive expected results from the same implementation under test, weaken assertions to make checks pass, or treat a coverage percentage as proof of correctness.
+- Adapt tests to production boundaries; do not change production APIs only to make testing easier.
+
+### Async behavior and isolation
+
+- Exercise relevant out-of-order success and failure, replacement, cancellation, and cleanup cases. Control completion with deferred promises, events, or supported fake timers; await the actual condition instead of sleeping or relying on scheduling luck.
+- Assert product behavior, not framework no-ops. An unchanged hook result after unmount alone does not prove that application cancellation worked, because React can discard unmounted state updates.
+- Keep files, environment, mocks, timers, and listeners isolated and restore them after each test. Do not depend on another test's setup or leave pending work that can affect later tests.
+
+### External boundaries and evidence
+
+- Use real pure transformations and fixture data where possible. Stub external commands, network, browser launch, or other effects at the boundary being isolated, not the behavior under test. For forbidden actions, assert that the boundary was never called.
+- Ordinary checks must not contact live services or perform deployments. Live fixture regeneration and expectation updates require separate user approval; follow the [fixture maintenance guidance](../../fixtures/README.md).
+- Report the boundary actually exercised: a stubbed command is not native CLI evidence, a simulated DOM is not a real browser, and captured or synthetic plans are not current backend validation. Follow the [evidence classes and limits](../../fixtures/COVERAGE.md#evidence-classes); name unrun or blocked checks rather than inferring success.
+
 ---
 
 ## Python
